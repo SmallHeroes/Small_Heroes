@@ -7,6 +7,7 @@ import { causalReviewPackets, causalSourceReviewPacket, compileCausalSourceReadi
 import { preparePersonalStory } from './story-writer';
 import { canonicalJson } from './request-acceptance';
 import { runSimpleStoryboardDiagnostic, type SimpleStoryboardDiagnosticCall } from './simple-storyboard-diagnostic';
+import type { StoryboardRepair } from './storyboard-repair';
 import { emptySimpleBookView, type SimpleBookView } from './simple-book-view';
 import { CAUSAL_MODELS, type TransportReply } from '../../scripts/personal-causal-trial-adapters';
 
@@ -25,6 +26,8 @@ export async function runSimpleWizardBook(args: {
   actorOwnedAppearance?: true;
   /** Opt-in storyboard contracts (drawn instant, declared landmark kinds, scene visits by planned location); absent keeps the exact existing calls. */
   momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true;
+  /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
+  storyboardRepair?: StoryboardRepair;
 }) {
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_book_request');
@@ -88,6 +91,7 @@ export async function runSimpleWizardBook(args: {
     ...(args.momentContract ? { momentContract: true as const } : {}), ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
     ...(args.sceneLocationContract ? { sceneLocationContract: true as const } : {}),
     ...(args.compilerRulesContract ? { compilerRulesContract: true as const } : {}),
+    ...(args.storyboardRepair ? { repair: args.storyboardRepair } : {}),
     generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');
       const raw = await args.visual(call, signal); check(); return raw;

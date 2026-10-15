@@ -28,8 +28,10 @@ import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, re
 import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookText, runNewBookChild, runNewBookAudition, writeNewBookGrant, experimentDir, experimentClaimFile, assertExperimentClaim,
   experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, NEW_BOOK_CONTINUATION_2, experimentContinuation2File,
   NEW_BOOK_CONTINUATION_3, experimentContinuation3File, stageRules, replaySettlement, experimentAuditionStart,
+  NEW_BOOK_STORYBOARD_REPAIR, NEW_BOOK_CARRY_RESOLUTION, experimentRepairFile, experimentCarryResolutionFile,
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
+import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -81,7 +83,13 @@ const undeclaredPropStoryboard = (owned: any) => { const s = contractedStoryboar
 const otherRefusalStoryboard = (owned: any) => { const s = contractedStoryboard(owned) as any;
   s.sequence.pages[3] = { ...s.sequence.pages[3], sceneChangeEvidence: 'words that are not on this page' }; return s; };
 /** Synthetic transports at the provider boundary: the experiment's own meters, receipts, decoding and files run for real. */
-function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; readerFindings?: unknown[]; model?: string } = {}) {
+function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; readerFindings?: unknown[]; model?: string;
+  /** The storyboard review's verdicts (default: every check supported). */
+  review?: (review: any) => any;
+  /** The provider's own creation time of every answer (seconds; default 2026-10-13T16:27:24Z, the first continuation's real day). */
+  createdAt?: number;
+  /** The storyboard answer's usage (default 10,000 in / 5,000 out). */
+  storyboardUsage?: { input_tokens: number; output_tokens: number } } = {}) {
   // The fixture book's companion is Dini; this experiment excludes Dini, so the same synthetic book is told with the fox Uri throughout
   // (text, storyboard and review, so every quoted evidence string still matches).
   const fox = <T>(value: T): T => JSON.parse(JSON.stringify(value).replace(/דיני/g, 'אורי'));
@@ -108,8 +116,10 @@ function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; read
     return { output, usage: { inputTokens: 1000, outputTokens: 500 }, estimatedMicroUsd: 7000, metadata: {}, raw };
   });
   const responses = vi.fn(async (payload: any) => ({ model: opts.model ?? payload.model, service_tier: 'default', status: 'completed',
-    usage: { input_tokens: 10000, output_tokens: 5000 },
-    output_text: JSON.stringify(payload.model === 'gpt-6-astra' ? (opts.storyboardOutput ?? contractedStoryboard)(owned) : providerReview(review)) }) as any);
+    created_at: opts.createdAt ?? 1791908844,
+    usage: payload.model === 'gpt-6-astra' && opts.storyboardUsage ? opts.storyboardUsage : { input_tokens: 10000, output_tokens: 5000 },
+    output_text: JSON.stringify(payload.model === 'gpt-6-astra' ? (opts.storyboardOutput ?? contractedStoryboard)(owned)
+      : providerReview((opts.review ?? (r => r))(structuredClone(review)))) }) as any);
   return { opus, reader, responses } satisfies TextTransports;
 }
 /** Rewrites a paid call's saved request together with its claim's and result's digests, so the record still binds itself; returns a restore. */
@@ -2442,5 +2452,413 @@ describe('own-stage meter integrity (approved offline milestone): every experime
     rewire(paid, 'comparison', w => ({ ...w, reservedMicroUsd: w.reservedMicroUsd - 1 }));
     writeFileSync(claim, JSON.stringify({ ...json(claim), maximumMicroUsd: json(path.join(paid, 'comparison.wire.json')).reservedMicroUsd }));
     expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow(/^new_book_ledger_cost$/);
+  });
+});
+
+describe("Guy's carry resolution and one storyboard repair, after the third attempt's review held it", { timeout: 300_000 }, () => {
+  const dir = () => experimentDir(config);
+  const outN = (n: 1 | 2 | 3) => path.join(dir(), [NEW_BOOK_CONTINUATION, NEW_BOOK_CONTINUATION_2, NEW_BOOK_CONTINUATION_3][n - 1].outDir);
+  const repairOut = () => path.join(dir(), NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  const reservation = () => json(path.join(dir(), 'text', 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd as number;
+  const child = () => runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
+  const OCT14 = 1791961244, OCT15 = OCT14 + 86400;
+  const attempt = (n: 2 | 3, transports = textTransports(), execute = true) =>
+    newBookExperimentCLI(['--config', file, `storyboard-continuation-${n}`, ...(execute ? ['--execute'] : [])], { text: transports, log: () => {} });
+  const repair = (transports = textTransports({ createdAt: OCT15 }), execute = true) =>
+    newBookExperimentCLI(['--config', file, 'storyboard-repair', ...(execute ? ['--execute'] : [])], { text: transports, log: () => {} }) as Promise<any>;
+  let attestations = 0;
+  const attestation = (dayTotal: { requests: number; inputTokens: number; outputTokens: number }, extra: Record<string, unknown> = {}) => {
+    const at = path.join(root, `attestation-${attestations++}.json`);
+    writeFileSync(at, JSON.stringify({ version: 'new-book-carry-attestation/v1', attestedBy: 'Guy (owner), synthetic test', source: 'synthetic usage dashboard',
+      scope: 'synthetic API key', day: '2026-10-13', model: 'gpt-6-astra', dayTotal, ...extra }));
+    return at;
+  };
+  const resolve = (at: string, execute = true) =>
+    newBookExperimentCLI(['--config', file, 'carry-resolution', '--attestation', at, ...(execute ? ['--execute'] : [])], { log: () => {} }) as Promise<any>;
+  /** The day's totals when the timed-out call was charged `output` tokens: this book's one answered call that day (the first continuation) plus it. */
+  const billed = (output = 6000) => attestation({ requests: 2, inputTokens: 20000, outputTokens: 5000 + output });
+  const nothingConsumed = () => expect([existsSync(experimentRepairFile(config)), existsSync(repairOut())]).toEqual([false, false]);
+  const heldReview = (r: any) => { r.frames[3].checks[0] = { ...r.frames[3].checks[0], verdict: 'uncertain', observation: 'page 3: not established by the text' }; return r; };
+  /**
+   * The real history, synthetically: the first continuation refused at scene/location (10/13, HEAD c), the second at an undeclared prop (10/14,
+   * HEAD e), then the third answered and its review held it (10/14, HEAD 1). The resolution and the repair run at a new reviewed HEAD (2).
+   */
+  async function heldThrice(o: { first?: Parameters<typeof textTransports>[0]; third?: Parameters<typeof textTransports>[0] } = {}) {
+    await timedOut(); headAt('c'.repeat(40));
+    await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard, ...o.first }))).rejects.toThrow('book_sequence_scene_location_drift');
+    headAt('e'.repeat(40));
+    await expect(attempt(2, textTransports({ storyboardOutput: undeclaredPropStoryboard, createdAt: OCT14 }))).rejects.toThrow('unknown_or_duplicate_prop');
+    headAt('1'.repeat(40));
+    const third = await attempt(3, textTransports({ review: heldReview, createdAt: OCT14, ...o.third })).catch((error: unknown) => error);
+    headAt('2'.repeat(40));
+    return third;
+  }
+
+  it('the held third attempt: sealed held by its own review; its storyboard and review both answered and settled; nothing builds on it', async () => {
+    expect(await heldThrice()).toMatchObject({ mode: 'storyboard-continuation-3', status: 'held_uncertain' });
+    expect(json(path.join(outN(3), 'sealed.json'))).toEqual({ status: 'held_uncertain', continuation: NEW_BOOK_CONTINUATION_3.id, runtimeEligible: false });
+    expect(claims(path.join(outN(3), 'paid-stages'))).toEqual(['storyboard', 'storyboard_review']);
+    expect(json(path.join(outN(3), 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: 714000, newKnownApiMicroUsd: 420000, carriedUnresolvedMicroUsd: reservation() });
+    headAt('1'.repeat(40));
+    await expect(child()).rejects.toThrow(/^new_book_text_not_supported$/);
+  });
+
+  it("the resolution preview is read-only: the day's totals minus this book's own calls that day are the timed-out call, at its rate", async () => {
+    await heldThrice();
+    const before = [tree(dir()), tree(path.dirname(experimentClaimFile(config)))];
+    expect(await resolve(billed(), false)).toMatchObject({ mode: 'plan', plan: { carryResolution: false, repair: false }, carryResolution: { recorded: false,
+      day: '2026-10-13', model: 'gpt-6-astra', scope: 'synthetic API key',
+      knownSameDay: [{ folder: NEW_BOOK_CONTINUATION.outDir, createdAt: '2026-10-13T16:27:24.000Z', inputTokens: 10000, outputTokens: 5000 }],
+      timedOutCall: { requests: 1, inputTokens: 10000, outputTokens: 6000, chargeMicroUsd: 10000 * 10 + 6000 * 50 }, carriedBeforeMicroUsd: reservation(),
+      ledgerBefore: { knownMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation(), remainingUnderCapMicroUsd: 7000000 - 1134000 - reservation() },
+      ledgerAfter: { knownMicroUsd: 1534000, carriedUnresolvedMicroUsd: 0, remainingUnderCapMicroUsd: 7000000 - 1534000 }, providerCalls: 0, keyRead: false } });
+    expect([tree(dir()), tree(path.dirname(experimentClaimFile(config)))]).toEqual(before);
+    expect(sdk.create).not.toHaveBeenCalled();
+  });
+
+  it('recorded once beside the claim, binding the claim, the config, the timed-out request and the attestation; a second record refuses', async () => {
+    await heldThrice();
+    const at = billed(), text = path.join(dir(), 'text', 'paid-stages');
+    expect(await resolve(at)).toMatchObject({ mode: 'carry-resolution', resolution: { recorded: true, timedOutCall: { chargeMicroUsd: 400000 } } });
+    expect(path.basename(experimentCarryResolutionFile(config))).toBe(`${NEW_BOOK_EXPERIMENT.slot}.carry-resolution-1.json`);
+    const record = json(experimentCarryResolutionFile(config));
+    expect(record).toEqual({ version: 'new-book-carry-resolution/v1', id: NEW_BOOK_CARRY_RESOLUTION.id, slot: NEW_BOOK_EXPERIMENT.slot,
+      approval: NEW_BOOK_CARRY_RESOLUTION.approval, claimSha256: sha(readFileSync(experimentClaimFile(config))), configSha256: sha(canonicalJson(config)),
+      sourceHead: '2'.repeat(40),
+      timedOut: { folder: 'text', step: 'storyboard', claimSha256: sha(readFileSync(path.join(text, 'storyboard.claim.json'))),
+        wireDigest: json(path.join(text, 'storyboard.claim.json')).wireDigest, maximumMicroUsd: reservation(),
+        maxOutputTokens: json(path.join(text, 'storyboard.wire.json')).max_output_tokens },
+      attestation: json(at),
+      knownSameDay: [{ folder: NEW_BOOK_CONTINUATION.outDir, step: 'storyboard', wireDigest: json(path.join(outN(1), 'paid-stages', 'storyboard.claim.json')).wireDigest,
+        createdAt: '2026-10-13T16:27:24.000Z', inputTokens: 10000, outputTokens: 5000, estimatedMicroUsd: 350000 }],
+      resolved: { requests: 1, inputTokens: 10000, outputTokens: 6000, microUsd: 400000 } });
+    // The first continuation re-sent the identical request: its own measured input is the timed-out request's.
+    expect(json(path.join(outN(1), 'paid-stages', 'storyboard.claim.json')).wireDigest).toBe(json(path.join(text, 'storyboard.claim.json')).wireDigest);
+    await expect(resolve(at)).rejects.toThrow(/^new_book_carry_resolution_used$/);
+    await expect(resolve(attestation({ requests: 1, inputTokens: 10000, outputTokens: 5000 }))).rejects.toThrow(/^new_book_carry_resolution_used$/);
+    expect(json(experimentCarryResolutionFile(config))).toEqual(record);
+    expect((await resolve(at, false)).carryResolution.recorded).toBe(true);
+  });
+
+  it("never charged: the day shows only this book's own call, so the timed-out call is $0", async () => {
+    await heldThrice();
+    expect((await resolve(attestation({ requests: 1, inputTokens: 10000, outputTokens: 5000 }), false)).carryResolution).toMatchObject({
+      timedOutCall: { requests: 0, inputTokens: 0, outputTokens: 0, chargeMicroUsd: 0 }, ledgerAfter: { knownMicroUsd: 1134000, carriedUnresolvedMicroUsd: 0 } });
+  });
+
+  it('what cannot be attributed to the timed-out call is refused, and nothing is written', async () => {
+    await heldThrice();
+    const cap = json(path.join(dir(), 'text', 'paid-stages', 'storyboard.wire.json')).max_output_tokens as number;
+    const cases: [string, { requests: number; inputTokens: number; outputTokens: number }, RegExp][] = [
+      ['two more requests', { requests: 3, inputTokens: 30000, outputTokens: 15000 }, /^new_book_carry_ambiguous$/],
+      ["below this book's own calls", { requests: 0, inputTokens: 0, outputTokens: 0 }, /^new_book_carry_attestation$/],
+      ["fewer tokens than this book's own call", { requests: 1, inputTokens: 9999, outputTokens: 5000 }, /^new_book_carry_attestation$/],
+      ["an input other than the identical request's", { requests: 2, inputTokens: 20001, outputTokens: 11000 }, /^new_book_carry_attestation$/],
+      ["an output above the request's cap", { requests: 2, inputTokens: 20000, outputTokens: 5000 + cap + 1 }, /^new_book_carry_attestation$/],
+      ["an output below this book's own call", { requests: 2, inputTokens: 20000, outputTokens: 4995 }, /^new_book_carry_attestation$/],
+      ['tokens with no request', { requests: 1, inputTokens: 10000, outputTokens: 5001 }, /^new_book_carry_attestation$/],
+    ];
+    for (const [label, dayTotal, code] of cases) for (const execute of [false, true])
+      await expect(resolve(attestation(dayTotal), execute), label).rejects.toThrow(code);
+    for (const extra of [{ day: '2026-10-14' }, { model: 'gpt-6.1-sol' }, { version: 'new-book-carry-attestation/v2' }, { extra: 1 }, { scope: ' ' }])
+      await expect(resolve(attestation({ requests: 2, inputTokens: 20000, outputTokens: 11000 }, extra), false), JSON.stringify(extra))
+        .rejects.toThrow(/^new_book_carry_attestation$/);
+    await expect(resolve(path.join(root, 'missing.json'), false)).rejects.toThrow(/^new_book_carry_attestation$/);
+    for (const argv of [['carry-resolution', '--attestation', 'relative.json'], ['carry-resolution'], ['carry-resolution', '--execute'],
+      ['carry-resolution', '--attestation', billed(), '--resume'], ['storyboard-repair', '--attestation', billed()]])
+      await expect(newBookExperimentCLI(['--config', file, ...argv]), argv.join(' ')).rejects.toThrow(/^new_book_arguments$/);
+    expect(existsSync(experimentCarryResolutionFile(config))).toBe(false);
+  });
+
+  it('an answered call of this book that cannot be placed on a day cannot be told apart from the timed-out one: refused', async () => {
+    await heldThrice({ first: { createdAt: Number.NaN } });
+    expect(json(path.join(outN(1), 'paid-stages', 'storyboard.receipt.json')).raw.created_at).toBeNull();
+    for (const execute of [false, true]) await expect(resolve(billed(), execute)).rejects.toThrow(/^new_book_carry_attestation$/);
+    expect(existsSync(experimentCarryResolutionFile(config))).toBe(false);
+  });
+
+  it('a book with no carried reservation has nothing to resolve', async () => {
+    await run();
+    await expect(resolve(billed(), false)).rejects.toThrow(/^new_book_carry_resolution_scope$/);
+  });
+
+  it('the resolution re-checks after its asynchronous replay of the original request: a record or HEAD change while it ran refuses, nothing written', async () => {
+    await heldThrice();
+    const realFlow = flow.runSimpleWizardBook;
+    for (const target of [experimentContinuation3File(config), path.join(outN(3), 'spend.json'), 'HEAD']) {
+      const saved = target === 'HEAD' ? null : readFileSync(target);
+      let runs = 0;
+      const spy = vi.spyOn(flow, 'runSimpleWizardBook').mockImplementation(async a => {
+        try { return await realFlow(a); }
+        finally { if (++runs === 1) { if (saved) writeFileSync(target, Buffer.concat([saved, Buffer.from(' ')])); else headAt('3'.repeat(40)); } }
+      });
+      await expect(resolve(billed()), target).rejects.toThrow(saved ? /^new_book_continuation_evidence$/ : /^new_book_source_changed$/);
+      spy.mockRestore();
+      if (saved) writeFileSync(target, saved); else headAt('2'.repeat(40));
+      expect(existsSync(experimentCarryResolutionFile(config))).toBe(false);
+    }
+    expect((await resolve(billed(), false)).carryResolution.timedOutCall.chargeMicroUsd).toBe(400000);
+  });
+
+  it('the repair preview is read-only: the third answers replay to that exact hold; only the repair is added; the resolved ledger and the fit', async () => {
+    await heldThrice(); await resolve(billed());
+    const before = [tree(dir()), tree(path.dirname(experimentClaimFile(config)))], t = textTransports();
+    const preview = await repair(t, false), reviewCap = json(path.join(outN(3), 'paid-stages', 'storyboard_review.wire.json')).max_output_tokens;
+    expect(preview).toMatchObject({ mode: 'plan', plan: { repair: false, carryResolution: true, stages: { continuation3: 'held_uncertain', repair: null } },
+      repair: { admissible: true, amended: false, outDirExists: false, storyReplayed: true, previousStatus: 'held_uncertain',
+        previousStoryboardSettledMicroUsd: 350000, previousReviewSettledMicroUsd: 70000, findings: 1, requestChangedOnlyByTheRepair: true,
+        reviewReservationCeilingMicroUsd: Math.ceil((128000 * 2 + reviewCap * 10) * 1.1),
+        carryResolution: { sha256: sha(readFileSync(experimentCarryResolutionFile(config))), resolvedMicroUsd: 400000, carriedBeforeMicroUsd: reservation() },
+        priorKnownApiMicroUsd: 1534000, carriedUnresolvedMicroUsd: 0, remainingUnderCapMicroUsd: 7000000 - 1534000, fitsUnderCap: true,
+        providerCalls: 0, keyRead: false } });
+    expect(preview.repair.parentStoryboardDigest).toBe(json(path.join(outN(3), 'simple-book-result.json')).storyboard.storyboardDigest);
+    expect(preview.repair.newStoryboardReservationMicroUsd).toBeGreaterThan(json(path.join(outN(3), 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd);
+    expect([tree(dir()), tree(path.dirname(experimentClaimFile(config)))]).toEqual(before);
+    nothingConsumed();
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('one repair at its own reviewed HEAD: only the storyboard (the third request plus the repair) and a fresh review, at the normal caps; later stages read it', async () => {
+    await heldThrice(); await resolve(billed());
+    const resolutionSha = sha(readFileSync(experimentCarryResolutionFile(config))), amendment3 = readFileSync(experimentContinuation3File(config));
+    const third = tree(outN(3)), earlier = [tree(outN(2)), tree(outN(1)), tree(path.join(dir(), 'text'))];
+    const preview = await repair(textTransports(), false), parent = preview.repair.parentStoryboardDigest;
+    const t = textTransports({ createdAt: OCT15 });
+    expect(await repair(t)).toMatchObject({ mode: 'storyboard-repair', status: 'review_supported' });
+    expect([t.opus, t.reader].map(m => m.mock.calls.length)).toEqual([0, 0]);
+    expect(t.responses.mock.calls.map(c => c[0].model)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
+    const paid = path.join(repairOut(), 'paid-stages');
+    expect(claims(paid)).toEqual(['storyboard', 'storyboard_review']);
+    // The request: the third one plus the repair contract (right before the provider's own note) and the held storyboard with its findings.
+    const [w3, wr] = [outN(3), repairOut()].map(o => json(path.join(o, 'paid-stages', 'storyboard.wire.json')));
+    expect(wr.instructions.replace(`\n${REPAIR_STORYBOARD_ADDENDUM}`, '')).toBe(w3.instructions);
+    expect(wr.instructions).toContain(`${COMPILER_RULES_STORYBOARD_ADDENDUM}\n${REPAIR_STORYBOARD_ADDENDUM}\nProvider output:`);
+    const { priorReviewedStoryboard, ...input } = JSON.parse(wr.input);
+    expect(priorReviewedStoryboard).toEqual({ version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: parent,
+      storyboard: json(path.join(outN(3), 'owned_storyboard_draft.json')),
+      reviewFindings: [{ scope: 'page', pageNumber: 3, category: expect.any(String), verdict: 'uncertain', observation: 'page 3: not established by the text' }] });
+    expect(input).toEqual({ ...JSON.parse(w3.input), personalSourceDigest: input.personalSourceDigest });
+    expect(input.personalSourceDigest).not.toBe(JSON.parse(w3.input).personalSourceDigest);
+    expect([wr.model, wr.max_output_tokens, wr.text, wr.reasoning, wr.store]).toEqual([w3.model, w3.max_output_tokens, w3.text, w3.reasoning, w3.store]);
+    expect(json(path.join(paid, 'storyboard_review.wire.json')).max_output_tokens)
+      .toBe(json(path.join(outN(3), 'paid-stages', 'storyboard_review.wire.json')).max_output_tokens);
+    expect(json(path.join(paid, 'storyboard.claim.json')).maximumMicroUsd).toBe(preview.repair.newStoryboardReservationMicroUsd);
+    // The meter: every earlier known cost and the resolved charge; nothing carried.
+    const spend = json(path.join(repairOut(), 'spend.json'));
+    expect(spend).toMatchObject({ priorKnownApiMicroUsd: 1534000, newKnownApiMicroUsd: 420000, reservedUnsettledMicroUsd: 0, calls: 2, maxCalls: 2, unknownCost: 0 });
+    expect(spend).not.toHaveProperty('carriedUnresolvedMicroUsd');
+    expect(json(path.join(repairOut(), 'sealed.json'))).toEqual({ status: 'review_supported', continuation: NEW_BOOK_STORYBOARD_REPAIR.id, runtimeEligible: false });
+    // The saved book names its parent; the loader's repair input is the held draft and its own raw review.
+    expect(json(path.join(repairOut(), 'visual_simple_book_result.json')).storyboard.storyboard.repair).toEqual({ version: STORYBOARD_REPAIR_VERSION,
+      parentStoryboardDigest: parent });
+    expect(json(path.join(repairOut(), 'storyboard_repair_input.json'))).toEqual({ parentStoryboardDigest: parent,
+      draft: json(path.join(outN(3), 'owned_storyboard_draft.json')), review: json(path.join(outN(3), 'simple-book-result.json')).storyboard.rawReview });
+    // The amendment, beside the claim as the chain's fourth.
+    expect(path.basename(experimentRepairFile(config))).toBe(`${NEW_BOOK_EXPERIMENT.slot}.continuation-4.json`);
+    const amendment = json(experimentRepairFile(config));
+    expect(amendment).toMatchObject({ id: NEW_BOOK_STORYBOARD_REPAIR.id, approval: NEW_BOOK_STORYBOARD_REPAIR.approval,
+      claimSha256: sha(readFileSync(experimentClaimFile(config))), previousSha256: sha(amendment3), originalSourceHead: 'a'.repeat(40),
+      previousSourceHead: '1'.repeat(40), sourceHead: '2'.repeat(40), failedStep: 'storyboard_review_held', previousStatus: 'held_uncertain',
+      parentStoryboardDigest: parent, carryResolutionSha256: resolutionSha, priorKnownApiMicroUsd: 1534000, carriedUnresolvedMicroUsd: 0 });
+    expect(Object.fromEntries(amendment.evidence.map((e: { file: string; sha256: string }) => [e.file, e.sha256])))
+      .toEqual(Object.fromEntries(Object.entries(third).map(([k, v]) => [`${NEW_BOOK_CONTINUATION_3.outDir}/${k}`, v])));
+    expect([tree(outN(3)), tree(outN(2)), tree(outN(1)), tree(path.join(dir(), 'text')), readFileSync(experimentContinuation3File(config))])
+      .toEqual([third, ...earlier, amendment3]);
+    // Later stages read the repaired book and the resolved ledger.
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    expect(readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).toEqual(experimentLayout(config, 'reference_child.png', NEW_BOOK_STORYBOARD_REPAIR.outDir));
+    const childSpend = json(path.join(dir(), 'child', 'spend.json'));
+    expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 1954000 });
+    expect(childSpend).not.toHaveProperty('carriedUnresolvedMicroUsd');
+    const grant = await writeNewBookGrant(newBookConfig(file));
+    expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 1954000 + childSpend.newKnownApiMicroUsd });
+    expect(grant.ledger).not.toHaveProperty('carriedUnresolvedMicroUsd');
+    expect(grant.ledger.note).toContain('carry resolution');
+    expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(dir(), 'text', 'spend.json'), experimentContinuationFile(config), path.join(outN(1), 'spend.json'),
+      experimentContinuation2File(config), path.join(outN(2), 'spend.json'), experimentContinuation3File(config), path.join(outN(3), 'spend.json'),
+      experimentCarryResolutionFile(config), experimentRepairFile(config), path.join(repairOut(), 'spend.json'), path.join(dir(), 'child', 'spend.json')]);
+    expect(loadReviewedBook(dir(), process.cwd(), undefined, readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).book.repair)
+      .toEqual({ version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: parent });
+    for (const head of ['a', 'c', 'e', '1'].map(x => x.repeat(40))) { headAt(head); expect(() => assertExperimentClaim(newBookConfig(file))).toThrow('new_book_source_changed'); }
+  });
+
+  it('without a resolution the repair carries the full reservation (when it fits) and names none; a resolution is never retroactive', async () => {
+    await heldThrice();
+    expect(await repair()).toMatchObject({ status: 'review_supported' });
+    expect(json(experimentRepairFile(config))).toMatchObject({ carryResolutionSha256: null, priorKnownApiMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation() });
+    expect(json(path.join(repairOut(), 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation() });
+    for (const execute of [false, true]) await expect(resolve(billed(), execute)).rejects.toThrow(/^new_book_carry_resolution_late$/);
+    expect(existsSync(experimentCarryResolutionFile(config))).toBe(false);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    expect((await writeNewBookGrant(newBookConfig(file))).ledger).toMatchObject({ carriedUnresolvedMicroUsd: reservation() });
+    // A resolution record appearing after the amendment (which named none) refuses every later read.
+    writeFileSync(experimentCarryResolutionFile(config), '{}');
+    expect(() => assertExperimentClaim(newBookConfig(file))).toThrow(/^new_book_carry_resolution$/);
+  });
+
+  it("over the cap: the repair's reservation and its review's ceiling must fit, else refused before the amendment; a resolution can make it fit", async () => {
+    await heldThrice({ first: { storyboardUsage: { input_tokens: 115000, output_tokens: 5000 } } });
+    const t = textTransports(), preview = (await repair(t, false)).repair;
+    expect(preview).toMatchObject({ admissible: true, fitsUnderCap: false, carryResolution: null, carriedUnresolvedMicroUsd: reservation() });
+    // The storyboard's own reservation fits; with its review's ceiling it does not (both must fit before anything is consumed).
+    expect(preview.newStoryboardReservationMicroUsd).toBeLessThanOrEqual(preview.remainingUnderCapMicroUsd);
+    expect(preview.newStoryboardReservationMicroUsd + preview.reviewReservationCeilingMicroUsd).toBeGreaterThan(preview.remainingUnderCapMicroUsd);
+    await expect(repair(t)).rejects.toThrow(/^new_book_repair_over_cap$/);
+    nothingConsumed();
+    expect([t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0]);
+    // Evidence that the timed-out call was never charged frees its whole reservation.
+    await resolve(attestation({ requests: 1, inputTokens: 115000, outputTokens: 5000 }));
+    expect((await repair(t, false)).repair).toMatchObject({ fitsUnderCap: true, carriedUnresolvedMicroUsd: 0, carryResolution: { resolvedMicroUsd: 0 } });
+  });
+
+  it('only after a third attempt its own review held: not after one it supported', async () => {
+    expect(await heldThrice({ third: { review: (r: any) => r } })).toMatchObject({ status: 'review_supported' });
+    for (const execute of [false, true]) await expect(repair(textTransports(), execute)).rejects.toThrow(/^new_book_continuation_scope$/);
+    nothingConsumed();
+  });
+  it('only after a third attempt its own review held: not after one that was refused, nor before the third attempt', async () => {
+    expect(await heldThrice({ third: { storyboardOutput: otherRefusalStoryboard } })).toBeInstanceOf(Error);
+    for (const execute of [false, true]) await expect(repair(textTransports(), execute)).rejects.toThrow(/^new_book_continuation_scope$/);
+    nothingConsumed();
+    rmSync(experimentDir(config), { recursive: true, force: true }); rmSync(path.dirname(experimentClaimFile(config)), { recursive: true, force: true });
+    headAt('a'.repeat(40));
+    await timedOut(); headAt('c'.repeat(40));
+    await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow();
+    headAt('e'.repeat(40));
+    await expect(attempt(2, textTransports({ storyboardOutput: undeclaredPropStoryboard }))).rejects.toThrow();
+    headAt('2'.repeat(40));
+    for (const execute of [false, true]) await expect(repair(textTransports(), execute)).rejects.toThrow(/^new_book_continuation_scope$/);
+    nothingConsumed();
+  });
+
+  it('a changed record of the third attempt refuses before anything is consumed', async () => {
+    await heldThrice(); await resolve(billed());
+    const t = textTransports(), p = (f: string) => path.join(outN(3), f);
+    const supported = (bytes: Buffer) => { const r = JSON.parse(bytes.toString('utf8')), out = JSON.parse(r.raw.output_text);
+      for (const group of [out.bookChecks, ...out.frames]) for (const check of Object.values(group) as any[]) check.verdict = 'supported';
+      r.raw.output_text = JSON.stringify(out); return JSON.stringify(r); };
+    const edits: [string, string, (bytes: Buffer) => string, RegExp][] = [
+      ['its review answer now supports the storyboard', 'paid-stages/storyboard_review.receipt.json', supported, /^new_book_continuation_scope$/],
+      ['its saved draft', 'owned_storyboard_draft.json', b => { const d = JSON.parse(b.toString('utf8')); d.plan.visualLanguage += ' changed'; return JSON.stringify(d); },
+        /^new_book_continuation_replay$/],
+      ['its seal', 'sealed.json', b => JSON.stringify({ ...JSON.parse(b.toString('utf8')), status: 'held_contradiction' }), /^new_book_continuation_scope$/],
+      ['its seal (another attempt)', 'sealed.json', b => JSON.stringify({ ...JSON.parse(b.toString('utf8')), continuation: NEW_BOOK_CONTINUATION_2.id }),
+        /^new_book_continuation_scope$/],
+    ];
+    for (const [label, rel, change, code] of edits) {
+      const bytes = readFileSync(p(rel)); writeFileSync(p(rel), change(bytes));
+      for (const execute of [false, true]) await expect(repair(t, execute), label).rejects.toThrow(code);
+      nothingConsumed(); writeFileSync(p(rel), bytes);
+    }
+    // Its review's cost lowered coherently (result, receipt and spend agree; the raw answer does not).
+    const files = ['paid-stages/storyboard_review.result.json', 'paid-stages/storyboard_review.receipt.json', 'spend.json'].map(p), saved = files.map(f => readFileSync(f));
+    lowerToOne(path.join(outN(3), 'paid-stages'), 'storyboard_review');
+    writeFileSync(p('spend.json'), JSON.stringify(new AuditionMeter(path.join(outN(3), 'paid-stages'), 7000000, 2, 714000, reservation()).snapshot()));
+    for (const execute of [false, true]) await expect(repair(t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
+    nothingConsumed(); files.forEach((f, i) => writeFileSync(f, saved[i]));
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    expect((await repair(t, false)).repair).toMatchObject({ admissible: true, fitsUnderCap: true });
+  });
+
+  it('a repair request that differs by anything but the repair (or lacks it) is refused before anything is consumed', async () => {
+    await heldThrice(); await resolve(billed());
+    const realFlow = flow.runSimpleWizardBook, realPayload = worker.simpleWizardVisualPayload, realAuthor = storyboardModule.authorPersonalStoryboard;
+    const onRepair = (change: (p: any) => any) => () => vi.spyOn(worker, 'simpleWizardVisualPayload').mockImplementation((call, model) => {
+      const p = realPayload(call, model); return call.instructions.includes(REPAIR_STORYBOARD_ADDENDUM) ? change(p) : p; });
+    for (const [label, alter] of [
+      ['repair not applied', () => vi.spyOn(flow, 'runSimpleWizardBook').mockImplementation(a => realFlow({ ...a, storyboardRepair: undefined }))],
+      ['contract dropped from the call', () => vi.spyOn(storyboardModule, 'authorPersonalStoryboard').mockImplementation(((source: any, author: any, signal: AbortSignal) =>
+        realAuthor(source, (call: any) => author({ ...call, instructions: call.instructions.replace(`\n${REPAIR_STORYBOARD_ADDENDUM}`, '') }), signal)) as never)],
+      ['held storyboard dropped from the input', () => vi.spyOn(storyboardModule, 'authorPersonalStoryboard').mockImplementation(((source: any, author: any, signal: AbortSignal) =>
+        realAuthor(source, (call: any) => { const { priorReviewedStoryboard: _p, ...input } = call.input; return author({ ...call, input }); }, signal)) as never)],
+      ['a finding dropped', () => vi.spyOn(storyboardModule, 'authorPersonalStoryboard').mockImplementation(((source: any, author: any, signal: AbortSignal) =>
+        realAuthor(source, (call: any) => author(call.input.priorReviewedStoryboard
+          ? { ...call, input: { ...call.input, priorReviewedStoryboard: { ...call.input.priorReviewedStoryboard, reviewFindings: [] } } } : call), signal)) as never)],
+      ['another input field', () => vi.spyOn(storyboardModule, 'authorPersonalStoryboard').mockImplementation(((source: any, author: any, signal: AbortSignal) =>
+        realAuthor(source, (call: any) => author(call.input.priorReviewedStoryboard ? { ...call, input: { ...call.input, childAge: 6 } } : call), signal)) as never)],
+      ['one more sentence', onRepair(p => ({ ...p, instructions: `${p.instructions}\nOne more sentence.` }))],
+      ['another output cap', onRepair(p => ({ ...p, max_output_tokens: p.max_output_tokens - 1 }))],
+      ['another model', onRepair(p => ({ ...p, model: 'gpt-6-astra-mini' }))],
+    ] as const) {
+      const spy = alter();
+      for (const execute of [false, true]) await expect(repair(textTransports(), execute), label).rejects.toThrow(/^new_book_continuation_request$/);
+      nothingConsumed();
+      spy.mockRestore();
+    }
+    expect((await repair(textTransports(), false)).repair).toMatchObject({ requestChangedOnlyByTheRepair: true });
+  });
+
+  it('the admission re-checks after its asynchronous replays: a record, resolution or HEAD change while they ran refuses, and nothing is written', async () => {
+    await heldThrice(); await resolve(billed());
+    const realFlow = flow.runSimpleWizardBook;
+    const targets = [path.join(outN(3), 'paid-stages', 'storyboard_review.receipt.json'), experimentCarryResolutionFile(config), 'HEAD'];
+    for (const target of targets) for (const execute of [false, true]) {
+      const saved = target === 'HEAD' ? null : readFileSync(target);
+      let runs = 0;
+      const spy = vi.spyOn(flow, 'runSimpleWizardBook').mockImplementation(async a => {
+        const result = await realFlow(a);
+        // Right after the third attempt's replay resolves (the first flow run that does).
+        if (++runs === 1) { if (saved) writeFileSync(target, Buffer.concat([saved, Buffer.from(' ')])); else headAt('3'.repeat(40)); }
+        return result;
+      });
+      await expect(repair(textTransports(), execute), `${target} ${execute}`).rejects.toThrow(saved ? /^new_book_continuation_evidence$/ : /^new_book_source_changed$/);
+      spy.mockRestore();
+      if (saved) writeFileSync(target, saved); else headAt('2'.repeat(40));
+      nothingConsumed();
+    }
+    expect((await repair(textTransports(), false)).repair).toMatchObject({ admissible: true });
+  });
+
+  it('one repair only: a repair its fresh review holds again is sealed held; nothing retries or builds on it; once amended its HEAD is the pin', async () => {
+    await heldThrice(); await resolve(billed());
+    expect(await repair(textTransports({ review: heldReview, createdAt: OCT15 }))).toMatchObject({ status: 'held_uncertain' });
+    expect(json(path.join(repairOut(), 'sealed.json'))).toEqual({ status: 'held_uncertain', continuation: NEW_BOOK_STORYBOARD_REPAIR.id, runtimeEligible: false });
+    expect((await repair(textTransports(), false)).repair).toMatchObject({ amended: true, outDirExists: true });
+    await expect(repair()).rejects.toThrow(/^new_book_continuation_used$/);
+    await expect(child()).rejects.toThrow(/^new_book_text_not_supported$/);
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    headAt('3'.repeat(40));
+    for (const execute of [false, true]) await expect(repair(textTransports(), execute)).rejects.toThrow(/^new_book_source_changed$/);
+    await expect(child()).rejects.toThrow(/^new_book_source_changed$/);
+  });
+
+  it('after the repair: a rewritten resolution (even rebound in the amendment), a removed one, or a changed or removed repair input refuses every later stage', async () => {
+    await heldThrice(); await resolve(billed());
+    await repair();
+    const resolution = experimentCarryResolutionFile(config), amendment = experimentRepairFile(config), input = path.join(repairOut(), 'storyboard_repair_input.json');
+    const saved = [resolution, amendment, input].map(f => readFileSync(f));
+    const restore = () => [resolution, amendment, input].forEach((f, i) => writeFileSync(f, saved[i]));
+    const record = json(resolution);
+    writeFileSync(resolution, JSON.stringify({ ...record, resolved: { ...record.resolved, outputTokens: 0, microUsd: 100000 } }));
+    await expect(child()).rejects.toThrow(/^new_book_carry_resolution$/);
+    writeFileSync(amendment, JSON.stringify({ ...json(amendment), carryResolutionSha256: sha(readFileSync(resolution)), priorKnownApiMicroUsd: 1134000 + 100000 }));
+    await expect(child()).rejects.toThrow(/^new_book_carry_resolution$/);
+    restore();
+    // The same record bound to another claim (rebound in the amendment).
+    writeFileSync(resolution, JSON.stringify({ ...record, claimSha256: 'f'.repeat(64) }));
+    writeFileSync(amendment, JSON.stringify({ ...json(amendment), carryResolutionSha256: sha(readFileSync(resolution)) }));
+    await expect(child()).rejects.toThrow(/^new_book_carry_resolution$/);
+    restore();
+    // The repair's own ledger rewritten lower, coherently with its spend record: the chain (with the named resolution) disagrees.
+    const spendFile = path.join(repairOut(), 'spend.json'), spendBytes = readFileSync(spendFile);
+    writeFileSync(amendment, JSON.stringify({ ...json(amendment), priorKnownApiMicroUsd: 1000000 }));
+    writeFileSync(spendFile, JSON.stringify(new AuditionMeter(path.join(repairOut(), 'paid-stages'), 7000000, 2, 1000000, 0).snapshot()));
+    await expect(child()).rejects.toThrow(/^new_book_continuation_ledger$/);
+    writeFileSync(spendFile, spendBytes); restore();
+    rmSync(resolution);
+    await expect(child()).rejects.toThrow(/^new_book_carry_resolution$/);
+    restore();
+    rmSync(input);
+    await expect(child()).rejects.toThrow(/^audition_repair_binding$/);
+    restore();
+    const edited = json(input); edited.draft.plan.visualLanguage += ' changed'; writeFileSync(input, JSON.stringify(edited));
+    await expect(child()).rejects.toThrow(/^personal_storyboard_repair_binding$/);
+    restore();
+    // Another holding review of the same parent (its finding reworded): still a valid repair input, but not the one this book was planned from.
+    const swapped = json(input); swapped.review.frames[3].checks[0].observation = 'page 3: reworded'; writeFileSync(input, JSON.stringify(swapped));
+    await expect(child()).rejects.toThrow(/^audition_board_binding$/);
+    restore();
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
   });
 });

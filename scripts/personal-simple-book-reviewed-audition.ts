@@ -63,6 +63,9 @@ export function readReviewedBookLayout(file: string): ReviewedBookLayout {
   return parsed.success ? parsed.data : fail('audition_layout');
 }
 
+/** A repaired storyboard's saved repair input (the held parent's draft and raw review), beside its result. */
+export const STORYBOARD_REPAIR_INPUT_FILE = 'storyboard_repair_input.json';
+
 /** The moments contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
 export function savedMomentContract(savedBook: { moments?: { version?: unknown } } | undefined): true | undefined {
   if (savedBook?.moments === undefined) return undefined;
@@ -203,8 +206,13 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   if (result.source?.simpleSource?.evidence?.seed !== prepared.seed) fail('audition_request_binding');
   // The rebuilt source must reproduce the saved markers exactly: a stripped or added marker changes the digests and fails the board binding.
   const saved = result.storyboard?.storyboard;
+  // A repaired storyboard's source includes its saved repair input (the held parent's draft and review), present exactly when the saved book
+  // names its parent; the engine re-binds that input to the parent (and the parent's review must hold it), and any other input changes the
+  // source digest and fails the board binding the same way.
+  const repairFile = path.join(visual, STORYBOARD_REPAIR_INPUT_FILE);
+  if (existsSync(repairFile) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
-    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved));
+    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined);
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
   const rawReview = result.storyboard.rawReview;

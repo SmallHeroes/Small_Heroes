@@ -6,6 +6,7 @@ import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalSto
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
 import type { StoryboardPreservation } from './storyboard-preservation';
+import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
 
@@ -38,6 +39,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   sceneLocationContract?: true;
   /** Opt-in compiler-rules instruction contract; absent keeps the exact existing calls. */
   compilerRulesContract?: true;
+  /** Opt-in focused repair of a held storyboard of this source (same contracts, calls and caps); absent keeps the exact existing calls. */
+  repair?: StoryboardRepair;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
@@ -45,7 +48,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-    args.preservation, args.sceneLocationContract, args.compilerRulesContract);
+    args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -53,7 +56,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
     if (args.signal.aborted) fail('cancelled');
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-        args.preservation, args.sceneLocationContract, args.compilerRulesContract).sourceDigest !== source.sourceDigest) fail('source_changed');
+        args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');

@@ -14,10 +14,16 @@
  *     contract), then its review, under a second recorded amendment, in the same $7.
  *   storyboard-continuation-3 - Guy's third, separately approved attempt after the second one's answer was refused at an undeclared page prop:
  *     the same request plus one more instruction contract (every audited compiler rule stated), under a third amendment, in the same $7.
+ *   carry-resolution - Guy's resolution of the carried reservation (no provider): the timed-out call's actual charge, derived from his own
+ *     usage-dashboard totals for that day and model minus this book's own calls that day, replaces its full reservation from the repair on.
+ *   storyboard-repair - Guy's one approved repair after the third attempt's storyboard review held it: the same story replayed, the third
+ *     request plus the repair contract (the held storyboard and its review's own unsupported checks), then a fresh review, under a fourth
+ *     amendment, only when its reservation and its review's ceiling fit the remaining allowance of the same $7.
  * Dry by default; nothing is retried; every paid call is journaled before dispatch.
  *   node --require ./scripts/shims/register-server-only.cjs --import tsx scripts/personal-new-book-experiment.ts \
- *     --config <abs config.json> <plan|text|storyboard-continuation|storyboard-continuation-2|storyboard-continuation-3|child|grant|audition>
+ *     --config <abs config.json> <plan|text|storyboard-continuation|storyboard-continuation-2|storyboard-continuation-3|storyboard-repair|child|grant|audition>
  *     [--execute [--resume]]
+ *   ... --config <abs config.json> carry-resolution --attestation <abs attestation.json> [--execute]
  * Not production, customer, wizard or release authority. Every artifact is runtime-ineligible; acceptance is Guy's.
  */
 import path from 'node:path';
@@ -35,8 +41,8 @@ import { longCallFetch, providerFailureCause, type LongCallObserver } from './pe
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
 import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
-  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, type AuditionGrant, type ReviewedBookLayout,
-  type MeterRule, type MeterRules } from './personal-simple-book-reviewed-audition';
+  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
+  type ReviewedBookLayout, type MeterRule, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
@@ -51,6 +57,8 @@ import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import type { PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { SCENE_LOCATION_STORYBOARD_ADDENDUM } from '../lib/personal-wizard/storyboard-scene-location';
 import { COMPILER_RULES_STORYBOARD_ADDENDUM } from '../lib/personal-wizard/storyboard-compiler-rules';
+import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION, storyboardRepairFindings, type StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
+import { BOOK_LIMITS, personalBookOutputLimits } from '../lib/personal-wizard/book-config';
 import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-reviewed-audition';
 
 export class NewBookExperimentError extends Error { constructor(readonly code: string) { super(code); } }
@@ -104,6 +112,29 @@ export const NEW_BOOK_CONTINUATION_3 = Object.freeze({
   outDir: 'text-continuation-3',
   approval: 'Guy 2026-10-14, AskUserQuestion after the second attempt\'s storyboard was refused (unknown_or_duplicate_prop: an undeclared page-7 prop): "Audit all rules + 1 attempt" (an offline, general audit of every storyboard compiler rule against the instructions, each missing rule stated, then Codex QA, then one new storyboard attempt for this same book) and "Keep $7, decide after samples".',
   contracts: Object.freeze({ ...NEW_BOOK_CONTINUATION_2.contracts, compilerRulesContract: true as const }),
+});
+/**
+ * Guy's one approved repair (2026-10-15): the third attempt's storyboard compiled, but its independent review held it (held_uncertain). The
+ * same story is replayed and the third request is sent ONCE more with exactly the repair contract added (the held storyboard and its review's
+ * own unsupported checks, derived by the engine, never chosen), at the normal caps; the same compiler and a fresh review judge the result as a
+ * new storyboard. Only when its reservation and its review's ceiling fit the remaining allowance of the same $7. Once only.
+ */
+export const NEW_BOOK_STORYBOARD_REPAIR = Object.freeze({
+  id: 'storyboard-repair-1',
+  outDir: 'text-repair-1',
+  approval: 'Guy 2026-10-15, AskUserQuestion after the third attempt\'s storyboard review held it (held_uncertain): "Approve the repair" (a general repair step built offline - the reviewer\'s findings plus the original story go back to the planner, then the same compiler and review gates - and Codex QA; then one paid repair and re-review, only if its exact computed reservation fits the remaining allowance under the same $7 cap, otherwise stop and come back; if the review then passes, the already-approved child -> grant -> two-sample audition continues).',
+  contracts: NEW_BOOK_CONTINUATION_3.contracts,
+});
+/**
+ * Guy's resolution of the carried reservation (2026-10-15): the repair's reservation did not fit beside the timed-out call's full $2.27
+ * reservation, so Guy reads that call's actual charge from his own provider usage records. The day's totals for the model, minus this book's
+ * own calls that day (each re-derived from its raw answer), are the timed-out call's usage; its charge replaces the carried reservation.
+ */
+export const NEW_BOOK_CARRY_RESOLUTION = Object.freeze({
+  id: 'carry-resolution-1',
+  approval: 'Guy 2026-10-15, AskUserQuestion after the repair\'s reservation at the normal output cap did not fit the remaining allowance: "Check the 10/13 charge" (Guy looks up the timed-out call\'s actual cost in his OpenAI usage dashboard (gpt-6-astra, 2026-10-13); a small, Codex-reviewed step records that evidence in place of the $2.27 reservation).',
+  /** The timed-out call's day (UTC; the same calls fall on it in Israel time). */
+  day: '2026-10-13',
 });
 const SOL = 'gpt-6.1-sol' as const;
 const RATES = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 },
@@ -195,14 +226,16 @@ function verifiedClaim(config: NewBookConfig) {
 export function assertExperimentClaim(config: NewBookConfig) {
   const { claim, claimSha256 } = verifiedClaim(config);
   const continuation = readContinuation(config, claimSha256), refused = readRefusedChain(config, claimSha256, continuation);
+  const repair = readRepair(config, claimSha256, continuation, refused);
   const latest = refused[refused.length - 1];
-  assertExperimentSource(config, latest?.amendment.sourceHead ?? continuation?.sourceHead ?? config.sourceHead);
-  return { claim, claimSha256, continuation, refused };
+  assertExperimentSource(config, repair?.sourceHead ?? latest?.amendment.sourceHead ?? continuation?.sourceHead ?? config.sourceHead);
+  return { claim, claimSha256, continuation, refused, repair };
 }
-type ContinuationChain = { continuation: NewBookContinuation | null; refused: { step: RefusedStep; amendment: NewBookRefusedContinuation }[] };
+type ContinuationChain = { continuation: NewBookContinuation | null; refused: { step: RefusedStep; amendment: NewBookRefusedContinuation }[];
+  repair: NewBookRepair | null };
 /** Where this book's latest text lives. */
-const textFolderOf = (chain: ContinuationChain) =>
-  chain.refused[chain.refused.length - 1]?.step.spec.outDir ?? (chain.continuation ? NEW_BOOK_CONTINUATION.outDir : 'text');
+const textFolderOf = (chain: ContinuationChain) => chain.repair ? NEW_BOOK_STORYBOARD_REPAIR.outDir
+  : chain.refused[chain.refused.length - 1]?.step.spec.outDir ?? (chain.continuation ? NEW_BOOK_CONTINUATION.outDir : 'text');
 
 // ---------------------------------------------------------------------------------------------------------------
 // The one continuation amendment: written once, beside the claim, binding the original claim and config, every original story/reader/
@@ -312,8 +345,25 @@ function amendForContinuation(config: NewBookConfig, head: string, prepared: Ret
   return amendment;
 }
 /** Where this book's reviewed text lives now, and its verified API ledger (known spend and any carried unresolved reservation). */
-export function textStage(config: NewBookConfig, chain: ContinuationChain) {
-  const dir = experimentDir(config), { continuation, refused } = chain;
+export function textStage(config: NewBookConfig, chain: ContinuationChain): { folder: string; path: string; knownMicroUsd: number;
+  carriedUnresolvedMicroUsd: number; evidence: { file: string; sha256: string }[] } {
+  const dir = experimentDir(config), { continuation, refused, repair } = chain;
+  if (repair) {
+    // The held attempt's verified ledger, then the repair's own: its prior and carried amounts must be exactly that ledger with the carry
+    // resolution it names applied (or none), and its folder's calls are re-derived from their own evidence.
+    const before = textStage(config, { continuation, refused, repair: null });
+    const resolution = repair.carryResolutionSha256 === null ? null : readCarryResolution(config, repair.claimSha256, chainFolders({ ...chain, repair: null }));
+    if (repair.carryResolutionSha256 !== (resolution?.sha256 ?? null)) fail('new_book_carry_resolution');
+    const expected = resolvedLedger(before, resolution);
+    if (expected.knownMicroUsd !== repair.priorKnownApiMicroUsd || expected.carriedUnresolvedMicroUsd !== repair.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
+    const out = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+    const ledger = stageLedger(out, CONTINUATION_API_CALLS, repair.priorKnownApiMicroUsd, repair.carriedUnresolvedMicroUsd, CONTINUATION_RULES);
+    const amendment = experimentRepairFile(config);
+    return { folder: NEW_BOOK_STORYBOARD_REPAIR.outDir, path: out, knownMicroUsd: repair.priorKnownApiMicroUsd + ledger.knownMicroUsd,
+      carriedUnresolvedMicroUsd: repair.carriedUnresolvedMicroUsd,
+      evidence: [...before.evidence, ...(resolution ? [{ file: resolution.file, sha256: resolution.sha256 }] : []),
+        { file: amendment, sha256: sha(readFileSync(amendment)) }, { file: ledger.file, sha256: ledger.sha256 }] };
+  }
   if (refused.length) {
     if (!continuation) return fail('new_book_continuation');
     const original = failedStoryboardLedger(path.join(dir, 'text'));
@@ -462,8 +512,10 @@ const visualStep = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'rev
 const visualRate = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? RATES.sol : RATES.astra;
 /** The model each stage's request names (simpleWizardVisualPayload with the Sol review), which its rate prices. */
 const visualModel = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? SOL : CAUSAL_MODELS.astra;
+/** The largest storyboard or review request this experiment sends (the provider payload builder's own input limit). */
+const VISUAL_WIRE_LIMIT = BOOK_LIMITS.inputBytesPerCall;
 function visualReservation(call: SimpleStoryboardDiagnosticCall, payload: unknown) {
-  const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > 128000) fail('new_book_wire_limit');
+  const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > VISUAL_WIRE_LIMIT) fail('new_book_wire_limit');
   return wireReservation(wireBytes, call.maxOutputTokens, visualRate(call));
 }
 /**
@@ -488,7 +540,7 @@ function visualSettlement(call: SimpleStoryboardDiagnosticCall, payload: { model
 }
 export const replaySettlement = { answer: answerSettlement, rates: RATES };
 async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void;
-  contracts: TextContracts; transports?: TextTransports;
+  contracts: TextContracts; transports?: TextTransports; storyboardRepair?: StoryboardRepair;
   prepared: ReturnType<typeof prepareExperimentRequest>['prepared']; options: ReturnType<typeof prepareExperimentRequest>['options'];
   outDir: string; api: AuditionMeter; claudeMax: SimpleBookBudget | null; replay: TextReplay | null; continuationId: string | null }) {
   const { config, signal, prepared, outDir, api, claudeMax, replay } = args;
@@ -514,6 +566,7 @@ async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log:
   };
   try {
     const result = await runSimpleWizardBook({ request, options: args.options, seed: config.seed, signal, reservedWritingUsd: 4, ...args.contracts,
+      ...(args.storyboardRepair ? { storyboardRepair: args.storyboardRepair } : {}),
       publish: view => args.log(`phase ${view.phase}`),
       opus: async (call, s) => {
         check();
@@ -913,6 +966,351 @@ export const runNewBookStoryboardContinuation2 = (args: Parameters<typeof runRef
 export const runNewBookStoryboardContinuation3 = (args: Parameters<typeof runRefused>[1]) => runRefused(REFUSED_STEPS[1], args);
 
 // ---------------------------------------------------------------------------------------------------------------
+// Guy's resolution of the carried reservation: the timed-out call's actual charge, from his own provider usage records, replaces its full
+// reservation. Written once beside the claim, BEFORE the repair amendment (never retroactive); the repair amendment names it by hash and every
+// later read re-derives it from the attestation and this book's own records.
+// ---------------------------------------------------------------------------------------------------------------
+type StageFolder = { folder: string; rules: Record<string, PaidRule> };
+/** Every text folder of the chain, in order: the original stage, each continuation, the repair. */
+function chainFolders(chain: ContinuationChain): StageFolder[] {
+  return [{ folder: 'text', rules: TEXT_RULES },
+    ...(chain.continuation ? [{ folder: NEW_BOOK_CONTINUATION.outDir, rules: CONTINUATION_RULES }] : []),
+    ...chain.refused.map(r => ({ folder: r.step.spec.outDir, rules: CONTINUATION_RULES })),
+    ...(chain.repair ? [{ folder: NEW_BOOK_STORYBOARD_REPAIR.outDir, rules: CONTINUATION_RULES }] : [])];
+}
+const tokenCount = z.number().int().nonnegative().max(1_000_000_000);
+/** Guy's attestation: what his provider usage records show for the timed-out call's day and model, within the scope he names. */
+export const carryAttestationSchema = z.object({ version: z.literal('new-book-carry-attestation/v1'),
+  attestedBy: z.string().trim().min(1).max(200), source: z.string().trim().min(1).max(500), scope: z.string().trim().min(1).max(500),
+  day: z.literal(NEW_BOOK_CARRY_RESOLUTION.day), model: z.literal(CAUSAL_MODELS.astra),
+  dayTotal: z.object({ requests: z.number().int().nonnegative().max(10_000), inputTokens: tokenCount, outputTokens: tokenCount }).strict(),
+  note: z.string().max(2000).optional() }).strict();
+export type CarryAttestation = z.infer<typeof carryAttestationSchema>;
+const knownCallSchema = z.object({ folder: z.string().min(1), step: z.literal('storyboard'), wireDigest: hash, createdAt: z.string().min(1),
+  inputTokens: tokenCount, outputTokens: tokenCount, estimatedMicroUsd: z.number().int().nonnegative() }).strict();
+const resolutionSchema = z.object({ version: z.literal('new-book-carry-resolution/v1'), id: z.literal(NEW_BOOK_CARRY_RESOLUTION.id),
+  slot: z.literal(NEW_BOOK_EXPERIMENT.slot), approval: z.literal(NEW_BOOK_CARRY_RESOLUTION.approval), claimSha256: hash, configSha256: hash,
+  sourceHead: z.string().regex(/^[a-f0-9]{40}$/),
+  timedOut: z.object({ folder: z.literal('text'), step: z.literal('storyboard'), claimSha256: hash, wireDigest: hash,
+    maximumMicroUsd: z.number().int().positive(), maxOutputTokens: z.number().int().positive() }).strict(),
+  attestation: carryAttestationSchema, knownSameDay: z.array(knownCallSchema).max(16),
+  resolved: z.object({ requests: z.union([z.literal(0), z.literal(1)]), inputTokens: tokenCount, outputTokens: tokenCount,
+    microUsd: z.number().int().nonnegative() }).strict() }).strict();
+export const experimentCarryResolutionFile = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.${NEW_BOOK_CARRY_RESOLUTION.id}.json`);
+type CarryResolution = { file: string; sha256: string; resolvedMicroUsd: number; carriedBeforeMicroUsd: number; record: z.infer<typeof resolutionSchema> };
+
+/** This book's answered storyboard calls (the timed-out call's model), each re-derived from its raw answer first, with the provider's own creation time. */
+function astraCalls(config: NewBookConfig, folders: StageFolder[]) {
+  const dir = experimentDir(config);
+  return folders.flatMap(({ folder, rules }) => {
+    verifyPaidStages(path.join(dir, folder), rules);
+    const at = (k: string) => path.join(dir, folder, 'paid-stages', `storyboard.${k}.json`);
+    if (!existsSync(at('claim')) || read(at('result')).completed !== true) return [];
+    const claim = read(at('claim')), receipt = read(at('receipt')), raw = receipt?.raw;
+    const created = Number.isSafeInteger(raw?.created_at) ? new Date(raw.created_at * 1000) : null;
+    // A call that cannot be placed on a day cannot be told apart from the timed-out one.
+    if (raw?.model !== CAUSAL_MODELS.astra || !created || Number.isNaN(created.getTime())) return fail('new_book_carry_attestation');
+    return [{ folder, step: 'storyboard' as const, wireDigest: claim.wireDigest as string, createdAt: created.toISOString(),
+      inputTokens: raw.usage.input_tokens as number, outputTokens: raw.usage.output_tokens as number, estimatedMicroUsd: receipt.estimatedMicroUsd as number }];
+  });
+}
+/**
+ * The timed-out call's charge from Guy's attestation. The day's totals for the model, minus this book's own answered calls that day, are that
+ * one call - one request whose input is exactly the identical request's own (as this book's re-sent copy measured it) and whose output is within
+ * its cap - or nothing at all (no request, no tokens). Anything else cannot be attributed: another request in the scope, a negative remainder.
+ */
+function deriveCarryResolution(config: NewBookConfig, attestation: CarryAttestation, folders: StageFolder[]) {
+  const textDir = path.join(experimentDir(config), 'text'), root = path.join(textDir, 'paid-stages');
+  // The timed-out call exactly as the failed stage left it: unknown cost, its whole reservation carried, its records re-derived.
+  const failed = failedStoryboardLedger(textDir);
+  const claimBytes = readFileSync(path.join(root, 'storyboard.claim.json')), claim = JSON.parse(claimBytes.toString('utf8'));
+  const wire = read(path.join(root, 'storyboard.wire.json'));
+  if (wire.model !== attestation.model || failed.carriedUnresolvedMicroUsd !== claim.maximumMicroUsd) fail('new_book_carry_resolution_scope');
+  const calls = astraCalls(config, folders), knownSameDay = calls.filter(c => c.createdAt.slice(0, 10) === attestation.day);
+  const sum = (k: 'inputTokens' | 'outputTokens') => knownSameDay.reduce((total, c) => total + c[k], 0);
+  const rest = { requests: attestation.dayTotal.requests - knownSameDay.length, inputTokens: attestation.dayTotal.inputTokens - sum('inputTokens'),
+    outputTokens: attestation.dayTotal.outputTokens - sum('outputTokens') };
+  if (rest.requests < 0 || rest.inputTokens < 0 || rest.outputTokens < 0) fail('new_book_carry_attestation');
+  if (rest.requests > 1) fail('new_book_carry_ambiguous');
+  const identicalInput = [...new Set(calls.filter(c => c.wireDigest === claim.wireDigest).map(c => c.inputTokens))];
+  if (rest.requests === 0 ? rest.inputTokens !== 0 || rest.outputTokens !== 0
+    : identicalInput.length !== 1 || rest.inputTokens !== identicalInput[0] || rest.outputTokens > wire.max_output_tokens) fail('new_book_carry_attestation');
+  const microUsd = Math.ceil(rest.inputTokens * RATES.astra.inputMicroUsdPerToken + rest.outputTokens * RATES.astra.outputMicroUsdPerToken);
+  if (!Number.isSafeInteger(microUsd) || microUsd > claim.maximumMicroUsd) fail('new_book_carry_attestation');
+  return { timedOut: { folder: 'text' as const, step: 'storyboard' as const, claimSha256: sha(claimBytes), wireDigest: claim.wireDigest as string,
+      maximumMicroUsd: claim.maximumMicroUsd as number, maxOutputTokens: wire.max_output_tokens as number },
+    knownSameDay, resolved: { requests: rest.requests as 0 | 1, inputTokens: rest.inputTokens, outputTokens: rest.outputTokens, microUsd } };
+}
+/** The recorded resolution (null when none), re-derived in full from its attestation and this book's own records. */
+function readCarryResolution(config: NewBookConfig, claimSha256: string, folders: StageFolder[]): CarryResolution | null {
+  const file = experimentCarryResolutionFile(config);
+  if (!existsSync(file)) return null;
+  const parsed = resolutionSchema.safeParse(read(file));
+  if (!parsed.success || parsed.data.claimSha256 !== claimSha256 || parsed.data.configSha256 !== sha(canonicalJson(config))) return fail('new_book_carry_resolution');
+  const { timedOut, knownSameDay, resolved } = deriveCarryResolution(config, parsed.data.attestation, folders);
+  if (canonicalJson({ timedOut, knownSameDay, resolved }) !==
+      canonicalJson({ timedOut: parsed.data.timedOut, knownSameDay: parsed.data.knownSameDay, resolved: parsed.data.resolved })) fail('new_book_carry_resolution');
+  return { file, sha256: sha(readFileSync(file)), resolvedMicroUsd: resolved.microUsd, carriedBeforeMicroUsd: timedOut.maximumMicroUsd, record: parsed.data };
+}
+/** A ledger with a resolution applied: the reservation it resolves leaves the accounting and the attested charge enters known spend. */
+function resolvedLedger(ledger: { knownMicroUsd: number; carriedUnresolvedMicroUsd: number }, resolution: CarryResolution | null) {
+  if (!resolution) return { knownMicroUsd: ledger.knownMicroUsd, carriedUnresolvedMicroUsd: ledger.carriedUnresolvedMicroUsd };
+  if (ledger.carriedUnresolvedMicroUsd !== resolution.carriedBeforeMicroUsd) return fail('new_book_carry_resolution');
+  return { knownMicroUsd: ledger.knownMicroUsd + resolution.resolvedMicroUsd, carriedUnresolvedMicroUsd: 0 };
+}
+/**
+ * The resolution's admission at ONE pinned HEAD (no provider, no key): the clean source; the unchanged claim and its whole amendment chain; no
+ * repair amendment, child stage or audition yet (a resolution is never retroactive); the original request re-derived from the roots (the
+ * reservation resolved is that request's); the latest verified ledger; and the charge derived from the attestation.
+ */
+async function admitCarryResolution(config: NewBookConfig, head: string, attestationFile: string) {
+  let attestation: CarryAttestation;
+  try { attestation = carryAttestationSchema.parse(JSON.parse(fencedText(attestationFile, 64000))); } catch { return fail('new_book_carry_attestation'); }
+  const baseline = () => {
+    assertExperimentSource(config, head);
+    const { claimSha256 } = verifiedClaim(config), continuation = readContinuation(config, claimSha256);
+    if (!continuation) return fail('new_book_carry_resolution_scope');
+    const refused = readRefusedChain(config, claimSha256, continuation), dir = experimentDir(config);
+    if (readRepair(config, claimSha256, continuation, refused) || existsSync(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)) ||
+        existsSync(path.join(dir, 'child')) || existsSync(experimentAuditionStart(config))) fail('new_book_carry_resolution_late');
+    const chain: ContinuationChain = { continuation, refused, repair: null }, before = textStage(config, chain);
+    const derived = deriveCarryResolution(config, attestation, chainFolders(chain));
+    if (before.carriedUnresolvedMicroUsd !== derived.timedOut.maximumMicroUsd) fail('new_book_carry_resolution_scope');
+    return { claimSha256, before, derived, evidence: before.evidence };
+  };
+  const admitted = baseline();
+  await assertOriginalRequest(config);
+  // The replay was asynchronous: the same pin, still clean, and the same records and derivation.
+  if (canonicalJson(baseline()) !== canonicalJson(admitted)) fail('new_book_continuation_evidence');
+  const { before, derived } = admitted, cap = NEW_BOOK_EXPERIMENT.apiCapMicroUsd;
+  // As resolvedLedger applies it at every later read: the carried reservation (checked equal above) out, the attested charge in.
+  const after = { knownMicroUsd: before.knownMicroUsd + derived.resolved.microUsd, carriedUnresolvedMicroUsd: 0 };
+  const record = resolutionSchema.parse({ version: 'new-book-carry-resolution/v1', id: NEW_BOOK_CARRY_RESOLUTION.id, slot: NEW_BOOK_EXPERIMENT.slot,
+    approval: NEW_BOOK_CARRY_RESOLUTION.approval, claimSha256: admitted.claimSha256, configSha256: sha(canonicalJson(config)), sourceHead: head,
+    timedOut: derived.timedOut, attestation, knownSameDay: derived.knownSameDay, resolved: derived.resolved });
+  return { record, summary: { recorded: existsSync(experimentCarryResolutionFile(config)), day: attestation.day, model: attestation.model, scope: attestation.scope,
+    knownSameDay: derived.knownSameDay.map(c => ({ folder: c.folder, createdAt: c.createdAt, inputTokens: c.inputTokens, outputTokens: c.outputTokens })),
+    timedOutCall: { requests: derived.resolved.requests, inputTokens: derived.resolved.inputTokens, outputTokens: derived.resolved.outputTokens,
+      chargeMicroUsd: derived.resolved.microUsd },
+    carriedBeforeMicroUsd: derived.timedOut.maximumMicroUsd,
+    ledgerBefore: { knownMicroUsd: before.knownMicroUsd, carriedUnresolvedMicroUsd: before.carriedUnresolvedMicroUsd,
+      remainingUnderCapMicroUsd: cap - before.knownMicroUsd - before.carriedUnresolvedMicroUsd },
+    ledgerAfter: { ...after, remainingUnderCapMicroUsd: cap - after.knownMicroUsd - after.carriedUnresolvedMicroUsd },
+    providerCalls: 0, keyRead: false } };
+}
+/** Read-only preview of the resolution: what it would record and the ledger before and after. */
+export async function previewCarryResolution(config: NewBookConfig, attestationFile: string) {
+  return (await admitCarryResolution(config, currentHead(config), attestationFile)).summary;
+}
+/** Records the resolution once (exclusive), right after its admission at the same pinned HEAD. */
+export async function writeCarryResolution(config: NewBookConfig, attestationFile: string) {
+  const { record, summary } = await admitCarryResolution(config, currentHead(config), attestationFile);
+  try { exclusiveJson(experimentCarryResolutionFile(config), record); } catch { fail('new_book_carry_resolution_used'); }
+  return { ...summary, recorded: true };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Guy's one storyboard repair (a fourth amendment of the claim): the third attempt's storyboard answered and compiled, but its review held it.
+// The same story is replayed, the third attempt's two answers are replayed to that exact held disposition, and the third request is sent ONCE
+// more with exactly the repair contract added; the same compiler and a fresh review judge the result.
+// ---------------------------------------------------------------------------------------------------------------
+export const experimentRepairFile = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.continuation-4.json`);
+const heldStatus = z.enum(['held_uncertain', 'held_contradiction']);
+const repairSchema = z.object({ version: z.literal('new-book-continuation/v1'), id: z.literal(NEW_BOOK_STORYBOARD_REPAIR.id),
+  slot: z.literal(NEW_BOOK_EXPERIMENT.slot), approval: z.literal(NEW_BOOK_STORYBOARD_REPAIR.approval), claimSha256: hash, configSha256: hash,
+  previousSha256: hash, originalSourceHead: headSha, previousSourceHead: headSha, sourceHead: headSha, failedStep: z.literal('storyboard_review_held'),
+  previousStatus: heldStatus, parentStoryboardDigest: hash, carryResolutionSha256: hash.nullable(),
+  priorKnownApiMicroUsd: z.number().int().nonnegative(), carriedUnresolvedMicroUsd: z.number().int().nonnegative(),
+  evidence: z.array(z.object({ file: z.string().regex(new RegExp(`^${NEW_BOOK_CONTINUATION_3.outDir}/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?$`)), sha256: hash })
+    .strict()).min(4).max(32) }).strict();
+export type NewBookRepair = z.infer<typeof repairSchema>;
+const thirdAmendmentFile = (config: NewBookConfig) => refusedFile(config, REFUSED_STEPS[REFUSED_STEPS.length - 1]);
+/** The recorded repair amendment (null when none), verified against the third amendment, every record of the third attempt and the resolution it names. */
+function readRepair(config: NewBookConfig, claimSha256: string, first: NewBookContinuation | null,
+  refused: { step: RefusedStep; amendment: NewBookRefusedContinuation }[]): NewBookRepair | null {
+  const file = experimentRepairFile(config);
+  if (!existsSync(file)) return null;
+  // It amends the third attempt: the whole earlier chain must be there.
+  if (!first || refused.length !== REFUSED_STEPS.length) return fail('new_book_continuation');
+  const previous = refused[refused.length - 1].amendment, parsed = repairSchema.safeParse(read(file));
+  if (!parsed.success || parsed.data.claimSha256 !== claimSha256 || parsed.data.configSha256 !== sha(canonicalJson(config)) ||
+      parsed.data.originalSourceHead !== config.sourceHead || parsed.data.previousSourceHead !== previous.sourceHead ||
+      parsed.data.previousSha256 !== sha(readFileSync(thirdAmendmentFile(config)))) return fail('new_book_continuation');
+  if (canonicalJson(folderEvidence(experimentDir(config), NEW_BOOK_CONTINUATION_3.outDir)) !== canonicalJson(parsed.data.evidence)) fail('new_book_continuation_evidence');
+  // The resolution it names is the one beside the claim, unchanged; naming none, none may exist (a resolution is never retroactive).
+  const resolution = experimentCarryResolutionFile(config);
+  if (parsed.data.carryResolutionSha256 === null ? existsSync(resolution)
+    : !existsSync(resolution) || sha(readFileSync(resolution)) !== parsed.data.carryResolutionSha256) fail('new_book_carry_resolution');
+  return parsed.data;
+}
+type RepairBaseline = { claimSha256: string; previous: NewBookRefusedContinuation; previousSha256: string; amended: NewBookRepair | null;
+  status: z.infer<typeof heldStatus>; held: ReturnType<typeof textStage>; resolution: CarryResolution | null;
+  ledger: { knownMicroUsd: number; carriedUnresolvedMicroUsd: number }; evidence: ReturnType<typeof folderEvidence> };
+/**
+ * The repair's admission baseline at ONE pinned HEAD (compared, never adopted): the clean source first; the unchanged claim and its whole chain;
+ * once amended, its own HEAD equal to the pin; the failed text stage and the complete request record; the third attempt sealed held by its own
+ * review with exactly its storyboard and review answered; every ledger re-derived from evidence; the resolution (if recorded) re-derived and
+ * applied; and every record of the third attempt by hash.
+ */
+function repairBaseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>): RepairBaseline {
+  assertExperimentSource(config, head);
+  const { claim, claimSha256 } = verifiedClaim(config);
+  const first = readContinuation(config, claimSha256);
+  if (!first) return fail('new_book_continuation_scope');
+  const refused = readRefusedChain(config, claimSha256, first);
+  if (refused.length !== REFUSED_STEPS.length) fail('new_book_continuation_scope');
+  const amended = readRepair(config, claimSha256, first, refused);
+  if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
+  const dir = experimentDir(config), third = path.join(dir, NEW_BOOK_CONTINUATION_3.outDir), root = path.join(third, 'paid-stages');
+  if (sealedStatus(path.join(dir, 'text')) !== 'failed') fail('new_book_continuation_scope');
+  assertRequestRecord(dir, claim, prepared);
+  const sealed = existsSync(path.join(third, 'sealed.json')) ? read(path.join(third, 'sealed.json')) : null, status = heldStatus.safeParse(sealed?.status);
+  if (!status.success || sealed.continuation !== NEW_BOOK_CONTINUATION_3.id || !existsSync(root)) return fail('new_book_continuation_scope');
+  const claims = readdirSync(root).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length)).sort();
+  if (canonicalJson(claims) !== canonicalJson(['storyboard', 'storyboard_review']) ||
+      claims.some(step => read(path.join(root, `${step}.result.json`)).completed !== true)) fail('new_book_continuation_scope');
+  const chain: ContinuationChain = { continuation: first, refused, repair: null };
+  const held = textStage(config, chain), resolution = readCarryResolution(config, claimSha256, chainFolders(chain));
+  if (amended && amended.carryResolutionSha256 !== (resolution?.sha256 ?? null)) fail('new_book_carry_resolution');
+  return { claimSha256, previous: refused[refused.length - 1].amendment, previousSha256: sha(readFileSync(thirdAmendmentFile(config))), amended,
+    status: status.data, held, resolution, ledger: resolvedLedger(held, resolution), evidence: folderEvidence(dir, NEW_BOOK_CONTINUATION_3.outDir) };
+}
+function sameRepairBaseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: RepairBaseline) {
+  const now = repairBaseline(config, head, prepared);
+  if (now.claimSha256 !== admitted.claimSha256 || now.previousSha256 !== admitted.previousSha256 || now.resolution?.sha256 !== admitted.resolution?.sha256 ||
+      canonicalJson(now.ledger) !== canonicalJson(admitted.ledger) || canonicalJson(now.evidence) !== canonicalJson(admitted.evidence)) fail('new_book_continuation_evidence');
+  return now;
+}
+/**
+ * The repair's admission (no provider, no key): the baseline; the original request re-derived; the third attempt's two saved answers replayed
+ * under its own contracts - exactly its two requests, each cost re-derived from its raw answer under the live rule - to exactly the held
+ * disposition it was sealed with; the repair input those answers derive (the held draft, its own raw review); and the repair request, which must
+ * be the third request with exactly the repair added: the contract last in the instructions (before the provider's own note), the held storyboard
+ * and its review's unsupported checks in the planning input, and the source digest that records them, at the same model, schema and caps.
+ */
+async function admitRepair(config: NewBookConfig, head: string) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const baseline = repairBaseline(config, head, prepared);
+  // The carried (or resolved) reservation is admitted only for the original request the roots derive.
+  await assertOriginalRequest(config);
+  const dir = experimentDir(config), textDir = path.join(dir, 'text'), third = path.join(dir, NEW_BOOK_CONTINUATION_3.outDir);
+  const policy = textPolicy(config), replay = textReplay(textDir);
+  const saved = (step: 'storyboard' | 'storyboard_review') => {
+    const [claim, wire, result, receipt] = ['claim', 'wire', 'result', 'receipt'].map(k => read(path.join(third, 'paid-stages', `${step}.${k}.json`)));
+    if (previewSha(canonicalJson(wire)) !== claim.wireDigest || result.wireDigest !== claim.wireDigest || result.completed !== true ||
+        receipt?.estimatedMicroUsd !== result.estimatedMicroUsd || typeof receipt?.raw?.output_text !== 'string') fail('new_book_continuation_replay');
+    return { claim, wire, result, receipt };
+  };
+  const answers = { storyboard: saved('storyboard'), storyboard_review: saved('storyboard_review') };
+  let refusal: unknown = null, stop: string | null = null;
+  const replayed = <T>(f: () => T) => { try { return f(); } catch (error) { refusal ??= error; throw error; } };
+  const halt = (code: string): never => { stop ??= code; throw new NewBookExperimentError(code); };
+  const story = (repair: StoryboardRepair | undefined, visual: (call: SimpleStoryboardDiagnosticCall) => Promise<unknown>) =>
+    runSimpleWizardBook({ request: prepared.accepted.canonical, options, seed: config.seed, signal: new AbortController().signal,
+      reservedWritingUsd: 4, ...NEW_BOOK_STORYBOARD_REPAIR.contracts, ...(repair ? { storyboardRepair: repair } : {}), publish: () => {},
+      opus: async call => { const d = storyDispatch(call, 'opus', prepared.accepted.requestId);
+        return replayed(() => replay.opus(d, prepareCausalWire(d, policy, 2000000, path.join(textDir, `${call.stage}-instructions.txt`)))); },
+      reader: async call => { const d = storyDispatch(call, 'astra', prepared.accepted.requestId);
+        return replayed(() => replay.reader(d, prepareCausalWire(d, policy, 2000000))); },
+      visual });
+  // 1. The third attempt's saved answers, in order, under its own contracts and exactly its requests, each settled from its raw answer.
+  const settled: number[] = [];
+  let draft: unknown = null, thirdSource: string | null = null, thirdInstructions: string | null = null;
+  const replayedThird = await story(undefined, async call => {
+    const step = visualStep(call), a = answers[step], payload = simpleWizardVisualPayload(call, SOL);
+    if (settled.length !== (step === 'storyboard' ? 0 : 1) || previewSha(canonicalJson(payload)) !== a.claim.wireDigest) return halt('new_book_continuation_replay');
+    const s = visualSettlement(call, payload, a.receipt.raw);
+    if (!s.valid || s.estimatedMicroUsd === null || s.estimatedMicroUsd !== a.result.estimatedMicroUsd || canonicalJson(a.receipt.usage) !== canonicalJson(s.usage) ||
+        a.receipt.model !== a.receipt.raw.model || a.receipt.stage !== step) return halt('new_book_continuation_cost');
+    settled.push(s.estimatedMicroUsd);
+    const output = decodePersonalBookProviderOutput(call, JSON.parse(a.receipt.raw.output_text));
+    if (step === 'storyboard') { draft = output; thirdSource = call.context.sourceDigest; thirdInstructions = call.instructions; }
+    return output;
+  }).catch((error: unknown) => { throw refusal ?? (stop ? new NewBookExperimentError(stop) : error); });
+  // The third attempt's storyboard and review as the flow judged them again: the held parent.
+  const heldBoard = replayedThird.storyboard;
+  if (settled.length !== 2 || !heldBoard || replayedThird.status !== baseline.status || heldBoard.status !== baseline.status ||
+      baseline.held.knownMicroUsd !== baseline.previous.priorKnownApiMicroUsd + settled[0] + settled[1]) return fail('new_book_continuation_scope');
+  // The draft the attempt saved is the one its answer decodes to.
+  if (canonicalJson(read(path.join(third, 'owned_storyboard_draft.json'))) !== canonicalJson(draft)) fail('new_book_continuation_replay');
+  const repair: StoryboardRepair = { parentStoryboardDigest: heldBoard.storyboardDigest, draft: structuredClone(draft), review: structuredClone(heldBoard.rawReview) };
+  const prior = { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: repair.parentStoryboardDigest, storyboard: repair.draft,
+    reviewFindings: storyboardRepairFindings(heldBoard.review.review) };
+  // 2. The repair request: the third one with exactly the repair added.
+  const thirdWire = answers.storyboard.wire;
+  let reached = false, onlyTheRepair = false, newReservation = null as number | null;
+  await story(repair, async call => {
+    reached = true;
+    const payload = simpleWizardVisualPayload(call, SOL), source = call.context.sourceDigest;
+    newReservation = visualReservation(call, payload);
+    const { priorReviewedStoryboard, ...input } = JSON.parse(payload.input), thirdInput = JSON.parse(thirdWire.input);
+    onlyTheRepair = call.stage === 'storyboard' && !!thirdSource && !!thirdInstructions && source !== thirdSource &&
+      canonicalJson(thirdWire).split(thirdSource).length === 2 && thirdInput.personalSourceDigest === thirdSource &&
+      canonicalJson(input) === canonicalJson({ ...thirdInput, personalSourceDigest: source }) && canonicalJson(priorReviewedStoryboard) === canonicalJson(prior) &&
+      payload.input === canonicalJson(JSON.parse(payload.input)) && call.instructions === `${thirdInstructions}\n${REPAIR_STORYBOARD_ADDENDUM}` &&
+      thirdWire.instructions.startsWith(thirdInstructions) &&
+      canonicalJson(payload) === canonicalJson({ ...thirdWire, input: payload.input, instructions: call.instructions + thirdWire.instructions.slice(thirdInstructions.length) });
+    throw new NewBookExperimentError('new_book_continuation_preview_stop');
+  }).catch((error: unknown) => { if (!reached) throw refusal ?? error; });
+  if (!reached) fail('new_book_continuation_scope');
+  if (!onlyTheRepair || newReservation === null) return fail('new_book_continuation_request');
+  // Guy's condition: the repair's own reservation and its review's largest possible reservation fit the remaining allowance.
+  const reviewCeiling = wireReservation(VISUAL_WIRE_LIMIT, personalBookOutputLimits(prepared.book.pages).reviewOutputTokens, RATES.sol);
+  const remaining = NEW_BOOK_EXPERIMENT.apiCapMicroUsd - baseline.ledger.knownMicroUsd - baseline.ledger.carriedUnresolvedMicroUsd;
+  const fits = newReservation + reviewCeiling <= remaining;
+  // Both replays were asynchronous: the same pinned HEAD, still clean, and exactly the records they used.
+  sameRepairBaseline(config, head, prepared, baseline);
+  return { prepared, options, repair, admitted: { baseline, fits, summary: { admissible: true, amended: !!baseline.amended,
+    outDirExists: existsSync(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)), storyReplayed: true, previousStatus: baseline.status,
+    previousStoryboardSettledMicroUsd: settled[0], previousReviewSettledMicroUsd: settled[1], parentStoryboardDigest: repair.parentStoryboardDigest,
+    findings: prior.reviewFindings.length, requestChangedOnlyByTheRepair: true, newStoryboardReservationMicroUsd: newReservation,
+    reviewReservationCeilingMicroUsd: reviewCeiling,
+    carryResolution: baseline.resolution ? { sha256: baseline.resolution.sha256, resolvedMicroUsd: baseline.resolution.resolvedMicroUsd,
+      carriedBeforeMicroUsd: baseline.resolution.carriedBeforeMicroUsd } : null,
+    priorKnownApiMicroUsd: baseline.ledger.knownMicroUsd, carriedUnresolvedMicroUsd: baseline.ledger.carriedUnresolvedMicroUsd,
+    remainingUnderCapMicroUsd: remaining, fitsUnderCap: fits, providerCalls: 0, keyRead: false } } };
+}
+/** Read-only preview of the repair. */
+export async function previewStoryboardRepair(config: NewBookConfig) {
+  return (await admitRepair(config, currentHead(config))).admitted.summary;
+}
+/** Records the repair amendment (exclusive), immediately after re-checking the admitted baseline at the same pinned HEAD. */
+function amendForRepair(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: RepairBaseline, parentStoryboardDigest: string) {
+  const now = sameRepairBaseline(config, head, prepared, admitted);
+  if (now.amended) return now.amended;
+  if (existsSync(path.join(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR.outDir))) fail('new_book_continuation_scope');
+  const amendment = repairSchema.parse({ version: 'new-book-continuation/v1', id: NEW_BOOK_STORYBOARD_REPAIR.id, slot: NEW_BOOK_EXPERIMENT.slot,
+    approval: NEW_BOOK_STORYBOARD_REPAIR.approval, claimSha256: now.claimSha256, configSha256: sha(canonicalJson(config)), previousSha256: now.previousSha256,
+    originalSourceHead: config.sourceHead, previousSourceHead: now.previous.sourceHead, sourceHead: head, failedStep: 'storyboard_review_held',
+    previousStatus: now.status, parentStoryboardDigest, carryResolutionSha256: now.resolution?.sha256 ?? null,
+    priorKnownApiMicroUsd: now.ledger.knownMicroUsd, carriedUnresolvedMicroUsd: now.ledger.carriedUnresolvedMicroUsd, evidence: admitted.evidence });
+  try { exclusiveJson(experimentRepairFile(config), amendment); } catch { fail('new_book_continuation_used'); }
+  return amendment;
+}
+/**
+ * Guy's one repair: one pinned HEAD, the admission above, the fit condition, its amendment, the repair input saved for the reviewed loader, then
+ * only the repaired storyboard and its fresh review, in a new folder whose meter carries all earlier known spend (and the resolution it names).
+ */
+export async function runNewBookStoryboardRepair(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; transports?: TextTransports }) {
+  const { config } = args;
+  const head = currentHead(config);
+  const { prepared, options, repair, admitted } = await admitRepair(config, head);
+  if (!admitted.fits) fail('new_book_repair_over_cap');
+  amendForRepair(config, head, prepared, admitted.baseline, repair.parentStoryboardDigest);
+  const mine = assertExperimentClaim(config).repair;
+  if (!mine || mine.parentStoryboardDigest !== repair.parentStoryboardDigest) return fail('new_book_continuation');
+  const dir = experimentDir(config), outDir = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  try { mkdirSync(outDir); } catch { fail('new_book_continuation_used'); }
+  exclusiveJson(path.join(outDir, STORYBOARD_REPAIR_INPUT_FILE), repair);
+  return textCore({ ...args, contracts: NEW_BOOK_STORYBOARD_REPAIR.contracts, storyboardRepair: repair, prepared, options, outDir,
+    api: new AuditionMeter(path.join(outDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CONTINUATION_API_CALLS,
+      mine.priorKnownApiMicroUsd, mine.carriedUnresolvedMicroUsd, meterRules(CONTINUATION_RULES)),
+    claudeMax: null, replay: textReplay(path.join(dir, 'text')), continuationId: NEW_BOOK_STORYBOARD_REPAIR.id });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Stage 2: the fictional child reference.
 // ---------------------------------------------------------------------------------------------------------------
 type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'identity') => Promise<AuditionImage>;
@@ -1009,6 +1407,8 @@ function newBookGrant(config: NewBookConfig): AuditionGrant {
       evidence: [...text.evidence, { file: child.file, sha256: child.sha256 }],
       note: carried
         ? `New-book experiment ledger under the one $7 API cap: known spend of the text stage, its continuation and the child reference, plus the timed-out storyboard call's cost, still unknown, carried in full as an unresolved reservation (never known spend). The Goni book's ledger is separate and unchanged.`
+        : chain.repair?.carryResolutionSha256
+        ? `New-book experiment ledger under the one $7 API cap: known spend of the text stage, its continuations, the storyboard repair and the child reference; the timed-out storyboard call is counted at the charge Guy attested from his own provider usage records (carry resolution, recorded above), in place of its reservation. The Goni book's ledger is separate and unchanged.`
         : `New-book experiment ledger: starts at $0 for this book under the one $7 API cap; text stage and child reference recorded above. The Goni book's ledger is separate and unchanged.` },
     capMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd, maxCalls: AUDITION_WORST_CASE_CALLS,
     scope: { mode: 'render', pages: [0, 1, 2, 3, 4, 5, 6, 7, 8], sample: earliestSameScenePair(loaded.book) },
@@ -1060,19 +1460,28 @@ export function planNewBook(config: NewBookConfig) {
     contracts: NEW_BOOK_EXPERIMENT.contracts, apiCapMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd,
     claimed: existsSync(experimentClaimFile(config)), continuation: existsSync(experimentContinuationFile(config)),
     continuation2: existsSync(experimentContinuation2File(config)), continuation3: existsSync(experimentContinuation3File(config)),
+    carryResolution: existsSync(experimentCarryResolutionFile(config)), repair: existsSync(experimentRepairFile(config)),
     stages: { text: sealedStatus(path.join(dir, 'text')), continuation: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION.outDir)),
       continuation2: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)), continuation3: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_3.outDir)),
+      repair: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)),
       child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')),
       audition: existsSync(experimentAuditionStart(config)) },
     providerCalls: 0, keyRead: false, runtimeEligible: false };
 }
 
 export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTransports; child?: ChildAdapters; log?: (line: string) => void } = {}) {
-  const flags = argv.slice(3);
-  if (argv.length < 3 || argv.length > 5 || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'storyboard-continuation-2', 'storyboard-continuation-3', 'child', 'grant', 'audition'].includes(argv[2]) ||
+  // The carry resolution names its attestation file (absolute) right after the stage; every other stage takes flags only.
+  const attestation = argv[2] === 'carry-resolution' && argv[3] === '--attestation' && typeof argv[4] === 'string' && path.isAbsolute(argv[4]) ? argv[4] : null;
+  const flags = argv.slice(attestation ? 5 : 3);
+  if (argv.length < 3 || argv.length > (attestation ? 6 : 5) || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'storyboard-continuation-2',
+      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'child', 'grant', 'audition'].includes(argv[2]) ||
+      argv[2] === 'carry-resolution' && !attestation ||
       flags.some(f => f !== '--execute' && f !== '--resume') || new Set(flags).size !== flags.length ||
       flags.includes('--resume') && (argv[2] !== 'audition' || !flags.includes('--execute'))) fail('new_book_arguments');
   const config = newBookConfig(argv[1]), stage = argv[2], execute = flags.includes('--execute'), log = deps.log ?? (line => console.log(line));
+  if (stage === 'carry-resolution') return execute ? { mode: 'carry-resolution' as const, resolution: await writeCarryResolution(config, attestation!) }
+    : { mode: 'plan' as const, plan: planNewBook(config), carryResolution: await previewCarryResolution(config, attestation!) };
+  if (stage === 'storyboard-repair' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), repair: await previewStoryboardRepair(config) };
   if (stage === 'storyboard-continuation' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
     continuation: await previewStoryboardContinuation(config) };
   if (stage === 'storyboard-continuation-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
@@ -1089,6 +1498,8 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
     if (stage === 'storyboard-continuation-2') return { mode: 'storyboard-continuation-2' as const, ...await runNewBookStoryboardContinuation2({ config,
       signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'storyboard-continuation-3') return { mode: 'storyboard-continuation-3' as const, ...await runNewBookStoryboardContinuation3({ config,
+      signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
+    if (stage === 'storyboard-repair') return { mode: 'storyboard-repair' as const, ...await runNewBookStoryboardRepair({ config,
       signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'child') return { mode: 'child' as const, ...await runNewBookChild({ config, signal: controller.signal, log, ...(deps.child ? { adapters: deps.child } : {}) }) };
     if (stage === 'audition') return { mode: 'audition' as const, result: await runNewBookAudition({ config, signal: controller.signal, log,
