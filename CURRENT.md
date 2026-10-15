@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Carry-resolution write boundary (Codex HOLD at 2e560627, F1 P2), for narrow re-gate (2026-10-15)
+
+Codex's QA of 4e3eb056..2e560627 supported the repair design, caps, bindings,
+findings, fresh review, loader and fit, and held one P2: writeCarryResolution
+awaited its admission and then wrote the one-shot record with no check on its own
+side of that await, so a HEAD move or a changed record in that gap still consumed
+the record (reproduced). Fixed in d69a25c5: the admission returns a synchronous
+check of its same captured baseline (pin, clean tree, chain, evidence, ledger,
+derivation; never adopted), and the writer runs it immediately before the write.
+Four boundary tests (honest, HEAD moved, tree dirty, evidence changed; the change
+lands in the microtask after the admission's final status read): unfixed writer
+1 pass / 3 fail (each still wrote), re-check removed in memory the same, fixed
+4/4; repair + resolution tests 32/32; tsc 0. Real read-only previews at d69a25c5
+are identical to 19b37a13 (56 book records and Goni's 412 files unchanged). No
+paid call, key read or record written. Guy's real 10/13 usage numbers are still
+needed before the resolution can be recorded.
+
 ## New book: third attempt held; storyboard repair + 10/13 carry resolution built offline (19b37a13, tests e926fa2f), for Codex QA (2026-10-15)
 
 The one third attempt ran at 4e3eb056 after Codex's PASS: the compiler accepted

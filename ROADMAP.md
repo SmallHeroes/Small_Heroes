@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Write-boundary fix built (d69a25c5); next: Codex narrow re-gate, Guy's 10/13 numbers (2026-10-15)
+
+- The carry-resolution writer re-checks the same admission right before its
+  one-shot record. After an explicit Codex PASS and Guy's real gpt-6-astra usage
+  for 2026-10-13: carry-resolution (preview, then --execute), then
+  storyboard-repair (preview; --execute once only if it fits), then child ->
+  grant -> audition.
+
 ## Storyboard repair + 10/13 carry resolution built (19b37a13, e926fa2f); next: Codex QA, Guy's 10/13 numbers (2026-10-15)
 
 - The third attempt's storyboard compiled but its review held it. The approved
