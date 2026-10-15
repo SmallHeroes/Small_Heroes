@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Storyboard repair + 10/13 carry resolution built (19b37a13, e926fa2f); next: Codex QA, Guy's 10/13 numbers (2026-10-15)
+
+- The third attempt's storyboard compiled but its review held it. The approved
+  repair (the held storyboard and its review's own findings back to the planner,
+  the same compiler, a fresh review) runs at the normal caps, once, only if its
+  reservation plus the review's ceiling fits what remains under $7.
+- That fit needs the timed-out 10/13 call's real charge in place of its $2.27
+  reservation: Guy reads gpt-6-astra's 2026-10-13 usage (requests, input and
+  output tokens) from his dashboard; carry-resolution records it once.
+- After an explicit Codex PASS, at that clean HEAD: carry-resolution --execute
+  with Guy's attestation, then storyboard-repair (preview, then --execute once if
+  it fits), then child -> grant -> audition (two samples first) on a supported
+  review. No fifth attempt.
+
 ## Own-meter correction built (294da708); next: Codex re-gate, then the one third attempt (2026-10-15)
 
 - The opted-in meter accounts for every record in its folder (a call whose claim

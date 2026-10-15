@@ -1,5 +1,51 @@
 # SmallHeroes — Current Technical State
 
+## New book: third attempt held; storyboard repair + 10/13 carry resolution built offline (19b37a13, tests e926fa2f), for Codex QA (2026-10-15)
+
+The one third attempt ran at 4e3eb056 after Codex's PASS: the compiler accepted
+the storyboard, but its Sol review held it (held_uncertain; 6 unsupported checks:
+2 book, 4 page), so it stopped before any child, grant or image ($0.753858;
+ledger known $2.237682 + carried $2.267639 = $4.505321 of $7). Guy approved a
+general storyboard repair ("Approve the repair") and, because that repair at the
+normal output cap does not fit beside the timed-out 10/13 call's full $2.27
+reservation, chose to resolve that reservation from his own provider usage
+records ("Check the 10/13 charge"). A draft that shrank the repair's output cap
+is withdrawn (book-config: never shrink a cap to fit money; the payload builder
+rejects it).
+
+Built at 19b37a13 (tests extended in e926fa2f; offline, opt-in; absent, every
+digest, instruction and call is unchanged and the Goni loader fingerprints are
+identical): the engine's repair
+contract (the held parent bound by recompiling under the same contracts and by
+its own holding review; the engine derives the findings; a general addendum; the
+book names its parent; the fresh review never sees the repair); the experiment's
+carry-resolution stage (Guy's gpt-6-astra totals for 2026-10-13 minus this book's
+own answered calls that day must be exactly nothing, or one request with the
+identical request's measured input and an output within its cap; written once,
+beside the claim, before the repair; re-derived at every read); and the
+storyboard-repair stage (continuation-4: admitted only after a third attempt its
+own review held, both answers replayed to the exact hold; the request is the
+third plus exactly the repair; it runs only if its reservation plus the review's
+ceiling, $0.710600, fits what remains after the named resolution). The reviewed
+loader rebuilds a repaired book from its saved repair input.
+
+Real read-only previews at 19b37a13 (56 book records and Goni's 412 files
+unchanged): the repair is admissible, needs $2.724854 + $0.710600 against
+$2.494679 today (does not fit); the resolution preview, under two hypothetical
+attestations, frees the reservation to $0 or $0.768110, leaving $4.762318 or
+$3.994208 (fits either way; it fits while the 10/13 charge is at most $1.326864,
+about 24,766 output tokens). Tests: 28 new (engine 9, experiment 19); focused 14
+files serial at e926fa2f 587/588 (one 5 s timeout of a subprocess CLI test in
+storyboard.spec.ts after the 11-minute experiment spec; that file alone 74/74,
+twice). Negative control: with the five changed sources from 4e3eb056, 24 of the
+28 new tests fail (the 4 that pass: the absent pins, two pure tests of the new
+module, the existing held setup). Mutants: 62 targeted, 57 killed, 5 equivalent
+(each case already refused by an earlier check on the same evidence); the 4 gaps
+they found are closed by tests in e926fa2f. No paid call, key read or record
+written. Next: Codex QA;
+Guy's 10/13 numbers; then, after PASS, the resolution once and the repair once
+only if it fits.
+
 ## Own meter: whole record set and pre-dispatch pricing (Codex HOLD at 5e225695, F1 P1 + F2 P2), for Codex re-gate (2026-10-15)
 
 Codex's first QA of 5b687cf4..5e225695: the original estimate rewrite is refused
