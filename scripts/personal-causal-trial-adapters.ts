@@ -133,6 +133,18 @@ export function createOpusCausalTransport(policy: WirePolicy) {
     if (JSON.stringify(wire.args) !== JSON.stringify(wire.payload.args) || wire.payload.stdin !== call.input ||
       wire.payload.instructions !== call.instructions || wire.payload.executable !== policy.executable || wire.payload.executableSha256 !== policy.executableSha256) hostFail('wire_contract');
     if (fencedText(String(wire.payload.instructionFile), 104_000) !== call.instructions) hostFail('instruction_file');
+    return runClaudeCli(policy, wire, signal, structured => opusOutputContract(call).decode(structured));
+  };
+}
+
+/**
+ * One restricted Claude Max CLI session (every Opus caller's hardening): the approved local login with credential/endpoint overrides
+ * stripped, a fresh process, the deadline, capped capture, confirmed termination, exactly the wire's one reported model, known usage and
+ * CLI cost, and a successful structured answer that `decode` maps to the caller's own contract. The caller has already bound its wire.
+ */
+export async function runClaudeCli(policy: WirePolicy, wire: { args: string[] | null; stdin: string | null; outputCap: number; model: string },
+  signal: AbortSignal, decode: (structured: unknown) => unknown): Promise<TransportReply> {
+    if (!wire.args || wire.stdin === null) hostFail('wire_contract');
     let receipt = knownReceipt(null, {}, null, null);
     try {
       // Keep the approved local login, not environment-injected API keys/endpoints/session aliases.
@@ -177,10 +189,9 @@ export function createOpusCausalTransport(policy: WirePolicy) {
       // request counts. The host still enforces the unchanged slot USD allowance.
       if (!usage || micro === null) hostFail('usage');
       if (parsed.is_error !== false || parsed.subtype !== 'success' || !parsed.structured_output || raw.stdout.includes('\ufffd')) hostFail('incomplete');
-      const output = opusOutputContract(call).decode(parsed.structured_output);
+      const output = decode(parsed.structured_output);
       return { ...receipt, output };
     } catch (error) {
       throw new CausalTransportError(error instanceof CausalHostError ? error.code : 'provider_or_schema', receipt);
     }
-  };
 }
