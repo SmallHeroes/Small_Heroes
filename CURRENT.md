@@ -41,7 +41,9 @@ twice). Negative control: with the five changed sources from 4e3eb056, 24 of the
 28 new tests fail (the 4 that pass: the absent pins, two pure tests of the new
 module, the existing held setup). Mutants: 62 targeted, 57 killed, 5 equivalent
 (each case already refused by an earlier check on the same evidence); the 4 gaps
-they found are closed by tests in e926fa2f. No paid call, key read or record
+they found are closed by tests: the repair source's review digest in 19b37a13
+(written after the first run, before that commit), the other three in e926fa2f
+(whose message also wrongly lists the first one). No paid call, key read or record
 written. Next: Codex QA;
 Guy's 10/13 numbers; then, after PASS, the resolution once and the repair once
 only if it fits.
