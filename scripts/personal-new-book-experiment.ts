@@ -1080,16 +1080,18 @@ async function admitCarryResolution(config: NewBookConfig, head: string, attesta
     return { claimSha256, before, derived, evidence: before.evidence };
   };
   const admitted = baseline();
+  // The admission, compared and never adopted: the same pin, still clean, and the same records, ledger and derivation (synchronous).
+  const same = () => { if (canonicalJson(baseline()) !== canonicalJson(admitted)) fail('new_book_continuation_evidence'); };
   await assertOriginalRequest(config);
-  // The replay was asynchronous: the same pin, still clean, and the same records and derivation.
-  if (canonicalJson(baseline()) !== canonicalJson(admitted)) fail('new_book_continuation_evidence');
+  // The replay was asynchronous.
+  same();
   const { before, derived } = admitted, cap = NEW_BOOK_EXPERIMENT.apiCapMicroUsd;
   // As resolvedLedger applies it at every later read: the carried reservation (checked equal above) out, the attested charge in.
   const after = { knownMicroUsd: before.knownMicroUsd + derived.resolved.microUsd, carriedUnresolvedMicroUsd: 0 };
   const record = resolutionSchema.parse({ version: 'new-book-carry-resolution/v1', id: NEW_BOOK_CARRY_RESOLUTION.id, slot: NEW_BOOK_EXPERIMENT.slot,
     approval: NEW_BOOK_CARRY_RESOLUTION.approval, claimSha256: admitted.claimSha256, configSha256: sha(canonicalJson(config)), sourceHead: head,
     timedOut: derived.timedOut, attestation, knownSameDay: derived.knownSameDay, resolved: derived.resolved });
-  return { record, summary: { recorded: existsSync(experimentCarryResolutionFile(config)), day: attestation.day, model: attestation.model, scope: attestation.scope,
+  return { record, same, summary: { recorded: existsSync(experimentCarryResolutionFile(config)), day: attestation.day, model: attestation.model, scope: attestation.scope,
     knownSameDay: derived.knownSameDay.map(c => ({ folder: c.folder, createdAt: c.createdAt, inputTokens: c.inputTokens, outputTokens: c.outputTokens })),
     timedOutCall: { requests: derived.resolved.requests, inputTokens: derived.resolved.inputTokens, outputTokens: derived.resolved.outputTokens,
       chargeMicroUsd: derived.resolved.microUsd },
@@ -1105,7 +1107,10 @@ export async function previewCarryResolution(config: NewBookConfig, attestationF
 }
 /** Records the resolution once (exclusive), right after its admission at the same pinned HEAD. */
 export async function writeCarryResolution(config: NewBookConfig, attestationFile: string) {
-  const { record, summary } = await admitCarryResolution(config, currentHead(config), attestationFile);
+  const { record, same, summary } = await admitCarryResolution(config, currentHead(config), attestationFile);
+  // That await is a scheduling boundary after the admission's last check: the same admission is re-checked synchronously, immediately
+  // before the one-shot write (a moved HEAD, a dirty tree or any changed record, ledger or derivation refuses; nothing is written).
+  same();
   try { exclusiveJson(experimentCarryResolutionFile(config), record); } catch { fail('new_book_carry_resolution_used'); }
   return { ...summary, recorded: true };
 }

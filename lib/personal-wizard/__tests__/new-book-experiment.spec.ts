@@ -2577,6 +2577,39 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     expect(existsSync(experimentCarryResolutionFile(config))).toBe(false);
   });
 
+  // Codex HOLD at 2e560627: the writer awaited the admission and wrote with no check on its own side of that await.
+  it.each(['honest', 'HEAD moved', 'tree dirty', 'evidence changed'] as const)(
+    "the one-shot write re-checks the SAME admission synchronously after its last await (%s): any change in that gap refuses, nothing written", async kind => {
+      await heldThrice();
+      const at = billed(), real = vi.mocked(frozen.gitAt).getMockImplementation()!;
+      // Calibration: the honest preview's own source-status reads; the last one is the admission's final baseline check.
+      let reads = 0;
+      vi.mocked(frozen.gitAt).mockImplementation((repo, args) => { const out = real(repo, args); if (args.join(' ') === 'status --porcelain') reads++; return out; });
+      await resolve(at, false);
+      const finalCheck = reads;
+      expect(finalCheck).toBeGreaterThan(0);
+      const spend3 = path.join(outN(3), 'spend.json'), spendBytes = readFileSync(spend3);
+      const change = { honest: () => {}, 'HEAD moved': () => headAt('3'.repeat(40)),
+        'tree dirty': () => headAt('2'.repeat(40), ' M scripts/personal-new-book-experiment.ts'),
+        'evidence changed': () => writeFileSync(spend3, Buffer.concat([spendBytes, Buffer.from(' ')])) }[kind];
+      // The change runs in the microtask queued at the admission's final status read: after its last check, before the writer resumes.
+      let seen = 0, changed = false;
+      vi.mocked(frozen.gitAt).mockImplementation((repo, args) => {
+        const out = real(repo, args);
+        if (args.join(' ') === 'status --porcelain' && ++seen === finalCheck) queueMicrotask(() => { changed = true; change(); });
+        return out;
+      });
+      if (kind === 'honest') {
+        expect(await resolve(at)).toMatchObject({ mode: 'carry-resolution', resolution: { recorded: true } });
+        expect(json(experimentCarryResolutionFile(config))).toMatchObject({ sourceHead: '2'.repeat(40), resolved: { microUsd: 400000 } });
+      } else {
+        await expect(resolve(at)).rejects.toThrow(kind === 'evidence changed' ? /^new_book_continuation_evidence$/ : /^new_book_source_changed$/);
+        expect(existsSync(experimentCarryResolutionFile(config))).toBe(false);
+      }
+      expect(changed).toBe(true);
+      expect(sdk.create).not.toHaveBeenCalled();
+    });
+
   it('a book with no carried reservation has nothing to resolve', async () => {
     await run();
     await expect(resolve(billed(), false)).rejects.toThrow(/^new_book_carry_resolution_scope$/);
