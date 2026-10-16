@@ -13,9 +13,13 @@ import type { PageChildResemblanceVisionResult } from '../../generation-pipeline
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
-  auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect } from '../simple-book-reviewed-audition';
-import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule }
+  auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
+  sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
+  AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
+  AUDITION_SCALE_LINEUP_PAGE_SUFFIX } from '../simple-book-reviewed-audition';
+import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload }
   from '../../../scripts/personal-simple-book-reviewed-audition';
+import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { canonicalJson } from '../request-acceptance';
 
@@ -1268,5 +1272,192 @@ describe('opt-in own-record verification (the new-book meter): every own call re
       ['page_4_1_identity', auditionIdentityRule], ['r12_page_4_1_identity', auditionIdentityRule]] as const) expect(auditionMeterRules(step), step).toBe(rule);
     for (const step of ['sheet_entities_0_identity', 'rejudge_0_page_4', 'page_4', 'page_4_1_qa_identity', 'r_page_4_1', 'r123_page_4_1', 'R1_page_4_1',
       'sheet_props_0', 'page_4_1_extra', 'reference_child', 'storyboard', 'toString', '__proto__']) expect(auditionMeterRules(step), step).toBeUndefined();
+  });
+});
+
+describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on the entities sheet; absent, byte-identical', () => {
+  // Pinned at 69e1079a, before the lineup existed, from this file's own fixture: the flag-absent bytes must never move.
+  const LEGACY = { designs: '481bc8ae0ec20118e86b8a81e004e22af4b00be011038cb836cbe19ca5db3799',
+    entitiesPrompt: '5e796b015a1936a41dc399f5d3cfed0990a95450719ad97b6ed9b55da10a63d6', locationsPrompt: '30db89ebdb41cd94862c23e17d8543eadad3ee1c62a33635ceb4c996d4f01455',
+    entitiesRepairPrompt: '8a5016ae60fc9c74a4e9acbd72c62da907a868e65c852c395619aca1b938f374', sheetJudge: 'f73cb818de575dded757889573a0a00e920590e4561b1fb3b6482aa77d064a85',
+    pageJudge: '684127fb44e671d17850ceb3a93daa1042860e1e407cddb8b521d4d81322d7ce', pageSuffix: '5a0b65b61a0ad75e9161864f30d424c8d9989ad1bdd14a516a6c2f94a652c380',
+    policy: '2ff1139ea157f9c2cf1324251f2892cdd30102f4a217c80f6c9961b6fefb4e16' };
+  const repairFinding = [{ category: 'props', verdict: 'defect', impact: 'identity', requirement: 'design:cat', note: 'pink nose missing', bound: true }] as never;
+  /** The fixture with the plan's structured companion height (every compiled continuity carries it); null removes it. */
+  const lineupBook = (height: unknown = 1.6) => {
+    const b = fixture() as any;
+    if (height === null) delete b.plan.continuity.companionStandingHeightInChildHeights; else b.plan.continuity.companionStandingHeightInChildHeights = height;
+    return b as PersonalStoryboard;
+  };
+
+  it('absent (or false): designs, prompts, judge instructions, page suffix and policy are exactly the pinned pre-lineup bytes', () => {
+    for (const d of [auditionSheetDesigns(fixture(), texts), auditionSheetDesigns(fixture(), texts, false), auditionSheetDesigns(lineupBook(), texts)]) {
+      expect(sha(canonicalJson(d))).toBe(LEGACY.designs);
+      expect('scaleLineup' in d.entities).toBe(false);
+      expect(sha(auditionSheetPrompt('entities', d.entities))).toBe(LEGACY.entitiesPrompt);
+      expect(sha(auditionSheetPrompt('locations', d.locations))).toBe(LEGACY.locationsPrompt);
+      expect(sha(sheetRepairPrompt('entities', d.entities, repairFinding))).toBe(LEGACY.entitiesRepairPrompt);
+      expect(auditionJudgeInstruction('sheet', { role: 'entities', design: d.entities })).toBe(AUDITION_JUDGE_INSTRUCTIONS.sheet);
+      expect(auditionJudgeInstruction('sheet', { role: 'locations', design: d.locations })).toBe(AUDITION_JUDGE_INSTRUCTIONS.sheet);
+    }
+    expect([sha(AUDITION_SHEET_JUDGE_INSTRUCTION), sha(AUDITION_JUDGE_INSTRUCTIONS.sheet), sha(AUDITION_JUDGE_INSTRUCTIONS.page), sha(AUDITION_PAGE_SUFFIX),
+      sha(canonicalJson(REVIEWED_AUDITION_POLICY))]).toEqual([LEGACY.sheetJudge, LEGACY.sheetJudge, LEGACY.pageJudge, LEGACY.pageSuffix, LEGACY.policy]);
+    expect(reviewedAuditionPolicy()).toBe(REVIEWED_AUDITION_POLICY);
+    expect(reviewedAuditionPolicy(false)).toBe(REVIEWED_AUDITION_POLICY);
+    expect(auditionJudgeInstruction('page', {})).toBe(AUDITION_JUDGE_INSTRUCTIONS.page);
+  });
+
+  it('present: the entities design names every supporting character it draws (structural, in design order) and the companion\'s structured height', () => {
+    const legacy = auditionSheetDesigns(lineupBook(), texts), d = auditionSheetDesigns(lineupBook(), texts, true);
+    expect(d.entities.scaleLineup).toEqual({ version: AUDITION_SCALE_LINEUP_VERSION, post: 'child_height', members: ['cat'],
+      companionOutline: { id: 'companion', standingHeightInChildHeights: 1.6 } });
+    // Only the lineup is added: the rest of the entities design, the locations design and the deferrals are unchanged.
+    const { scaleLineup: _lineup, ...rest } = d.entities;
+    expect(canonicalJson(rest)).toBe(canonicalJson(legacy.entities));
+    expect(canonicalJson(d.locations)).toBe(canonicalJson(legacy.locations));
+    expect(d.pageDeferred).toEqual(legacy.pageDeferred);
+    // Membership is structural: a prop whose words give a size in child heights is not a member, and a member's size stays in its own design.
+    expect(d.entities.entities.find(e => e.id === 'paper_boat')!.invariants).toContainEqual({ attribute: 'size', value: 'about 0.3 child heights' });
+    expect(d.entities.scaleLineup!.members).not.toContain('paper_boat');
+    // A supporting character attached to an actor is drawn with that actor on its pages, not on the sheet, so not in the lineup; the post and
+    // the companion outline remain.
+    const riding = lineupBook() as any;
+    for (const p of riding.sequence.pages) p.states.find((s: any) => s.entityId === 'cat').value = { relation: 'attached_to', targetId: 'companion' };
+    expect(auditionSheetDesigns(riding, texts, true).entities.scaleLineup).toEqual({ version: AUDITION_SCALE_LINEUP_VERSION, post: 'child_height', members: [],
+      companionOutline: { id: 'companion', standingHeightInChildHeights: 1.6 } });
+    // The companion's height comes only from the plan's validated measurement: absent or out of range refuses.
+    for (const height of [null, 0, 0.05, 51, Number.NaN, '1.6'])
+      expect(() => auditionSheetDesigns(lineupBook(height), texts, true), String(height)).toThrow('audition_scale_lineup');
+  });
+
+  it('present: the lineup block, its checks and ids and the page rule are added exactly; the locations sheet and every other text are unchanged', () => {
+    const legacy = auditionSheetDesigns(lineupBook(), texts), d = auditionSheetDesigns(lineupBook(), texts, true);
+    const prompt = auditionSheetPrompt('entities', d.entities), [rules] = prompt.split('\nAUTHORITATIVE DESIGN DATA: ');
+    const [legacyRules] = auditionSheetPrompt('entities', legacy.entities).split('\nAUTHORITATIVE DESIGN DATA: ');
+    // The legacy rules, then one lineup line, then the design data (which carries the lineup).
+    expect(rules.startsWith(`${legacyRules}\nSCALE LINEUP (design.scaleLineup), in addition to the tiles:`)).toBe(true);
+    expect(rules.slice(legacyRules.length + 1)).not.toContain('\n');
+    expect(prompt.endsWith(`\nAUTHORITATIVE DESIGN DATA: ${canonicalJson(d.entities)}`)).toBe(true);
+    for (const phrase of ['a plain vertical measuring post exactly one child height tall (label child_height; a neutral post, never a child figure',
+      'flat single-tone silhouette', 'every listed ID is still drawn exactly once as its tile', 'exactly companionOutline.standingHeightInChildHeights post heights tall',
+      'never enlarge or shrink one figure alone', 'the lineup is the only place on the sheet where sizes are compared']) expect(rules).toContain(phrase);
+    // The in-place repair keeps the same lineup rules.
+    expect(sheetRepairPrompt('entities', d.entities, repairFinding).startsWith(`${prompt}\nImage 1 is the previous sheet`)).toBe(true);
+    // The locations sheet is untouched by the flag.
+    expect(sha(auditionSheetPrompt('locations', d.locations))).toBe(LEGACY.locationsPrompt);
+    expect(sheetRequirementIds(d.locations)).toEqual(sheetRequirementIds(legacy.locations));
+    // Requirement ids: the legacy ids, then the lineup's own (post and ground line, each member, the companion outline).
+    expect(sheetRequirementIds(d.entities)).toEqual([...sheetRequirementIds(legacy.entities), 'scale_lineup', 'scale_lineup:cat', 'scale_lineup:companion']);
+    // The judge instruction is chosen by the judged design: the legacy instruction with the lineup checks inserted after the tile rule.
+    expect(auditionJudgeInstruction('sheet', { role: 'entities', design: d.entities })).toBe(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION);
+    expect(auditionJudgeInstruction('sheet', { role: 'locations', design: d.locations })).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
+    const anchor = 'Inspect proportions within a tile.\n', [head, tail, more] = AUDITION_SHEET_JUDGE_INSTRUCTION.split(anchor);
+    expect(more).toBeUndefined();
+    expect(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION.startsWith(`${head}${anchor}SCALE LINEUP (context.design.scaleLineup; the ONE place on the sheet where sizes are compared):\n`)).toBe(true);
+    expect(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION.endsWith(`\n${tail}`)).toBe(true);
+    for (const phrase of ['report only a clear contradiction', 'approximate agreement passes', 'Never measure tiles against each other',
+      'a continuity issue citing scale_lineup:<member id>', 'scale_lineup:companion', 'is an identity issue citing scale_lineup'])
+      expect(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION).toContain(phrase);
+    // The page suffix: the legacy suffix with the relative-size rule after the authorities sentence, and nothing else.
+    const s = AUDITION_SCALE_LINEUP_PAGE_SUFFIX, rule = s.slice(s.indexOf(' RELATIVE SIZE: '), s.indexOf(' Draw only the current visible entities.'));
+    expect(s.replace(rule, '')).toBe(AUDITION_PAGE_SUFFIX);
+    expect(rule).toContain('changed only by perspective (nearer looks larger, farther looks smaller)');
+    expect(rule).toContain('a character too tall for the frame is cropped by the frame edge, never shrunk to fit');
+    // The policy: v10 is every v9 rule unchanged, plus the lineup.
+    const { version, scaleLineup, ...rules10 } = SCALE_LINEUP_AUDITION_POLICY, { version: v9, ...rules9 } = REVIEWED_AUDITION_POLICY;
+    expect([version, v9, rules10]).toEqual(['reviewed-audition-policy/v10', 'reviewed-audition-policy/v9', rules9]);
+    expect(scaleLineup).toContain('never read from words');
+    expect(reviewedAuditionPolicy(true)).toBe(SCALE_LINEUP_AUDITION_POLICY);
+  });
+
+  it('a lineup anywhere but the entities sheet, or a malformed one, refuses in the prompt and in the judge instruction', () => {
+    const d = auditionSheetDesigns(lineupBook(), texts, true), lineup = d.entities.scaleLineup!;
+    expect(() => auditionSheetPrompt('locations', { ...d.locations, scaleLineup: lineup })).toThrow('audition_scale_lineup');
+    expect(() => auditionJudgeInstruction('sheet', { role: 'locations', design: { ...d.locations, scaleLineup: lineup } })).toThrow('audition_scale_lineup');
+    expect(() => auditionJudgeInstruction('sheet', { design: d.entities })).toThrow('audition_scale_lineup');
+    for (const bad of [{ ...lineup, version: 'audition-scale-lineup/v2' }, { ...lineup, post: 'child' }, { ...lineup, members: ['cat', 'cat'] },
+      { ...lineup, members: ['Cat'] }, { ...lineup, extra: true }, { ...lineup, companionOutline: { ...lineup.companionOutline, id: 'child' } },
+      { ...lineup, companionOutline: { ...lineup.companionOutline, standingHeightInChildHeights: 60 } }, null, AUDITION_SCALE_LINEUP_VERSION]) {
+      expect(() => auditionSheetPrompt('entities', { ...d.entities, scaleLineup: bad }), JSON.stringify(bad)).toThrow('audition_scale_lineup');
+      expect(() => auditionJudgeInstruction('sheet', { role: 'entities', design: { ...d.entities, scaleLineup: bad } })).toThrow('audition_scale_lineup');
+      expect(() => sheetScaleLineup('entities', { scaleLineup: bad })).toThrow('audition_scale_lineup');
+    }
+  });
+
+  it('orchestration: the v10 policy and lineup design are saved; lineup prompt and checks on the entities sheet only; every page gets the rule; page judging unchanged', async () => {
+    const on = harness({ book: lineupBook() }), off = harness({ book: lineupBook() });
+    const m = await illustrateReviewedAudition({ ...on.args, scaleLineup: true }), legacy = await illustrateReviewedAudition(off.args);
+    expect(on.saved.get('audition_sheet_designs')).toEqual(JSON.parse(JSON.stringify({ policy: SCALE_LINEUP_AUDITION_POLICY, designs: auditionSheetDesigns(lineupBook(), texts, true) })));
+    expect(m).toMatchObject({ policy: { version: 'reviewed-audition-policy/v10' }, scaleLineup: AUDITION_SCALE_LINEUP_VERSION, status: 'qa_supported_audition' });
+    expect(legacy.policy).toBe(REVIEWED_AUDITION_POLICY);
+    expect('scaleLineup' in legacy).toBe(false);
+    expect(on.prompts.get('sheet_entities_0')).toContain('SCALE LINEUP (design.scaleLineup)');
+    expect(off.prompts.get('sheet_entities_0')).not.toContain('SCALE LINEUP');
+    expect(on.prompts.get('sheet_locations_0')).toBe(off.prompts.get('sheet_locations_0'));
+    expect(on.contexts.get('sheet_entities_0_qa')).toMatchObject({ design: { scaleLineup: { members: ['cat'] } },
+      requirementIds: expect.arrayContaining(['scale_lineup', 'scale_lineup:cat', 'scale_lineup:companion']) });
+    expect(on.contexts.get('sheet_locations_0_qa')).toEqual(off.contexts.get('sheet_locations_0_qa'));
+    for (let n = 0; n <= 8; n++) {
+      expect(on.prompts.get(`page_${n}_0`)).toBe(off.prompts.get(`page_${n}_0`)!.replace(AUDITION_PAGE_SUFFIX, AUDITION_SCALE_LINEUP_PAGE_SUFFIX));
+      expect(on.prompts.get(`page_${n}_0`)).toContain(AUDITION_SCALE_LINEUP_PAGE_SUFFIX);
+      // The page judge's context is the same: only the renderer is told about the lineup.
+      expect(on.contexts.get(`page_${n}_0_qa`)).toEqual(off.contexts.get(`page_${n}_0_qa`));
+    }
+  });
+
+  it('a lineup finding binds only under the lineup (repaired in place); the same citation without it is an invalid review, never redrawn', async () => {
+    const short = (step: string): Spec => step === 'sheet_entities_0_qa'
+      ? { relative_scale: { issues: [issue('continuity', 'scale_lineup:cat', 'the cat silhouette stands taller than the post')] } } : {};
+    const on = harness({ book: lineupBook(), judge: short }), off = harness({ book: lineupBook(), judge: short });
+    const m = await illustrateReviewedAudition({ ...on.args, scaleLineup: true }), legacy = await illustrateReviewedAudition(off.args);
+    expect(on.prompts.get('sheet_entities_1')).toContain('- [continuity] scale_lineup:cat: the cat silhouette stands taller than the post');
+    expect(on.prompts.get('sheet_entities_1')).toContain('SCALE LINEUP (design.scaleLineup)');
+    expect(on.args.render.mock.calls.find(c => c[0] === 'sheet_entities_1')![2]).toEqual([image('sheet_entities_0'), image('child'), image('companion')]);
+    expect(m.sheets.entities).toMatchObject({ status: 'qa_supported', referenceStatus: 'approved_reference', chosenAttempt: 1 });
+    expect(legacy.sheets.entities).toMatchObject({ status: 'review_invalid', referenceStatus: 'diagnostic_candidate', chosenAttempt: 0 });
+    expect(off.args.render.mock.calls.filter(c => String(c[0]).startsWith('sheet_entities_'))).toHaveLength(1);
+  });
+
+  it('a resume binds the flag: saved lineup work never resumes without it, nor saved legacy work with it', async () => {
+    const on = harness({ book: lineupBook() }), off = harness({ book: lineupBook() });
+    await illustrateReviewedAudition({ ...on.args, pages: [0, 1], scaleLineup: true });
+    await illustrateReviewedAudition({ ...off.args, pages: [0, 1] });
+    const saved = (h: typeof on) => ({ designs: h.saved.get('audition_sheet_designs'), stepPrefix: 'r1_',
+      sheets: { entities: h.saved.get('sheet_entities') as any, locations: h.saved.get('sheet_locations') as any }, pages: { 0: h.saved.get('page_0') as any } });
+    await expect(illustrateReviewedAudition({ ...harness({ book: lineupBook() }).args, pages: [0, 1], resume: saved(on) })).rejects.toThrow('audition_resume_binding');
+    await expect(illustrateReviewedAudition({ ...harness({ book: lineupBook() }).args, pages: [0, 1], scaleLineup: true, resume: saved(off) }))
+      .rejects.toThrow('audition_resume_binding');
+    // Control: under the same flag the saved work resumes and only the missing frame is drawn.
+    const again = harness({ book: lineupBook() });
+    await illustrateReviewedAudition({ ...again.args, pages: [0, 1], scaleLineup: true, resume: saved(on) });
+    expect(again.args.render.mock.calls.map(c => c[0])).toEqual(['r1_page_1_0']);
+  });
+
+  it('the grant carries the flag only as the render scope\'s literal; the judge request carries the instruction its own context selects', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'audition-lineup-')), evidence = path.join(dir, 'spend.json');
+    writeFileSync(evidence, '{}');
+    const book = { requestId: sha('r'), storyboardDigest: sha('b') };
+    const grant = { version: 'audition-spend-grant/v1', approvalReference: 'Guy chose a common-scale lineup comparison on 2026-10-16 (synthetic example)',
+      book, ledger: { priorKnownApiMicroUsd: 1000, evidence: [{ file: evidence, sha256: sha('{}') }], note: 'synthetic ledger for the scale lineup' },
+      capMicroUsd: 2000000, maxCalls: 20, scope: { mode: 'render', pages: [2, 3], sample: [2, 3], scaleLineup: AUDITION_SCALE_LINEUP_VERSION },
+      claudeMax: 'Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger' };
+    const file = path.join(dir, 'grant.json'), write = (g: unknown) => { writeFileSync(file, JSON.stringify(g)); return file; };
+    expect(readAuditionGrant(write(grant), book).grant.scope).toMatchObject({ scaleLineup: AUDITION_SCALE_LINEUP_VERSION });
+    for (const scaleLineup of ['audition-scale-lineup/v2', true, 'yes', null])
+      expect(() => readAuditionGrant(write({ ...grant, scope: { ...grant.scope, scaleLineup } }), book), String(scaleLineup)).toThrow();
+    const rejudge = { mode: 'rejudge', sourceDirectory: dir, frames: [{ label: 'saved p2', pageNumber: 2, image: image('p'), predecessor: null }],
+      references: { entities: { image: image('e'), status: 'approved_reference', knownFlaws: [] }, locations: { image: image('l'), status: 'approved_reference', knownFlaws: [] } } };
+    expect(readAuditionGrant(write({ ...grant, scope: rejudge }), book).grant.scope.mode).toBe('rejudge');
+    expect(() => readAuditionGrant(write({ ...grant, scope: { ...rejudge, scaleLineup: AUDITION_SCALE_LINEUP_VERSION } }), book)).toThrow();
+    // The judge request for the same candidate: the instruction comes from the judged context.
+    const bytes = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#8899aa' } }).png().toBuffer();
+    const d = auditionSheetDesigns(lineupBook(), texts, true), legacy = auditionSheetDesigns(lineupBook(), texts);
+    const payload = (design: unknown, role = 'entities') => auditionJudgePayload({ candidate: { imageName: 'sheet_entities_0.png', imageSha: sha('x') },
+      candidateBytes: bytes, context: { version: 'audition-sheet-context/v2', role, design, requirementIds: [] }, contextSha: sha('c'), refs: [bytes, bytes],
+      predecessor: null, kind: 'sheet' });
+    expect((await payload(d.entities)).instructions).toBe(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION);
+    expect((await payload(legacy.entities)).instructions).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
+    expect((await payload(d.locations, 'locations')).instructions).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
+    await expect(payload({ ...d.locations, scaleLineup: d.entities.scaleLineup }, 'locations')).rejects.toThrow('audition_scale_lineup');
   });
 });

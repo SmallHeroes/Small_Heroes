@@ -33,6 +33,8 @@ import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookTex
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
+import { AUDITION_SCALE_LINEUP_VERSION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_PAGE_SUFFIX }
+  from '../simple-book-reviewed-audition';
 import { DRAWN_INSTANT_STORYBOARD_ADDENDUM, DRAWN_INSTANT_REVIEW_ADDENDUM, DRAWN_INSTANT_CONTRACT_VERSION } from '../storyboard-drawn-instant';
 import { decodePersonalBookProviderOutput } from '../book-openai';
 import { SimpleBookBudget } from '../simple-book-budget';
@@ -523,6 +525,38 @@ describe('the reviewed audition on the new book (synthetic providers through the
     writeFileSync(g, bytes);
     const result = await audition();
     expect(result.mode === 'render' && result.manifest.status).toBe('qa_supported_audition');
+  });
+
+  it('scale lineup: only a render grant\'s flag turns it on, and it reaches the admission (v10), the entities sheet and its judge request and every page prompt; the locations sheet is unchanged', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
+    // A bare runner's grant (the same verified ledger, no experiment slot): the lineup grant and its legacy control differ only in the flag.
+    const { experiment: _slot, ...bare } = json(path.join(dir, 'audition.grant.json'));
+    const run = async (name: string, scope: Record<string, unknown>) => {
+      const grantFile = path.join(root, `${name}.grant.json`), out = path.join(root, name);
+      writeFileSync(grantFile, JSON.stringify({ ...bare, scope: { mode: 'render', pages: [2, 3], ...scope } }));
+      const result = await runReviewedAudition({ bookDir: dir, out, keyFile: config.keyEnvFile, grantFile, signal: new AbortController().signal, log: () => {}, layout });
+      const wire = (step: string) => json(path.join(out, 'paid-stages', `${step}.wire.json`));
+      return { result, admission: json(path.join(out, 'admission.json')), wire };
+    };
+    const on = await run('audition-lineup', { scaleLineup: AUDITION_SCALE_LINEUP_VERSION }), off = await run('audition-legacy', {});
+    expect(on.admission).toMatchObject({ policy: { version: 'reviewed-audition-policy/v10' }, scaleLineup: AUDITION_SCALE_LINEUP_VERSION });
+    expect(off.admission.policy.version).toBe('reviewed-audition-policy/v9');
+    expect('scaleLineup' in off.admission).toBe(false);
+    if (on.result.mode !== 'render' || off.result.mode !== 'render') throw Error('render expected');
+    expect(on.result.manifest).toMatchObject({ scaleLineup: AUDITION_SCALE_LINEUP_VERSION, policy: { version: 'reviewed-audition-policy/v10' } });
+    expect('scaleLineup' in off.result.manifest).toBe(false);
+    expect(on.wire('sheet_entities_0').body.prompt).toContain('SCALE LINEUP (design.scaleLineup), in addition to the tiles:');
+    expect(off.wire('sheet_entities_0').body.prompt).not.toContain('SCALE LINEUP');
+    expect(on.wire('sheet_entities_0_qa').instructions).toBe(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION);
+    expect(off.wire('sheet_entities_0_qa').instructions).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
+    // The locations sheet: the same request and the same judge instruction either way.
+    expect(on.wire('sheet_locations_0').body.prompt).toBe(off.wire('sheet_locations_0').body.prompt);
+    expect(on.wire('sheet_locations_0_qa').instructions).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
+    for (const page of [2, 3]) {
+      expect(on.wire(`page_${page}_0`).body.prompt).toContain(AUDITION_SCALE_LINEUP_PAGE_SUFFIX);
+      expect(off.wire(`page_${page}_0`).body.prompt).not.toContain('RELATIVE SIZE');
+    }
   });
 
   it('F3: one fresh audition per approval; a second start, another output folder or the grant on a bare runner is refused before any image', async () => {

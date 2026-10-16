@@ -31,8 +31,8 @@ import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboar
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
-  auditionReviewSchema, auditionPageReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
-  ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  auditionReviewSchema, auditionPageReviewSchema, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
+  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -299,7 +299,9 @@ export const auditionGrantSchema = z.object({
   scope: z.discriminatedUnion('mode', [
     z.object({ mode: z.literal('render'), pages: z.array(z.number().int().min(0).max(8)).min(1).max(9),
       /** Optional early sample: drawn first; the other pages follow only if every sample page is qa_supported. Absent on every legacy grant. */
-      sample: z.array(z.number().int().min(1).max(8)).min(1).max(2).optional() }).strict(),
+      sample: z.array(z.number().int().min(1).max(8)).min(1).max(2).optional(),
+      /** Optional common-scale lineup on the entities sheet (the only source of that flag for a paid run). Absent on every legacy grant. */
+      scaleLineup: z.literal(AUDITION_SCALE_LINEUP_VERSION).optional() }).strict(),
     z.object({ mode: z.literal('rejudge'), sourceDirectory: z.string().min(1),
       references: z.object({ entities: referenceSchema, locations: referenceSchema }).strict(),
       frames: z.array(z.object({ label: z.string().min(1).max(80), pageNumber: z.number().int().min(0).max(8), image,
@@ -500,7 +502,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
   const text = JSON.stringify({ candidateSha: args.candidate.imageSha, contextSha: args.contextSha, context: args.context,
     imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
       ...refRoles, ...(args.predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
-  const instructions = AUDITION_JUDGE_INSTRUCTIONS[args.kind];
+  // Chosen from the judged context: an entities design carrying the opt-in lineup gets its checks; anything else the existing instruction.
+  const instructions = auditionJudgeInstruction(args.kind, args.context);
   if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
   return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
@@ -678,12 +681,15 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
   const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
+  // The common-scale lineup comes only from the grant (never a CLI argument); the admission names it, so a resume under another flag is refused.
+  const scaleLineup = grant.scope.mode === 'render' && grant.scope.scaleLineup === AUDITION_SCALE_LINEUP_VERSION ? true as const : undefined;
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
-    policy: REVIEWED_AUDITION_POLICY, grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
+    policy: reviewedAuditionPolicy(scaleLineup), grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
     reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
     ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
-      pairPages: loaded.replan.pairPages } } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}) }));
+      pairPages: loaded.replan.pairPages } } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
+    ...(scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}) }));
   let child: AuditionImage, companion: AuditionImage;
   let resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
   if (args.resume) {
@@ -727,6 +733,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
     child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
     ...(grant.scope.sample ? { sample: grant.scope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
+    ...(scaleLineup ? { scaleLineup } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();
@@ -743,9 +750,9 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   return { mode: 'render' as const, manifest, spend };
 }
 
-/** Zero-provider admission, checks and prompt preview. */
-export function dryRun(bookDir: string, storyboardDir?: string, layout?: ReviewedBookLayout) {
-  const loaded = loadReviewedBook(bookDir, process.cwd(), storyboardDir, layout), designs = auditionSheetDesigns(loaded.book, loaded.texts);
+/** Zero-provider admission, checks and prompt preview. `scaleLineup` previews the opt-in lineup (a paid run takes it from its grant only). */
+export function dryRun(bookDir: string, storyboardDir?: string, layout?: ReviewedBookLayout, scaleLineup?: true) {
+  const loaded = loadReviewedBook(bookDir, process.cwd(), storyboardDir, layout), designs = auditionSheetDesigns(loaded.book, loaded.texts, scaleLineup);
   const ids = (d: { entities?: { id: string }[]; props?: { id: string }[]; locations?: { id: string }[]; landmarks?: { id: string }[] }) =>
     ({ entities: d.entities?.map(e => e.id), props: d.props?.map(e => e.id), locations: d.locations?.map(e => e.id), landmarks: d.landmarks?.map(e => e.id) });
   const checks = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => {
@@ -756,7 +763,7 @@ export function dryRun(bookDir: string, storyboardDir?: string, layout?: Reviewe
   const landmarkCatalogue = auditionPageChecks(loaded.book, 0, loaded.companionDescription).uniqueLandmarks
     .map(l => ({ id: l.id, features: l.features.map(f => `${f.id} ${f.decisive ? "decisive" : "listed"} ${f.aspect}: ${f.text}`) }));
   return { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest, title: loaded.title, landmarkCatalogue,
-    ...(loaded.replan ? { replan: loaded.replan } : {}),
+    ...(loaded.replan ? { replan: loaded.replan } : {}), ...(designs.entities.scaleLineup ? { scaleLineup: designs.entities.scaleLineup } : {}),
     pageDeferred: designs.pageDeferred.map(d => `${d.entityId}:${d.requirement} (${d.reason} -> ${d.verifiedOn})`),
     entitiesSheet: ids(designs.entities as never), locationsSheet: ids(designs.locations as never), checks,
     promptBytes: { entities: Buffer.byteLength(auditionSheetPrompt('entities', designs.entities)), locations: Buffer.byteLength(auditionSheetPrompt('locations', designs.locations)) } };
@@ -769,7 +776,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
   const layout = layoutFile === undefined ? undefined : readReviewedBookLayout(layoutFile);
   if (layout && storyboardDir !== undefined) fail('audition_args');
   if (storyboardDir !== undefined && !path.isAbsolute(storyboardDir)) fail('audition_args');
-  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir, layout), null, 2)); }
+  // --scale-lineup previews the opt-in lineup in a dry run only: a paid run takes it from its grant, never from an argument.
+  const previewLineup = process.argv.includes('--scale-lineup');
+  if (previewLineup && process.argv.includes('--execute')) fail('audition_args');
+  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir, layout, previewLineup ? true : undefined), null, 2)); }
   else {
     const out = argValue('--out') ?? fail('audition_args'), keyFile = argValue('--key-env-file') ?? fail('audition_args'), grantFile = argValue('--grant') ?? fail('audition_grant_required');
     if (![out!, keyFile!, grantFile!].every(p => path.isAbsolute(p))) fail('audition_args');
