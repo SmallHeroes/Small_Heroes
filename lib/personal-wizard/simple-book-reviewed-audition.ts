@@ -537,6 +537,13 @@ export const sheetRequirementIds = (design: { entities?: { id: string }[]; props
     ...(design.landmarks ?? [])].map(d => `design:${d.id}`), ...(design.landmarks ?? []).map(l => `landmark_unique:${l.id}`),
     ...(design.scaleLineup ? ['scale_lineup', ...[...design.scaleLineup.members, design.scaleLineup.companionOutline.id].map(id => `scale_lineup:${id}`)] : [])])];
 
+/** A sheet's judge context, its sha and its requirement ids: the one construction the orchestrator judges against (and a comparison re-checks). */
+export function auditionSheetContext(role: 'entities' | 'locations', design: Parameters<typeof sheetRequirementIds>[0]) {
+  const requirementIds = sheetRequirementIds(design);
+  const context = { version: 'audition-sheet-context/v2', role, design, requirementIds };
+  return { context, contextSha: previewSha(JSON.stringify(context)), requirementIds };
+}
+
 /** The opt-in lineup's page rule: the lineup is the relative-size authority, with perspective. */
 const SCALE_LINEUP_PAGE_RULE = 'RELATIVE SIZE: image 3\'s tiles show designs only, never sizes; its SCALE LINEUP (flat silhouettes on one ground line beside a plain post one child height tall) shows each character\'s height relative to the child. Draw every visible character at its lineup height relative to the child, changed only by perspective (nearer looks larger, farther looks smaller); a character too tall for the frame is cropped by the frame edge, never shrunk to fit. Never draw the post or the lineup silhouettes.';
 const pageSuffix = (lineup: boolean) => `\nImage 3 is the object/supporting-cast sheet and image 4 the location sheet: design authorities, not prior scenes.${lineup ? ` ${SCALE_LINEUP_PAGE_RULE}` : ''} Draw only the current visible entities. Each character keeps its OWN features (nose or snout, ears, horns, colours): never transfer a feature between characters. Each landmark exists once. No text, labels or panel borders. The child's face must stay naturally readable, without changing the action or camera.`;
@@ -633,19 +640,26 @@ export async function illustrateReviewedAudition(args: {
    * requirement ids, and the page rule naming it. Absent: every prompt, context and the v9 policy exactly as before.
    */
   scaleLineup?: true;
+  /**
+   * Diagnostic comparison only: sheets saved by an earlier run of THIS book, reused exactly as judged there (never redrawn or re-judged). Each
+   * is re-derived from its own raw reviews under the context THIS run computes, which must be identical, so only a sheet whose design and
+   * requirements are unchanged can be reused. Absent: every sheet is drawn as before.
+   */
+  reuseSheets?: Partial<Record<'entities' | 'locations', SavedSheet>>;
+  /** Diagnostic comparison only: at most this many attempts per page (1 to the policy's own number). Absent: the policy's number. */
+  pageAttempts?: number;
 }) {
   const policy = reviewedAuditionPolicy(args.scaleLineup), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   const prefix = args.resume?.stepPrefix ?? '', suffix = args.scaleLineup ? AUDITION_SCALE_LINEUP_PAGE_SUFFIX : AUDITION_PAGE_SUFFIX;
+  const pageAttempts = args.pageAttempts ?? policy.pageAttempts;
+  if (!Number.isInteger(pageAttempts) || pageAttempts < 1 || pageAttempts > policy.pageAttempts) fail('audition_page_attempts');
+  const reusedRoles = (['entities', 'locations'] as const).filter(role => args.reuseSheets?.[role] !== undefined);
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
   if (!frames.length || frames.some(n => !Number.isInteger(n) || n < 0 || n > args.book.narrativeSpreads)) fail('audition_page_scope');
   const sample = args.sample ? [...args.sample] : null;
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
   const order = sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
-  if (args.resume) {
-    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||
-      Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
-  } else args.save('audition_sheet_designs', { policy, designs });
   const resumed = <T extends SavedSheet | SavedPage>(phase: 'sheet' | 'page', prior: T | undefined, contextSha: string, requirementIds: string[],
     landmarks?: readonly AuditionLandmark[]): T | null => {
     if (!prior) return null;
@@ -660,6 +674,17 @@ export async function illustrateReviewedAudition(args: {
       canonicalJson(again) !== canonicalJson(prior.chosen) || attemptStatus(phase, again) !== prior.status) fail('audition_resume_binding');
     return prior;
   };
+  // A comparison's reused sheets bind before anything is saved or drawn, so a refusal precedes any call: the same context and requirements as
+  // this run computes, then every saved judgement re-derived from its own raw review. Any mismatch is the one reuse refusal.
+  const reusedSheets: Partial<Record<'entities' | 'locations', SavedSheet>> = Object.fromEntries(reusedRoles.map(role => {
+    const { contextSha, requirementIds } = auditionSheetContext(role, designs[role]), saved = args.reuseSheets![role]!;
+    if (saved.contextSha !== contextSha || canonicalJson(saved.requirementIds) !== canonicalJson(requirementIds)) fail('audition_reuse_binding');
+    try { return [role, resumed('sheet', saved, contextSha, requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
+  }));
+  if (args.resume) {
+    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||
+      Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
+  } else args.save('audition_sheet_designs', { policy, designs });
   const attemptOnce = async (phase: 'sheet' | 'page', name: string, attempt: number, prompt: string, refs: AuditionImage[],
     mode: 'book_identity' | 'book_design', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
@@ -701,11 +726,12 @@ export async function illustrateReviewedAudition(args: {
   const styleRefs = [args.child, args.companion];
   const styleRoles: BookDesignReferenceRole[] = ['child_design_authority', 'companion_design_authority'];
   for (const role of ['entities', 'locations'] as const) {
-    const requirementIds = sheetRequirementIds(designs[role]);
-    const judgeContext = { version: 'audition-sheet-context/v2', role, design: designs[role], requirementIds };
-    const contextSha = previewSha(JSON.stringify(judgeContext)), attempts: AuditionAttempt[] = [];
+    const { context: judgeContext, contextSha, requirementIds } = auditionSheetContext(role, designs[role]), attempts: AuditionAttempt[] = [];
     const prior = resumed('sheet', args.resume?.sheets[role], contextSha, requirementIds);
     if (prior) { sheets[role] = prior; continue; }
+    // A comparison reuses an earlier run's saved sheet exactly as judged there (bound above, before anything was drawn).
+    const reused = reusedSheets[role];
+    if (reused) { sheets[role] = reused; args.save(`sheet_${role}`, reused); continue; }
     for (let attempt = 0; attempt < policy.sheetAttempts; attempt++) {
       const previous = attempts[attempts.length - 1];
       // Fix the source in place when a reviewed sheet exists; regenerate only when there is nothing to edit.
@@ -740,7 +766,7 @@ export async function illustrateReviewedAudition(args: {
     const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks);
     if (prior) { pages.push(prior); continue; }
     const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`;
-    for (let attempt = 0; attempt < policy.pageAttempts; attempt++) {
+    for (let attempt = 0; attempt < pageAttempts; attempt++) {
       const result = await attemptOnce('page', String(pageNumber), attempt, base + auditionCorrections(attempts[attempts.length - 1], 'page'), canonical,
         'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
       attempts.push(result); report('page', String(pageNumber), result);
@@ -759,7 +785,8 @@ export async function illustrateReviewedAudition(args: {
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
     ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}), ...(args.scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}),
     scope: { frames: heldSample ? presented.map(p => p.pageNumber) : frames, complete,
-      ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}) },
+      ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}),
+      ...(args.pageAttempts !== undefined ? { pageAttempts } : {}), ...(reusedRoles.length ? { reusedSheets: reusedRoles } : {}) },
     status: heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },

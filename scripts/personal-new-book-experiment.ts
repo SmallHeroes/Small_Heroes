@@ -19,10 +19,13 @@
  *   storyboard-repair - Guy's one approved repair after the third attempt's storyboard review held it: the same story replayed, the third
  *     request plus the repair contract (the held storyboard and its review's own unsupported checks), then a fresh review, under a fourth
  *     amendment, only when its reservation and its review's ceiling fit the remaining allowance of the same $7.
+ *   scale-comparison - Guy's one scale comparison after the audition was held at its sample gate (relative scale): the opt-in common-scale
+ *     lineup on a new entities sheet, the held locations sheet reused as judged, and each held sample page drawn once, under an amendment
+ *     that binds the held audition, in the same $7 with the carry kept. Started once; --resume continues the same ledger.
  * Dry by default; nothing is retried; every paid call is journaled before dispatch.
  *   node --require ./scripts/shims/register-server-only.cjs --import tsx scripts/personal-new-book-experiment.ts \
- *     --config <abs config.json> <plan|text|storyboard-continuation|storyboard-continuation-2|storyboard-continuation-3|storyboard-repair|child|grant|audition>
- *     [--execute [--resume]]
+ *     --config <abs config.json> <plan|text|storyboard-continuation|storyboard-continuation-2|storyboard-continuation-3|storyboard-repair|storyboard-repair-2|
+ *       storyboard-acceptance|child|grant|audition|scale-comparison> [--execute [--resume]]
  *   ... --config <abs config.json> carry-resolution --attestation <abs attestation.json> [--execute]
  * Not production, customer, wizard or release authority. Every artifact is runtime-ineligible; acceptance is Guy's.
  */
@@ -41,7 +44,7 @@ import { longCallFetch, providerFailureCause, type LongCallObserver } from './pe
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
 import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
-  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
+  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, auditionMeterRules, readReusedSheets, STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
   type ReviewedBookLayout, type MeterRule, type MeterRules, STORYBOARD_OWNER_ACCEPTANCE_FILE, savedMomentContract, savedLandmarkKindContract,
   savedSceneLocationContract, savedCompilerRulesContract, savedDrawnInstantContract } from './personal-simple-book-reviewed-audition';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, storyboardOwnerAcceptance } from '../lib/personal-wizard/storyboard';
@@ -64,7 +67,8 @@ import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION, storyboardRepair
 import { DRAWN_INSTANT_STORYBOARD_ADDENDUM, drawnInstantGaps, drawnInstantFinding } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { BOOK_LIMITS, personalBookOutputLimits } from '../lib/personal-wizard/book-config';
 import { OPUS_PLANNER, createOpusStoryboardTransport, plannerRequest, prepareOpusStoryboardWire, type PlannerWire } from './personal-opus-storyboard-transport';
-import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-reviewed-audition';
+import { AUDITION_WORST_CASE_CALLS, AUDITION_SCALE_LINEUP_VERSION, REVIEWED_AUDITION_POLICY, auditionSheetDesigns, auditionSheetContext }
+  from '../lib/personal-wizard/simple-book-reviewed-audition';
 
 export class NewBookExperimentError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new NewBookExperimentError(code); };
@@ -173,6 +177,21 @@ export const NEW_BOOK_CARRY_RESOLUTION = Object.freeze({
   /** The timed-out call's day (UTC; the same calls fall on it in Israel time). */
   day: '2026-10-13',
 });
+/**
+ * Guy's one scale comparison of THIS held book (2026-10-16): the audition stopped at its sample gate, mostly on relative scale (Grandma drawn
+ * about child-sized, Uri oversized). The opt-in common-scale lineup (audition-scale-lineup/v1) draws a new entities sheet; the held audition's
+ * locations sheet is reused exactly as judged there; its two held sample pages are drawn once each, under the same $7 with the carry kept. A
+ * diagnostic of the lineup: not a continuation of the audition. Once only.
+ */
+export const NEW_BOOK_SCALE_COMPARISON = Object.freeze({
+  id: 'scale-comparison-1',
+  outDir: 'audition-scale-1',
+  approval: 'Guy 2026-10-16, AskUserQuestion after the likeness and age probes: "Fix scale first (Recommended)" - "Scale is what stopped the last book at the sample gate (giant too small, fox too big), and a Lavi book could hit the same stop. Milestone 1 is a common-scale lineup on the characters sheet: offline, then Codex QA, then a small comparison (~$0.48) with your approval." Then, during the build: "אל תשאל אותי עוד שאלות.. תענה בעצמך, קבל החלטה פשוט.." (do not ask; decide). Claude decided: one comparison of the held sample pages after Codex PASS, inside the same $7 with the carry kept.',
+  /** One attempt per page; the entities sheet keeps the policy's attempts (one in-place repair). */
+  pageAttempts: 1,
+  /** Reused exactly as the held audition judged it: its design and requirements are unchanged under the lineup. */
+  reuseSheets: Object.freeze(['locations'] as const),
+});
 const SOL = 'gpt-6.1-sol' as const;
 const RATES = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 },
   sol: { inputMicroUsdPerToken: 2, outputMicroUsdPerToken: 10 } };
@@ -268,14 +287,14 @@ export function assertExperimentClaim(config: NewBookConfig) {
   const { claim, claimSha256 } = verifiedClaim(config);
   const continuation = readContinuation(config, claimSha256), refused = readRefusedChain(config, claimSha256, continuation);
   const repair = readRepair(config, claimSha256, continuation, refused), repair2 = readRepair2(config, claimSha256, repair);
-  const acceptance = readAcceptance(config, claimSha256, repair2);
+  const acceptance = readAcceptance(config, claimSha256, repair2), comparison = readScaleComparison(config, claimSha256, acceptance);
   const latest = refused[refused.length - 1];
-  assertExperimentSource(config, acceptance?.sourceHead ?? repair2?.sourceHead ?? repair?.sourceHead ?? latest?.amendment.sourceHead ?? continuation?.sourceHead
-    ?? config.sourceHead);
-  return { claim, claimSha256, continuation, refused, repair, repair2, acceptance };
+  assertExperimentSource(config, comparison?.sourceHead ?? acceptance?.sourceHead ?? repair2?.sourceHead ?? repair?.sourceHead ?? latest?.amendment.sourceHead
+    ?? continuation?.sourceHead ?? config.sourceHead);
+  return { claim, claimSha256, continuation, refused, repair, repair2, acceptance, comparison };
 }
 type ContinuationChain = { continuation: NewBookContinuation | null; refused: { step: RefusedStep; amendment: NewBookRefusedContinuation }[];
-  repair: NewBookRepair | null; repair2: NewBookRepair2 | null; acceptance?: NewBookAcceptance | null };
+  repair: NewBookRepair | null; repair2: NewBookRepair2 | null; acceptance?: NewBookAcceptance | null; comparison?: NewBookScaleComparison | null };
 /** The latest text is usable by later stages: its own review supported it, or the owner accepted that exact held storyboard (bound record). */
 const textUsable = (config: NewBookConfig, chain: ContinuationChain) => {
   const status = sealedStatus(path.join(experimentDir(config), textFolderOf(chain)));
@@ -508,8 +527,8 @@ const meterRules = (rules: Record<string, PaidRule>): MeterRules => step => Obje
  * reservation must be the one its request derives. So a summary that the evidence contradicts (result, receipt or spend record, however
  * coherent with each other and with later amendments) never becomes headroom, at any link of the ledger (Codex HOLD at a3578efb, P1).
  */
-function verifyPaidStages(stageDir: string, rules: Record<string, PaidRule>) {
-  try { verifyMeterRecords(path.join(stageDir, 'paid-stages'), meterRules(rules)); }
+function verifyPaidStages(stageDir: string, rules: Record<string, PaidRule> | MeterRules) {
+  try { verifyMeterRecords(path.join(stageDir, 'paid-stages'), typeof rules === 'function' ? rules : meterRules(rules)); }
   catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
     throw typeof code === 'string' && code.startsWith('audition_meter_') ? new NewBookExperimentError(code.replace('audition_meter_', 'new_book_ledger_')) : error;
@@ -519,7 +538,7 @@ function verifyPaidStages(stageDir: string, rules: Record<string, PaidRule>) {
  * The verified API spend of one finished stage (after the earlier stages' `prior`): no unknown cost or outcome, it equals the stage's saved
  * spend record, and every call in it is re-derived from its own evidence under its rule.
  */
-export function stageLedger(stageDir: string, maxCalls: number, prior: number, carried: number, rules: Record<string, PaidRule>) {
+export function stageLedger(stageDir: string, maxCalls: number, prior: number, carried: number, rules: Record<string, PaidRule> | MeterRules) {
   const snapshot = new AuditionMeter(path.join(stageDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, maxCalls, prior, carried).snapshot();
   if (snapshot.unknownCost || snapshot.unknownOutcome) fail('new_book_ledger_unknown');
   const file = path.join(stageDir, 'spend.json');
@@ -1507,7 +1526,7 @@ type RepairPin = ReturnType<typeof repairProducerPin> | null;
 /** Every amendment or resolution this slot can have beside its claim, the claim first (the audition's own start record is not one). */
 const amendmentFiles = (config: NewBookConfig) => [experimentClaimFile(config), experimentContinuationFile(config),
   ...REFUSED_STEPS.map(step => refusedFile(config, step)), experimentCarryResolutionFile(config), experimentRepairFile(config), experimentRepair2File(config),
-  experimentAcceptanceFile(config)];
+  experimentAcceptanceFile(config), experimentComparisonFile(config)];
 /**
  * The accepted lineage a stage builds on, by hash: the claim and every amendment or resolution beside it (or its absence), the request record,
  * and every record of each text folder it names. An amendment re-read later is mutable: a changed earlier record together with a rewritten
@@ -2092,6 +2111,8 @@ export const experimentAuditionStart = (config: NewBookConfig) =>
 export async function runNewBookAudition(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; resume?: true }) {
   const { config } = args;
   const chain = assertExperimentClaim(config), { claimSha256 } = chain;
+  // The scale comparison binds the held audition by every record: once it is recorded, the audition never starts or resumes again.
+  if (chain.comparison) fail('new_book_audition_closed');
   const dir = experimentDir(config), grantFile = path.join(dir, 'audition.grant.json'), out = path.join(dir, 'audition');
   if (!textUsable(config, chain) ||
       sealedStatus(path.join(dir, 'child')) !== 'child_reference_passed' ||
@@ -2117,6 +2138,166 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Stage 5: the one scale comparison of the held audition (a diagnostic of the opt-in lineup, never a continuation of the audition). Its
+// amendment re-pins the reviewed source and binds the held audition (start record, grant, seal, sample pages and every record of its folder);
+// its grant is the one the verified ledgers derive (the text stages, the child and the held audition's own calls, each re-derived), and it
+// runs through the guarded runner into its own folder. One start; a resume continues the same folder and meter.
+// ---------------------------------------------------------------------------------------------------------------
+/** Its paid calls at most: the entities sheet's attempts (render + review), then each page once (render + review + identity). */
+const COMPARISON_API_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts + 2 * 3 * NEW_BOOK_SCALE_COMPARISON.pageAttempts;
+export const experimentComparisonFile = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.${NEW_BOOK_SCALE_COMPARISON.id}.json`);
+export const experimentComparisonGrant = (config: NewBookConfig) => path.join(experimentDir(config), `${NEW_BOOK_SCALE_COMPARISON.outDir}.grant.json`);
+const comparisonSchema = z.object({ version: z.literal('new-book-scale-comparison/v1'), id: z.literal(NEW_BOOK_SCALE_COMPARISON.id),
+  slot: z.literal(NEW_BOOK_EXPERIMENT.slot), approval: z.literal(NEW_BOOK_SCALE_COMPARISON.approval), claimSha256: hash, configSha256: hash,
+  previousSha256: hash, originalSourceHead: headSha, previousSourceHead: headSha, sourceHead: headSha,
+  auditionStartSha256: hash, auditionGrantSha256: hash, auditionStatus: z.literal('held_sample'), pages: z.array(z.number().int().min(1).max(8)).length(2),
+  priorKnownApiMicroUsd: z.number().int().nonnegative(), carriedUnresolvedMicroUsd: z.number().int().nonnegative(),
+  evidence: z.array(z.object({ file: z.string().regex(/^audition\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?$/), sha256: hash }).strict()).min(8).max(400) }).strict();
+export type NewBookScaleComparison = z.infer<typeof comparisonSchema>;
+/**
+ * The held audition as its own records state it (reads only): started once (its start record names this folder, its grant and the claim) and
+ * sealed at its sample gate (held_sample), having drawn exactly its grant's two sample pages.
+ */
+function heldAudition(config: NewBookConfig, claimSha256: string) {
+  const dir = experimentDir(config), start = experimentAuditionStart(config), grantFile = path.join(dir, 'audition.grant.json'), out = path.join(dir, 'audition');
+  const manifestFile = path.join(out, 'reviewed_audition_manifest.json');
+  if (!existsSync(start) || !existsSync(grantFile) || !existsSync(manifestFile)) return fail('new_book_comparison_scope');
+  const record = read(start), grant = read(grantFile), manifest = read(manifestFile), grantSha256 = sha(readFileSync(grantFile));
+  const sample: unknown = grant?.scope?.mode === 'render' ? grant.scope.sample : undefined;
+  if (record?.version !== 'new-book-audition-start/v1' || !sameDir(String(record.out), out) || record.grantSha256 !== grantSha256 ||
+      record.claimSha256 !== claimSha256 || manifest?.status !== 'held_sample' || !Array.isArray(sample) || sample.length !== 2 ||
+      canonicalJson(manifest?.scope?.sample) !== canonicalJson(sample) || canonicalJson(manifest?.scope?.frames) !== canonicalJson(sample)) fail('new_book_comparison_scope');
+  return { out, pages: sample as number[], startSha256: sha(readFileSync(start)), grantSha256 };
+}
+/**
+ * The recorded scale comparison (null when none), verified against the acceptance amendment and the held audition it compares with: its start
+ * record and grant by hash, its seal and sample pages, and every record of its folder exactly as the amendment bound them.
+ */
+function readScaleComparison(config: NewBookConfig, claimSha256: string, acceptance: NewBookAcceptance | null): NewBookScaleComparison | null {
+  const file = experimentComparisonFile(config);
+  if (!existsSync(file)) return null;
+  if (!acceptance) return fail('new_book_continuation');
+  const parsed = comparisonSchema.safeParse(read(file));
+  if (!parsed.success || parsed.data.claimSha256 !== claimSha256 || parsed.data.configSha256 !== sha(canonicalJson(config)) ||
+      parsed.data.originalSourceHead !== config.sourceHead || parsed.data.previousSourceHead !== acceptance.sourceHead ||
+      parsed.data.previousSha256 !== sha(readFileSync(experimentAcceptanceFile(config)))) return fail('new_book_continuation');
+  const held = heldAudition(config, claimSha256);
+  if (held.startSha256 !== parsed.data.auditionStartSha256 || held.grantSha256 !== parsed.data.auditionGrantSha256 ||
+      canonicalJson(held.pages) !== canonicalJson(parsed.data.pages) ||
+      canonicalJson(folderEvidence(experimentDir(config), 'audition')) !== canonicalJson(parsed.data.evidence)) fail('new_book_continuation_evidence');
+  return parsed.data;
+}
+/** The verified ledger the comparison starts from: the text stages and the child (as the audition grant derived them), then the held audition's own calls. */
+function comparisonLedger(config: NewBookConfig, chain: ContinuationChain) {
+  const dir = experimentDir(config), text = textStage(config, chain);
+  const child = stageLedger(path.join(dir, 'child'), CHILD_API_CALLS, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, CHILD_RULES);
+  const before = text.knownMicroUsd + child.knownMicroUsd;
+  const audition = stageLedger(path.join(dir, 'audition'), AUDITION_WORST_CASE_CALLS, before, text.carriedUnresolvedMicroUsd, auditionMeterRules);
+  return { knownMicroUsd: before + audition.knownMicroUsd, carriedUnresolvedMicroUsd: text.carriedUnresolvedMicroUsd, audition };
+}
+/** The comparison's one grant, derived from the verified ledgers and its recorded amendment: written once, then compared on a resume. */
+function comparisonGrant(config: NewBookConfig, chain: ContinuationChain, claimSha256: string): AuditionGrant {
+  const recorded = chain.comparison;
+  if (!recorded) return fail('new_book_comparison_binding');
+  const dir = experimentDir(config), ledger = comparisonLedger(config, chain);
+  if (ledger.knownMicroUsd !== recorded.priorKnownApiMicroUsd || ledger.carriedUnresolvedMicroUsd !== recorded.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
+  if (ledger.knownMicroUsd + ledger.carriedUnresolvedMicroUsd >= NEW_BOOK_EXPERIMENT.apiCapMicroUsd) fail('new_book_budget_exhausted');
+  const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
+  if (canonicalJson(layout) !== canonicalJson(experimentLayout(config, layout.childImage, textFolderOf(chain)))) fail('new_book_layout');
+  const { queued, book } = loadReviewedStoryboard(dir, config.workspace, layout);
+  const evidence = [path.join(dir, 'audition.grant.json'), ledger.audition.file, experimentComparisonFile(config)].map(file => ({ file, sha256: sha(readFileSync(file)) }));
+  return { version: 'audition-spend-grant/v1', approvalReference: NEW_BOOK_SCALE_COMPARISON.approval,
+    book: { requestId: queued.requestId, storyboardDigest: book.storyboardDigest },
+    ledger: { priorKnownApiMicroUsd: ledger.knownMicroUsd, ...(ledger.carriedUnresolvedMicroUsd ? { carriedUnresolvedMicroUsd: ledger.carriedUnresolvedMicroUsd } : {}), evidence,
+      note: 'New-book experiment ledger under the one $7 API cap: the held audition grant (the text stages and the child reference), the held audition\'s own calls (each re-derived) and the scale comparison amendment; the timed-out storyboard call stays carried as before. The comparison adds its own calls under the same cap.' },
+    capMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd, maxCalls: COMPARISON_API_CALLS,
+    scope: { mode: 'render', pages: [...recorded.pages], scaleLineup: AUDITION_SCALE_LINEUP_VERSION,
+      reuseSheets: { sourceRun: path.join(dir, 'audition'), roles: [...NEW_BOOK_SCALE_COMPARISON.reuseSheets] }, pageAttempts: NEW_BOOK_SCALE_COMPARISON.pageAttempts },
+    claudeMax: NEW_BOOK_EXPERIMENT.claudeMax, experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256 } };
+}
+/**
+ * The comparison's admission at ONE pinned HEAD (compared, never adopted): the clean source; the unchanged claim and its whole chain through
+ * the owner's acceptance; the child passed; the held audition (start record, grant, seal, sample pages, every record); every ledger re-derived;
+ * once recorded, the amendment's own HEAD equal to the pin; the source-derived roots; then, before anything is written, the reused sheet: the
+ * held run's saved locations sheet and its raw reviews (readReusedSheets) under a context identical to the one the lineup run computes.
+ */
+async function admitComparison(config: NewBookConfig, head: string) {
+  const dir = experimentDir(config);
+  const baseline = () => {
+    assertExperimentSource(config, head);
+    const { claimSha256 } = verifiedClaim(config), first = readContinuation(config, claimSha256);
+    const refused = first ? readRefusedChain(config, claimSha256, first) : [], repair1 = first ? readRepair(config, claimSha256, first, refused) : null;
+    const repair2 = readRepair2(config, claimSha256, repair1), acceptance = readAcceptance(config, claimSha256, repair2);
+    if (!first || refused.length !== REFUSED_STEPS.length || !repair1 || !repair2 || !acceptance) return fail('new_book_comparison_scope');
+    const amended = readScaleComparison(config, claimSha256, acceptance);
+    if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
+    const chain: ContinuationChain = { continuation: first, refused, repair: repair1, repair2, acceptance };
+    if (!textUsable(config, chain) || sealedStatus(path.join(dir, 'child')) !== 'child_reference_passed') fail('new_book_comparison_scope');
+    const held = heldAudition(config, claimSha256), ledger = comparisonLedger(config, chain);
+    return { claimSha256, chain, amended, held, prior: ledger.knownMicroUsd, carried: ledger.carriedUnresolvedMicroUsd,
+      acceptanceSha256: sha(readFileSync(experimentAcceptanceFile(config))), evidence: folderEvidence(dir, 'audition') };
+  };
+  const admitted = baseline();
+  await assertDerivedRoots(config, admitted.chain);
+  const same = () => { if (canonicalJson(baseline()) !== canonicalJson(admitted)) fail('new_book_continuation_evidence'); };
+  same();
+  // The reused sheet binds now, before any amendment, folder or call: the held run's own record and raw reviews, under the lineup run's context.
+  const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json')), loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
+  const reused = readReusedSheets({ sourceRun: path.join(dir, 'audition'), roles: NEW_BOOK_SCALE_COMPARISON.reuseSheets }, { requestId: loaded.queued.requestId,
+    storyboardDigest: loaded.book.storyboardDigest, child: { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) },
+    companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir));
+  const designs = auditionSheetDesigns(loaded.book, loaded.texts, true);
+  for (const role of NEW_BOOK_SCALE_COMPARISON.reuseSheets)
+    if (reused.sheets[role]?.contextSha !== auditionSheetContext(role, designs[role]).contextSha) fail('new_book_comparison_scope');
+  const amendment = comparisonSchema.parse({ version: 'new-book-scale-comparison/v1', id: NEW_BOOK_SCALE_COMPARISON.id, slot: NEW_BOOK_EXPERIMENT.slot,
+    approval: NEW_BOOK_SCALE_COMPARISON.approval, claimSha256: admitted.claimSha256, configSha256: sha(canonicalJson(config)), previousSha256: admitted.acceptanceSha256,
+    originalSourceHead: config.sourceHead, previousSourceHead: admitted.chain.acceptance!.sourceHead, sourceHead: head,
+    auditionStartSha256: admitted.held.startSha256, auditionGrantSha256: admitted.held.grantSha256, auditionStatus: 'held_sample', pages: admitted.held.pages,
+    priorKnownApiMicroUsd: admitted.prior, carriedUnresolvedMicroUsd: admitted.carried, evidence: admitted.evidence });
+  if (admitted.amended && canonicalJson(admitted.amended) !== canonicalJson(amendment)) fail('new_book_continuation_evidence');
+  const locations = reused.sheets.locations!;
+  const summary = { recorded: !!admitted.amended, pages: admitted.held.pages, auditionStatus: 'held_sample' as const,
+    priorKnownApiMicroUsd: admitted.prior, carriedUnresolvedMicroUsd: admitted.carried,
+    remainingMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd - admitted.prior - admitted.carried, maxCalls: COMPARISON_API_CALLS,
+    pageAttempts: NEW_BOOK_SCALE_COMPARISON.pageAttempts, reuseSheets: [...NEW_BOOK_SCALE_COMPARISON.reuseSheets], scaleLineup: designs.entities.scaleLineup,
+    reusedLocations: { status: locations.status, chosenAttempt: locations.chosen.attempt, image: locations.chosen.candidate },
+    providerCalls: 0, keyRead: false };
+  return { admitted, same, amendment, summary };
+}
+/** Read-only preview of the comparison: its pages, ledger, lineup and reused sheet, and whether it is recorded. */
+export async function previewScaleComparison(config: NewBookConfig) {
+  return (await admitComparison(config, currentHead(config))).summary;
+}
+/**
+ * The one comparison: admitted at the pinned HEAD, its amendment written once (exclusive), then the whole chain through it, the roots and the
+ * grant the verified ledgers derive, then the guarded runner into its own folder. A resume needs the recorded amendment, folder and grant.
+ */
+export async function runNewBookScaleComparison(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; resume?: true }) {
+  const { config } = args, dir = experimentDir(config), out = path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir), grantFile = experimentComparisonGrant(config);
+  const { admitted, same, amendment } = await admitComparison(config, currentHead(config));
+  if (args.resume) {
+    if (!admitted.amended || !existsSync(out) || !existsSync(grantFile)) fail('new_book_comparison_binding');
+  } else {
+    if (admitted.amended || existsSync(out) || existsSync(grantFile)) fail('new_book_comparison_used');
+    same();
+    try { exclusiveJson(experimentComparisonFile(config), amendment); } catch { fail('new_book_comparison_used'); }
+  }
+  // From here the amendment pins the source: the whole chain through it, the roots it builds on, then the one grant the ledgers derive.
+  const chain = assertExperimentClaim(config);
+  if (!chain.comparison) return fail('new_book_comparison_binding');
+  const producer = await assertDerivedRoots(config, chain);
+  const grant = comparisonGrant(config, chain, chain.claimSha256);
+  sameRoots(config, producer);
+  if (args.resume) { if (canonicalJson(read(grantFile)) !== canonicalJson(grant)) fail('new_book_comparison_binding'); }
+  else exclusiveJson(grantFile, grant);
+  process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
+  return runReviewedAudition({ bookDir: dir, out, keyFile: config.keyEnvFile, grantFile, signal: args.signal, log: args.log,
+    layout: readReviewedBookLayout(path.join(dir, 'book-layout.json')), ...(args.resume ? { resume: true as const } : {}),
+    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256: chain.claimSha256, guard: () => { assertExperimentClaim(config); sameRoots(config, producer); } } });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // CLI.
 // ---------------------------------------------------------------------------------------------------------------
 export function planNewBook(config: NewBookConfig) {
@@ -2128,11 +2309,12 @@ export function planNewBook(config: NewBookConfig) {
     continuation2: existsSync(experimentContinuation2File(config)), continuation3: existsSync(experimentContinuation3File(config)),
     carryResolution: existsSync(experimentCarryResolutionFile(config)), repair: existsSync(experimentRepairFile(config)),
     repair2: existsSync(experimentRepair2File(config)), ownerAcceptance: existsSync(experimentAcceptanceFile(config)),
+    scaleComparison: existsSync(experimentComparisonFile(config)),
     stages: { text: sealedStatus(path.join(dir, 'text')), continuation: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION.outDir)),
       continuation2: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)), continuation3: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_3.outDir)),
       repair: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)), repair2: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)),
       child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')),
-      audition: existsSync(experimentAuditionStart(config)) },
+      audition: existsSync(experimentAuditionStart(config)), scaleComparison: existsSync(path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir)) },
     providerCalls: 0, keyRead: false, runtimeEligible: false };
 }
 
@@ -2141,10 +2323,11 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
   const attestation = argv[2] === 'carry-resolution' && argv[3] === '--attestation' && typeof argv[4] === 'string' && path.isAbsolute(argv[4]) ? argv[4] : null;
   const flags = argv.slice(attestation ? 5 : 3);
   if (argv.length < 3 || argv.length > (attestation ? 6 : 5) || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'storyboard-continuation-2',
-      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'storyboard-repair-2', 'storyboard-acceptance', 'child', 'grant', 'audition'].includes(argv[2]) ||
+      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'storyboard-repair-2', 'storyboard-acceptance', 'child', 'grant', 'audition',
+      'scale-comparison'].includes(argv[2]) ||
       argv[2] === 'carry-resolution' && !attestation ||
       flags.some(f => f !== '--execute' && f !== '--resume') || new Set(flags).size !== flags.length ||
-      flags.includes('--resume') && (argv[2] !== 'audition' || !flags.includes('--execute'))) fail('new_book_arguments');
+      flags.includes('--resume') && (!['audition', 'scale-comparison'].includes(argv[2]) || !flags.includes('--execute'))) fail('new_book_arguments');
   const config = newBookConfig(argv[1]), stage = argv[2], execute = flags.includes('--execute'), log = deps.log ?? (line => console.log(line));
   if (stage === 'carry-resolution') return execute ? { mode: 'carry-resolution' as const, resolution: await writeCarryResolution(config, attestation!) }
     : { mode: 'plan' as const, plan: planNewBook(config), carryResolution: await previewCarryResolution(config, attestation!) };
@@ -2152,6 +2335,7 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
   if (stage === 'storyboard-repair-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), repair2: await previewStoryboardRepair2(config) };
   if (stage === 'storyboard-acceptance') return execute ? { mode: 'storyboard-acceptance' as const, acceptance: await writeOwnerAcceptance(config) }
     : { mode: 'plan' as const, plan: planNewBook(config), acceptance: await previewOwnerAcceptance(config) };
+  if (stage === 'scale-comparison' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), comparison: await previewScaleComparison(config) };
   if (stage === 'storyboard-continuation' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
     continuation: await previewStoryboardContinuation(config) };
   if (stage === 'storyboard-continuation-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
@@ -2175,6 +2359,8 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
       signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'child') return { mode: 'child' as const, ...await runNewBookChild({ config, signal: controller.signal, log, ...(deps.child ? { adapters: deps.child } : {}) }) };
     if (stage === 'audition') return { mode: 'audition' as const, result: await runNewBookAudition({ config, signal: controller.signal, log,
+      ...(flags.includes('--resume') ? { resume: true as const } : {}) }) };
+    if (stage === 'scale-comparison') return { mode: 'scale-comparison' as const, result: await runNewBookScaleComparison({ config, signal: controller.signal, log,
       ...(flags.includes('--resume') ? { resume: true as const } : {}) }) };
     return { mode: 'grant' as const, grant: await writeNewBookGrant(config) };
   } finally { process.off('SIGINT', interrupt); }

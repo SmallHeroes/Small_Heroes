@@ -32,7 +32,7 @@ import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
-  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, ReviewedAuditionError, type ReferenceStatus, type SavedSheet } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -301,7 +301,11 @@ export const auditionGrantSchema = z.object({
       /** Optional early sample: drawn first; the other pages follow only if every sample page is qa_supported. Absent on every legacy grant. */
       sample: z.array(z.number().int().min(1).max(8)).min(1).max(2).optional(),
       /** Optional common-scale lineup on the entities sheet (the only source of that flag for a paid run). Absent on every legacy grant. */
-      scaleLineup: z.literal(AUDITION_SCALE_LINEUP_VERSION).optional() }).strict(),
+      scaleLineup: z.literal(AUDITION_SCALE_LINEUP_VERSION).optional(),
+      /** Optional diagnostic comparison: these saved sheets of an earlier run of the same book are reused as judged there. Absent on every legacy grant. */
+      reuseSheets: z.object({ sourceRun: z.string().min(1), roles: z.array(z.enum(['entities', 'locations'])).min(1).max(2) }).strict().optional(),
+      /** Optional diagnostic comparison: at most this many attempts per page. Absent on every legacy grant. */
+      pageAttempts: z.number().int().min(1).max(REVIEWED_AUDITION_POLICY.pageAttempts).optional() }).strict(),
     z.object({ mode: z.literal('rejudge'), sourceDirectory: z.string().min(1),
       references: z.object({ entities: referenceSchema, locations: referenceSchema }).strict(),
       frames: z.array(z.object({ label: z.string().min(1).max(80), pageNumber: z.number().int().min(0).max(8), image,
@@ -321,6 +325,8 @@ export const auditionGrantSchema = z.object({
     if (new Set(sample).size !== sample.length || sample.some((n, i) => !pages.includes(n) || i > 0 && n <= sample[i - 1]))
       ctx.addIssue({ code: 'custom', message: 'audition_grant_sample' });
   }
+  if (g.scope.mode === 'render' && g.scope.reuseSheets && new Set(g.scope.reuseSheets.roles).size !== g.scope.reuseSheets.roles.length)
+    ctx.addIssue({ code: 'custom', message: 'audition_grant_reuse' });
 });
 export type AuditionGrant = z.infer<typeof auditionGrantSchema>;
 
@@ -660,6 +666,41 @@ export function assertReplanAuditionScope(scope: AuditionGrant['scope'],
       scope.replan.indexSha256 !== replan.indexSha256 || scope.frames.some(f => !replan.pairPages.includes(f.pageNumber))) fail('audition_replan_scope');
 }
 
+/**
+ * A comparison's reused sheets, read from the earlier run of THIS book that its grant names. That run's admission names the same request,
+ * storyboard, child and companion images; each named sheet is that run's own saved record; every judged attempt's saved review is exactly the
+ * raw answer its receipt holds, judged on a request that carried the saved context and the instruction this run would send for it. The
+ * orchestrator then re-derives each sheet from those reviews under this run's context, which must be identical (illustrateReviewedAudition).
+ */
+export function readReusedSheets(reuse: { sourceRun: string; roles: readonly ('entities' | 'locations')[] },
+  binding: { requestId: string; storyboardDigest: string; child: AuditionImage; companion: AuditionImage }, out: string) {
+  if (!path.isAbsolute(reuse.sourceRun) || path.resolve(reuse.sourceRun).toLowerCase() === path.resolve(out).toLowerCase()) fail('audition_reuse_source');
+  realDirectory(reuse.sourceRun);
+  const at = (...parts: string[]) => path.join(reuse.sourceRun, ...parts);
+  const admissionText = fencedText(at('admission.json'), 2_000_000), admission = attempt(() => JSON.parse(admissionText));
+  if (admission?.requestId !== binding.requestId || admission?.storyboardDigest !== binding.storyboardDigest ||
+      canonicalJson(admission?.child ?? null) !== canonicalJson(binding.child) || canonicalJson(admission?.companion ?? null) !== canonicalJson(binding.companion)) fail('audition_reuse_source');
+  const sheets: Partial<Record<'entities' | 'locations', SavedSheet>> = {}, files: Record<string, string> = {};
+  for (const role of reuse.roles) {
+    const text = fencedText(at(`sheet_${role}.json`), 8_000_000), saved = attempt(() => JSON.parse(text) as SavedSheet);
+    if (!saved || !Array.isArray(saved.attempts)) return fail('audition_reuse_source');
+    // The chosen image is the one the saved record names, by hash, before anything is written anywhere.
+    const chosen = saved.chosen?.candidate, file = chosen && /^[a-z0-9_]+\.png$/.test(chosen.imageName) ? at('illustrations', chosen.imageName) : null;
+    if (!file || !existsSync(file) || lstatSync(file).isSymbolicLink() || previewSha(readFileSync(file)) !== chosen!.imageSha) fail('audition_reuse_source');
+    for (const a of saved.attempts) {
+      if (!a.review) continue;
+      const step = `sheet_${role}_${a.attempt}_qa`;
+      const wire = attempt(() => read(at('paid-stages', `${step}.wire.json`))), receipt = attempt(() => read(at('paid-stages', `${step}.receipt.json`)));
+      const request = attempt(() => JSON.parse(wire.input[0].content[0].text)), answer = attempt(() => auditionReviewSchema.parse(JSON.parse(receipt.raw.output_text)));
+      if (!request || !answer || canonicalJson(answer) !== canonicalJson(a.review) || request.contextSha !== saved.contextSha ||
+          request.candidateSha !== a.candidate?.imageSha || canonicalJson(request.context) !== canonicalJson(saved.context) ||
+          wire.instructions !== auditionJudgeInstruction('sheet', saved.context)) fail('audition_reuse_source');
+    }
+    sheets[role] = saved; files[role] = previewSha(text);
+  }
+  return { sheets, binding: { sourceRun: path.resolve(reuse.sourceRun), admissionSha256: previewSha(admissionText), roles: [...reuse.roles], sheets: files } };
+}
+
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout;
   /** Required exactly for a grant issued to an experiment: its slot, claim and guard (claim + source pin), run before every paid call. */
@@ -670,6 +711,12 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (!!grant.experiment !== !!args.experiment || grant.experiment && (grant.experiment.slot !== args.experiment!.slot ||
       grant.experiment.claimSha256 !== args.experiment!.claimSha256)) fail('audition_experiment_guard');
   assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
+  // A diagnostic comparison (render grants only): the earlier run's saved sheets it reuses (verified before anything is created here) and its
+  // bound on page attempts, both named by the admission.
+  const renderScope = grant.scope.mode === 'render' ? grant.scope : null;
+  const reused = renderScope?.reuseSheets ? readReusedSheets(renderScope.reuseSheets, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest,
+    child: { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) },
+    companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out) : null;
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
@@ -689,7 +736,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
     ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
       pairPages: loaded.replan.pairPages } } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
-    ...(scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}) }));
+    ...(scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}), ...(reused ? { reuseSheets: reused.binding } : {}),
+    ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}) }));
   let child: AuditionImage, companion: AuditionImage;
   let resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
   if (args.resume) {
@@ -708,6 +756,14 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     child = await io.writeImage('reference_child.png', loaded.childBytes);
     companion = await io.writeImage('reference_companion.png', loaded.companionBytes);
     save('admission', admission(child, companion));
+  }
+  // The reused sheets' chosen images, copied by hash from the earlier run (once; a resume finds them in place, unchanged).
+  for (const role of reused?.binding.roles ?? []) {
+    const img = reused!.sheets[role]!.chosen.candidate;
+    if (existsSync(path.join(directory, img.imageName))) { io.bytesOf(img); continue; }
+    const bytes = readFileSync(path.join(reused!.binding.sourceRun, 'illustrations', img.imageName));
+    if (previewSha(bytes) !== img.imageSha) fail('audition_reuse_source');
+    await io.writeImage(img.imageName, bytes);
   }
   const log = (line: string) => args.log(`${line} · new API ≈ $${(meter.snapshot().newKnownApiMicroUsd / 1e6).toFixed(3)}`);
   if (grant.scope.mode === 'rejudge') {
@@ -733,7 +789,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
     child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
     ...(grant.scope.sample ? { sample: grant.scope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
-    ...(scaleLineup ? { scaleLineup } : {}),
+    ...(scaleLineup ? { scaleLineup } : {}), ...(reused ? { reuseSheets: reused.sheets } : {}),
+    ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();

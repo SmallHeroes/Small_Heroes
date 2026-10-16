@@ -17,8 +17,8 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
   AUDITION_SCALE_LINEUP_PAGE_SUFFIX } from '../simple-book-reviewed-audition';
-import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload }
-  from '../../../scripts/personal-simple-book-reviewed-audition';
+import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
+  readReusedSheets } from '../../../scripts/personal-simple-book-reviewed-audition';
 import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { canonicalJson } from '../request-acceptance';
@@ -1433,6 +1433,94 @@ describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on th
     expect(again.args.render.mock.calls.map(c => c[0])).toEqual(['r1_page_1_0']);
   });
 
+  it('comparison: a saved sheet is reused exactly as judged (never redrawn or re-judged) and is a page reference; each page gets its bounded attempts', async () => {
+    const source = harness({ book: lineupBook() });
+    await illustrateReviewedAudition({ ...source.args, pages: [2, 3] });
+    const locations = source.saved.get('sheet_locations') as any;
+    const held = (step: string): Spec => step.startsWith('page_2_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } } : {};
+    const h = harness({ book: lineupBook(), judge: held });
+    const m = await illustrateReviewedAudition({ ...h.args, pages: [2, 3], scaleLineup: true, reuseSheets: { locations }, pageAttempts: 1 });
+    expect(h.args.render.mock.calls.map(c => c[0])).toEqual(['sheet_entities_0', 'page_2_0', 'page_3_0']);
+    expect(h.args.judge.mock.calls.map(c => c[0])).toEqual(['sheet_entities_0_qa', 'page_2_0_qa', 'page_3_0_qa']);
+    expect(h.saved.get('sheet_locations')).toEqual(locations);
+    expect(h.args.render.mock.calls.find(c => c[0] === 'page_3_0')![2]).toEqual([image('child'), image('companion'), image('sheet_entities_0'), locations.chosen.candidate]);
+    // A held page keeps its one attempt: no redraw.
+    expect(m.pages.find(p => p.pageNumber === 2)).toMatchObject({ status: 'held', chosenAttempt: 0, alternatives: [] });
+    expect(m).toMatchObject({ scaleLineup: AUDITION_SCALE_LINEUP_VERSION, scope: { frames: [2, 3], pageAttempts: 1, reusedSheets: ['locations'] },
+      sheets: { locations: { status: locations.status } } });
+    // Without the options: every sheet is drawn, three page attempts, no comparison fields (as before).
+    const plain = harness({ book: lineupBook(), judge: held }), p = await illustrateReviewedAudition({ ...plain.args, pages: [2, 3] });
+    expect(plain.args.render.mock.calls.filter(c => String(c[0]).startsWith('page_2_'))).toHaveLength(3);
+    expect(p.scope).not.toHaveProperty('pageAttempts');
+    expect(p.scope).not.toHaveProperty('reusedSheets');
+  });
+
+  it('comparison: a reused sheet binds only to an identical context and its own re-derived judgement, before anything is saved or drawn', async () => {
+    const source = harness({ book: lineupBook() });
+    await illustrateReviewedAudition({ ...source.args, pages: [2] });
+    const entities = source.saved.get('sheet_entities') as any, locations = source.saved.get('sheet_locations') as any;
+    const refused = async (args: Partial<Parameters<typeof illustrateReviewedAudition>[0]>) => {
+      const h = harness({ book: lineupBook() });
+      await expect(illustrateReviewedAudition({ ...h.args, pages: [2], ...args })).rejects.toThrow('audition_reuse_binding');
+      expect([h.args.render.mock.calls.length, h.args.judge.mock.calls.length, h.saved.size]).toEqual([0, 0, 0]);
+    };
+    // A legacy entities sheet has no lineup: under the lineup its context differs, so it never stands in for the lineup sheet.
+    await refused({ scaleLineup: true, reuseSheets: { entities } });
+    // Control: without the lineup both bind, and only the page is drawn.
+    const control = harness({ book: lineupBook() });
+    await illustrateReviewedAudition({ ...control.args, pages: [2], reuseSheets: { entities, locations } });
+    expect(control.args.render.mock.calls.map(c => c[0])).toEqual(['page_2_0']);
+    // A saved verdict is never trusted: an edited status, chosen attempt, review or context refuses.
+    const edits: ((s: any) => void)[] = [s => { s.status = 'held'; }, s => { s.chosen.attempt = 1; }, s => { s.contextSha = sha('other'); },
+      s => { const c = s.attempts[0].review.checks.find((x: any) => x.category === 'environment');
+        Object.assign(c, { verdict: 'defect', correction: 'fix', issues: [issue('continuity', 'design:garden', 'edited after the fact')] }); }];
+    for (const edit of edits) { const forged = structuredClone(locations); edit(forged); await refused({ scaleLineup: true, reuseSheets: { locations: forged } }); }
+    for (const pageAttempts of [0, 4, 1.5, -1, Number.NaN])
+      await expect(illustrateReviewedAudition({ ...harness().args, pages: [2], pageAttempts }), String(pageAttempts)).rejects.toThrow('audition_page_attempts');
+  });
+
+  it('comparison source: the earlier run\'s admission, saved sheet, chosen image and raw reviews bind; any other source refuses', async () => {
+    const d = auditionSheetDesigns(lineupBook(), texts, true), requirementIds = sheetRequirementIds(d.locations);
+    const context = { version: 'audition-sheet-context/v2', role: 'locations', design: d.locations, requirementIds };
+    const contextSha = createHash('sha256').update(JSON.stringify(context)).digest('hex');
+    const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#556677' } }).png().toBuffer();
+    const candidate = { imageName: 'sheet_locations_1.png', imageSha: createHash('sha256').update(png).digest('hex') };
+    const answer = review(candidate.imageSha, contextSha), attempt = { attempt: 0, candidate, review: answer, assessment: null, status: 'qa_supported' };
+    const binding = { requestId: sha('r'), storyboardDigest: sha('b'), child: image('child'), companion: image('companion') };
+    type Source = { admission: any; sheet: any; wire: any; receipt: any; png: Buffer | null };
+    const genuine = (): Source => ({ admission: { requestId: binding.requestId, storyboardDigest: binding.storyboardDigest, child: binding.child, companion: binding.companion },
+      sheet: { context, contextSha, requirementIds, attempts: [attempt], chosen: attempt, status: 'qa_supported' },
+      wire: { instructions: auditionJudgeInstruction('sheet', context), input: [{ content: [{ text: JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context }) }] }] },
+      receipt: { raw: { output_text: JSON.stringify(answer) } }, png });
+    let n = 0;
+    const source = (s: Source) => {
+      const dir = mkdtempSync(path.join(tmpdir(), `audition-reuse-${n++}-`));
+      mkdirSync(path.join(dir, 'paid-stages')); mkdirSync(path.join(dir, 'illustrations'));
+      writeFileSync(path.join(dir, 'admission.json'), JSON.stringify(s.admission)); writeFileSync(path.join(dir, 'sheet_locations.json'), JSON.stringify(s.sheet));
+      if (s.wire) writeFileSync(path.join(dir, 'paid-stages', 'sheet_locations_0_qa.wire.json'), JSON.stringify(s.wire));
+      if (s.receipt) writeFileSync(path.join(dir, 'paid-stages', 'sheet_locations_0_qa.receipt.json'), JSON.stringify(s.receipt));
+      if (s.png) writeFileSync(path.join(dir, 'illustrations', candidate.imageName), s.png);
+      return dir;
+    };
+    const out = path.join(tmpdir(), 'audition-reuse-out-never-created'), reuse = (dir: string) => readReusedSheets({ sourceRun: dir, roles: ['locations'] }, binding, out);
+    const ok = source(genuine()), read = reuse(ok);
+    expect(read.sheets.locations).toEqual(genuine().sheet);
+    expect(read.binding).toEqual({ sourceRun: path.resolve(ok), roles: ['locations'], admissionSha256: sha(readFileSync(path.join(ok, 'admission.json'), 'utf8')),
+      sheets: { locations: sha(readFileSync(path.join(ok, 'sheet_locations.json'), 'utf8')) } });
+    const other = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#000000' } }).png().toBuffer();
+    const forged: [string, (s: Source) => void][] = [['another request', s => { s.admission.requestId = sha('x'); }],
+      ['another storyboard', s => { s.admission.storyboardDigest = sha('x'); }], ['another child image', s => { s.admission.child = image('other'); }],
+      ['another companion image', s => { s.admission.companion = image('other'); }], ['other image bytes', s => { s.png = other; }], ['no image', s => { s.png = null; }],
+      ['another instruction', s => { s.wire.instructions = AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION; }],
+      ['a request for another context', s => { s.wire.input[0].content[0].text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha: sha('x'), context }); }],
+      ['a request for another image', s => { s.wire.input[0].content[0].text = JSON.stringify({ candidateSha: sha('x'), contextSha, context }); }],
+      ['an edited review', s => { s.receipt.raw.output_text = JSON.stringify({ ...answer, checks: answer.checks.map((c, i) => i ? c : { ...c, observation: 'edited' }) }); }],
+      ['no request', s => { s.wire = null; }], ['no receipt', s => { s.receipt = null; }]];
+    for (const [label, edit] of forged) { const s = genuine(); edit(s); expect(() => reuse(source(s)), label).toThrow('audition_reuse_source'); }
+    expect(() => readReusedSheets({ sourceRun: path.relative(process.cwd(), ok), roles: ['locations'] }, binding, out)).toThrow('audition_reuse_source');
+    expect(() => readReusedSheets({ sourceRun: ok, roles: ['locations'] }, binding, ok)).toThrow('audition_reuse_source');
+  });
+
   it('the grant carries the flag only as the render scope\'s literal; the judge request carries the instruction its own context selects', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'audition-lineup-')), evidence = path.join(dir, 'spend.json');
     writeFileSync(evidence, '{}');
@@ -1459,5 +1547,13 @@ describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on th
     expect((await payload(legacy.entities)).instructions).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
     expect((await payload(d.locations, 'locations')).instructions).toBe(AUDITION_SHEET_JUDGE_INSTRUCTION);
     await expect(payload({ ...d.locations, scaleLineup: d.entities.scaleLineup }, 'locations')).rejects.toThrow('audition_scale_lineup');
+    // A comparison's reuse and page bound exist only in the render scope: distinct roles, 1 to the policy's attempts.
+    const comparison = { ...grant.scope, reuseSheets: { sourceRun: dir, roles: ['locations'] }, pageAttempts: 1 };
+    expect(readAuditionGrant(write({ ...grant, scope: comparison }), book).grant.scope).toMatchObject({ reuseSheets: { roles: ['locations'] }, pageAttempts: 1 });
+    for (const bad of [{ reuseSheets: { sourceRun: dir, roles: ['locations', 'locations'] } }, { reuseSheets: { sourceRun: dir, roles: [] } },
+      { reuseSheets: { sourceRun: dir, roles: ['pages'] } }, { reuseSheets: { sourceRun: dir, roles: ['locations'], extra: 1 } }, { pageAttempts: 0 }, { pageAttempts: 4 },
+      { pageAttempts: 1.5 }]) expect(() => readAuditionGrant(write({ ...grant, scope: { ...comparison, ...bad } }), book), JSON.stringify(bad)).toThrow();
+    for (const extra of [{ reuseSheets: { sourceRun: dir, roles: ['locations'] } }, { pageAttempts: 1 }])
+      expect(() => readAuditionGrant(write({ ...grant, scope: { ...rejudge, ...extra } }), book), JSON.stringify(extra)).toThrow();
   });
 });

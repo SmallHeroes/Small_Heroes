@@ -30,11 +30,13 @@ import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookTex
   NEW_BOOK_CONTINUATION_3, experimentContinuation3File, stageRules, replaySettlement, experimentAuditionStart,
   NEW_BOOK_STORYBOARD_REPAIR, NEW_BOOK_CARRY_RESOLUTION, experimentRepairFile, experimentCarryResolutionFile,
   NEW_BOOK_STORYBOARD_REPAIR_2, experimentRepair2File, NEW_BOOK_OWNER_ACCEPTANCE, experimentAcceptanceFile,
+  NEW_BOOK_SCALE_COMPARISON, experimentComparisonFile, experimentComparisonGrant, runNewBookScaleComparison,
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
 import { AUDITION_SCALE_LINEUP_VERSION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_PAGE_SUFFIX }
   from '../simple-book-reviewed-audition';
+import * as auditionLib from '../simple-book-reviewed-audition';
 import { DRAWN_INSTANT_STORYBOARD_ADDENDUM, DRAWN_INSTANT_REVIEW_ADDENDUM, DRAWN_INSTANT_CONTRACT_VERSION } from '../storyboard-drawn-instant';
 import { decodePersonalBookProviderOutput } from '../book-openai';
 import { SimpleBookBudget } from '../simple-book-budget';
@@ -558,6 +560,141 @@ describe('the reviewed audition on the new book (synthetic providers through the
       expect(off.wire(`page_${page}_0`).body.prompt).not.toContain('RELATIVE SIZE');
     }
   });
+
+  /** The real history to the owner's acceptance, the audition held at its sample gate (its second sample page held), then a new reviewed HEAD. */
+  async function heldSample() {
+    const { grant, dir } = await prepared({ accepted: true });
+    const pages = grant.scope.mode === 'render' ? grant.scope.sample! : [];
+    judgeWith(pages[1]);
+    const held = await audition();
+    if (held.mode !== 'render' || held.manifest.status !== 'held_sample') throw Error('held sample expected');
+    judgeWith(null);
+    moveHead('5'.repeat(40));
+    return { dir, pages, spend: held.spend };
+  }
+  const comparison = (flags: string[] = []) => newBookExperimentCLI(['--config', file, 'scale-comparison', ...flags], { log: () => {} }) as Promise<any>;
+  it('scale comparison: a zero-provider preview, then one guarded run: the lineup entities sheet, the held locations sheet reused, each sample page once, in the same $7', async () => {
+    const { dir, pages, spend } = await heldSample();
+    const drawn = [renders(), sdk.create.mock.calls.length];
+    const preview = await comparison();
+    expect(preview).toMatchObject({ mode: 'plan', plan: { scaleComparison: false }, comparison: { recorded: false, pages, auditionStatus: 'held_sample',
+      pageAttempts: 1, reuseSheets: ['locations'], maxCalls: 10, priorKnownApiMicroUsd: spend.priorKnownApiMicroUsd + spend.newKnownApiMicroUsd,
+      carriedUnresolvedMicroUsd: spend.carriedUnresolvedMicroUsd ?? 0, scaleLineup: { version: AUDITION_SCALE_LINEUP_VERSION }, providerCalls: 0, keyRead: false } });
+    expect([renders(), sdk.create.mock.calls.length]).toEqual(drawn);
+    expect([existsSync(experimentComparisonFile(config)), existsSync(path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir))]).toEqual([false, false]);
+    const run = await comparison(['--execute']);
+    expect(run.mode).toBe('scale-comparison');
+    const out = path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir), paid = path.join(out, 'paid-stages');
+    // Exactly the lineup entities sheet (one attempt here), then each sample page once (render, review, identity); no locations sheet call.
+    expect(claims(paid).sort()).toEqual(['sheet_entities_0', 'sheet_entities_0_qa', ...pages.flatMap(p => [`page_${p}_0`, `page_${p}_0_qa`, `page_${p}_0_identity`])].sort());
+    expect(json(path.join(paid, 'sheet_entities_0.wire.json')).body.prompt).toContain('SCALE LINEUP (design.scaleLineup), in addition to the tiles:');
+    expect(json(path.join(paid, 'sheet_entities_0_qa.wire.json')).instructions).toBe(AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION);
+    for (const p of pages) expect(json(path.join(paid, `page_${p}_0.wire.json`)).body.prompt).toContain(AUDITION_SCALE_LINEUP_PAGE_SUFFIX);
+    // The reused sheet: the held run's own saved record and chosen image, by hash.
+    const heldLocations = json(path.join(dir, 'audition', 'sheet_locations.json')), image = heldLocations.chosen.candidate;
+    expect(json(path.join(out, 'sheet_locations.json'))).toEqual(heldLocations);
+    expect(sha(readFileSync(path.join(out, 'illustrations', image.imageName)))).toBe(image.imageSha);
+    expect(run.result.manifest).toMatchObject({ scaleLineup: AUDITION_SCALE_LINEUP_VERSION, scope: { frames: pages, pageAttempts: 1, reusedSheets: ['locations'] },
+      references: { locations: image } });
+    // One ledger: the comparison starts at the held audition's verified total, with the same carry and cap.
+    expect(run.result.spend).toMatchObject({ priorKnownApiMicroUsd: spend.priorKnownApiMicroUsd + spend.newKnownApiMicroUsd,
+      carriedUnresolvedMicroUsd: spend.carriedUnresolvedMicroUsd, capMicroUsd: 7000000, maxCalls: 10, calls: 8, unknownCost: 0, unknownOutcome: 0 });
+    // The admission names the flag, the reuse source (its admission and saved sheet by hash) and the page bound; the grant is the derived one.
+    expect(json(path.join(out, 'admission.json'))).toMatchObject({ scaleLineup: AUDITION_SCALE_LINEUP_VERSION, pageAttempts: 1, reuseSheets: {
+      sourceRun: path.join(dir, 'audition'), roles: ['locations'], admissionSha256: sha(readFileSync(path.join(dir, 'audition', 'admission.json'))),
+      sheets: { locations: sha(readFileSync(path.join(dir, 'audition', 'sheet_locations.json'))) } } });
+    expect(json(experimentComparisonGrant(config))).toMatchObject({ maxCalls: 10, scope: { pages, scaleLineup: AUDITION_SCALE_LINEUP_VERSION, pageAttempts: 1 },
+      experiment: { slot: NEW_BOOK_EXPERIMENT.slot } });
+    expect((await newBookExperimentCLI(['--config', file, 'plan'])).plan).toMatchObject({ scaleComparison: true, stages: { scaleComparison: true } });
+  }, 180_000);
+  it('scale comparison: once only; the held audition never starts or resumes again; any change to it, or a moved HEAD, refuses the whole chain', async () => {
+    const { dir } = await heldSample();
+    await comparison(['--execute']);
+    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_used$/);
+    await expect(audition({ resume: true })).rejects.toThrow(/^new_book_audition_closed$/);
+    await expect(audition()).rejects.toThrow(/^new_book_audition_closed$/);
+    const page = path.join(dir, 'audition', 'sheet_locations.json'), bytes = readFileSync(page);
+    writeFileSync(page, Buffer.concat([bytes, Buffer.from(' ')]));
+    expect(() => assertExperimentClaim(newBookConfig(file))).toThrow(/^new_book_continuation_evidence$/);
+    writeFileSync(page, bytes);
+    expect(() => assertExperimentClaim(newBookConfig(file))).not.toThrow();
+    moveHead('6'.repeat(40));
+    expect(() => assertExperimentClaim(newBookConfig(file))).toThrow(/^new_book_source_changed$/);
+  }, 180_000);
+  it('scale comparison: refused before a held sample (no audition, or a supported one) and when the reused review is not its raw answer; nothing is written', async () => {
+    const { dir } = await prepared({ accepted: true }); judgeWith(null);
+    const nothing = () => expect([existsSync(experimentComparisonFile(config)), existsSync(path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir)),
+      existsSync(experimentComparisonGrant(config))]).toEqual([false, false, false]);
+    moveHead('5'.repeat(40));
+    await expect(comparison()).rejects.toThrow(/^new_book_comparison_scope$/);
+    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_scope$/);
+    nothing();
+    moveHead('4'.repeat(40));
+    const supported = await audition();
+    if (supported.mode !== 'render' || supported.manifest.status !== 'qa_supported_audition') throw Error('supported audition expected');
+    moveHead('5'.repeat(40));
+    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_scope$/);
+    nothing();
+  }, 180_000);
+  it('scale comparison: a held review not its raw answer, or a swapped chosen image, is refused at admission, before any amendment, folder or call', async () => {
+    const { dir } = await heldSample();
+    const drawn = [renders(), sdk.create.mock.calls.length];
+    const untouched = () => expect([existsSync(experimentComparisonFile(config)), existsSync(path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir)), renders(),
+      sdk.create.mock.calls.length]).toEqual([false, false, ...drawn]);
+    const receipt = path.join(dir, 'audition', 'paid-stages', 'sheet_locations_0_qa.receipt.json'), receiptBytes = readFileSync(receipt), saved = json(receipt);
+    const answer = JSON.parse(saved.raw.output_text);
+    answer.checks[0].observation = `${answer.checks[0].observation} (edited)`;
+    writeFileSync(receipt, JSON.stringify({ ...saved, raw: { ...saved.raw, output_text: JSON.stringify(answer) } }));
+    await expect(comparison(['--execute'])).rejects.toThrow(/^audition_reuse_source$/);
+    untouched();
+    writeFileSync(receipt, receiptBytes);
+    const chosen = json(path.join(dir, 'audition', 'sheet_locations.json')).chosen.candidate, imageFile = path.join(dir, 'audition', 'illustrations', chosen.imageName);
+    const imageBytes = readFileSync(imageFile);
+    writeFileSync(imageFile, await png(7, 1024));
+    await expect(comparison(['--execute'])).rejects.toThrow(/^audition_reuse_source$/);
+    untouched();
+    writeFileSync(imageFile, imageBytes);
+    // A locations design that today's code would build differently (its judge context drifts) can never stand in: refused the same way.
+    const real = auditionLib.auditionSheetContext;
+    const drift = vi.spyOn(auditionLib, 'auditionSheetContext').mockImplementation((role, design) => ({ ...real(role, design), contextSha: sha('drifted') }));
+    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_scope$/);
+    untouched();
+    drift.mockRestore();
+    // Only a held sample is compared: the same pages under any other recorded status are refused.
+    const manifestFile = path.join(dir, 'audition', 'reviewed_audition_manifest.json'), manifestBytes = readFileSync(manifestFile);
+    writeFileSync(manifestFile, JSON.stringify({ ...json(manifestFile), status: 'qa_supported_sample' }));
+    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_scope$/);
+    untouched();
+    writeFileSync(manifestFile, manifestBytes);
+    // A comparison folder or grant that exists before the first start (not written by it) is never adopted: refused, no amendment.
+    const out = path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir);
+    for (const [leftover, make, remove] of [['folder', () => mkdirSync(out), () => rmSync(out, { recursive: true })],
+      ['grant', () => writeFileSync(experimentComparisonGrant(config), '{}'), () => rmSync(experimentComparisonGrant(config))]] as const) {
+      make();
+      await expect(comparison(['--execute']), leftover).rejects.toThrow(/^new_book_comparison_used$/);
+      expect([existsSync(experimentComparisonFile(config)), renders(), sdk.create.mock.calls.length], leftover).toEqual([false, ...drawn]);
+      remove();
+    }
+    expect((await comparison()).comparison).toMatchObject({ recorded: false, reusedLocations: { image: chosen } });
+  }, 180_000);
+  it('scale comparison: an interrupted run continues only by resume, in the same folder and meter; a resume without a start is refused', async () => {
+    const { dir, pages } = await heldSample();
+    await expect(comparison(['--execute', '--resume'])).rejects.toThrow(/^new_book_comparison_binding$/);
+    const controller = new AbortController(), realJudge = sdk.create.getMockImplementation()!;
+    let judged = 0;
+    sdk.create.mockImplementation(async (payload: any) => { const r = await realJudge(payload); if (++judged === 2) controller.abort(); return r; });
+    await expect(runNewBookScaleComparison({ config: newBookConfig(file), signal: controller.signal, log: () => {} })).rejects.toThrow('audition_cancelled');
+    sdk.create.mockImplementation(realJudge);
+    const out = path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir), paid = path.join(out, 'paid-stages'), first = claims(paid);
+    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_used$/);
+    const resumed = await runNewBookScaleComparison({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, resume: true });
+    if (resumed.mode !== 'render') throw Error('render expected');
+    const added = claims(paid).filter(s => !first.includes(s));
+    expect(added.length).toBeGreaterThan(0);
+    expect(added.every(s => s.startsWith('r1_page_'))).toBe(true);
+    expect(resumed.manifest).toMatchObject({ scope: { frames: pages, pageAttempts: 1, reusedSheets: ['locations'] } });
+    expect(resumed.spend).toMatchObject({ unknownCost: 0, unknownOutcome: 0, maxCalls: 10 });
+  }, 180_000);
 
   it('F3: one fresh audition per approval; a second start, another output folder or the grant on a bare runner is refused before any image', async () => {
     const { dir } = await prepared(); judgeWith(null);
