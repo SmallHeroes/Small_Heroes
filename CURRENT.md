@@ -1,5 +1,16 @@
 # SmallHeroes — Current Technical State
 
+## Likeness probe: segment-aware checkout containment (a7acadf6), for narrow re-gate (2026-10-16)
+
+Codex's re-gate of 22d93dd9..b5ba85a5 closed F1 (cwd) and F2 (unusable identity
+evidence) and held one P2: a folder named "..private" inside a checkout was
+treated as outside. Containment is now by path segment (only ".." leaves);
+refusals at config and run entry for "..private" and its child in both
+checkouts, plus outside sibling/prefix and external "..private" controls. The
+refusal test failed on b5ba85a5 first; 155/155; tsc 0. Guy's approvals (age 7,
+the separate $0.70 ceiling, one real-photo run) are recorded; the run waits for
+an explicit PASS at the corrected clean HEAD.
+
 ## Likeness probe corrected after Codex HOLD at 22d93dd9 (1088efaf), for re-gate (2026-10-16)
 
 - F1 (P1): the repository boundary was the launch directory; it is now
