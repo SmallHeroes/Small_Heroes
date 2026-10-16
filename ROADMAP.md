@@ -1,5 +1,10 @@
 # SmallHeroes — Roadmap
 
+## Likeness probe corrected (1088efaf); next: Codex re-gate, Guy's age + ceiling, then one run (2026-10-16)
+
+- Codex HOLD F1/F2 corrected offline: script-located checkout boundary at
+  load and run; unusable identity evidence stops the run; disclosure fixed.
+
 ## Likeness probe from a real photo (6db3e6df); next: Codex QA, then one probe run (2026-10-16)
 
 - The owner-accepted new book stopped at the sample gate (both samples held,

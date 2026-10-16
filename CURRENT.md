@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Likeness probe corrected after Codex HOLD at 22d93dd9 (1088efaf), for re-gate (2026-10-16)
+
+- F1 (P1): the repository boundary was the launch directory; it is now
+  derived from the script's own location (its checkout and, for a linked
+  worktree, the main checkout), enforced at config load and first in the run,
+  before any folder, copy or call.
+- F2 (P2): a priced but unusable identity reply let the run continue and seal
+  complete; the probe now classifies each answer (decision / not_assessable /
+  unusable) and stops on unusable evidence before the next call, sealed failed
+  with the pair, reason and known cost.
+- Disclosure corrected: render receipts hold the generated likenesses' bytes
+  (the original photo is in no record); the whole output folder is private.
+
+Evidence: the 4 new regressions failed on 22d93dd9 first; probe 10 + audition
+143 = 153/153; negative controls 14/14; tsc 0. Next: Codex re-gate of
+22d93dd9..HEAD; then Guy confirms Lavi's age and the $0.70 ceiling.
+
 ## Child-likeness probe from a real photo (6db3e6df), for Codex QA (2026-10-16)
 
 The owner-accepted new book ran at 176335c5 (acceptance recorded, child
