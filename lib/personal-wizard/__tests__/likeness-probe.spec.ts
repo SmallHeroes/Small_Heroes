@@ -165,6 +165,34 @@ describe('likeness probe: a real-photo anchor with production\'s own prompt, one
     expect(identityBodies()).toHaveLength(0);
   });
 
+  // Codex re-gate b5ba85a5 (P2): containment is by path SEGMENT. A folder whose name merely begins with ".." ("..private") inside a checkout
+  // is inside it; only the ".." segment itself leaves it. Nothing is ever created inside the real checkouts.
+  const dotted = (base: string) => [path.join(base, `..private-likeness-qa-${process.pid}`), path.join(base, `..private-likeness-qa-${process.pid}`, 'child')];
+  it('segment-aware containment: a "..private" folder (and its child) inside either checkout is refused at configuration and at the run entry', async () => {
+    const base = JSON.parse(readFileSync(file, 'utf8'));
+    for (const destination of [...dotted(sourceRoot), ...dotted(mainCheckout)]) {
+      write('dotted.json', { ...base, outputParent: destination });
+      expect(() => likenessProbeConfig(path.join(root, 'dotted.json'))).toThrow('likeness_probe_output_in_repository');
+      await expect(runLikenessProbe({ config: { ...config, outputParent: destination }, signal: new AbortController().signal, log: () => {} }))
+        .rejects.toThrow('likeness_probe_output_in_repository');
+      expect(existsSync(destination)).toBe(false);
+    }
+    expect(renders()).toHaveLength(0);
+    expect(identityBodies()).toHaveLength(0);
+  });
+  it('segment-aware containment: a sibling sharing a checkout\'s name prefix and an external "..private" folder are outside (admitted; the external one runs)', async () => {
+    const base = JSON.parse(readFileSync(file, 'utf8'));
+    for (const destination of [`${sourceRoot}-sibling-probe`, `${mainCheckout}-sibling-probe`]) {
+      write('sibling.json', { ...base, outputParent: destination });
+      expect(likenessProbeConfig(path.join(root, 'sibling.json')).outputParent).toBe(destination);
+      expect(existsSync(destination)).toBe(false);
+    }
+    const external = path.join(root, '..private-external'); require('node:fs').mkdirSync(external);
+    const result = await runLikenessProbe({ config: { ...config, outputParent: external }, signal: new AbortController().signal, log: () => {} });
+    expect(result.status).toBe('complete');
+    expect(existsSync(path.join(external, 'likeness-probe-synthetic-child', 'sealed.json'))).toBe(true);
+  });
+
   // Codex HOLD 22d93dd9 F2: unusable identity evidence stops the run before the next call; a valid answer (including "different child" and
   // a valid "not assessable") is a diagnostic result, recorded, and the run goes on.
   const answerOnce = (content: unknown) => {

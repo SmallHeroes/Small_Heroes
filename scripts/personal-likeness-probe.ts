@@ -72,9 +72,10 @@ export function protectedCheckouts(scriptDirectory = __dirname): string[] {
   }
   return roots;
 }
+/** Containment by path SEGMENT: only the ".." segment itself leaves the parent; a name merely beginning with ".." ("..private") is inside. */
 const within = (child: string, parent: string) => {
   const r = path.relative(path.resolve(parent).toLowerCase(), path.resolve(child).toLowerCase());
-  return r === '' || (!r.startsWith('..') && !path.isAbsolute(r));
+  return !path.isAbsolute(r) && !/^\.\.(?:[\\/]|$)/.test(r);
 };
 /**
  * A destination inside a protected checkout is refused (lexically, case-insensitively; it need not exist yet). The run then also requires

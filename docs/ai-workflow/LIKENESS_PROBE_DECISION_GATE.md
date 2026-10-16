@@ -111,6 +111,7 @@ Delete the script and spec; revert the one adapter line. The output folder is lo
 - **The boundary** (corrected after Codex's HOLD F1): it is derived from the probe script's own location, never the launch directory.
   - It covers the checkout holding the script and, for a linked worktree, its main checkout.
   - It is enforced both when the configuration loads and at the start of the run, before any folder, copy or call.
+  - Containment is case-insensitive and by path **segment** (corrected after Codex's re-gate at `b5ba85a5`): only the `..` segment leaves a checkout, so a folder named `..private` inside one is inside.
   - The existing physical-directory check then rejects any junction or symbolic-link alias.
   - Scope: other repositories elsewhere on the machine are not detected.
 - **Other children:** none. The control uses the fictional Itai.
