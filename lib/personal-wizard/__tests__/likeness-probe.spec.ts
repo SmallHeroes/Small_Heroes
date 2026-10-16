@@ -8,6 +8,7 @@ import { buildStage0MethodBPrompt } from '../../generation-pipeline/stage0-metho
 import { STYLE_01_AVOIDANCE_NEGATIVE } from '../../style01-gptimage';
 import { likenessProbeConfig, planLikenessProbe, runLikenessProbe, anchorRenderText, pagePrompt, anchorReferenceFiles,
   type LikenessProbeConfig } from '../../../scripts/personal-likeness-probe';
+import { calibratedPhotoAnchorPrompt } from '../photo-anchor-age';
 
 // Synthetic inputs only: a solid-colour "photo" and stand-ins for the companion, atlases and control. No real child image is ever used here.
 const png = (shade: number, size = 256) => sharp({ create: { width: size, height: size, channels: 3, background: { r: shade, g: 120, b: 255 - shade } } }).png().toBuffer();
@@ -62,10 +63,10 @@ describe('likeness probe: a real-photo anchor with production\'s own prompt, one
     expect(plan.anchor.references).toEqual(['raw_child_photo', 'style01_ref_1', 'style01_ref_2']);
     expect(anchorReferenceFiles(config)[0].file).toBe(config.photo);
     expect(plan.page).toMatchObject({ mode: 'book_identity', references: ['anchor', 'companion', 'atlas_entities', 'atlas_locations'] });
-    expect(plan.page.prompt.startsWith('[PERSONAL BOOK REFERENCE ROLES]')).toBe(true);
-    expect(plan.page.prompt).toContain(pagePrompt(config));
+    expect(plan.page!.prompt.startsWith('[PERSONAL BOOK REFERENCE ROLES]')).toBe(true);
+    expect(plan.page!.prompt).toContain(pagePrompt(config));
     expect(plan.reservations.identityEach).toBe(50000);
-    expect(plan.largestReservationMicroUsd).toBe(Math.max(plan.reservations.anchor, plan.reservations.page));
+    expect(plan.largestReservationMicroUsd).toBe(Math.max(plan.reservations.anchor, plan.reservations.page!));
     expect(plan).toMatchObject({ fitsCap: true, providerCalls: 0, keyRead: false });
     expect(existsSync(out())).toBe(false);
     expect(renders()).toHaveLength(0);
@@ -221,6 +222,37 @@ describe('likeness probe: a real-photo anchor with production\'s own prompt, one
     expect(result.results.checks.map(c => [c.step, c.reasonCode, c.outcome])).toEqual([['anchor_identity', 'subject_not_assessable', 'not_assessable'],
       ['control_identity', 'different_child', 'decision'], ['page_identity', 'same_child', 'decision'], ['page_anchor_identity', 'same_child', 'decision']]);
     expect(renders()).toHaveLength(2);
+  });
+
+  // Age calibration (Decision Gate 2026-10-16): opt-in; the defaults keep production's anchor and the six-call run byte-identical.
+  it('calibrated-v1: the anchor text is production\'s prompt with only its age elements replaced; without it the plan is unchanged', () => {
+    const calibrated = { ...config, anchorAge: 'calibrated-v1' as const };
+    expect(anchorRenderText(calibrated)).toBe(`${calibratedPhotoAnchorPrompt({ order: { childAge: 7, childGender: 'boy' }, lockedChildDescription:
+      'A 7-year-old boy. Hair, skin tone, eyes and face come only from reference image 1 (the photo).', childPhotoDescription: null,
+      referenceLayout: 'photo_only_no_template' })}\n\n[AVOID]\n${STYLE_01_AVOIDANCE_NEGATIVE}`);
+    expect(anchorRenderText(calibrated)).not.toBe(anchorRenderText(config));
+    expect(planLikenessProbe(calibrated)).toMatchObject({ anchorAge: 'calibrated-v1', ageCalibration: 'anchor-age-calibration/v1' });
+    for (const key of ['anchorAge', 'ageCalibration', 'mode']) expect(planLikenessProbe(config)).not.toHaveProperty(key);
+  });
+  it('anchor_only: two calls (the anchor and its photo comparison), no page inputs copied, a viewer without the page', async () => {
+    const only = { ...config, label: 'anchor-only', mode: 'anchor_only' as const, anchorAge: 'calibrated-v1' as const, capMicroUsd: 600000 };
+    const plan = planLikenessProbe(only);
+    expect(plan).toMatchObject({ mode: 'anchor_only', calls: ['anchor', 'anchor_identity'], fitsCap: true });
+    expect(plan).not.toHaveProperty('page');
+    expect(plan.reservations).not.toHaveProperty('page');
+    expect(plan.worstCaseSequentialMicroUsd).toBe(plan.reservations.anchor + plan.reservations.identityEach);
+    const result = await runLikenessProbe({ config: only, signal: new AbortController().signal, log: () => {} });
+    expect(result.status).toBe('complete');
+    expect(renders()).toHaveLength(1);
+    expect(renders()[0]).toMatchObject({ referenceMode: 'anchor_photo_style_only', finalPrompt: anchorRenderText(only) });
+    expect(identityBodies()).toHaveLength(1);
+    const dir = path.join(outputParent, 'likeness-probe-anchor-only');
+    expect(readdirSync(path.join(dir, 'illustrations')).sort()).toEqual(['anchor.png', 'photo.png', 'style_1.png', 'style_2.png']);
+    expect(result.results.checks.map(c => c.step)).toEqual(['anchor_identity']);
+    expect(result.spend).toMatchObject({ calls: 2, maxCalls: 2, failed: 0, unknownCost: 0 });
+    const html = readFileSync(path.join(dir, 'probe.html'), 'utf8');
+    expect(html).toContain('age-calibrated');
+    for (const absent of ['Probe page (book engine page mode)', 'Control reference']) expect(html).not.toContain(absent);
   });
 
   it('configuration: absolute PNG inputs that exist, a bounded cap, an absolute output folder', () => {

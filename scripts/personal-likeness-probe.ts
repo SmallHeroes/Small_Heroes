@@ -25,6 +25,7 @@ import { STYLE_01_AVOIDANCE_NEGATIVE } from '../lib/style01-gptimage';
 import { AUDITION_PAGE_SUFFIX } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../lib/generation-pipeline/page-child-resemblance-vision';
+import { calibratedPhotoAnchorPrompt, ANCHOR_AGE_CALIBRATION_VERSION } from '../lib/personal-wizard/photo-anchor-age';
 import { AuditionMeter, auditionAdapters, keyReader, renderMaximum, IDENTITY_MAXIMUM_MICRO_USD } from './personal-simple-book-reviewed-audition';
 import { exclusiveJson, exclusiveText, realDirectory } from './personal-causal-trial-journal';
 
@@ -49,10 +50,16 @@ export const likenessProbeConfigSchema = z.object({
   outputParent: z.string().refine(p => path.isAbsolute(p), 'absolute directory'),
   keyEnvFile: z.string().refine(p => path.isAbsolute(p), 'absolute file'),
   capMicroUsd: z.number().int().positive().max(1000000),
+  /** The anchor's age elements: production's (default) or the opt-in calibration (photo-anchor-age, anchor-age-calibration/v1). */
+  anchorAge: z.enum(['production', 'calibrated-v1']).optional(),
+  /** anchor_and_page (default: the six calls) or anchor_only (the anchor and its photo comparison: two calls, for portrait comparisons). */
+  mode: z.enum(['anchor_and_page', 'anchor_only']).optional(),
 }).strict();
 export type LikenessProbeConfig = z.infer<typeof likenessProbeConfigSchema>;
 
-const STEPS = ['anchor', 'anchor_identity', 'control_identity', 'page', 'page_identity', 'page_anchor_identity'] as const;
+const FULL_STEPS = ['anchor', 'anchor_identity', 'control_identity', 'page', 'page_identity', 'page_anchor_identity'] as const;
+const ANCHOR_ONLY_STEPS = ['anchor', 'anchor_identity'] as const;
+const stepsOf = (config: Pick<LikenessProbeConfig, 'mode'>) => config.mode === 'anchor_only' ? ANCHOR_ONLY_STEPS : FULL_STEPS;
 
 /**
  * The checkouts a real child's photo and its likenesses must never enter, derived from THIS script's own location (never the launch
@@ -112,18 +119,22 @@ export function identityOutcome(r: PageChildResemblanceVisionResult): 'decision'
 }
 
 const pronoun = (gender: 'boy' | 'girl') => gender === 'boy' ? { subject: 'he', possessive: 'his' } : { subject: 'she', possessive: 'her' };
-/** Production's anchor identity text needs a locked description: only what the owner states (age, gender); identity comes from the photo. */
-export function anchorPrompt(config: Pick<LikenessProbeConfig, 'child' | 'wardrobe'>) {
-  return buildStage0MethodBPrompt({ order: { childAge: config.child.age, childGender: config.child.gender },
+/**
+ * Production's anchor prompt; its identity text needs a locked description: only what the owner states (age, gender); identity comes from
+ * the photo. With anchorAge calibrated-v1, production's prompt with only its two age elements replaced (calibratedPhotoAnchorPrompt).
+ */
+export function anchorPrompt(config: Pick<LikenessProbeConfig, 'child' | 'wardrobe' | 'anchorAge'>) {
+  const input = { order: { childAge: config.child.age, childGender: config.child.gender },
     lockedChildDescription: `A ${config.child.age}-year-old ${config.child.gender}. Hair, skin tone, eyes and face come only from reference image 1 (the photo).`,
-    ...(config.wardrobe ? { wardrobeLock: `WARDROBE LOCK: ${config.wardrobe}` } : {}), childPhotoDescription: null, referenceLayout: 'photo_only_no_template' });
+    ...(config.wardrobe ? { wardrobeLock: `WARDROBE LOCK: ${config.wardrobe}` } : {}), childPhotoDescription: null, referenceLayout: 'photo_only_no_template' as const };
+  return config.anchorAge === 'calibrated-v1' ? calibratedPhotoAnchorPrompt(input) : buildStage0MethodBPrompt(input);
 }
 /**
  * The anchor request text exactly as production composes it: its prompt, then its negative prompt as the [AVOID] block (generateGPTImage
  * appends it after the reference prefix; the engine's adapter forwards no negative prompt, so it is appended here in the same order).
  * The negative prompt contains "text", so no extra no-text line follows (as in production).
  */
-export const anchorRenderText = (config: Pick<LikenessProbeConfig, 'child' | 'wardrobe'>) =>
+export const anchorRenderText = (config: Pick<LikenessProbeConfig, 'child' | 'wardrobe' | 'anchorAge'>) =>
   `${anchorPrompt(config)}\n\n[AVOID]\n${STYLE_01_AVOIDANCE_NEGATIVE}`;
 /** The probe page: the engine's page-mode suffix around a configured scene; nothing from any story. */
 export function pagePrompt(config: Pick<LikenessProbeConfig, 'child' | 'scene'>) {
@@ -147,22 +158,27 @@ export function planLikenessProbe(config: LikenessProbeConfig) {
   const anchorRefs = anchorReferenceFiles(config);
   const anchorPlan = planGPTImageRequest({ finalPrompt: anchorRenderText(config), referenceImages: anchorRefs.map(r => r.file), referenceMode: 'anchor_photo_style_only',
     requireReferenceEdit: true, quality: 'low', size: '1024x1024', modelOverride: 'gpt-image-2' }, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
+  const anchorOnly = config.mode === 'anchor_only';
   const pageRefFiles = ['(anchor from this run)', config.companion, config.atlases.entities, config.atlases.locations];
-  const pagePlan = planGPTImageRequest({ finalPrompt: pagePrompt(config), referenceImages: pageRefFiles, referenceMode: 'book_identity',
+  const pagePlan = anchorOnly ? null : planGPTImageRequest({ finalPrompt: pagePrompt(config), referenceImages: pageRefFiles, referenceMode: 'book_identity',
     requireReferenceEdit: true, quality: 'low', size: '1024x1024', modelOverride: 'gpt-image-2' }, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
-  if (anchorPlan.referenceCountPassed !== anchorRefs.length || pagePlan.referenceCountPassed !== 4) fail('likeness_probe_reference_truncated');
-  const reservations = { anchor: renderMaximum(anchorPlan.finalPrompt, anchorRefs.length), page: renderMaximum(pagePlan.finalPrompt, 4),
-    identityEach: IDENTITY_MAXIMUM_MICRO_USD };
+  if (anchorPlan.referenceCountPassed !== anchorRefs.length || (pagePlan && pagePlan.referenceCountPassed !== 4)) fail('likeness_probe_reference_truncated');
+  const anchorMaximum = renderMaximum(anchorPlan.finalPrompt, anchorRefs.length), pageMaximum = pagePlan ? renderMaximum(pagePlan.finalPrompt, 4) : 0;
+  const reservations = pagePlan ? { anchor: anchorMaximum, page: pageMaximum, identityEach: IDENTITY_MAXIMUM_MICRO_USD }
+    : { anchor: anchorMaximum, identityEach: IDENTITY_MAXIMUM_MICRO_USD };
   // The meter reserves each call's maximum before it is sent and settles it at its actual cost: a call is admitted only when its reservation
   // fits beside the spend settled so far, otherwise the run stops (sealed failed). The largest reservation must fit at all; the sum of every
   // maximum is reported, not required (actual image and identity costs are a small fraction of their maxima).
-  const largestReservation = Math.max(reservations.anchor, reservations.page, reservations.identityEach);
-  const worstCaseSequential = reservations.anchor + reservations.page + 4 * reservations.identityEach;
+  const identities = stepsOf(config).filter(s => s.endsWith('_identity')).length;
+  const largestReservation = Math.max(reservations.anchor, pageMaximum, reservations.identityEach);
+  const worstCaseSequential = reservations.anchor + pageMaximum + identities * reservations.identityEach;
   return { version: LIKENESS_PROBE_VERSION, label: config.label, output: path.join(config.outputParent, `likeness-probe-${config.label}`),
     child: config.child, inputs: { photo: { sha256: sha(config.photo) }, companion: { sha256: sha(config.companion) },
       atlases: { entities: { sha256: sha(config.atlases.entities) }, locations: { sha256: sha(config.atlases.locations) } }, control: { sha256: sha(config.control) } },
-    calls: STEPS, anchor: { mode: 'anchor_photo_style_only', references: anchorRefs.map(r => r.label), prompt: anchorPlan.finalPrompt },
-    page: { mode: 'book_identity', references: ['anchor', 'companion', 'atlas_entities', 'atlas_locations'], prompt: pagePlan.finalPrompt },
+    ...(config.mode ? { mode: config.mode } : {}),
+    ...(config.anchorAge ? { anchorAge: config.anchorAge, ...(config.anchorAge === 'calibrated-v1' ? { ageCalibration: ANCHOR_AGE_CALIBRATION_VERSION } : {}) } : {}),
+    calls: stepsOf(config), anchor: { mode: 'anchor_photo_style_only', references: anchorRefs.map(r => r.label), prompt: anchorPlan.finalPrompt },
+    ...(pagePlan ? { page: { mode: 'book_identity', references: ['anchor', 'companion', 'atlas_entities', 'atlas_locations'], prompt: pagePlan.finalPrompt } } : {}),
     reservations, capMicroUsd: config.capMicroUsd, largestReservationMicroUsd: largestReservation, worstCaseSequentialMicroUsd: worstCaseSequential,
     fitsCap: largestReservation <= config.capMicroUsd,
     capNote: 'the cap admits the largest single reservation; each later call is admitted only if its reservation fits beside the spend settled so far, so the cap alone does not guarantee completion',
@@ -190,7 +206,7 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
   const out = plan.output, images = path.join(out, 'illustrations');
   try { mkdirSync(out); } catch { fail('likeness_probe_used'); }
   mkdirSync(images);
-  const meter = new AuditionMeter(path.join(out, 'paid-stages'), config.capMicroUsd, STEPS.length);
+  const meter = new AuditionMeter(path.join(out, 'paid-stages'), config.capMicroUsd, stepsOf(config).length);
   const save = (name: string, value: unknown) => exclusiveJson(path.join(out, `${name}.json`), value);
   const seal = (status: 'complete' | 'failed', extra: Record<string, unknown> = {}) => {
     save('spend', meter.snapshot()); save('sealed', { version: LIKENESS_PROBE_VERSION, status, ...extra, runtimeEligible: false });
@@ -204,10 +220,13 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
     const anchorRefs = anchorReferenceFiles(config);
     const anchorInputs: AuditionImage[] = [];
     for (const [i, ref] of anchorRefs.entries()) anchorInputs.push(await copy(i === 0 ? 'photo.png' : `style_${i}.png`, ref.file));
-    const photo = anchorInputs[0], companion = await copy('companion.png', config.companion), control = await copy('control.png', config.control);
-    const atlasEntities = await copy('atlas_entities.png', config.atlases.entities), atlasLocations = await copy('atlas_locations.png', config.atlases.locations);
-    save('plan', { ...plan, anchor: { ...plan.anchor, prompt: undefined, promptSha256: previewSha(Buffer.from(plan.anchor.prompt)) },
-      page: { ...plan.page, prompt: undefined, promptSha256: previewSha(Buffer.from(plan.page.prompt)) } });
+    const photo = anchorInputs[0];
+    // The page's inputs, only when this run draws the page (anchor_only copies nothing it does not send).
+    const pageInputs = config.mode === 'anchor_only' ? null : { companion: await copy('companion.png', config.companion), control: await copy('control.png', config.control),
+      atlasEntities: await copy('atlas_entities.png', config.atlases.entities), atlasLocations: await copy('atlas_locations.png', config.atlases.locations) };
+    const planRecord: Record<string, unknown> = { ...plan, anchor: { ...plan.anchor, prompt: undefined, promptSha256: previewSha(Buffer.from(plan.anchor.prompt)) } };
+    if ('page' in plan && plan.page) planRecord.page = { ...plan.page, prompt: undefined, promptSha256: previewSha(Buffer.from(plan.page.prompt)) };
+    save('plan', planRecord);
     // A comparison is recorded whatever its valid answer (a decision or not assessable); unusable evidence stops the run right here.
     const measure = async (step: string, reference: string, candidate: string, referenceImage: AuditionImage, candidateImage: AuditionImage) => {
       const check = checkSummary(step, reference, candidate, await io.identity(step, referenceImage, candidateImage));
@@ -218,12 +237,17 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
     const anchor = await io.render('anchor', anchorRenderText(config), anchorInputs, 'anchor_photo_style_only');
     args.log(`anchor: ${anchor.imageName}`);
     await measure('anchor_identity', 'photo', 'anchor', photo, anchor);
-    await measure('control_identity', 'control', 'anchor', control, anchor);
-    const page = await io.render('page', pagePrompt(config), [anchor, companion, atlasEntities, atlasLocations], 'book_identity');
-    args.log(`page: ${page.imageName}`);
-    await measure('page_identity', 'photo', 'page', photo, page);
-    await measure('page_anchor_identity', 'anchor', 'page', anchor, page);
-    const results = { version: LIKENESS_PROBE_VERSION, label: config.label, child: config.child, images: { photo, anchor, page, control },
+    let drawn: LikenessImages = { photo, anchor };
+    if (pageInputs) {
+      await measure('control_identity', 'control', 'anchor', pageInputs.control, anchor);
+      const page = await io.render('page', pagePrompt(config), [anchor, pageInputs.companion, pageInputs.atlasEntities, pageInputs.atlasLocations], 'book_identity');
+      args.log(`page: ${page.imageName}`);
+      await measure('page_identity', 'photo', 'page', photo, page);
+      await measure('page_anchor_identity', 'anchor', 'page', anchor, page);
+      drawn = { photo, anchor, page, control: pageInputs.control };
+    }
+    const results = { version: LIKENESS_PROBE_VERSION, label: config.label, child: config.child,
+      ...(config.mode ? { mode: config.mode } : {}), ...(config.anchorAge ? { anchorAge: config.anchorAge } : {}), images: drawn,
       checks, verdict: 'owner: compare probe.html; the scores are diagnostic only (the evaluator is not a calibrated confidence)' };
     save('results', results);
     exclusiveText(path.join(out, 'probe.html'), likenessProbeHTML(results, img => `data:image/png;base64,${io.bytesOf(img).toString('base64')}`));
@@ -237,8 +261,10 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
 }
 
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+/** The run's images: the page and the control only when the run draws the page. */
+type LikenessImages = { photo: AuditionImage; anchor: AuditionImage; page?: AuditionImage; control?: AuditionImage };
 /** A local, self-contained comparison page (never published: it holds a real child's photo and likeness). */
-export function likenessProbeHTML(results: { label: string; child: { age: number; gender: string }; images: Record<'photo' | 'anchor' | 'page' | 'control', AuditionImage>;
+export function likenessProbeHTML(results: { label: string; child: { age: number; gender: string }; anchorAge?: string; images: LikenessImages;
   checks: CheckSummary[] }, src: (img: AuditionImage) => string) {
   const fig = (img: AuditionImage, caption: string) => `<figure><img src="${src(img)}" alt="${esc(caption)}"><figcaption>${esc(caption)}</figcaption></figure>`;
   const row = (c: CheckSummary) => `<tr><td>${esc(c.reference)} ↔ ${esc(c.candidate)}</td><td>${esc(c.outcome)}</td><td>${esc(c.status)} (${esc(c.reasonCode)})</td><td>${esc(c.sameChild)}</td>` +
@@ -248,11 +274,12 @@ export function likenessProbeHTML(results: { label: string; child: { age: number
 figure{margin:0;background:#fff;padding:8px;border-radius:10px}img{width:100%;display:block;border-radius:6px}table{border-collapse:collapse;width:100%;margin-top:16px;background:#fff}
 td,th{border:1px solid #ddd;padding:6px;font-size:14px;text-align:left}.note{font-size:14px;color:#555}@media(max-width:700px){.row{grid-template-columns:1fr}}</style>
 <main><h1>Likeness probe: ${esc(results.label)}</h1><p class="note">Local diagnostic only, never published: this page holds a real child's photo and drawn likenesses. Child: ${esc(results.child.age)}, ${esc(results.child.gender)}. LOW quality, one attempt each. The owner's comparison is the verdict; the scores below come from the existing evaluator and are not a calibrated confidence.</p>
-<div class="row">${fig(results.images.photo, 'Real photo (reference)')}${fig(results.images.anchor, 'Drawn anchor (production Style-01 prompt)')}${fig(results.images.page, 'Probe page (book engine page mode)')}</div>
+<div class="row">${fig(results.images.photo, 'Real photo (reference)')}${fig(results.images.anchor, results.anchorAge === 'calibrated-v1'
+    ? 'Drawn anchor (production Style-01 prompt, age-calibrated)' : 'Drawn anchor (production Style-01 prompt)')}${results.images.page ? fig(results.images.page, 'Probe page (book engine page mode)') : ''}</div>
 <table><tr><th>check</th><th>outcome</th><th>status (reason)</th><th>same child</th><th>score</th><th>features</th></tr>${results.checks.map(row).join('')}</table>
 <p class="note">Outcome: "decision" is a valid answer (same, different, below threshold, or a visibility result); "not_assessable" is a valid answer that the pair cannot be judged, never a likeness pass.</p>
-<p class="note">Control: a different, fictional child's reference compared with this anchor. A discriminating evaluator answers "different".</p>
-<div class="row" style="grid-template-columns:1fr 3fr">${fig(results.images.control, 'Control reference (fictional child)')}</div></main></html>`;
+${results.images.control ? `<p class="note">Control: a different, fictional child's reference compared with this anchor. A discriminating evaluator answers "different".</p>
+<div class="row" style="grid-template-columns:1fr 3fr">${fig(results.images.control, 'Control reference (fictional child)')}</div>` : ''}</main></html>`;
 }
 
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
