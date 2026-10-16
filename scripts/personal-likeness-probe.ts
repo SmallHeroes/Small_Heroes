@@ -8,14 +8,15 @@
  * "different"). Every image is gpt-image-2 LOW 1024x1024 through the engine's metered adapter; every check is the existing gpt-4o evaluator.
  *
  * Dry run by default: the plan (prompts, references by name and hash, each call's reservation, cap fit). No key read, nothing written.
- * --execute: one run into a fresh folder OUTSIDE the repository, each call once (no retry), under the probe's own hard cap; any failure
- * stops and seals the run. The scores are diagnostic; the owner's own comparison (probe.html) is the verdict.
+ * --execute: one run into a fresh PRIVATE folder outside the protected checkouts (protectedCheckouts), each call once (no retry), under the
+ * probe's own hard cap; a failed call or unusable identity evidence stops and seals the run. The folder holds the photo's copy, the drawn
+ * likenesses and the render receipts, which contain the generated images' bytes (the original photo is never in a record): private, never
+ * copied into a repository or a review folder. The scores are diagnostic; the owner's own comparison (probe.html) is the verdict.
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/personal-likeness-probe.ts --config <absolute json> [--execute]
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import sharp from 'sharp';
 import { buildStage0MethodBPrompt, buildStage0MethodBReferences } from '../lib/generation-pipeline/stage0-method-b';
 import { planGPTImageRequest } from '../lib/generate-image';
 import { previewSha } from '../lib/local-story-preview';
@@ -52,17 +53,61 @@ export const likenessProbeConfigSchema = z.object({
 export type LikenessProbeConfig = z.infer<typeof likenessProbeConfigSchema>;
 
 const STEPS = ['anchor', 'anchor_identity', 'control_identity', 'page', 'page_identity', 'page_anchor_identity'] as const;
-const inside = (child: string, parent: string) => { const r = path.relative(path.resolve(parent), path.resolve(child)); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
 
-/** The validated configuration; the output folder must be outside the repository (a real child's photo and its likeness never enter it). */
-export function likenessProbeConfig(file: string, workspace = process.cwd()): LikenessProbeConfig {
+/**
+ * The checkouts a real child's photo and its likenesses must never enter, derived from THIS script's own location (never the launch
+ * directory): the checkout holding it and, when that is a linked worktree, its main checkout (from the .git pointer). An unverifiable
+ * location is refused. Scope: other repositories elsewhere on the machine are not detected.
+ */
+export function protectedCheckouts(scriptDirectory = __dirname): string[] {
+  const root = path.resolve(scriptDirectory, '..'), dotGit = path.join(root, '.git');
+  if (!existsSync(path.join(root, 'scripts', 'personal-likeness-probe.ts')) || !existsSync(dotGit)) return fail('likeness_probe_source_root');
+  realDirectory(root);
+  const roots = [root];
+  if (lstatSync(dotGit).isFile()) {
+    const pointer = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(dotGit, 'utf8'))?.[1];
+    const common = pointer ? path.resolve(root, pointer).replace(/[\\/]worktrees[\\/][^\\/]+$/, '') : null;
+    if (!common || path.basename(common).toLowerCase() !== '.git' || !existsSync(common)) return fail('likeness_probe_source_root');
+    roots.push(path.dirname(common));
+  }
+  return roots;
+}
+const within = (child: string, parent: string) => {
+  const r = path.relative(path.resolve(parent).toLowerCase(), path.resolve(child).toLowerCase());
+  return r === '' || (!r.startsWith('..') && !path.isAbsolute(r));
+};
+/**
+ * A destination inside a protected checkout is refused (lexically, case-insensitively; it need not exist yet). The run then also requires
+ * the destination to be a physical directory path (realDirectory: no junction or symbolic-link component), so no alias reaches a checkout.
+ */
+export function assertOutsideCheckouts(outputParent: string) {
+  for (const root of protectedCheckouts()) if (within(outputParent, root)) fail('likeness_probe_output_in_repository');
+}
+
+/** The validated configuration; the output folder must be outside the protected checkouts (a real child's photo and likeness never enter them). */
+export function likenessProbeConfig(file: string): LikenessProbeConfig {
   if (!path.isAbsolute(file)) fail('likeness_probe_config');
   const parsed = likenessProbeConfigSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')));
   if (!parsed.success) return fail('likeness_probe_config');
   const config = parsed.data;
-  if (inside(config.outputParent, workspace)) fail('likeness_probe_output_in_repository');
+  assertOutsideCheckouts(config.outputParent);
   for (const p of [config.photo, config.companion, config.atlases.entities, config.atlases.locations, config.control]) if (!existsSync(p)) fail('likeness_probe_input_missing');
   return config;
+}
+
+/**
+ * The probe's own reading of an identity answer (the evaluator and its 0.70 threshold are unchanged):
+ * - decision: a valid same / below-threshold / different answer, or a valid visibility result (candidate missing, several children);
+ * - not_assessable: a valid answer that the pair cannot be judged (uncertain, subject or reference not assessable). A diagnostic result in
+ *   its own right, recorded and never counted as a likeness pass;
+ * - unusable: no valid answer (malformed, transport, cancelled, bytes unavailable, credential). The run stops before its next call.
+ */
+const DECISIONS = new Set(['same_child', 'below_threshold', 'different_child', 'candidate_missing', 'multiple_children']);
+const NOT_ASSESSABLE = new Set(['uncertain', 'subject_not_assessable', 'reference_not_assessable']);
+export function identityOutcome(r: PageChildResemblanceVisionResult): 'decision' | 'not_assessable' | 'unusable' {
+  if ((r.status === 'passed' || r.status === 'failed') && DECISIONS.has(r.reasonCode)) return 'decision';
+  if (r.status === 'evidence_unknown' && NOT_ASSESSABLE.has(r.reasonCode) && r.featureAssessments !== null) return 'not_assessable';
+  return 'unusable';
 }
 
 const pronoun = (gender: 'boy' | 'girl') => gender === 'boy' ? { subject: 'he', possessive: 'his' } : { subject: 'she', possessive: 'her' };
@@ -118,20 +163,30 @@ export function planLikenessProbe(config: LikenessProbeConfig) {
     calls: STEPS, anchor: { mode: 'anchor_photo_style_only', references: anchorRefs.map(r => r.label), prompt: anchorPlan.finalPrompt },
     page: { mode: 'book_identity', references: ['anchor', 'companion', 'atlas_entities', 'atlas_locations'], prompt: pagePlan.finalPrompt },
     reservations, capMicroUsd: config.capMicroUsd, largestReservationMicroUsd: largestReservation, worstCaseSequentialMicroUsd: worstCaseSequential,
-    fitsCap: largestReservation <= config.capMicroUsd, providerCalls: 0, keyRead: false };
+    fitsCap: largestReservation <= config.capMicroUsd,
+    capNote: 'the cap admits the largest single reservation; each later call is admitted only if its reservation fits beside the spend settled so far, so the cap alone does not guarantee completion',
+    privateOutput: 'the output folder holds the photo copy, the drawn likenesses and render receipts containing the generated images\' bytes: private, never copied into a repository or review folder',
+    providerCalls: 0, keyRead: false };
 }
 
 type Adapters = Pick<ReturnType<typeof auditionAdapters>, 'writeImage' | 'bytesOf' | 'render' | 'identity'>;
 const checkSummary = (step: string, reference: string, candidate: string, r: PageChildResemblanceVisionResult) => ({ step, reference, candidate,
-  status: r.status, sameChild: r.sameChild, reasonCode: r.reasonCode, resemblanceScore: r.resemblanceScore, featureAssessments: r.featureAssessments });
+  outcome: identityOutcome(r), status: r.status, sameChild: r.sameChild, reasonCode: r.reasonCode, resemblanceScore: r.resemblanceScore,
+  featureAssessments: r.featureAssessments });
+type CheckSummary = ReturnType<typeof checkSummary>;
 
-/** The paid run, once: a fresh folder outside the repository, each call once in order, the run sealed complete or failed (no retry). */
+/**
+ * The paid run, once: a fresh private folder outside the protected checkouts (checked here too, before anything is created, copied or
+ * called), each call once in order, the run sealed complete or failed (no retry; unusable identity evidence stops before the next call).
+ */
 export async function runLikenessProbe(args: { config: LikenessProbeConfig; signal: AbortSignal; log: (line: string) => void;
   adapters?: (directory: string, meter: AuditionMeter) => Adapters }) {
-  const { config } = args, plan = planLikenessProbe(config);
+  const { config } = args;
+  assertOutsideCheckouts(config.outputParent);
+  realDirectory(config.outputParent);
+  const plan = planLikenessProbe(config);
   if (!plan.fitsCap) fail('likeness_probe_cap');
   const out = plan.output, images = path.join(out, 'illustrations');
-  realDirectory(config.outputParent);
   try { mkdirSync(out); } catch { fail('likeness_probe_used'); }
   mkdirSync(images);
   const meter = new AuditionMeter(path.join(out, 'paid-stages'), config.capMicroUsd, STEPS.length);
@@ -139,6 +194,8 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
   const seal = (status: 'complete' | 'failed', extra: Record<string, unknown> = {}) => {
     save('spend', meter.snapshot()); save('sealed', { version: LIKENESS_PROBE_VERSION, status, ...extra, runtimeEligible: false });
   };
+  // Every recorded comparison, and the one whose evidence was unusable (if any): both go into the failed seal.
+  const checks: CheckSummary[] = [], stopped: { check: CheckSummary | null } = { check: null };
   try {
     const io: Adapters = args.adapters ? args.adapters(images, meter)
       : auditionAdapters({ directory: images, meter, key: keyReader(config.keyEnvFile), signal: args.signal });
@@ -150,15 +207,21 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
     const atlasEntities = await copy('atlas_entities.png', config.atlases.entities), atlasLocations = await copy('atlas_locations.png', config.atlases.locations);
     save('plan', { ...plan, anchor: { ...plan.anchor, prompt: undefined, promptSha256: previewSha(Buffer.from(plan.anchor.prompt)) },
       page: { ...plan.page, prompt: undefined, promptSha256: previewSha(Buffer.from(plan.page.prompt)) } });
+    // A comparison is recorded whatever its valid answer (a decision or not assessable); unusable evidence stops the run right here.
+    const measure = async (step: string, reference: string, candidate: string, referenceImage: AuditionImage, candidateImage: AuditionImage) => {
+      const check = checkSummary(step, reference, candidate, await io.identity(step, referenceImage, candidateImage));
+      args.log(`${check.step}: ${check.outcome} ${check.status} ${check.reasonCode} sameChild=${check.sameChild} score=${check.resemblanceScore}`);
+      if (check.outcome === 'unusable') { stopped.check = check; fail('likeness_probe_identity_unusable'); }
+      checks.push(check);
+    };
     const anchor = await io.render('anchor', anchorRenderText(config), anchorInputs, 'anchor_photo_style_only');
     args.log(`anchor: ${anchor.imageName}`);
-    const checks = [checkSummary('anchor_identity', 'photo', 'anchor', await io.identity('anchor_identity', photo, anchor))];
-    checks.push(checkSummary('control_identity', 'control', 'anchor', await io.identity('control_identity', control, anchor)));
+    await measure('anchor_identity', 'photo', 'anchor', photo, anchor);
+    await measure('control_identity', 'control', 'anchor', control, anchor);
     const page = await io.render('page', pagePrompt(config), [anchor, companion, atlasEntities, atlasLocations], 'book_identity');
     args.log(`page: ${page.imageName}`);
-    checks.push(checkSummary('page_identity', 'photo', 'page', await io.identity('page_identity', photo, page)));
-    checks.push(checkSummary('page_anchor_identity', 'anchor', 'page', await io.identity('page_anchor_identity', anchor, page)));
-    for (const c of checks) args.log(`${c.step}: ${c.status} sameChild=${c.sameChild} score=${c.resemblanceScore}`);
+    await measure('page_identity', 'photo', 'page', photo, page);
+    await measure('page_anchor_identity', 'anchor', 'page', anchor, page);
     const results = { version: LIKENESS_PROBE_VERSION, label: config.label, child: config.child, images: { photo, anchor, page, control },
       checks, verdict: 'owner: compare probe.html; the scores are diagnostic only (the evaluator is not a calibrated confidence)' };
     save('results', results);
@@ -166,7 +229,8 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
     seal('complete');
     return { status: 'complete' as const, results, spend: meter.snapshot() };
   } catch (error) {
-    if (!existsSync(path.join(out, 'sealed.json'))) seal('failed', { code: error && typeof error === 'object' && 'code' in error ? String(error.code) : 'likeness_probe_failed' });
+    if (!existsSync(path.join(out, 'sealed.json'))) seal('failed', { code: error && typeof error === 'object' && 'code' in error ? String(error.code) : 'likeness_probe_failed',
+      ...(stopped.check ? { failedCheck: stopped.check, completedChecks: checks } : {}) });
     throw error;
   }
 }
@@ -174,17 +238,18 @@ export async function runLikenessProbe(args: { config: LikenessProbeConfig; sign
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 /** A local, self-contained comparison page (never published: it holds a real child's photo and likeness). */
 export function likenessProbeHTML(results: { label: string; child: { age: number; gender: string }; images: Record<'photo' | 'anchor' | 'page' | 'control', AuditionImage>;
-  checks: ReturnType<typeof checkSummary>[] }, src: (img: AuditionImage) => string) {
+  checks: CheckSummary[] }, src: (img: AuditionImage) => string) {
   const fig = (img: AuditionImage, caption: string) => `<figure><img src="${src(img)}" alt="${esc(caption)}"><figcaption>${esc(caption)}</figcaption></figure>`;
-  const row = (c: ReturnType<typeof checkSummary>) => `<tr><td>${esc(c.reference)} ↔ ${esc(c.candidate)}</td><td>${esc(c.status)}</td><td>${esc(c.sameChild)}</td>` +
+  const row = (c: CheckSummary) => `<tr><td>${esc(c.reference)} ↔ ${esc(c.candidate)}</td><td>${esc(c.outcome)}</td><td>${esc(c.status)} (${esc(c.reasonCode)})</td><td>${esc(c.sameChild)}</td>` +
     `<td>${esc(c.resemblanceScore)}</td><td>${esc(c.featureAssessments ? Object.entries(c.featureAssessments).map(([k, v]) => `${k}: ${v}`).join(', ') : '—')}</td></tr>`;
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Likeness probe ${esc(results.label)}</title>
 <style>body{font:16px/1.5 Arial,sans-serif;margin:0;background:#f5f0e6;color:#263542}main{max-width:1100px;margin:auto;padding:20px}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 figure{margin:0;background:#fff;padding:8px;border-radius:10px}img{width:100%;display:block;border-radius:6px}table{border-collapse:collapse;width:100%;margin-top:16px;background:#fff}
 td,th{border:1px solid #ddd;padding:6px;font-size:14px;text-align:left}.note{font-size:14px;color:#555}@media(max-width:700px){.row{grid-template-columns:1fr}}</style>
-<main><h1>Likeness probe: ${esc(results.label)}</h1><p class="note">Local diagnostic only, never published. Child: ${esc(results.child.age)}, ${esc(results.child.gender)}. LOW quality, one attempt each. The owner's comparison is the verdict; the scores below come from the existing evaluator and are not a calibrated confidence.</p>
+<main><h1>Likeness probe: ${esc(results.label)}</h1><p class="note">Local diagnostic only, never published: this page holds a real child's photo and drawn likenesses. Child: ${esc(results.child.age)}, ${esc(results.child.gender)}. LOW quality, one attempt each. The owner's comparison is the verdict; the scores below come from the existing evaluator and are not a calibrated confidence.</p>
 <div class="row">${fig(results.images.photo, 'Real photo (reference)')}${fig(results.images.anchor, 'Drawn anchor (production Style-01 prompt)')}${fig(results.images.page, 'Probe page (book engine page mode)')}</div>
-<table><tr><th>check</th><th>status</th><th>same child</th><th>score</th><th>features</th></tr>${results.checks.map(row).join('')}</table>
+<table><tr><th>check</th><th>outcome</th><th>status (reason)</th><th>same child</th><th>score</th><th>features</th></tr>${results.checks.map(row).join('')}</table>
+<p class="note">Outcome: "decision" is a valid answer (same, different, below threshold, or a visibility result); "not_assessable" is a valid answer that the pair cannot be judged, never a likeness pass.</p>
 <p class="note">Control: a different, fictional child's reference compared with this anchor. A discriminating evaluator answers "different".</p>
 <div class="row" style="grid-template-columns:1fr 3fr">${fig(results.images.control, 'Control reference (fictional child)')}</div></main></html>`;
 }

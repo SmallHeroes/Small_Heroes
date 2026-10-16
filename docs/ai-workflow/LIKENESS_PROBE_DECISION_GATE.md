@@ -56,8 +56,17 @@ No change to `lib/generation-pipeline/*`, the Wizard, Style-01 text, judges, thr
 ## 6. Expected behaviour
 
 - **Without `--execute`:** the dry run prints the prompts, the references (names and hashes only), the reservations and the cap fit. It reads no key.
-- **With `--execute`:** 6 paid calls. Each has its own claim, wire, result and receipt (images are recorded by hash; no photo bytes in the records). The run writes the anchor, the page and the viewer.
-- **Stop rules:** any provider error or an unknown cost stops the run. There is no retry and no second attempt.
+- **With `--execute`:** 6 paid calls. Each has its own claim, wire, result and receipt.
+  - **Corrected after Codex's HOLD at `22d93dd9`:** the *original photo* is in no record, but the render receipts keep the provider's raw answer, which **contains the generated likenesses' bytes**. The whole output folder is private.
+  - The run writes the anchor, the page and the viewer.
+- **Stop rules:**
+  - any provider error or unknown cost stops the run;
+  - **unusable identity evidence** (malformed, transport, cancelled, bytes unavailable, credential) stops it before the next call, sealed failed with the failing pair, its reason and its known cost;
+  - there is no retry and no second attempt.
+- **Identity outcome policy** (the evaluator and 0.70 are unchanged):
+  - **decision:** a valid same, below-threshold or different answer, or a valid visibility result (candidate missing, several children);
+  - **not_assessable:** a valid answer that the pair cannot be judged (uncertain, subject or reference not assessable). It is recorded, the run continues, and it never counts as a likeness pass;
+  - **unusable:** anything else. The run stops.
 
 ## 7. Validation
 
@@ -96,7 +105,14 @@ Delete the script and spec; revert the one adapter line. The output folder is lo
 ## 10. Privacy
 
 - **Where the photo goes:** it is sent only to OpenAI (the image edit and the identity checks), as production does today.
-- **Where it is kept:** only in the probe's output folder outside the repository (`C:/GNart/Work/book-renders/likeness-probe-lavi-20261016/`, as a byte copy the metered adapter requires). It is never put in the repository, `_review`, logs, tests or a published artefact.
+- **Where it is kept:** only in the probe's private output folder (`C:/GNart/Work/book-renders/likeness-probe-lavi-20261016/`, as a byte copy the metered adapter requires).
+  - That folder also holds the drawn likenesses, plus render receipts containing their bytes.
+  - None of it is ever put in a repository, `_review`, logs, tests or a published artefact.
+- **The boundary** (corrected after Codex's HOLD F1): it is derived from the probe script's own location, never the launch directory.
+  - It covers the checkout holding the script and, for a linked worktree, its main checkout.
+  - It is enforced both when the configuration loads and at the start of the run, before any folder, copy or call.
+  - The existing physical-directory check then rejects any junction or symbolic-link alias.
+  - Scope: other repositories elsewhere on the machine are not detected.
 - **Other children:** none. The control uses the fictional Itai.
 
 ## 11. Review and decisions
