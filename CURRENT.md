@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Photo-anchor age calibration (4eb91d9f), for Codex QA (2026-10-16)
+
+The one approved likeness probe ran at 4405d003 (Codex PASS): 6 calls,
+$0.102644; Guy judged the anchor and the page "Clearly Lavi" but said the child
+reads 9-10, not 7. Production's anchor prompt calibrates only age 5 and always
+adds a "not a toddler" block. Guy chose a general age calibration.
+
+Built (the new engine only; production unchanged): photo-anchor-age.ts swaps
+exactly production's two age elements for a calibrated band line with two-sided
+bounds and an age-aware bound (each substitution must occur once; age 5 is
+byte-identical to production). The probe gains opt-in anchorAge
+(calibrated-v1) and mode (anchor_only: two calls); defaults are byte-identical
+(the existing config's dry run equals the reviewed plan). Evidence: 161/161,
+negative controls 7/7, tsc 0. Next: Codex QA; then Guy chooses the portraits to
+compare (consent per child) and approves the small spend.
+
 ## Likeness probe: segment-aware checkout containment (a7acadf6), for narrow re-gate (2026-10-16)
 
 Codex's re-gate of 22d93dd9..b5ba85a5 closed F1 (cwd) and F2 (unusable identity

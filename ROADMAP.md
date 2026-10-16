@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Photo-anchor age calibration (4eb91d9f); next: Codex QA, then a small portrait comparison (2026-10-16)
+
+- The likeness probe gave an owner-recognizable likeness from a real photo, but
+  the child read 2-3 years older; an opt-in, general age calibration is built.
+- After an explicit Codex PASS: Guy picks the children (consent per child) and
+  approves about $0.04 per portrait run (a $0.60 reservation ceiling each).
+
 ## Likeness probe corrected (1088efaf); next: Codex re-gate, Guy's age + ceiling, then one run (2026-10-16)
 
 - Codex HOLD F1/F2 corrected offline: script-located checkout boundary at
