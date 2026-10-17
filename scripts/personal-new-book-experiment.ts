@@ -30,7 +30,7 @@
  * Not production, customer, wizard or release authority. Every artifact is runtime-ineligible; acceptance is Guy's.
  */
 import path from 'node:path';
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import OpenAI from 'openai';
 import { z } from 'zod';
@@ -70,6 +70,13 @@ import { BOOK_LIMITS, personalBookOutputLimits } from '../lib/personal-wizard/bo
 import { OPUS_PLANNER, createOpusStoryboardTransport, plannerRequest, prepareOpusStoryboardWire, type PlannerWire } from './personal-opus-storyboard-transport';
 import { AUDITION_WORST_CASE_CALLS, AUDITION_SCALE_LINEUP_VERSION, REVIEWED_AUDITION_POLICY, auditionSheetDesigns }
   from '../lib/personal-wizard/simple-book-reviewed-audition';
+import { CHILD_ANCHOR_STYLE_VERSION, CHILD_ANCHOR_TECHNIQUE_MANIFEST, CHILD_ANCHOR_MANIFEST_SHA256, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique,
+  childAnchorDescriptionRequest, childAnchorCorrectionPrompt, assertChildAnchorRenderPlan, childAnchorRecipeSchema, childAnchorRecipeSha,
+  childAnchorStyleDisposition, childAnchorDesignDisposition, childAnchorDisposition, assertChildAnchorAccepted, type ChildAnchorRecipe }
+  from '../lib/personal-wizard/child-anchor-style';
+import { childAnchorJudges, type ChildAnchorStyleJudge, type ChildAnchorDesignJudge } from './personal-child-anchor-judges';
+import { readAuditionImage, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
+import type { BookDesignReferenceRole } from '../lib/generate-image';
 
 export class NewBookExperimentError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new NewBookExperimentError(code); };
@@ -209,7 +216,9 @@ const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const newBookConfigSchema = z.object({ version: z.literal('new-book-experiment-config/v1'), experiment: z.literal(NEW_BOOK_EXPERIMENT.slot),
   workspace: z.string().min(1), parent: z.string().min(1), sourceHead: z.string().regex(/^[a-f0-9]{40}$/),
   executable: z.string().min(1), executableSha256: hash, keyEnvFile: z.string().min(1),
-  seed: z.string().min(1).max(120), childDesign: z.string().trim().min(20).max(1500), request: z.unknown() }).strict();
+  seed: z.string().min(1).max(120), childDesign: z.string().trim().min(20).max(1500), request: z.unknown(),
+  /** Opt-in (Guy 2026-10-17, R1): the child stage draws and accepts its anchor under child-anchor-style/v1. Absent: the legacy child stage. */
+  childAnchor: z.literal(CHILD_ANCHOR_STYLE_VERSION).optional() }).strict();
 export type NewBookConfig = z.infer<typeof newBookConfigSchema>;
 
 export function newBookConfig(file: string): NewBookConfig {
@@ -519,6 +528,17 @@ const REPAIR_API_RULES: Record<string, PaidRule> = { storyboard_review: visualRu
 /** The child reference: the reviewed audition's own render adapter and a Sol pixel review, under their shared rules. */
 const CHILD_RULES: Record<string, PaidRule> = { reference_child: auditionRenderRule, reference_child_repair: auditionRenderRule,
   reference_child_qa: auditionReviewRule, reference_child_repair_qa: auditionReviewRule };
+/**
+ * The opt-in child-anchor-style/v1 child stage: the render and its style review and design + age review, then (only for a known defect) the
+ * one correction edit and its own style review and design + age review. Six named calls at most; any other step is refused by the meter.
+ */
+const CHILD_ANCHOR_RULES: Record<string, PaidRule> = { reference_child: auditionRenderRule, reference_child_style_qa: auditionReviewRule,
+  reference_child_qa: auditionReviewRule, reference_child_repair: auditionRenderRule, reference_child_repair_style_qa: auditionReviewRule,
+  reference_child_repair_qa: auditionReviewRule };
+const CHILD_ANCHOR_API_CALLS = 6;
+/** The child stage's meter terms: the legacy ones exactly, unless this configuration opted in (its own steps and call limit). */
+const childTerms = (config: Pick<NewBookConfig, 'childAnchor'>) => config.childAnchor
+  ? { rules: CHILD_ANCHOR_RULES, maxCalls: CHILD_ANCHOR_API_CALLS } : { rules: CHILD_RULES, maxCalls: CHILD_API_CALLS };
 /** A stage's rules as its meter's opt-in: exactly the stage's own steps. */
 const meterRules = (rules: Record<string, PaidRule>): MeterRules => step => Object.prototype.hasOwnProperty.call(rules, step) ? rules[step] : undefined;
 /**
@@ -547,7 +567,7 @@ export function stageLedger(stageDir: string, maxCalls: number, prior: number, c
   verifyPaidStages(stageDir, rules);
   return { knownMicroUsd: snapshot.newKnownApiMicroUsd, file, sha256: sha(readFileSync(file)) };
 }
-export const stageRules = { text: TEXT_RULES, continuation: CONTINUATION_RULES, repair: REPAIR_API_RULES, child: CHILD_RULES };
+export const stageRules = { text: TEXT_RULES, continuation: CONTINUATION_RULES, repair: REPAIR_API_RULES, child: CHILD_RULES, childAnchor: CHILD_ANCHOR_RULES };
 /** The error's own code, else its message when that is a code (as the book-sequence checks throw), else the fallback. */
 const codeOf = (error: unknown, fallback: string) =>
   error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code) ? error.code
@@ -1994,9 +2014,90 @@ export async function writeOwnerAcceptance(config: NewBookConfig) {
 // ---------------------------------------------------------------------------------------------------------------
 // Stage 2: the fictional child reference.
 // ---------------------------------------------------------------------------------------------------------------
-type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'identity') => Promise<AuditionImage>;
+type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'identity' | 'style' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
 type Judge = (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
-export type ChildAdapters = { render?: Render; judge?: Judge };
+/** `style` and `design` are the opt-in child-anchor-style/v1 reviews (unused on the legacy path). */
+export type ChildAdapters = { render?: Render; judge?: Judge; style?: ChildAnchorStyleJudge; design?: ChildAnchorDesignJudge };
+
+/**
+ * child-anchor-style/v1 admission (no write, no claim): the pinned technique bytes (refused on any mismatch), this book's child from its
+ * written design and the storyboard's wardrobe, and the first request exactly as the real image seam plans it (no truncation).
+ */
+function childAnchorAdmission(config: NewBookConfig, loaded: ReturnType<typeof loadReviewedStoryboard>) {
+  if (config.childAnchor !== CHILD_ANCHOR_STYLE_VERSION) return fail('new_book_child_anchor');
+  const technique = resolveChildAnchorTechnique(config.workspace), child = loaded.prepared.brief.child;
+  const request = childAnchorDescriptionRequest({ age: child.age, gender: child.address, design: config.childDesign, wardrobe: loaded.book.plan.wardrobe });
+  assertChildAnchorRenderPlan(request.prompt, technique.length, request.referenceMode);
+  return { technique, request, age: child.age };
+}
+/** Read-only view of the opt-in: version, pinned files (verified now), steps and limits. No key, no provider, nothing written. */
+export function previewChildAnchor(config: NewBookConfig) {
+  resolveChildAnchorTechnique(config.workspace);
+  return { version: CHILD_ANCHOR_STYLE_VERSION, identitySource: 'description' as const, referenceMode: 'style' as const,
+    technique: CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(({ label, file, sha256 }) => ({ label, file, sha256 })), manifestSha256: CHILD_ANCHOR_MANIFEST_SHA256,
+    steps: Object.keys(CHILD_ANCHOR_RULES), maxCalls: CHILD_ANCHOR_API_CALLS, reviewReservationMicroUsd: SOL_PIXEL_REVIEW_SLOT_MICRO_USD,
+    correction: 'one edit of the rejected candidate (book_design, rejected_edit_target) only for a known defect; its own style and design + age reviews',
+    providerCalls: 0, keyRead: false };
+}
+/**
+ * The opt-in child stage after admission: the pinned technique files copied in by hash; the render in `style` mode; its style review, then
+ * (unless style is unassessable) its design + age review, each bound to this candidate, the written design context and the render recipe.
+ * One correction edit only for a known defect, with its own reviews (an earlier image's PASS never carries). All three dimensions of the final
+ * candidate must pass; uncertain or missing evidence holds. The adoption keeps the legacy design record for the reviewed-book loader.
+ */
+async function runChildAnchor(a: { anchor: ReturnType<typeof childAnchorAdmission>; images: string; context: unknown; contextSha: string;
+  render: Render; style: ChildAnchorStyleJudge; design: ChildAnchorDesignJudge; check: () => void; save: (name: string, value: unknown) => void;
+  seal: (status: string, extra?: Record<string, unknown>) => void; log: (line: string) => void; adopt: (candidate: AuditionImage) => void }) {
+  // The pinned files' exact bytes, copied once (exclusive) into this stage's own folder; the render adapter re-checks each hash before sending.
+  const refs = a.anchor.technique.map((t, i) => {
+    const imageName = `style_ref_${i + 1}.png`, file = path.join(a.images, imageName);
+    writeFileSync(file, t.bytes, { flag: 'wx' });
+    if (sha(readFileSync(file)) !== t.sha256) fail('child_anchor_reference_changed');
+    return { imageName, imageSha: t.sha256 };
+  });
+  const attempt = async (step: 'reference_child' | 'reference_child_repair', prompt: string, inputs: AuditionImage[], mode: 'style' | 'book_design',
+    roles: readonly BookDesignReferenceRole[] | undefined, references: ChildAnchorRecipe['references'], rejected: AuditionImage | null) => {
+    a.check();
+    const candidate = await a.render(step, prompt, inputs, mode, roles); a.check();
+    if (rejected && candidate.imageSha === rejected.imageSha) fail('new_book_child_repair_unchanged');
+    const recipe = childAnchorRecipeSchema.parse({ version: CHILD_ANCHOR_STYLE_VERSION, identitySource: 'description', manifestSha256: CHILD_ANCHOR_MANIFEST_SHA256,
+      step, referenceMode: mode, references, promptSha256: sha(prompt), requestedAge: a.anchor.age });
+    const recipeSha = childAnchorRecipeSha(recipe);
+    const style = childAnchorStyleDisposition(await a.style(`${step}_style_qa`, candidate, a.contextSha, recipeSha), candidate.imageSha, a.contextSha, recipeSha);
+    a.save(`${step}_style_review`, { recipe, recipeSha, ...style }); a.log(`${step} style: ${style.disposition}`);
+    // An unassessable style holds the candidate: its design review would not change that, so it is not requested.
+    if (style.disposition === 'held_uncertain') return { candidate, recipe, style, design: null, outcome: childAnchorDisposition(style, null) };
+    a.check();
+    const design = childAnchorDesignDisposition(await a.design(`${step}_qa`, candidate, a.context, a.contextSha, recipe), candidate.imageSha, a.contextSha, recipe);
+    a.save(`${step}_design_review`, { recipe, recipeSha, design: design.design, apparentAge: design.apparentAge, review: design.full });
+    a.log(`${step} design: ${design.design}, apparent age: ${design.apparentAge.verdict}`);
+    return { candidate, recipe, style, design, outcome: childAnchorDisposition(style, design) };
+  };
+  const { request, technique } = a.anchor;
+  let current = await attempt('reference_child', request.prompt, refs, 'style', undefined,
+    technique.map(t => ({ role: t.label, sha256: t.sha256 })), null);
+  if (current.outcome.disposition === 'repair') {
+    const rejected = current.candidate, prompt = childAnchorCorrectionPrompt(request.core, current.outcome.corrections);
+    assertChildAnchorRenderPlan(prompt, 1, 'book_design', CHILD_ANCHOR_CORRECTION_ROLES);
+    a.save('reference_child_correction_input', { candidate: rejected, corrections: current.outcome.corrections, authority: 'rejected_edit_input_only_not_canonical' });
+    current = await attempt('reference_child_repair', prompt, [rejected], 'book_design', CHILD_ANCHOR_CORRECTION_ROLES,
+      [{ role: 'rejected_edit_target', sha256: rejected.imageSha }], rejected);
+  }
+  if (current.outcome.disposition !== 'passed' || !current.design) {
+    a.seal('child_reference_held', { disposition: current.outcome.disposition, childAnchor: CHILD_ANCHOR_STYLE_VERSION });
+    return { status: 'child_reference_held' as const };
+  }
+  const { candidate } = current;
+  const anchorRecord = { version: CHILD_ANCHOR_STYLE_VERSION, recipe: current.recipe, recipeSha: childAnchorRecipeSha(current.recipe),
+    style: current.style.review, design: current.design.full };
+  // The same re-derivation the grant runs: the adopted candidate's own three dimensions, nothing from an earlier image.
+  assertChildAnchorAccepted(anchorRecord, candidate.imageSha, a.contextSha);
+  a.save('reference_child_adoption', { name: 'child', context: a.context, review: current.design.review, candidate,
+    authority: 'new_book_experiment_reviewed_passed', anchor: anchorRecord });
+  a.adopt(candidate);
+  a.seal('child_reference_passed', { candidate, childAnchor: CHILD_ANCHOR_STYLE_VERSION });
+  return { status: 'child_reference_passed' as const, candidate };
+}
 
 export async function runNewBookChild(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; adapters?: ChildAdapters }) {
   const { config, signal } = args;
@@ -2012,17 +2113,20 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   const layoutFor = (childImage?: string) => experimentLayout(config, childImage, prior.folder);
   const loaded = loadReviewedStoryboard(dir, config.workspace, layoutFor());
   sameRoots(config, producer);
+  // Opted in: the pinned technique files and the first request as the real image seam plans it, before anything is created or claimed.
+  const anchor = config.childAnchor ? childAnchorAdmission(config, loaded) : null;
   try { mkdirSync(childDir); } catch { fail('new_book_child_used'); }
   mkdirSync(images);
-  const meter = new AuditionMeter(path.join(childDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CHILD_API_CALLS, prior.knownMicroUsd,
-    prior.carriedUnresolvedMicroUsd, meterRules(CHILD_RULES));
+  const terms = childTerms(config);
+  const meter = new AuditionMeter(path.join(childDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, terms.maxCalls, prior.knownMicroUsd,
+    prior.carriedUnresolvedMicroUsd, meterRules(terms.rules));
   const save = (name: string, value: unknown) => exclusiveJson(path.join(childDir, `${name}.json`), value);
   const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); sameRoots(config, producer); };
   const key = keyReader(config.keyEnvFile);
   // The claim, the source pin and the repaired folder guard every render claim too (including the one repair edit after a judgment).
   const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal,
     guard: () => { assertExperimentClaim(config); sameRoots(config, producer); } });
-  const render: Render = args.adapters?.render ?? ((step, prompt, refs, mode) => io!.render(step, prompt, refs, mode));
+  const render: Render = args.adapters?.render ?? ((step, prompt, refs, mode, roles) => io!.render(step, prompt, refs, mode, roles));
   const judge: Judge = args.adapters?.judge ?? createSimpleBookPixelJudge({ config: { reviewModel: SOL }, directory: images, budget: meter, key,
     assertCurrent: check, signal, save });
   const context = simpleReferenceDesignContext(reviewedChildDesign(loaded.prepared, loaded.book, layoutFor()));
@@ -2034,6 +2138,13 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   };
   try {
     check();
+    if (anchor) {
+      const reviews = args.adapters?.style && args.adapters?.design ? null : childAnchorJudges({ bytesOf: image => readAuditionImage(images, image), meter, key, signal,
+        guard: () => { assertExperimentClaim(config); sameRoots(config, producer); } });
+      return await runChildAnchor({ anchor, images, context, contextSha, render, style: args.adapters?.style ?? reviews!.style,
+        design: args.adapters?.design ?? reviews!.design, check, save, seal, log: args.log,
+        adopt: candidate => exclusiveJson(path.join(dir, 'book-layout.json'), layoutFor(candidate.imageName)) });
+    }
     let candidate = await render('reference_child', prompt, [], 'identity'); check();
     let review = qualityDisposition(await judge('reference_child_qa', candidate, context, contextSha, [], null), candidate.imageSha, contextSha);
     save('reference_child_review', review); args.log(`child reference: ${review.disposition}`);
@@ -2082,8 +2193,13 @@ function newBookGrant(config: NewBookConfig): AuditionGrant {
   const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
   if (canonicalJson(layout) !== canonicalJson(experimentLayout(config, layout.childImage, textFolder))) fail('new_book_layout');
   const loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
-  const text = textStage(config, chain);
-  const child = stageLedger(childDir, CHILD_API_CALLS, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, CHILD_RULES);
+  // Opted in: the adopted child's own style, design and age reviews, re-derived against it (the loader re-checked its design record).
+  if (config.childAnchor) {
+    const adoption = read(path.join(childDir, 'reference_child_adoption.json'));
+    assertChildAnchorAccepted(adoption.anchor, previewSha(loaded.childBytes), previewSha(JSON.stringify(adoption.context)));
+  }
+  const text = textStage(config, chain), terms = childTerms(config);
+  const child = stageLedger(childDir, terms.maxCalls, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, terms.rules);
   const prior = text.knownMicroUsd + child.knownMicroUsd, carried = text.carriedUnresolvedMicroUsd;
   if (prior + carried >= NEW_BOOK_EXPERIMENT.apiCapMicroUsd) fail('new_book_budget_exhausted');
   const grant: AuditionGrant = { version: 'audition-spend-grant/v1', approvalReference: NEW_BOOK_EXPERIMENT.approval,
@@ -2191,8 +2307,8 @@ function readScaleComparison(config: NewBookConfig, claimSha256: string, accepta
 }
 /** The verified ledger the comparison starts from: the text stages and the child (as the audition grant derived them), then the held audition's own calls. */
 function comparisonLedger(config: NewBookConfig, chain: ContinuationChain) {
-  const dir = experimentDir(config), text = textStage(config, chain);
-  const child = stageLedger(path.join(dir, 'child'), CHILD_API_CALLS, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, CHILD_RULES);
+  const dir = experimentDir(config), text = textStage(config, chain), terms = childTerms(config);
+  const child = stageLedger(path.join(dir, 'child'), terms.maxCalls, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, terms.rules);
   const before = text.knownMicroUsd + child.knownMicroUsd;
   const audition = stageLedger(path.join(dir, 'audition'), AUDITION_WORST_CASE_CALLS, before, text.carriedUnresolvedMicroUsd, auditionMeterRules);
   return { knownMicroUsd: before + audition.knownMicroUsd, carriedUnresolvedMicroUsd: text.carriedUnresolvedMicroUsd, audition };
@@ -2316,6 +2432,7 @@ export function planNewBook(config: NewBookConfig) {
       repair: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)), repair2: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)),
       child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')),
       audition: existsSync(experimentAuditionStart(config)), scaleComparison: existsSync(path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir)) },
+    ...(config.childAnchor ? { childAnchor: previewChildAnchor(config) } : {}),
     providerCalls: 0, keyRead: false, runtimeEligible: false };
 }
 

@@ -42,6 +42,8 @@ import { decodePersonalBookProviderOutput } from '../book-openai';
 import { SimpleBookBudget } from '../simple-book-budget';
 import * as plannerTransport from '../../../scripts/personal-opus-storyboard-transport';
 import * as journal from '../../../scripts/personal-causal-trial-journal';
+import { CHILD_ANCHOR_TECHNIQUE_MANIFEST, childAnchorDescriptionRequest, childAnchorRecipeSha } from '../child-anchor-style';
+import { STYLE_REFERENCE_PREFIX } from '../../generate-image';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -3793,5 +3795,180 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     headAt('4'.repeat(40));
     await expect(accept()).rejects.toThrow(/^new_book_acceptance_late$/);
     expect([existsSync(experimentAcceptanceFile(config)), existsSync(acceptanceRecord())]).toEqual([false, false]);
+  });
+});
+
+describe('child-anchor-style/v1 opt-in child stage (R1; synthetic providers, no key, no network, no spend)', () => {
+  const R1 = 'child-anchor-style/v1' as const;
+  const optIn = () => { config = { ...config, childAnchor: R1 }; writeFileSync(file, JSON.stringify(config)); };
+  type Style = Record<string, unknown> | 'stale';
+  type Design = { defect?: string; uncertain?: string; age?: Record<string, unknown> } | 'stale';
+  /** Synthetic R1 adapters: `styles`/`designs` decide each review in order; 'stale' answers with the FIRST candidate's binding. */
+  function anchorAdapters(styles: Style[] = [{}], designs: Design[] = [{}]) {
+    let shade = 40, s = 0, d = 0; const first: { sha?: string; recipeSha?: string } = {};
+    const dir = path.join(experimentDir(config), 'child', 'illustrations');
+    const render = vi.fn(async (step: string, _p: string, _r: unknown[], _m: string, _roles?: readonly string[]) => {
+      const bytes = await png(shade++); writeFileSync(path.join(dir, `${step}.png`), bytes, { flag: 'wx' }); return { imageName: `${step}.png`, imageSha: sha(bytes) };
+    });
+    const style = vi.fn(async (_step: string, c: { imageSha: string }, contextSha: string, recipeSha: string) => {
+      first.sha ??= c.imageSha; first.recipeSha ??= recipeSha; const v = styles[s++] ?? {};
+      return { candidateSha: v === 'stale' ? first.sha : c.imageSha, contextSha, recipeSha: v === 'stale' ? first.recipeSha : recipeSha, assessable: true,
+        style01Match: true, looksPhotoreal: false, looksPortrait: false, notes: 'watercolor', ...(v === 'stale' ? {} : v) };
+    });
+    const design = vi.fn(async (_step: string, c: { imageSha: string }, _ctx: unknown, contextSha: string, recipe: any) => {
+      const v = designs[d++] ?? {}, stale = v === 'stale', o = v === 'stale' ? {} : v;
+      const finding = o.defect ? { category: o.defect, verdict: 'defect' as const } : o.uncertain ? { category: o.uncertain, verdict: 'uncertain' as const } : undefined;
+      return { ...passing(stale ? first.sha! : c.imageSha, contextSha, finding), recipeSha: stale ? first.recipeSha : childAnchorRecipeSha(recipe),
+        apparentAge: { requestedAge: recipe.requestedAge, verdict: 'compatible', observation: 'reads right', correction: '', ...o.age } };
+    });
+    return { render, style, design, judge: vi.fn() } satisfies ChildAdapters;
+  }
+  const child = (adapters?: ChildAdapters) => runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, ...(adapters ? { adapters } : {}) });
+  const childDir = () => path.join(experimentDir(config), 'child');
+
+  it('passes only with all three dimensions of ONE candidate: R1 request (pinned refs, style mode), adoption the loader and grant re-check', async () => {
+    optIn(); await run();
+    const c = anchorAdapters(), result = await child(c);
+    expect(result).toMatchObject({ status: 'child_reference_passed', candidate: { imageName: 'reference_child.png' } });
+    const [step, prompt, refs, mode] = c.render.mock.calls[0];
+    expect([step, mode]).toEqual(['reference_child', 'style']);
+    expect(refs).toEqual(CHILD_ANCHOR_TECHNIQUE_MANIFEST.map((e, i) => ({ imageName: `style_ref_${i + 1}.png`, imageSha: e.sha256 })));
+    const loaded = loadReviewedStoryboard(experimentDir(config), process.cwd(), experimentLayout(config));
+    expect(prompt).toBe(childAnchorDescriptionRequest({ age: loaded.prepared.brief.child.age, gender: loaded.prepared.brief.child.address as 'boy',
+      design: config.childDesign, wardrobe: loaded.book.plan.wardrobe }).prompt);
+    expect(c.style.mock.calls.map(x => x[0])).toEqual(['reference_child_style_qa']); expect(c.design.mock.calls.map(x => x[0])).toEqual(['reference_child_qa']);
+    expect(c.judge).not.toHaveBeenCalled();
+    expect(json(path.join(childDir(), 'reference_child_adoption.json')).anchor).toMatchObject({ version: R1, recipe: { step: 'reference_child', referenceMode: 'style' } });
+    expect(json(path.join(childDir(), 'sealed.json'))).toMatchObject({ status: 'child_reference_passed', childAnchor: R1 });
+    expect((await writeNewBookGrant(newBookConfig(file))).ledger.evidence.length).toBeGreaterThan(0);
+  });
+  it.each([
+    ['style unassessable: held, no design review, no correction', [{ assessable: false }], [{}], 1, 0],
+    ['a design category uncertain: held, never redrawn', [{}], [{ uncertain: 'identity' }], 1, 1],
+    ['apparent age uncertain: held, never redrawn', [{}], [{ age: { verdict: 'uncertain' } }], 1, 1],
+    ['the correction still has a style defect: held after its own reviews', [{ style01Match: false }, { style01Match: false }], [{}, {}], 2, 2],
+  ] as [string, Style[], Design[], number, number][])('%s', async (_n, styles, designs, renders, designCalls) => {
+    optIn(); await run();
+    const c = anchorAdapters(styles, designs);
+    expect((await child(c)).status).toBe('child_reference_held');
+    expect(c.render).toHaveBeenCalledTimes(renders); expect(c.design).toHaveBeenCalledTimes(designCalls);
+    expect(existsSync(path.join(childDir(), 'reference_child_adoption.json'))).toBe(false);
+    expect(existsSync(path.join(experimentDir(config), 'book-layout.json'))).toBe(false);
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow('new_book_stage_not_passed');
+  });
+  it('a known defect (style, design or age) gets ONE correction edit of the rejected image, re-reviewed in full; the passed edit is adopted', async () => {
+    optIn(); await run();
+    const c = anchorAdapters([{ style01Match: false, notes: 'flat cartoon eyes' }, {}], [{ age: { verdict: 'defect', correction: 'reads three; make him five' } }, {}]);
+    expect(await child(c)).toMatchObject({ status: 'child_reference_passed', candidate: { imageName: 'reference_child_repair.png' } });
+    const [, prompt, refs, mode, roles] = c.render.mock.calls[1];
+    expect([mode, roles, refs]).toEqual(['book_design', ['rejected_edit_target'], [expect.objectContaining({ imageName: 'reference_child.png' })]]);
+    expect(prompt).toMatch(/TARGETED CORRECTIONS:\napparent_age \(requested \d+\): reads three; make him five\nstyle: flat cartoon eyes/);
+    expect([...c.style.mock.calls, ...c.design.mock.calls].map(x => x[0]).sort()).toEqual(['reference_child_qa', 'reference_child_repair_qa',
+      'reference_child_repair_style_qa', 'reference_child_style_qa']);
+    expect(json(path.join(childDir(), 'reference_child_adoption.json')).anchor.recipe).toMatchObject({ step: 'reference_child_repair', referenceMode: 'book_design' });
+    await expect(writeNewBookGrant(newBookConfig(file))).resolves.toBeTruthy();
+  });
+  it.each([
+    ['the rejected image\'s style PASS offered for the changed image', [{}, 'stale'], [{ defect: 'anatomy' }, {}]],
+    ['the rejected image\'s design PASS offered for the changed image', [{ style01Match: false }, {}], [{}, 'stale']],
+  ] as [string, Style[], Design[]][])('%s never approves it: refused, nothing adopted', async (_n, styles, designs) => {
+    optIn(); await run();
+    await expect(child(anchorAdapters(styles, designs))).rejects.toThrow(/child_anchor_evidence_binding|quality_evidence_binding/);
+    expect(json(path.join(childDir(), 'sealed.json')).status).toBe('failed');
+    expect(existsSync(path.join(childDir(), 'reference_child_adoption.json'))).toBe(false);
+  });
+  it('the pinned references and the real planning seam refuse before the stage folder exists (no write, no claim)', async () => {
+    optIn(); await run();
+    vi.stubEnv('PHASE2_STYLE01_REF_CONFIG', 'C');
+    await expect(child(anchorAdapters())).rejects.toThrow('child_anchor_reference_mismatch');
+    vi.unstubAllEnvs(); vi.stubEnv('GPT_IMAGE_EDIT_MAX_REFERENCES', '1');
+    await expect(child(anchorAdapters())).rejects.toThrow('child_anchor_reference_truncated');
+    expect(existsSync(childDir())).toBe(false);
+    vi.unstubAllEnvs();
+  });
+  it('the meter admits exactly the six named steps; the legacy rules and plan are unchanged without the opt-in', async () => {
+    const meter = new AuditionMeter(path.join(root, 'meter'), 7000000, 6, 0, 0, s => (stageRules.childAnchor as Record<string, any>)[s]);
+    await expect(meter.run('reference_child_identity', { model: 'gpt-6.1-sol', service_tier: 'default', max_output_tokens: 12000 }, 600000,
+      async () => ({ value: 1, estimatedMicroUsd: 1, receipt: null }))).rejects.toThrow('audition_meter_rule');
+    expect(Object.keys(stageRules.childAnchor)).toEqual(['reference_child', 'reference_child_style_qa', 'reference_child_qa', 'reference_child_repair',
+      'reference_child_repair_style_qa', 'reference_child_repair_qa']);
+    expect(Object.keys(stageRules.child)).toEqual(['reference_child', 'reference_child_repair', 'reference_child_qa', 'reference_child_repair_qa']);
+    expect('childAnchor' in (await newBookExperimentCLI(['--config', file, 'plan'], { log: () => {} }) as any).plan).toBe(false);
+    optIn();
+    expect((await newBookExperimentCLI(['--config', file, 'plan'], { log: () => {} }) as any).plan.childAnchor).toMatchObject({ version: R1, maxCalls: 6,
+      technique: CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(({ label, file: f, sha256 }) => ({ label, file: f, sha256 })), providerCalls: 0, keyRead: false });
+  });
+  it('without the opt-in the child ledger keeps the legacy four-call terms (a historical record is never re-read under six)', async () => {
+    await run();
+    expect((await child(childAdapters())).status).toBe('child_reference_passed');
+    expect(json(path.join(childDir(), 'spend.json')).maxCalls).toBe(4);
+    await expect(writeNewBookGrant(newBookConfig(file))).resolves.toBeTruthy();
+  });
+  it.each([
+    ['another image\'s style review', (a: any) => ({ ...a, style: { ...a.style, candidateSha: 'f'.repeat(64) } }), 'child_anchor_evidence_binding'],
+    ['a style review edited to photoreal', (a: any) => ({ ...a, style: { ...a.style, looksPhotoreal: true } }), 'child_anchor_not_accepted'],
+    ['an apparent age edited to uncertain', (a: any) => ({ ...a, design: { ...a.design, apparentAge: { ...a.design.apparentAge, verdict: 'uncertain' } } }), 'child_anchor_not_accepted'],
+  ] as [string, (a: any) => unknown, string][])('the grant re-derives the adopted anchor: %s is refused', async (_n, edit, code) => {
+    optIn(); await run();
+    expect((await child(anchorAdapters())).status).toBe('child_reference_passed');
+    const adoption = path.join(childDir(), 'reference_child_adoption.json'), saved = json(adoption);
+    writeFileSync(adoption, JSON.stringify({ ...saved, anchor: edit(saved.anchor) }));
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(code);
+  });
+
+  describe('through the real adapters and meter (generateGPTImage and the SDK mocked; the old fail-open style helper never runs)', () => {
+    const solAnswer = (payload: any, over: (format: string, body: any) => unknown = (_f, b) => b) => {
+      const text = JSON.parse(payload.input[0].content[0].text), format = payload.text.format.name;
+      const body = format === 'child_anchor_style_v1'
+        ? { candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha, assessable: true, style01Match: true, looksPhotoreal: false, looksPortrait: false, notes: 'watercolor' }
+        : { ...passing(text.candidateSha, text.contextSha), recipeSha: text.recipeSha, apparentAge: { requestedAge: text.apparentAge.requestedAge, verdict: 'compatible', observation: 'ok', correction: '' } };
+      return { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 }, output_text: JSON.stringify(over(format, body)) };
+    };
+    const realImages = () => vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
+      const buffer = await png(30, 1024), usage = { input_tokens: 100, output_tokens: 300 };
+      input.observeProviderResponse?.({ data: [{ b64_json: buffer.toString('base64') }], usage });
+      return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: false, apiMode: 'images.edit',
+        referenceCountRequested: 2, referenceCountPassed: 2, durationMs: 1, fallbackUsed: false } as never;
+    });
+    it('three metered calls; the render is a style-mode edit of the pinned bytes; Sol at the $0.60 slot; the grant verifies the R1 ledger', async () => {
+      optIn(); const text = await run(); realImages();
+      sdk.create.mockImplementation(async (payload: any) => solAnswer(payload));
+      expect((await child()).status).toBe('child_reference_passed');
+      const paid = path.join(childDir(), 'paid-stages');
+      expect(claims(paid)).toEqual(['reference_child', 'reference_child_qa', 'reference_child_style_qa']);
+      const render = json(path.join(paid, 'reference_child.wire.json'));
+      expect(render.body.prompt.startsWith(STYLE_REFERENCE_PREFIX)).toBe(true); expect(render.mode).toBe('images.edit');
+      expect(render.references.map((r: any) => r.imageSha)).toEqual(CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(e => e.sha256));
+      const sent = vi.mocked(images.generateGPTImage).mock.calls[0][0];
+      expect(sent.exactReferenceBytes!.map(b => sha(b))).toEqual(CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(e => e.sha256));
+      expect(sent).toMatchObject({ referenceMode: 'style', quality: 'low', size: '1024x1024', modelOverride: 'gpt-image-2' });
+      for (const step of ['reference_child_style_qa', 'reference_child_qa'])
+        expect([json(path.join(paid, `${step}.wire.json`)).model, json(path.join(paid, `${step}.claim.json`)).maximumMicroUsd]).toEqual(['gpt-6.1-sol', 600000]);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(json(path.join(childDir(), 'spend.json'))).toMatchObject({ maxCalls: 6, calls: 3, unknownCost: 0 });
+      const grant = await writeNewBookGrant(newBookConfig(file));
+      expect(grant.ledger.priorKnownApiMicroUsd).toBe(text.api.newKnownApiMicroUsd + json(path.join(childDir(), 'spend.json')).newKnownApiMicroUsd);
+    });
+    it.each([
+      ['a transport error', async () => { throw Object.assign(new Error('socket hang up'), { name: 'APIConnectionError' }); }, 'socket hang up'],
+      ['HTTP 503', async () => { throw Object.assign(new Error('503 Service Unavailable'), { status: 503 }); }, '503 Service Unavailable'],
+      ['an answer without usage', async (p: any) => ({ ...solAnswer(p), usage: undefined }), 'child_anchor_review_provider_invalid'],
+      ['malformed JSON', async (p: any) => ({ ...solAnswer(p), output_text: '{not json' }), 'child_anchor_review_schema'],
+      ['an unknown field (strict schema)', async (p: any) => solAnswer(p, (_f, b) => ({ ...b, extra: true })), 'child_anchor_review_schema'],
+      ['assessable: false', async (p: any) => solAnswer(p, (f, b) => f === 'child_anchor_style_v1' ? { ...b, assessable: false } : b), 'child_reference_held'],
+    ] as [string, (p: any) => Promise<unknown>, string][])('%s cannot pass', async (_n, answer, outcome) => {
+      optIn(); await run(); realImages();
+      sdk.create.mockImplementation(answer as never);
+      expect(await child().then(r => r.status as string, e => (e as Error).message)).toBe(outcome);
+      expect(existsSync(path.join(childDir(), 'reference_child_adoption.json'))).toBe(false);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+    it('a missing key fails the claimed call (no fallback credential), nothing adopted', async () => {
+      optIn(); await run(); realImages(); writeFileSync(config.keyEnvFile, 'NOT_THE_KEY=1\n');
+      sdk.create.mockImplementation(async (payload: any) => solAnswer(payload));
+      await expect(child()).rejects.toThrow();
+      expect(json(path.join(childDir(), 'sealed.json')).status).toBe('failed');
+      expect(existsSync(path.join(childDir(), 'reference_child_adoption.json'))).toBe(false);
+    });
   });
 });
