@@ -543,6 +543,16 @@ export function auditionSheetContext(role: 'entities' | 'locations', design: Par
   const context = { version: 'audition-sheet-context/v2', role, design, requirementIds };
   return { context, contextSha: previewSha(JSON.stringify(context)), requirementIds };
 }
+/**
+ * Evidence (a saved sheet, or the request a judge answered) describes EXACTLY the context this run derives: its claimed sha is the hash of
+ * its own complete context, and that context and sha both equal the derived ones. A claimed sha alone never binds, so self-inconsistent
+ * context/hash evidence is refused, and so is any evidence of another context.
+ */
+export function sameSheetContext(evidence: unknown, derived: { context: unknown; contextSha: string }) {
+  const e = evidence && typeof evidence === 'object' ? evidence as { context?: unknown; contextSha?: unknown } : {};
+  return typeof e.contextSha === 'string' && e.context !== undefined && previewSha(JSON.stringify(e.context)) === e.contextSha &&
+    e.contextSha === derived.contextSha && canonicalJson(e.context) === canonicalJson(derived.context);
+}
 
 /** The opt-in lineup's page rule: the lineup is the relative-size authority, with perspective. */
 const SCALE_LINEUP_PAGE_RULE = 'RELATIVE SIZE: image 3\'s tiles show designs only, never sizes; its SCALE LINEUP (flat silhouettes on one ground line beside a plain post one child height tall) shows each character\'s height relative to the child. Draw every visible character at its lineup height relative to the child, changed only by perspective (nearer looks larger, farther looks smaller); a character too tall for the frame is cropped by the frame edge, never shrunk to fit. Never draw the post or the lineup silhouettes.';
@@ -674,12 +684,13 @@ export async function illustrateReviewedAudition(args: {
       canonicalJson(again) !== canonicalJson(prior.chosen) || attemptStatus(phase, again) !== prior.status) fail('audition_resume_binding');
     return prior;
   };
-  // A comparison's reused sheets bind before anything is saved or drawn, so a refusal precedes any call: the same context and requirements as
-  // this run computes, then every saved judgement re-derived from its own raw review. Any mismatch is the one reuse refusal.
+  // A comparison's reused sheets bind before anything is saved or drawn, so a refusal precedes any call: the saved record's complete context
+  // (not only its claimed sha) is exactly the one this run derives, with the same requirements, then every saved judgement is re-derived from
+  // its own raw review. Any mismatch is the one reuse refusal.
   const reusedSheets: Partial<Record<'entities' | 'locations', SavedSheet>> = Object.fromEntries(reusedRoles.map(role => {
-    const { contextSha, requirementIds } = auditionSheetContext(role, designs[role]), saved = args.reuseSheets![role]!;
-    if (saved.contextSha !== contextSha || canonicalJson(saved.requirementIds) !== canonicalJson(requirementIds)) fail('audition_reuse_binding');
-    try { return [role, resumed('sheet', saved, contextSha, requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
+    const derived = auditionSheetContext(role, designs[role]), saved = args.reuseSheets![role]!;
+    if (!sameSheetContext(saved, derived) || canonicalJson(saved.requirementIds) !== canonicalJson(derived.requirementIds)) fail('audition_reuse_binding');
+    try { return [role, resumed('sheet', saved, derived.contextSha, derived.requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
   }));
   if (args.resume) {
     if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||

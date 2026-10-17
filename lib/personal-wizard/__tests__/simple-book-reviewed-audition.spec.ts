@@ -1470,10 +1470,13 @@ describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on th
     const control = harness({ book: lineupBook() });
     await illustrateReviewedAudition({ ...control.args, pages: [2], reuseSheets: { entities, locations } });
     expect(control.args.render.mock.calls.map(c => c[0])).toEqual(['page_2_0']);
-    // A saved verdict is never trusted: an edited status, chosen attempt, review or context refuses.
+    // A saved verdict is never trusted: an edited status, chosen attempt, review or context refuses. The context binds by its complete content
+    // (Codex HOLD at 225477ee, F1): a rewritten context keeping the old sha, or carrying its own new sha, is refused too.
+    const rewrite = (s: any) => { s.context.design.locations[0].design = 'A different place entirely.'; };
     const edits: ((s: any) => void)[] = [s => { s.status = 'held'; }, s => { s.chosen.attempt = 1; }, s => { s.contextSha = sha('other'); },
       s => { const c = s.attempts[0].review.checks.find((x: any) => x.category === 'environment');
-        Object.assign(c, { verdict: 'defect', correction: 'fix', issues: [issue('continuity', 'design:garden', 'edited after the fact')] }); }];
+        Object.assign(c, { verdict: 'defect', correction: 'fix', issues: [issue('continuity', 'design:garden', 'edited after the fact')] }); },
+      rewrite, s => { rewrite(s); s.contextSha = sha(JSON.stringify(s.context)); }];
     for (const edit of edits) { const forged = structuredClone(locations); edit(forged); await refused({ scaleLineup: true, reuseSheets: { locations: forged } }); }
     for (const pageAttempts of [0, 4, 1.5, -1, Number.NaN])
       await expect(illustrateReviewedAudition({ ...harness().args, pages: [2], pageAttempts }), String(pageAttempts)).rejects.toThrow('audition_page_attempts');
@@ -1502,7 +1505,8 @@ describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on th
       if (s.png) writeFileSync(path.join(dir, 'illustrations', candidate.imageName), s.png);
       return dir;
     };
-    const out = path.join(tmpdir(), 'audition-reuse-out-never-created'), reuse = (dir: string) => readReusedSheets({ sourceRun: dir, roles: ['locations'] }, binding, out);
+    const out = path.join(tmpdir(), 'audition-reuse-out-never-created'), derived = { locations: { context, contextSha } };
+    const reuse = (dir: string, against: Parameters<typeof readReusedSheets>[3] = derived) => readReusedSheets({ sourceRun: dir, roles: ['locations'] }, binding, out, against);
     const ok = source(genuine()), read = reuse(ok);
     expect(read.sheets.locations).toEqual(genuine().sheet);
     expect(read.binding).toEqual({ sourceRun: path.resolve(ok), roles: ['locations'], admissionSha256: sha(readFileSync(path.join(ok, 'admission.json'), 'utf8')),
@@ -1516,9 +1520,24 @@ describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on th
       ['a request for another image', s => { s.wire.input[0].content[0].text = JSON.stringify({ candidateSha: sha('x'), contextSha, context }); }],
       ['an edited review', s => { s.receipt.raw.output_text = JSON.stringify({ ...answer, checks: answer.checks.map((c, i) => i ? c : { ...c, observation: 'edited' }) }); }],
       ['no request', s => { s.wire = null; }], ['no receipt', s => { s.receipt = null; }]];
-    for (const [label, edit] of forged) { const s = genuine(); edit(s); expect(() => reuse(source(s)), label).toThrow('audition_reuse_source'); }
-    expect(() => readReusedSheets({ sourceRun: path.relative(process.cwd(), ok), roles: ['locations'] }, binding, out)).toThrow('audition_reuse_source');
-    expect(() => readReusedSheets({ sourceRun: ok, roles: ['locations'] }, binding, ok)).toThrow('audition_reuse_source');
+    // Codex HOLD at 225477ee (F1): a claimed contextSha never binds by itself. The saved record's and every judged request's COMPLETE context
+    // must hash to its claimed sha and equal the context this run derives, whether rewritten with the old sha kept or with a matching new sha.
+    const otherContext = { ...context, design: { ...context.design,
+      locations: context.design.locations.map((l, i) => i ? l : { ...l, design: 'A different place entirely.' }) } };
+    const request = (ctx: unknown, ctxSha: string) => JSON.stringify({ candidateSha: candidate.imageSha, contextSha: ctxSha, context: ctx });
+    const contextual: [string, (s: Source) => void][] = [
+      ['saved context rewritten, old sha kept', s => { s.sheet.context = otherContext; }],
+      ['saved context rewritten with its own new sha', s => { s.sheet.context = otherContext; s.sheet.contextSha = sha(JSON.stringify(otherContext)); }],
+      ['saved and judged context rewritten, old sha kept', s => { s.sheet.context = otherContext; s.wire.input[0].content[0].text = request(otherContext, contextSha); }],
+      ['judged context rewritten, old sha kept', s => { s.wire.input[0].content[0].text = request(otherContext, contextSha); }],
+      ['judged context rewritten with its own new sha', s => { s.wire.input[0].content[0].text = request(otherContext, sha(JSON.stringify(otherContext))); }],
+      ['saved context with its keys reordered (no longer the hashed bytes)', s => { const { requirementIds, ...rest } = s.sheet.context; s.sheet.context = { requirementIds, ...rest }; }]];
+    for (const [label, edit] of contextual) { const s = genuine(); edit(s); expect(() => reuse(source(s)), label).toThrow('audition_reuse_source'); }
+    // The derived context is the authority: none, or another one, refuses even a genuine source.
+    expect(() => reuse(ok, {})).toThrow('audition_reuse_source');
+    expect(() => reuse(ok, { locations: { context: otherContext, contextSha: sha(JSON.stringify(otherContext)) } })).toThrow('audition_reuse_source');
+    expect(() => readReusedSheets({ sourceRun: path.relative(process.cwd(), ok), roles: ['locations'] }, binding, out, derived)).toThrow('audition_reuse_source');
+    expect(() => readReusedSheets({ sourceRun: ok, roles: ['locations'] }, binding, ok, derived)).toThrow('audition_reuse_source');
   });
 
   it('the grant carries the flag only as the render scope\'s literal; the judge request carries the instruction its own context selects', async () => {

@@ -44,7 +44,8 @@ import { longCallFetch, providerFailureCause, type LongCallObserver } from './pe
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
 import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
-  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, auditionMeterRules, readReusedSheets, STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
+  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, auditionMeterRules, readReusedSheets, derivedSheetContexts,
+  STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
   type ReviewedBookLayout, type MeterRule, type MeterRules, STORYBOARD_OWNER_ACCEPTANCE_FILE, savedMomentContract, savedLandmarkKindContract,
   savedSceneLocationContract, savedCompilerRulesContract, savedDrawnInstantContract } from './personal-simple-book-reviewed-audition';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, storyboardOwnerAcceptance } from '../lib/personal-wizard/storyboard';
@@ -67,7 +68,7 @@ import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION, storyboardRepair
 import { DRAWN_INSTANT_STORYBOARD_ADDENDUM, drawnInstantGaps, drawnInstantFinding } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { BOOK_LIMITS, personalBookOutputLimits } from '../lib/personal-wizard/book-config';
 import { OPUS_PLANNER, createOpusStoryboardTransport, plannerRequest, prepareOpusStoryboardWire, type PlannerWire } from './personal-opus-storyboard-transport';
-import { AUDITION_WORST_CASE_CALLS, AUDITION_SCALE_LINEUP_VERSION, REVIEWED_AUDITION_POLICY, auditionSheetDesigns, auditionSheetContext }
+import { AUDITION_WORST_CASE_CALLS, AUDITION_SCALE_LINEUP_VERSION, REVIEWED_AUDITION_POLICY, auditionSheetDesigns }
   from '../lib/personal-wizard/simple-book-reviewed-audition';
 
 export class NewBookExperimentError extends Error { constructor(readonly code: string) { super(code); } }
@@ -2242,14 +2243,14 @@ async function admitComparison(config: NewBookConfig, head: string) {
   await assertDerivedRoots(config, admitted.chain);
   const same = () => { if (canonicalJson(baseline()) !== canonicalJson(admitted)) fail('new_book_continuation_evidence'); };
   same();
-  // The reused sheet binds now, before any amendment, folder or call: the held run's own record and raw reviews, under the lineup run's context.
+  // The reused sheet binds now, before any amendment, folder or call: the held run's own record and raw reviews, each describing exactly the
+  // complete context the lineup run derives (not only its claimed sha).
   const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json')), loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
   const reused = readReusedSheets({ sourceRun: path.join(dir, 'audition'), roles: NEW_BOOK_SCALE_COMPARISON.reuseSheets }, { requestId: loaded.queued.requestId,
     storyboardDigest: loaded.book.storyboardDigest, child: { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) },
-    companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir));
+    companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir),
+    derivedSheetContexts(loaded.book, loaded.texts, NEW_BOOK_SCALE_COMPARISON.reuseSheets, true));
   const designs = auditionSheetDesigns(loaded.book, loaded.texts, true);
-  for (const role of NEW_BOOK_SCALE_COMPARISON.reuseSheets)
-    if (reused.sheets[role]?.contextSha !== auditionSheetContext(role, designs[role]).contextSha) fail('new_book_comparison_scope');
   const amendment = comparisonSchema.parse({ version: 'new-book-scale-comparison/v1', id: NEW_BOOK_SCALE_COMPARISON.id, slot: NEW_BOOK_EXPERIMENT.slot,
     approval: NEW_BOOK_SCALE_COMPARISON.approval, claimSha256: admitted.claimSha256, configSha256: sha(canonicalJson(config)), previousSha256: admitted.acceptanceSha256,
     originalSourceHead: config.sourceHead, previousSourceHead: admitted.chain.acceptance!.sourceHead, sourceHead: head,

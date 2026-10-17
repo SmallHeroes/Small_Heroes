@@ -32,7 +32,8 @@ import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
-  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, ReviewedAuditionError, type ReferenceStatus, type SavedSheet } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, type ReferenceStatus, type SavedSheet }
+  from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -668,12 +669,22 @@ export function assertReplanAuditionScope(scope: AuditionGrant['scope'],
 
 /**
  * A comparison's reused sheets, read from the earlier run of THIS book that its grant names. That run's admission names the same request,
- * storyboard, child and companion images; each named sheet is that run's own saved record; every judged attempt's saved review is exactly the
- * raw answer its receipt holds, judged on a request that carried the saved context and the instruction this run would send for it. The
- * orchestrator then re-derives each sheet from those reviews under this run's context, which must be identical (illustrateReviewedAudition).
+ * storyboard, child and companion images; each named sheet is that run's own saved record, whose complete context is exactly the one this run
+ * derives for it (`derived`; its claimed sha alone never binds); every judged attempt's saved review is exactly the raw answer its receipt
+ * holds, judged on a request whose complete context is that same derived context, with the instruction this run would send for it. The
+ * orchestrator then re-derives each sheet from those reviews under that context (illustrateReviewedAudition).
  */
+/** The complete sheet contexts a run of this book derives for the named roles (the authority a reused sheet must describe exactly). */
+export function derivedSheetContexts(book: Parameters<typeof auditionSheetDesigns>[0], texts: readonly string[], roles: readonly ('entities' | 'locations')[],
+  scaleLineup?: boolean) {
+  const designs = auditionSheetDesigns(book, texts, scaleLineup);
+  return Object.fromEntries(roles.map(role => [role, auditionSheetContext(role, designs[role])])) as Partial<Record<'entities' | 'locations',
+    ReturnType<typeof auditionSheetContext>>>;
+}
+
 export function readReusedSheets(reuse: { sourceRun: string; roles: readonly ('entities' | 'locations')[] },
-  binding: { requestId: string; storyboardDigest: string; child: AuditionImage; companion: AuditionImage }, out: string) {
+  binding: { requestId: string; storyboardDigest: string; child: AuditionImage; companion: AuditionImage }, out: string,
+  derived: Partial<Record<'entities' | 'locations', { context: unknown; contextSha: string }>>) {
   if (!path.isAbsolute(reuse.sourceRun) || path.resolve(reuse.sourceRun).toLowerCase() === path.resolve(out).toLowerCase()) fail('audition_reuse_source');
   realDirectory(reuse.sourceRun);
   const at = (...parts: string[]) => path.join(reuse.sourceRun, ...parts);
@@ -682,8 +693,8 @@ export function readReusedSheets(reuse: { sourceRun: string; roles: readonly ('e
       canonicalJson(admission?.child ?? null) !== canonicalJson(binding.child) || canonicalJson(admission?.companion ?? null) !== canonicalJson(binding.companion)) fail('audition_reuse_source');
   const sheets: Partial<Record<'entities' | 'locations', SavedSheet>> = {}, files: Record<string, string> = {};
   for (const role of reuse.roles) {
-    const text = fencedText(at(`sheet_${role}.json`), 8_000_000), saved = attempt(() => JSON.parse(text) as SavedSheet);
-    if (!saved || !Array.isArray(saved.attempts)) return fail('audition_reuse_source');
+    const text = fencedText(at(`sheet_${role}.json`), 8_000_000), saved = attempt(() => JSON.parse(text) as SavedSheet), expected = derived[role];
+    if (!saved || !Array.isArray(saved.attempts) || !expected || !sameSheetContext(saved, expected)) return fail('audition_reuse_source');
     // The chosen image is the one the saved record names, by hash, before anything is written anywhere.
     const chosen = saved.chosen?.candidate, file = chosen && /^[a-z0-9_]+\.png$/.test(chosen.imageName) ? at('illustrations', chosen.imageName) : null;
     if (!file || !existsSync(file) || lstatSync(file).isSymbolicLink() || previewSha(readFileSync(file)) !== chosen!.imageSha) fail('audition_reuse_source');
@@ -692,9 +703,8 @@ export function readReusedSheets(reuse: { sourceRun: string; roles: readonly ('e
       const step = `sheet_${role}_${a.attempt}_qa`;
       const wire = attempt(() => read(at('paid-stages', `${step}.wire.json`))), receipt = attempt(() => read(at('paid-stages', `${step}.receipt.json`)));
       const request = attempt(() => JSON.parse(wire.input[0].content[0].text)), answer = attempt(() => auditionReviewSchema.parse(JSON.parse(receipt.raw.output_text)));
-      if (!request || !answer || canonicalJson(answer) !== canonicalJson(a.review) || request.contextSha !== saved.contextSha ||
-          request.candidateSha !== a.candidate?.imageSha || canonicalJson(request.context) !== canonicalJson(saved.context) ||
-          wire.instructions !== auditionJudgeInstruction('sheet', saved.context)) fail('audition_reuse_source');
+      if (!request || !answer || canonicalJson(answer) !== canonicalJson(a.review) || !sameSheetContext(request, expected) ||
+          request.candidateSha !== a.candidate?.imageSha || wire.instructions !== auditionJudgeInstruction('sheet', expected.context)) fail('audition_reuse_source');
     }
     sheets[role] = saved; files[role] = previewSha(text);
   }
@@ -711,12 +721,15 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (!!grant.experiment !== !!args.experiment || grant.experiment && (grant.experiment.slot !== args.experiment!.slot ||
       grant.experiment.claimSha256 !== args.experiment!.claimSha256)) fail('audition_experiment_guard');
   assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
-  // A diagnostic comparison (render grants only): the earlier run's saved sheets it reuses (verified before anything is created here) and its
-  // bound on page attempts, both named by the admission.
+  // The common-scale lineup comes only from the grant (never a CLI argument); the admission names it, so a resume under another flag is refused.
+  const scaleLineup = grant.scope.mode === 'render' && grant.scope.scaleLineup === AUDITION_SCALE_LINEUP_VERSION ? true as const : undefined;
+  // A diagnostic comparison (render grants only): the earlier run's saved sheets it reuses (verified, against the contexts this run derives,
+  // before anything is created here) and its bound on page attempts, both named by the admission.
   const renderScope = grant.scope.mode === 'render' ? grant.scope : null;
   const reused = renderScope?.reuseSheets ? readReusedSheets(renderScope.reuseSheets, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest,
     child: { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) },
-    companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out) : null;
+    companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out,
+    derivedSheetContexts(loaded.book, loaded.texts, renderScope.reuseSheets.roles, scaleLineup)) : null;
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
@@ -728,8 +741,6 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
   const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
-  // The common-scale lineup comes only from the grant (never a CLI argument); the admission names it, so a resume under another flag is refused.
-  const scaleLineup = grant.scope.mode === 'render' && grant.scope.scaleLineup === AUDITION_SCALE_LINEUP_VERSION ? true as const : undefined;
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
     policy: reviewedAuditionPolicy(scaleLineup), grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',

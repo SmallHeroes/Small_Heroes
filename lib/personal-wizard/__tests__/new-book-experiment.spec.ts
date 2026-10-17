@@ -657,7 +657,7 @@ describe('the reviewed audition on the new book (synthetic providers through the
     // A locations design that today's code would build differently (its judge context drifts) can never stand in: refused the same way.
     const real = auditionLib.auditionSheetContext;
     const drift = vi.spyOn(auditionLib, 'auditionSheetContext').mockImplementation((role, design) => ({ ...real(role, design), contextSha: sha('drifted') }));
-    await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_scope$/);
+    await expect(comparison(['--execute'])).rejects.toThrow(/^audition_reuse_source$/);
     untouched();
     drift.mockRestore();
     // Only a held sample is compared: the same pages under any other recorded status are refused.
@@ -676,6 +676,43 @@ describe('the reviewed audition on the new book (synthetic providers through the
       remove();
     }
     expect((await comparison()).comparison).toMatchObject({ recorded: false, reusedLocations: { image: chosen } });
+  }, 180_000);
+  // Codex HOLD at 225477ee (F1), its reproduction kept as a regression: a held review must describe the context the comparison derives in
+  // full, not merely repeat the old contextSha. The rewritten records stay meter-coherent (each wire digest updated, no cost changed).
+  it('scale comparison: a held sheet whose context was rewritten (old sha kept, or a matching new sha) is refused at admission: no amendment, grant, folder or call', async () => {
+    const { dir } = await heldSample();
+    const held = path.join(dir, 'audition'), at = (name: string) => path.join(held, name), sheetFile = at('sheet_locations.json');
+    const genuine = new Map(['sheet_locations.json', ...readdirSync(at('paid-stages')).map(n => `paid-stages/${n}`)].map(n => [n, readFileSync(at(n))]));
+    const restore = () => { for (const [name, bytes] of genuine) writeFileSync(at(name), bytes); };
+    const rewrite = (newSha: boolean) => {
+      const saved = json(sheetFile);
+      expect(sha(JSON.stringify(saved.context))).toBe(saved.contextSha);
+      saved.context.design.locations[0].design = 'A different location with a completely different landmark arrangement.';
+      if (newSha) saved.contextSha = sha(JSON.stringify(saved.context));
+      writeFileSync(sheetFile, JSON.stringify(saved));
+      for (const attempt of saved.attempts) {
+        if (!attempt.review) continue;
+        const base = at(`paid-stages/sheet_locations_${attempt.attempt}_qa`), wire = json(base + '.wire.json'), input = JSON.parse(wire.input[0].content[0].text);
+        input.context = saved.context;
+        if (newSha) input.contextSha = saved.contextSha;
+        wire.input[0].content[0].text = JSON.stringify(input);
+        writeFileSync(base + '.wire.json', JSON.stringify(wire));
+        const wireDigest = sha(canonicalJson(wire));
+        for (const kind of ['claim', 'result']) writeFileSync(base + `.${kind}.json`, JSON.stringify({ ...json(base + `.${kind}.json`), wireDigest }));
+      }
+    };
+    const drawn = [renders(), sdk.create.mock.calls.length];
+    for (const newSha of [false, true]) {
+      rewrite(newSha);
+      await expect(comparison(['--execute']), `new sha: ${newSha}`).rejects.toThrow(/^audition_reuse_source$/);
+      expect([existsSync(experimentComparisonFile(config)), existsSync(experimentComparisonGrant(config)), existsSync(path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir)),
+        renders(), sdk.create.mock.calls.length], `new sha: ${newSha}`).toEqual([false, false, false, ...drawn]);
+      restore();
+    }
+    // Control: the genuine held records reuse honestly (held, a diagnostic candidate with its known flaws) and the one comparison runs.
+    const run = await comparison(['--execute']);
+    expect(run.result.manifest).toMatchObject({ scope: { reusedSheets: ['locations'], pageAttempts: 1 }, sheets: { locations: { referenceStatus: json(sheetFile).status === 'qa_supported'
+      ? 'approved_reference' : 'diagnostic_candidate' } } });
   }, 180_000);
   it('scale comparison: an interrupted run continues only by resume, in the same folder and meter; a resume without a start is refused', async () => {
     const { dir, pages } = await heldSample();
