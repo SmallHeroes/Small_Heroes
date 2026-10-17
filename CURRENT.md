@@ -1,5 +1,47 @@
 # SmallHeroes — Current Technical State
 
+## Scale-reference probe S0 (M1) built offline (12185a78), for Codex QA (2026-10-17)
+
+After Codex's narrow PASS of 9f3df0d4, the one scale comparison ran once
+(exit 0, $0.497486, 10/10 calls). The prompted lineup itself drew Grandma
+about one post tall, so a CORRECT reference was never tested (Codex outcome
+QA PASS; _review/new-book-scale-lineup-20261016/RUN-REPORT-SCALE-COMPARISON-20261017.md).
+Plan v2 put M1 first and deferred M2 (_review/new-book-scale-plan-20261017/).
+Guy approved the offline S0 with a two-sided size range; S1, S2 and any
+budget are not approved.
+
+Built 12185a78 (four new files, nothing existing changed, imported by
+nothing else):
+- lib/personal-wizard/scale-band.ts: pure, code-drawn height marks from
+  declared ratios. It refuses a mark below 8 px and never enlarges one. Its
+  1024x1344 canvas keeps the atlas rows unchanged above a blank or marked
+  band area.
+- scripts/personal-scale-probe.ts: A/B per control, one draw per arm. The
+  prompt bytes and references are identical, and the judge request differs
+  only in the candidate.
+  - S1 = C1, behind Guy's $2 grant file. S2 = C2-C4, only after the O1 gate
+    and Guy's go file. Both stages share one ledger of at most 16 calls.
+  - The judge reports positions and the code computes the ratios. C1 accepts
+    Grandma at 2.4-3.6x Itai, and the categorical verdict must agree.
+  - The held book is a declared read-only folder.
+
+Evidence:
+- tsc 0; specs 18/18; in-memory mutants 18/18.
+- Real-asset dry run (no write, no key): renders reserve about $0.533 and
+  reviews $0.60. Under the assumed costs all 16 calls fit (last claim
+  $1.85); at +20% it stops one review short.
+- The book's 285 files are unchanged.
+- npm run check: both phases are recorded in the handoff (§7).
+
+H2 (a new hypothesis that applies to every book): the engine page prompt's
+generic rule "Characters fill NO MORE than 35-50% of frame height"
+(local-story-preview.ts:113) cannot hold beside a three-child-height
+character when the child takes 22% of the frame. It is not changed: that is
+a production prompt and needs its own gate.
+
+Next: Codex QA of 9f3df0d4..HEAD; then Guy decides on the $2 allowance for
+S1. Handoff: _review/new-book-scale-plan-20261017/CLAUDE-HANDOFF-S0-SCALE-PROBE-20261017.md.
+
 ## Scale lineup + one comparison: Codex HOLD at 225477ee (F1) corrected (2278ada0), for narrow re-gate (2026-10-17)
 
 The held sample stopped mostly on relative scale (Grandma about child-sized in

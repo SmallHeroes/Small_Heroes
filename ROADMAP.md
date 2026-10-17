@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Scale-reference probe S0 (12185a78); next: Codex QA, then Guy's $2 S1 decision (2026-10-17)
+
+- The consumed comparison tested an invalid prompted lineup. M1 is a band
+  drawn by code, correct by construction and built offline. The probe tests
+  it against a blank band with identical prompts, references and judge.
+- After an explicit Codex PASS, Guy decides on one $2.00 allowance for S1
+  (C1, four calls). S2 (twelve more) runs only after the O1 gate and Guy's
+  separate go.
+- Every book (Guy, 10/17): the probe is a diagnostic only. The general
+  follow-ups, each behind its own gate:
+  - typed sizes for every character (M2-like, deferred);
+  - a size-aware framing rule (H2).
+
 ## Scale lineup + one comparison (6706b620, 4d9fc3b9); Codex HOLD F1 corrected (2278ada0); next: narrow re-gate, then the comparison (2026-10-17)
 
 - An opt-in common-scale lineup on the entities sheet, and one diagnostic
