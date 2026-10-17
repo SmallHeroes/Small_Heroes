@@ -59,8 +59,8 @@ A fresh locations sheet or a second page attempt would not fit.
 
 | part | rule |
 |---|---|
-| `reuseSheets {sourceRun, roles}` | `readReusedSheets` checks, before anything is created: that run's admission names the same request, storyboard, child and companion images; the named sheet is its own saved record; its chosen image matches by hash; every judged attempt's saved review is exactly its receipt's raw answer, judged on a request that carried the saved context and the instruction this run would send for it. The admission names that source by hash. |
-| orchestrator | each reused sheet binds **before anything is saved or drawn**: the same context and requirements as this run computes, then every saved judgement re-derived from its raw review (`audition_reuse_binding`) |
+| `reuseSheets {sourceRun, roles}` | `readReusedSheets` checks, before anything is created: that run's admission names the same request, storyboard, child and companion images; the named sheet is its own saved record; its chosen image matches by hash; every judged attempt's saved review is exactly its receipt's raw answer, judged with the instruction this run would send for it. **The saved record and every judged request must describe exactly the complete context this run derives** (`sameSheetContext`: the claimed sha is the hash of the evidence's own complete context, and both equal the derived ones; a claimed sha alone never binds). The admission names that source by hash. |
+| orchestrator | each reused sheet binds **before anything is saved or drawn**: its complete saved context equals the one this run derives (same rule), with the same requirements, then every saved judgement is re-derived from its raw review (`audition_reuse_binding`) |
 | `pageAttempts` | at most N attempts per page (1 to the policy's 3); the manifest records it |
 
 **Experiment stage (one use, in the same ledger):**
@@ -73,7 +73,9 @@ A fresh locations sheet or a second page attempt would not fit.
   - `maxCalls`: 10;
   - scope: pages 2–3, the lineup, `reuseSheets: ['locations']`, `pageAttempts: 1`.
   - It is written once and compared on a resume.
-- **Admission, before anything is written:** the reused sheet is checked against the real held run, and its context against the one the lineup run computes (`new_book_comparison_scope` on drift).
+- **Admission, before anything is written:** the reused sheet is checked against the real held run, its saved record and judged requests against the complete context the lineup run derives (`audition_reuse_source` on any drift or rewrite).
+
+**Codex HOLD at `225477ee` (F1, P2), corrected:** reuse had bound the claimed `contextSha` rather than the complete context it describes. A held sheet whose context was rewritten while keeping the old sha (meter-coherent) was admitted and ran. One shared rule now binds the complete context at all three layers (source reading, orchestration, admission before the one-use write). Codex's exact case refuses with no amendment, grant, folder or call.
 - **One start:** `--resume` continues the same folder and meter.
 
 **Spend authority:** Guy's chosen plan plus his delegation (`OWNER-DECISIONS-SCALE-20261016.md`): ≈ $0.48, inside the $7, after Codex's technical PASS.

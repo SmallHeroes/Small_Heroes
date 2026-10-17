@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Scale lineup + one comparison (6706b620, 4d9fc3b9); Codex HOLD F1 corrected (2278ada0); next: narrow re-gate, then the comparison (2026-10-17)
+
+- An opt-in common-scale lineup on the entities sheet, and one diagnostic
+  comparison of the held sample (new lineup sheet, held locations sheet
+  reused, pages 2-3 once each) in the same $7 with the carry kept.
+- Codex HOLD at 225477ee (F1, P2: reuse bound a claimed contextSha, not the
+  complete context) corrected offline; the regressions fail on 225477ee first.
+- After an explicit Codex PASS: scale-comparison --execute once (about $0.49
+  inside the remaining $1.059077); then Guy's eye on held vs comparison pages
+  2-3. The remaining cap cannot finish this book: a full book needs a new
+  decision and allowance from Guy.
+
 ## Photo-anchor age calibration (4eb91d9f); next: Codex QA, then a small portrait comparison (2026-10-16)
 
 - The likeness probe gave an owner-recognizable likeness from a real photo, but

@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Scale lineup + one comparison: Codex HOLD at 225477ee (F1) corrected (2278ada0), for narrow re-gate (2026-10-17)
+
+The held sample stopped mostly on relative scale (Grandma about child-sized in
+5/6 renders, Uri oversized in 3/6). Guy chose "Fix scale first", then
+delegated the open choices ("don't ask, decide";
+_review/new-book-scale-lineup-20261016/OWNER-DECISIONS-SCALE-20261016.md).
+Built: 6706b620 (opt-in audition-scale-lineup/v1 on the entities sheet, flag
+only from the grant, flag-absent byte-identical), 4d9fc3b9 (generic
+reuseSheets + pageAttempts; the experiment's one-use scale-comparison stage:
+a new lineup entities sheet, the held locations sheet reused as judged, pages
+2-3 once each, the same $7 with the carry kept), docs 225477ee.
+
+Codex reviewed 69e1079a..225477ee: HOLD, one P2 (F1). Reuse bound a claimed
+contextSha, not the complete context it describes: a saved/judged context
+rewritten with the old sha (meter-coherent) was admitted and ran. Corrected
+in 2278ada0: one rule (sameSheetContext) binds the complete context (its own
+hash, the derived context and sha) in readReusedSheets (saved record and
+every judged request, given the derived contexts), in the orchestrator, and
+so in the experiment admission before the one-use write. Codex's exact case
+now refuses (0 renders, no amendment); the regressions fail on 225477ee first.
+
+Evidence: tsc 0; audition 154/154; experiment 191/191; 10 related files
+169/169 (serial). npm run check stays RED: the ordinary phase had 15 failed /
+7456 passed / 73 skipped (all unrelated), and the resource-intensive phase
+635 passed but 2 unhandled onTaskUpdate RPC timeouts (exit 1). Next: Codex
+narrow re-gate of 225477ee..HEAD; after an explicit PASS, the one comparison
+(about $0.49) runs under Guy's recorded delegation.
+
 ## Photo-anchor age calibration (4eb91d9f), for Codex QA (2026-10-16)
 
 The one approved likeness probe ran at 4405d003 (Codex PASS): 6 calls,
