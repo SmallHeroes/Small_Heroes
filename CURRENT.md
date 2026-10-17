@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## R1 child-anchor style built offline (01fc7eb8), for Codex QA (2026-10-17)
+
+Guy selected R1 and approved the offline milestone, with Codex's four-point
+acceptance addendum. The first author session closed before its serial suite
+finished. This session finished the same preserved diff: no rewrite, plus four
+regression tests for two gaps the mutants exposed.
+
+Built 01fc7eb8: the opt-in `childAnchor: "child-anchor-style/v1"`
+(docs/ai-workflow/CHILD_ANCHOR_STYLE_DECISION_GATE.md).
+- **Request.** Production's description prompt without the template
+  sentence, plus the two pinned character-free Style-01 files in `style`
+  mode. No child template.
+- **Acceptance.** Style, design and apparent age
+  (compatible/defect/uncertain) gate ONE final candidate together.
+- **Correction.** One correction edit, re-reviewed in full; six metered
+  steps.
+- **Grant.** The grant re-derives the anchor's acceptance.
+- **Flag absent.** The legacy child stage and its four-call ledger are
+  unchanged.
+- **Diagnostic.** A standalone <=4-call diagnostic runner exists. It has
+  not been executed.
+
+Evidence (no provider calls, no key reads, no book writes):
+- tsc exit 0.
+- child-anchor-style.spec 17/17.
+- The new-book-experiment full file: 208/209. The one failure is a legacy
+  audition test that hit its 60 s timeout during the 21-minute serial run.
+  Alone it passed in 10.8 s.
+- After the added tests, the opt-in subset is 39/39.
+- In-memory mutants: 8/8 behavioral mutants killed, and the no-op control
+  is clean.
+- `npm run check` was not rerun and remains RED, as it was before this
+  change.
+
+Next: Codex QA of 870c9174..HEAD. Then, under Guy's recorded USD 8 cycle,
+the <=4-call diagnostic (USD 1) runs behind its own grant.
+Handoff: _review/new-book-anchor-style-20261017/CLAUDE-HANDOFF-R1-CHILD-ANCHOR-20261017.md.
+
 ## Scale-reference probe S0 (M1) built offline (12185a78), for Codex QA (2026-10-17)
 
 After Codex's narrow PASS of 9f3df0d4, the one scale comparison ran once

@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## R1 child-anchor style (01fc7eb8), offline; next: Codex code QA, then the staged USD 8 cycle (2026-10-17)
+
+- Built offline: the opt-in child-anchor-style/v1 contract
+  (docs/ai-workflow/CHILD_ANCHOR_STYLE_DECISION_GATE.md).
+- After an explicit Codex PASS at a frozen HEAD, Guy's recorded USD 8 cycle
+  runs in stages, each behind its own one-use grant:
+  1. The <=4-call anchor diagnostic (USD 1).
+  2. One LOW experimental book (USD 7): two sample pages first, then the
+     rest and the cover only if the gates pass.
+- Scale (S1 O3, S2 closed) is unaffected.
+
 ## Scale-reference probe S0 (12185a78); next: Codex QA, then Guy's $2 S1 decision (2026-10-17)
 
 - The consumed comparison tested an invalid prompted lineup. M1 is a band
