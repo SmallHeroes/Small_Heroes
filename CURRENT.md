@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## F3 round 1: native executable pin (e3a35350), offline, for Codex re-gate (2026-10-18)
+
+Nothing paid ran in this stage: no provider call, key read, claim, book folder or authority write.
+
+**State before.** Round 2 (materiality) was consumed and independently PASSED (27/27). The first native text command
+(operator 7bb2309d) then exited 1 with `fresh_book_file`. It failed before any claim, folder, key or provider. No paid work existed,
+so a new attempt is not a paid retry. API stays at 128930 known (diagnostic), book 0. Known Max: 32.1239116 (that operator 0.370487),
+plus an old interrupted run that is UNREPORTED. The Max guard of 3.50 is resource reporting, not API $0 or an invoice.
+
+**Cause (Codex F3).** The text stage hashed `config.executable` with the driver's 32MB data-artifact reader. The pinned
+claude.exe is a regular hardlinked file of 247736480 bytes, so the reader always refused it. Injected-Opus tests skipped that check.
+
+**Fix (e3a35350, parent 68e68ef9).**
+- `assertFreshBookExecutable` hashes the binary whole, the same way the native transports hash it at spawn. It has no data-size cap.
+- A missing path, a directory, a link or a wrong hash refuses with `fresh_book_executable_changed`.
+- The text stage runs it unconditionally, before the claim (no injected-Opus skip).
+- The dry plan reports it as `state.executablePinned`. Plan and grant shape are unchanged.
+- Unchanged: the 32MB data reader, admission, F1/F2 lineage, 0.70, the materiality/age/style/safety gates, caps and resume.
+
+**Tests.**
+- Driver spec 17/17 (exit 0), run serially. It covers:
+  - a 33MB matching binary and its hardlink pass
+  - a wrong hash, a missing path or a directory refuses
+  - a link refuses where the OS allows creating one
+  - a >32MB JSON config still refuses `fresh_book_file`
+  - the native text path without an injected transport: a wrong pin refuses before claim/folder, and a >32MB match passes the guard
+  - the real pinned exe passes (read only)
+  - the real round-2 admission re-derives `passed` (materiality, round 2), the diagnostic is 128930, and there is no claim or bookDir
+- `tsc --incremental false` exit 0.
+- Real dry plan (`text`, no `--execute`) with the staged config: `executablePinned: true`, diagnostic 128930, no claim, no bookDir.
+- `npm run check` was not run and stays RED.
+
+**Next.** Codex re-gate. Then, only after PASS, ONE new text attempt with the new staged grant (same config, profile, cycle, claim, bookDir).
+
 ## Owner materiality policy: child-anchor-materiality/v1 (a9f54d46), offline, for Codex QA (2026-10-18)
 
 Nothing paid ran: no provider call, key read, round-2 claim, book claim or book folder.

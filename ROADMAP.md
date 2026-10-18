@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## F3 round 1 (e3a35350): native executable pin fixed offline; next: Codex re-gate, then the ONE book's text attempt (2026-10-18)
+
+- Round 2 (materiality) is consumed and independently PASSED 27/27. The first text command refused before claim (`fresh_book_file`).
+  The cause was the 32MB data reader applied to the 247736480-byte executable. It is now fixed. Nothing paid ran.
+- API stays at 128930 known, book 0. The Max guard of 3.50 is separate.
+- Next steps:
+  1. Codex re-gate.
+  2. ONE new text attempt with the new staged grant.
+  3. Child, then the book, samples first.
+- Full check stays RED. Scale (S1 O3, S2 closed) is unaffected.
+
 ## Materiality policy (a9f54d46) offline; next: Codex QA, then round 2 (materiality), then the one book (2026-10-18)
 
 - Owner policy: a minor cosmetic deviation of a recognizable child is a nonblocking, recorded detail. Material drift still blocks.
