@@ -44,7 +44,7 @@ import { longCallFetch, providerFailureCause, type LongCallObserver } from './pe
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
 import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
-  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, auditionMeterRules, readReusedSheets, derivedSheetContexts,
+  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, digestImages, auditionRenderRule, auditionReviewRule, auditionMeterRules, readReusedSheets, derivedSheetContexts,
   STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
   type ReviewedBookLayout, type MeterRule, type MeterRules, STORYBOARD_OWNER_ACCEPTANCE_FILE, savedMomentContract, savedLandmarkKindContract,
   savedSceneLocationContract, savedCompilerRulesContract, savedDrawnInstantContract } from './personal-simple-book-reviewed-audition';
@@ -71,8 +71,9 @@ import { OPUS_PLANNER, createOpusStoryboardTransport, plannerRequest, prepareOpu
 import { AUDITION_WORST_CASE_CALLS, AUDITION_SCALE_LINEUP_VERSION, REVIEWED_AUDITION_POLICY, auditionSheetDesigns }
   from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { CHILD_ANCHOR_STYLE_VERSION, CHILD_ANCHOR_TECHNIQUE_MANIFEST, CHILD_ANCHOR_MANIFEST_SHA256, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique,
-  childAnchorDescriptionRequest, childAnchorCorrectionPrompt, assertChildAnchorRenderPlan, childAnchorRecipeSchema, childAnchorRecipeSha,
-  childAnchorStyleDisposition, childAnchorDesignDisposition, childAnchorDisposition, assertChildAnchorAccepted, type ChildAnchorRecipe }
+  childAnchorDescriptionRequest, childAnchorCorrectionPrompt, assertChildAnchorRenderPlan, childAnchorAttemptRecipe, childAnchorRecipeSha,
+  childAnchorStyleDisposition, childAnchorDesignDisposition, childAnchorDisposition, assertChildAnchorAccepted, childAnchorAdoptionRecord,
+  childAnchorStylePayload, childAnchorDesignPayload, type ChildAnchorRecipe }
   from '../lib/personal-wizard/child-anchor-style';
 import { childAnchorJudges, type ChildAnchorStyleJudge, type ChildAnchorDesignJudge } from './personal-child-anchor-judges';
 import { readAuditionImage, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
@@ -2023,7 +2024,7 @@ export type ChildAdapters = { render?: Render; judge?: Judge; style?: ChildAncho
  * child-anchor-style/v1 admission (no write, no claim): the pinned technique bytes (refused on any mismatch), this book's child from its
  * written design and the storyboard's wardrobe, and the first request exactly as the real image seam plans it (no truncation).
  */
-function childAnchorAdmission(config: NewBookConfig, loaded: ReturnType<typeof loadReviewedStoryboard>) {
+function childAnchorAdmission(config: NewBookConfig, loaded: Pick<ReturnType<typeof loadReviewedStoryboard>, 'prepared' | 'book'>) {
   if (config.childAnchor !== CHILD_ANCHOR_STYLE_VERSION) return fail('new_book_child_anchor');
   const technique = resolveChildAnchorTechnique(config.workspace), child = loaded.prepared.brief.child;
   const request = childAnchorDescriptionRequest({ age: child.age, gender: child.address, design: config.childDesign, wardrobe: loaded.book.plan.wardrobe });
@@ -2060,8 +2061,7 @@ async function runChildAnchor(a: { anchor: ReturnType<typeof childAnchorAdmissio
     a.check();
     const candidate = await a.render(step, prompt, inputs, mode, roles); a.check();
     if (rejected && candidate.imageSha === rejected.imageSha) fail('new_book_child_repair_unchanged');
-    const recipe = childAnchorRecipeSchema.parse({ version: CHILD_ANCHOR_STYLE_VERSION, identitySource: 'description', manifestSha256: CHILD_ANCHOR_MANIFEST_SHA256,
-      step, referenceMode: mode, references, promptSha256: sha(prompt), requestedAge: a.anchor.age });
+    const recipe = childAnchorAttemptRecipe(step, mode, references, prompt, a.anchor.age);
     const recipeSha = childAnchorRecipeSha(recipe);
     const style = childAnchorStyleDisposition(await a.style(`${step}_style_qa`, candidate, a.contextSha, recipeSha), candidate.imageSha, a.contextSha, recipeSha);
     a.save(`${step}_style_review`, { recipe, recipeSha, ...style }); a.log(`${step} style: ${style.disposition}`);
@@ -2088,8 +2088,7 @@ async function runChildAnchor(a: { anchor: ReturnType<typeof childAnchorAdmissio
     return { status: 'child_reference_held' as const };
   }
   const { candidate } = current;
-  const anchorRecord = { version: CHILD_ANCHOR_STYLE_VERSION, recipe: current.recipe, recipeSha: childAnchorRecipeSha(current.recipe),
-    style: current.style.review, design: current.design.full };
+  const anchorRecord = childAnchorAdoptionRecord(current.recipe, current.style.review, current.design.full);
   // The same re-derivation the grant runs: the adopted candidate's own three dimensions, nothing from an earlier image.
   assertChildAnchorAccepted(anchorRecord, candidate.imageSha, a.contextSha);
   a.save('reference_child_adoption', { name: 'child', context: a.context, review: current.design.review, candidate,
@@ -2168,6 +2167,56 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   }
 }
 
+/**
+ * child-anchor-style/v1 acceptance as the stage actually requested and was answered (no write, no provider). Each attempt's recipe is rebuilt
+ * from the admitted request (the correction's prompt from the first attempt's settled answers); its render wire must be that request as the
+ * image seam plans it, each review wire the payload binding that recipe to the candidate the render returned, each answer the settled
+ * provider output (completed, priced). The adoption must be exactly the record those answers derive; a rehashed saved assertion is not one.
+ */
+function assertChildAnchorSettled(anchor: ReturnType<typeof childAnchorAdmission>, childDir: string, adoption: any, candidateSha: string, context: unknown) {
+  const contextSha = previewSha(JSON.stringify(context)), paid = path.join(childDir, 'paid-stages'), same = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
+  const settled = (step: string) => {
+    const at = (kind: string) => path.join(paid, `${step}.${kind}.json`);
+    if (!existsSync(at('result'))) fail('child_anchor_evidence_missing');
+    const result = read(at('result'));
+    if (result.completed !== true || !Number.isSafeInteger(result.estimatedMicroUsd)) fail('child_anchor_evidence_missing');
+    return { wire: read(at('wire')), receipt: read(at('receipt')) };
+  };
+  const answer = (receipt: any) => { try { return JSON.parse(receipt.raw.output_text); } catch { return fail('child_anchor_evidence_missing'); } };
+  const attempt = (step: 'reference_child' | 'reference_child_repair', prompt: string, mode: 'style' | 'book_design',
+    roles: readonly BookDesignReferenceRole[] | undefined, references: ChildAnchorRecipe['references']) => {
+    const recipe = childAnchorAttemptRecipe(step, mode, references, prompt, anchor.age), recipeSha = childAnchorRecipeSha(recipe);
+    const render = settled(step), plan = assertChildAnchorRenderPlan(prompt, references.length, mode, roles), candidate = render.receipt?.candidate;
+    if (!same(render.wire.body, plan.bodyWithoutBinaryImage) || render.wire.mode !== plan.apiMode || !same(render.wire.referenceRoles ?? null, plan.referenceRoles ?? null) ||
+        !Array.isArray(render.wire.references) || !same(render.wire.references.map((r: AuditionImage) => r.imageSha), references.map(r => r.sha256)) ||
+        typeof candidate?.imageSha !== 'string' || !/^[a-f0-9]{64}$/.test(candidate.imageSha)) fail('child_anchor_render_binding');
+    const styleCall = settled(`${step}_style_qa`), image = `sha256:${candidate.imageSha}`;
+    if (!same(styleCall.wire, digestImages(childAnchorStylePayload({ candidateSha: candidate.imageSha, contextSha, recipeSha, candidateURL: image }))))
+      fail('child_anchor_review_binding');
+    const style = childAnchorStyleDisposition(answer(styleCall.receipt), candidate.imageSha, contextSha, recipeSha);
+    if (style.disposition === 'held_uncertain') return { candidate, recipe, style, design: null, outcome: childAnchorDisposition(style, null) };
+    const designCall = settled(`${step}_qa`), crops = designCall.wire?.input?.[0]?.content?.slice(2).map((c: { image_url?: unknown }) => c?.image_url);
+    if (!Array.isArray(crops) || crops.length !== 4 || crops.some(c => typeof c !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(c)) ||
+        !same(designCall.wire, digestImages(childAnchorDesignPayload({ candidateSha: candidate.imageSha, contextSha, context, recipe, imageURLs: [image, ...crops] }))))
+      fail('child_anchor_review_binding');
+    const design = childAnchorDesignDisposition(answer(designCall.receipt), candidate.imageSha, contextSha, recipe);
+    return { candidate, recipe, style, design, outcome: childAnchorDisposition(style, design) };
+  };
+  const { request, technique } = anchor;
+  const first = attempt('reference_child', request.prompt, 'style', undefined, technique.map(t => ({ role: t.label, sha256: t.sha256 })));
+  const final = first.outcome.disposition !== 'repair' ? first
+    : attempt('reference_child_repair', childAnchorCorrectionPrompt(request.core, first.outcome.corrections), 'book_design', CHILD_ANCHOR_CORRECTION_ROLES,
+      [{ role: 'rejected_edit_target', sha256: first.candidate.imageSha }]);
+  if (final.outcome.disposition !== 'passed' || !final.design || final.candidate.imageSha !== candidateSha) fail('child_anchor_not_accepted');
+  // Exactly the calls this path makes: no other claimed (or unsettled) call beside them.
+  const steps = (final === first ? ['reference_child'] : ['reference_child', 'reference_child_repair']).flatMap(s => [s, `${s}_style_qa`, `${s}_qa`]);
+  const claimed = readdirSync(paid).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length));
+  if (!same(claimed.sort(), steps.sort())) fail('child_anchor_evidence_steps');
+  const record = childAnchorAdoptionRecord(final.recipe, final.style.review, final.design!.full);
+  if (!same(adoption?.anchor, record) || adoption?.candidate?.imageSha !== candidateSha) fail('child_anchor_evidence_binding');
+  return assertChildAnchorAccepted(record, candidateSha, contextSha);
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Stage 3: the audition grant (no provider).
 // ---------------------------------------------------------------------------------------------------------------
@@ -2193,10 +2242,11 @@ function newBookGrant(config: NewBookConfig): AuditionGrant {
   const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
   if (canonicalJson(layout) !== canonicalJson(experimentLayout(config, layout.childImage, textFolder))) fail('new_book_layout');
   const loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
-  // Opted in: the adopted child's own style, design and age reviews, re-derived against it (the loader re-checked its design record).
+  // Opted in: the adopted child's acceptance re-derived from the authorized request and the stage's settled calls (the loader re-checked its
+  // design record and context); the adoption's own saved recipe and hash echoes are never the authority.
   if (config.childAnchor) {
-    const adoption = read(path.join(childDir, 'reference_child_adoption.json'));
-    assertChildAnchorAccepted(adoption.anchor, previewSha(loaded.childBytes), previewSha(JSON.stringify(adoption.context)));
+    assertChildAnchorSettled(childAnchorAdmission(config, loaded), childDir, read(path.join(childDir, 'reference_child_adoption.json')),
+      previewSha(loaded.childBytes), simpleReferenceDesignContext(reviewedChildDesign(loaded.prepared, loaded.book, layout)));
   }
   const text = textStage(config, chain), terms = childTerms(config);
   const child = stageLedger(childDir, terms.maxCalls, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, terms.rules);

@@ -132,6 +132,11 @@ export const childAnchorRecipeSchema = z.object({
 });
 export type ChildAnchorRecipe = z.infer<typeof childAnchorRecipeSchema>;
 export const childAnchorRecipeSha = (recipe: ChildAnchorRecipe) => sha(canonicalJson(childAnchorRecipeSchema.parse(recipe)));
+/** One attempt's recipe from its authorized inputs (the prompt actually planned, its references, the requested age); never read back from a record. */
+export const childAnchorAttemptRecipe = (step: ChildAnchorRecipe['step'], referenceMode: ChildAnchorRecipe['referenceMode'],
+  references: ChildAnchorRecipe['references'], prompt: string, requestedAge: number) =>
+  childAnchorRecipeSchema.parse({ version: CHILD_ANCHOR_STYLE_VERSION, identitySource: 'description', manifestSha256: CHILD_ANCHOR_MANIFEST_SHA256,
+    step, referenceMode, references, promptSha256: sha(prompt), requestedAge });
 
 // ---------------------------------------------------------------------------------------------------------------
 // Review requests (Sol 6.1, default tier, 12,000 output tokens: the reviewed $0.60 slot), strict schemas, fail-closed dispositions.
@@ -227,6 +232,8 @@ export function childAnchorDisposition(style: StyleOutcome | null, design: Desig
 /** The saved acceptance of an adopted child (opt-in): every review re-derived against the adopted candidate, context and recipe. */
 export const childAnchorAdoptionSchema = z.object({ version: z.literal(CHILD_ANCHOR_STYLE_VERSION), recipe: z.unknown(), recipeSha: hash,
   style: z.unknown(), design: z.unknown() }).strict();
+export const childAnchorAdoptionRecord = (recipe: ChildAnchorRecipe, style: ChildAnchorStyleReview, design: unknown) =>
+  ({ version: CHILD_ANCHOR_STYLE_VERSION, recipe, recipeSha: childAnchorRecipeSha(recipe), style, design });
 export function assertChildAnchorAccepted(anchor: unknown, candidateSha: string, contextSha: string) {
   const saved = childAnchorAdoptionSchema.parse(anchor), recipe = childAnchorRecipeSchema.parse(saved.recipe);
   if (childAnchorRecipeSha(recipe) !== saved.recipeSha) fail('child_anchor_evidence_binding');

@@ -3840,7 +3840,8 @@ describe('child-anchor-style/v1 opt-in child stage (R1; synthetic providers, no 
     expect(c.judge).not.toHaveBeenCalled();
     expect(json(path.join(childDir(), 'reference_child_adoption.json')).anchor).toMatchObject({ version: R1, recipe: { step: 'reference_child', referenceMode: 'style' } });
     expect(json(path.join(childDir(), 'sealed.json'))).toMatchObject({ status: 'child_reference_passed', childAnchor: R1 });
-    expect((await writeNewBookGrant(newBookConfig(file))).ledger.evidence.length).toBeGreaterThan(0);
+    // Synthetic adapters journal no paid call: the grant admits only settled evidence (the real-adapter cases below admit).
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(/^child_anchor_evidence_missing$/);
   });
   it.each([
     ['style unassessable: held, no design review, no correction', [{ assessable: false }], [{}], 1, 0],
@@ -3866,7 +3867,7 @@ describe('child-anchor-style/v1 opt-in child stage (R1; synthetic providers, no 
     expect([...c.style.mock.calls, ...c.design.mock.calls].map(x => x[0]).sort()).toEqual(['reference_child_qa', 'reference_child_repair_qa',
       'reference_child_repair_style_qa', 'reference_child_style_qa']);
     expect(json(path.join(childDir(), 'reference_child_adoption.json')).anchor.recipe).toMatchObject({ step: 'reference_child_repair', referenceMode: 'book_design' });
-    await expect(writeNewBookGrant(newBookConfig(file))).resolves.toBeTruthy();
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(/^child_anchor_evidence_missing$/);
   });
   it.each([
     ['the rejected image\'s style PASS offered for the changed image', [{}, 'stale'], [{ defect: 'anatomy' }, {}]],
@@ -3904,17 +3905,6 @@ describe('child-anchor-style/v1 opt-in child stage (R1; synthetic providers, no 
     expect(json(path.join(childDir(), 'spend.json')).maxCalls).toBe(4);
     await expect(writeNewBookGrant(newBookConfig(file))).resolves.toBeTruthy();
   });
-  it.each([
-    ['another image\'s style review', (a: any) => ({ ...a, style: { ...a.style, candidateSha: 'f'.repeat(64) } }), 'child_anchor_evidence_binding'],
-    ['a style review edited to photoreal', (a: any) => ({ ...a, style: { ...a.style, looksPhotoreal: true } }), 'child_anchor_not_accepted'],
-    ['an apparent age edited to uncertain', (a: any) => ({ ...a, design: { ...a.design, apparentAge: { ...a.design.apparentAge, verdict: 'uncertain' } } }), 'child_anchor_not_accepted'],
-  ] as [string, (a: any) => unknown, string][])('the grant re-derives the adopted anchor: %s is refused', async (_n, edit, code) => {
-    optIn(); await run();
-    expect((await child(anchorAdapters())).status).toBe('child_reference_passed');
-    const adoption = path.join(childDir(), 'reference_child_adoption.json'), saved = json(adoption);
-    writeFileSync(adoption, JSON.stringify({ ...saved, anchor: edit(saved.anchor) }));
-    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(code);
-  });
 
   describe('through the real adapters and meter (generateGPTImage and the SDK mocked; the old fail-open style helper never runs)', () => {
     const solAnswer = (payload: any, over: (format: string, body: any) => unknown = (_f, b) => b) => {
@@ -3924,8 +3914,9 @@ describe('child-anchor-style/v1 opt-in child stage (R1; synthetic providers, no 
         : { ...passing(text.candidateSha, text.contextSha), recipeSha: text.recipeSha, apparentAge: { requestedAge: text.apparentAge.requestedAge, verdict: 'compatible', observation: 'ok', correction: '' } };
       return { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 }, output_text: JSON.stringify(over(format, body)) };
     };
+    let shade = 30;
     const realImages = () => vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
-      const buffer = await png(30, 1024), usage = { input_tokens: 100, output_tokens: 300 };
+      const buffer = await png(shade++, 1024), usage = { input_tokens: 100, output_tokens: 300 };
       input.observeProviderResponse?.({ data: [{ b64_json: buffer.toString('base64') }], usage });
       return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: false, apiMode: 'images.edit',
         referenceCountRequested: 2, referenceCountPassed: 2, durationMs: 1, fallbackUsed: false } as never;
@@ -3969,6 +3960,64 @@ describe('child-anchor-style/v1 opt-in child stage (R1; synthetic providers, no 
       await expect(child()).rejects.toThrow();
       expect(json(path.join(childDir(), 'sealed.json')).status).toBe('failed');
       expect(existsSync(path.join(childDir(), 'reference_child_adoption.json'))).toBe(false);
+    });
+
+    // F1: the grant binds the adoption to the settled requests and answers, never to its own saved recipe and hash echoes.
+    let designs = 0;
+    const ageDefectFirst = (format: string, body: any) => format === 'child_anchor_design_v1' && designs++ === 0
+      ? { ...body, apparentAge: { ...body.apparentAge, verdict: 'defect', correction: 'reads three; make him five' } } : body;
+    const passedChild = async (corrected = false) => {
+      optIn(); await run(); realImages(); designs = 0;
+      sdk.create.mockImplementation(async (payload: any) => solAnswer(payload, corrected ? ageDefectFirst : undefined));
+      expect((await child()).status).toBe('child_reference_passed');
+    };
+    const adoptionFile = () => path.join(childDir(), 'reference_child_adoption.json');
+    const grantFile = () => path.join(experimentDir(config), 'audition.grant.json');
+    const grantOutcome = () => writeNewBookGrant(newBookConfig(file)).then(() => 'admitted', error => (error as Error).message);
+    it('the honest corrected candidate (age defect, one edit) is admitted from its six settled calls', async () => {
+      await passedChild(true);
+      expect(claims(path.join(childDir(), 'paid-stages'))).toEqual(['reference_child', 'reference_child_qa', 'reference_child_repair', 'reference_child_repair_qa',
+        'reference_child_repair_style_qa', 'reference_child_style_qa']);
+      expect(json(adoptionFile()).anchor.recipe).toMatchObject({ step: 'reference_child_repair', referenceMode: 'book_design' });
+      expect(await grantOutcome()).toBe('admitted');
+    });
+    const rehash = (anchor: any) => {
+      const recipeSha = childAnchorRecipeSha(anchor.recipe);
+      return { ...anchor, recipeSha, style: { ...anchor.style, recipeSha }, design: { ...anchor.design, recipeSha } };
+    };
+    it.each([
+      ['first: another requested age, rehashed', false, (a: any) => rehash({ ...a, recipe: { ...a.recipe, requestedAge: a.recipe.requestedAge + 1 },
+        design: { ...a.design, apparentAge: { ...a.design.apparentAge, requestedAge: a.recipe.requestedAge + 1 } } })],
+      ['first: a prompt never requested, rehashed', false, (a: any) => rehash({ ...a, recipe: { ...a.recipe, promptSha256: 'f'.repeat(64) } })],
+      ['corrected: another requested age, rehashed', true, (a: any) => rehash({ ...a, recipe: { ...a.recipe, requestedAge: a.recipe.requestedAge + 1 },
+        design: { ...a.design, apparentAge: { ...a.design.apparentAge, requestedAge: a.recipe.requestedAge + 1 } } })],
+      ['corrected: the rejected image\'s style review', true, (a: any) =>
+        ({ ...a, style: json(path.join(childDir(), 'reference_child_style_review.json')).review })],
+      ['another image\'s style review', false, (a: any) => ({ ...a, style: { ...a.style, candidateSha: 'f'.repeat(64) } })],
+      ['a style review edited to photoreal', false, (a: any) => ({ ...a, style: { ...a.style, looksPhotoreal: true } })],
+      ['an apparent age edited to uncertain', false, (a: any) => ({ ...a, design: { ...a.design, apparentAge: { ...a.design.apparentAge, verdict: 'uncertain' } } })],
+    ] as [string, boolean, (a: any) => unknown][])('an adoption edited to %s is refused before any grant', async (_n, corrected, edit) => {
+      await passedChild(corrected);
+      const saved = json(adoptionFile());
+      writeFileSync(adoptionFile(), JSON.stringify({ ...saved, anchor: edit(saved.anchor) }));
+      expect(await grantOutcome()).toBe('child_anchor_evidence_binding');
+      expect(existsSync(grantFile())).toBe(false);
+    });
+    it.each([
+      ['an unpriced settled review', (paid: string) => {
+        const result = path.join(paid, 'reference_child_qa.result.json');
+        writeFileSync(result, JSON.stringify({ ...json(result), estimatedMicroUsd: null }));
+      }, /^child_anchor_evidence_missing$/],
+      ['a review with no result (unknown outcome)', (paid: string) => rmSync(path.join(paid, 'reference_child_style_qa.result.json')), /^child_anchor_evidence_missing$/],
+      ['an answer that is not the adopted one', (paid: string) => {
+        const receipt = path.join(paid, 'reference_child_style_qa.receipt.json'), saved = json(receipt);
+        writeFileSync(receipt, JSON.stringify({ ...saved, raw: { ...saved.raw, output_text: JSON.stringify({ ...JSON.parse(saved.raw.output_text), notes: 'other' }) } }));
+      }, /^child_anchor_evidence_binding$/],
+    ] as [string, (paid: string) => void, RegExp][])('%s holds the grant', async (_n, edit, code) => {
+      await passedChild();
+      edit(path.join(childDir(), 'paid-stages'));
+      expect(await grantOutcome()).toMatch(code);
+      expect(existsSync(grantFile())).toBe(false);
     });
   });
 });
