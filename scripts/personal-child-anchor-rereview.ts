@@ -165,6 +165,8 @@ export async function planRereview(config: RereviewConfig, env: RereviewEnv) {
     if (!existsSync(path.join(root, REREVIEW_AMENDMENT.claimName(round))) || !existsSync(path.join(root, REREVIEW_AMENDMENT.outcomeName(round)))) fail('rereview_round_missing');
     return { round, ...earlierRound(config, round) };
   });
+  // The accepted earlier lineage this plan stands on, captured now (before any await) as part of the admission baseline.
+  const lineage = lineageOf(config, root);
   // A later round follows only a held earlier one (a passed amendment needs no more reviews).
   if (earlier.length) {
     const prior = await settledRereviewOutcome(config, { authority: a, rounds: config.round - 1 });
@@ -193,18 +195,52 @@ export async function planRereview(config: RereviewConfig, env: RereviewEnv) {
   const pins = Object.fromEntries(REREVIEW_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
   const grantDraft = { version: 'child-anchor-rereview-grant/v1', amendment: REREVIEW_AMENDMENT.id, approval: REREVIEW_AMENDMENT.approval, round: config.round,
     engine: { head: engine.head, branch: engine.branch }, pins, configSha256: previewSha(canonicalJson(config)), planSha256: previewSha(canonicalJson(plan)) };
-  return { plan, grantDraft, authority: a, wires, steps };
+  return { plan, grantDraft, authority: a, wires, steps, lineage };
 }
 
-/** The grant must be exactly the draft this state rebuilds (and the externally pinned bytes); the source clean at its head. */
+/** The original claim and outcome, and every earlier round's claim, outcome and folder, by digest. */
+function lineageOf(config: RereviewConfig, root: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const names: string[] = [REREVIEW_AMENDMENT.originalClaimName, REREVIEW_AMENDMENT.originalOutcomeName];
+  for (let round = 1; round < config.round; round++) names.push(REREVIEW_AMENDMENT.claimName(round), REREVIEW_AMENDMENT.outcomeName(round));
+  for (const name of names) out[`authority/${name}`] = previewSha(fileBytes(path.join(root, name)));
+  for (let round = 1; round < config.round; round++)
+    for (const [rel, digest] of Object.entries(folderBaseline(rereviewOutput(config, round)))) out[`round${round}/${rel}`] = digest;
+  return out;
+}
+
+/** What admission adopted, captured once and never re-adopted: a later HEAD, grant, source or lineage is a change, not a new baseline. */
+type AdmissionBaseline = { grantFile: string; grantBytes: Buffer; grantSha: string; engine: { head: string; branch: string }; pins: Record<string, string>;
+  configSha256: string; original: Record<string, string>; lineage: Record<string, string> };
+function assertAdmissionBaseline(config: RereviewConfig, env: RereviewEnv, b: AdmissionBaseline) {
+  const bytes = fileBytes(b.grantFile);
+  if (!bytes.equals(b.grantBytes) || previewSha(bytes) !== b.grantSha || previewSha(canonicalJson(config)) !== b.configSha256) fail('rereview_grant');
+  const engine = env.head();
+  if (!engine.clean || engine.head !== b.engine.head || engine.branch !== b.engine.branch) fail('rereview_source_changed');
+  for (const [rel, digest] of Object.entries(b.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('rereview_source_changed');
+  if (previewSha(fileBytes(config.diagnosticConfig)) !== config.diagnosticConfigSha256 ||
+      canonicalJson(folderBaseline(config.diagnosticOutput)) !== canonicalJson(b.original)) fail('rereview_original_changed');
+  if (canonicalJson(lineageOf(config, env.authorityRoot)) !== canonicalJson(b.lineage)) fail('rereview_lineage_changed');
+}
+
+/**
+ * The grant must be exactly the draft this state rebuilds (and the externally pinned bytes); admission's own final read must be clean at
+ * the draft's head and branch, with the complete pinned source, original and lineage unchanged. Returns the synchronous check of THAT
+ * captured baseline, for the caller to run with no await before its exclusive write.
+ */
 async function admitted(config: RereviewConfig, env: RereviewEnv, grantFile: string, grantSha: string) {
   const bytes = fileBytes(grantFile);
   if (previewSha(bytes) !== grantSha) fail('rereview_grant_sha');
-  const planned = await planRereview(config, env), engine = env.head();
-  if (!engine.clean || canonicalJson(JSON.parse(bytes.toString('utf8'))) !== canonicalJson(planned.grantDraft)) fail('rereview_grant');
+  const planned = await planRereview(config, env), engine = env.head(), draft = planned.grantDraft;
+  if (canonicalJson(JSON.parse(bytes.toString('utf8'))) !== canonicalJson(draft)) fail('rereview_grant');
+  if (!engine.clean || engine.head !== draft.engine.head || engine.branch !== draft.engine.branch) fail('rereview_source_changed');
   // The meter itself refuses any call whose reservation does not fit beside the actual settled costs; this only refuses a plan that cannot.
   if (planned.plan.admissionAtAssumedActuals.some(r => !r.fits)) fail('rereview_budget');
-  return planned;
+  const baseline: AdmissionBaseline = { grantFile, grantBytes: bytes, grantSha, engine: { head: draft.engine.head, branch: draft.engine.branch },
+    pins: draft.pins, configSha256: draft.configSha256, original: planned.authority.baseline, lineage: planned.lineage };
+  const stillSame = () => assertAdmissionBaseline(config, env, baseline);
+  stillSame();
+  return { planned, stillSame };
 }
 function claimRound(env: RereviewEnv, round: number, grantSha: string) {
   const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('rereview_authority_root');
@@ -229,24 +265,21 @@ type Adapters = { writeImage: (name: string, bytes: Buffer) => Promise<AuditionI
 export async function runRereview(args: { config: RereviewConfig; env: RereviewEnv; grantFile: string; grantSha: string; signal: AbortSignal;
   log: (line: string) => void; adapters?: (directory: string, meter: AuditionMeter, guard: () => void) => Adapters }) {
   const { config, env } = args;
-  const planned = await admitted(config, env, args.grantFile, args.grantSha), a = planned.authority, out = planned.plan.output;
-  realDirectory(config.outputParent);
-  claimRound(env, config.round, args.grantSha);
+  const { planned, stillSame } = await admitted(config, env, args.grantFile, args.grantSha), a = planned.authority, out = planned.plan.output;
   const outcomeFile = path.join(env.authorityRoot, REREVIEW_AMENDMENT.outcomeName(config.round));
+  // No await from here to the exclusive claim: the captured admission baseline is re-verified synchronously, then the round is claimed.
+  realDirectory(config.outputParent);
+  if (existsSync(out) || existsSync(outcomeFile)) fail('rereview_round_used');
+  stillSame();
+  claimRound(env, config.round, args.grantSha);
   let result: Record<string, unknown>;
   try {
     mkdirSync(out); mkdirSync(path.join(out, 'illustrations'));
     const meter = new AuditionMeter(path.join(out, 'paid-stages'), REREVIEW_AMENDMENT.cumulativeCapMicroUsd, planned.steps.length,
       planned.plan.priorSettledMicroUsd, 0, rulesOf(REVIEW_RULES));
-    const grantBytes = readFileSync(args.grantFile);
-    // Synchronous, before every claim: same grant bytes, same draft inputs (pins, head, clean), original folder unchanged, claim ours.
+    // Synchronous, before every claim: the same admitted baseline (grant bytes, head/branch/clean, pins, original, lineage), claim ours.
     const guard = () => {
-      if (previewSha(fileBytes(args.grantFile)) !== args.grantSha || !grantBytes.equals(fileBytes(args.grantFile))) fail('rereview_grant');
-      const engine = env.head(), grant = JSON.parse(grantBytes.toString('utf8'));
-      if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('rereview_source_changed');
-      for (const [rel, digest] of Object.entries(grant.pins as Record<string, string>)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('rereview_source_changed');
-      if (previewSha(fileBytes(config.diagnosticConfig)) !== config.diagnosticConfigSha256 ||
-          canonicalJson(folderBaseline(config.diagnosticOutput)) !== canonicalJson(a.baseline)) fail('rereview_original_changed');
+      stillSame();
       claimIsOurs(env, config.round, args.grantSha);
       if (meter.priorKnownApiMicroUsd !== planned.plan.priorSettledMicroUsd || meter.maxCalls !== planned.steps.length) fail('rereview_meter');
     };

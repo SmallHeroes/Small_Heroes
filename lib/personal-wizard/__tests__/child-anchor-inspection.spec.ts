@@ -219,4 +219,34 @@ describe.skipIf(!real)('amendment re-review runner (real saved lineage, fake jud
     await expect(runRereview({ config: s.config, env, grantFile: g.file, grantSha: g.digest, signal: new AbortController().signal, log: () => {},
       adapters: fakeAdapters(honest, () => { moved = true; }) })).rejects.toThrow('rereview_source_changed');
   });
+  // F1 (Codex QA 48c84e6f): a change scheduled by admission's own final head read lands before the writer resumes. The round must be refused
+  // against the CAPTURED admission baseline before the one-use claim, the folder or any paid claim exists; the honest control still completes.
+  it.each(['honest', 'head', 'dirty', 'original', 'grant', 'branch-at-admission'])('admission baseline re-checked before the one-use claim: %s', async scenario => {
+    const s = setup(scenario === 'original'), g = await grantFor(s);
+    let reads = 0, moved = false, judged = 0;
+    const env: RereviewEnv = { ...s.env, head: () => {
+      reads++;
+      const branch = scenario === 'branch-at-admission' && reads === 2 ? 'other' : 'claude/book-render-20261009';
+      const now = { head: moved && scenario === 'head' ? '0'.repeat(40) : 'f'.repeat(40), branch, clean: !(moved && scenario === 'dirty') };
+      if (reads === 2 && scenario !== 'honest' && scenario !== 'branch-at-admission') queueMicrotask(() => {
+        moved = true;
+        if (scenario === 'original') appendFileSync(path.join(s.config.diagnosticOutput, 'probe.html'), '\n');
+        if (scenario === 'grant') appendFileSync(g.file, '\n');
+      });
+      return now;
+    } };
+    const run = runRereview({ config: s.config, env, grantFile: g.file, grantSha: g.digest, signal: new AbortController().signal, log: () => {},
+      adapters: fakeAdapters(honest, () => { judged++; }) });
+    const out = rereviewOutput(s.config), claim = path.join(s.authority, REREVIEW_AMENDMENT.claimName(1));
+    if (scenario === 'honest') {
+      await expect(run).resolves.toMatchObject({ status: 'complete', disposition: 'passed' });
+      expect([existsSync(claim), judged, existsSync(path.join(out, 'paid-stages', 'reference_child_style_qa.claim.json'))]).toEqual([true, 2, true]);
+      return;
+    }
+    const code = { head: 'rereview_source_changed', dirty: 'rereview_source_changed', 'branch-at-admission': 'rereview_source_changed',
+      original: 'rereview_original_changed', grant: 'rereview_grant' }[scenario]!;
+    await expect(run).rejects.toThrow(code);
+    expect({ claimWritten: existsSync(claim), outputCreated: existsSync(out), outcomeWritten: existsSync(path.join(s.authority, REREVIEW_AMENDMENT.outcomeName(1))), judged })
+      .toEqual({ claimWritten: false, outputCreated: false, outcomeWritten: false, judged: 0 });
+  });
 });
