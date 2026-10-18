@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## R1 F1 correction round 1 (21812ea7), for Codex re-gate (2026-10-18)
+
+Codex QA of 36b86bce held R1 on F1 [P2]. The grant checked the saved
+adoption's recipe only against its own hash echoes. An adoption edited to
+age 6 (5 was requested) or to an unrequested prompt sha, then rehashed, was
+admitted.
+
+What changed: the grant now calls `assertChildAnchorSettled` (no write, no
+provider). It works from the admitted request and the stage's settled calls:
+- **Recipes.** It rebuilds each attempt's recipe. For the correction, the
+  prompt comes from the first attempt's settled answers.
+- **Render wire.** It requires the request exactly as the image seam plans
+  it.
+- **Review wires.** Each must be the payload that binds that recipe to the
+  rendered candidate and the authoritative context.
+- **Answers.** Each must be the settled, priced provider output.
+- **Steps and adoption.** The claimed steps must be exactly that path's. The
+  adoption must be exactly the record those answers derive.
+
+The stage shares the pure helpers `childAnchorAttemptRecipe` and
+`childAnchorAdoptionRecord`. Thresholds are unchanged and the flag-absent
+path is untouched. Synthetic adapters journal no paid calls, so a grant
+behind them now holds with `child_anchor_evidence_missing`.
+
+Evidence (no provider calls, no key reads, no book writes):
+- **Codex's harness.** Before (36b86bce): exit 1, with age and prompt
+  admitted. After (21812ea7): exit 0. Honest is admitted; age and prompt are
+  refused with `child_anchor_evidence_binding`.
+- **Focused tests.** Opt-in subset 30/30, which includes:
+  - the honest corrected candidate admitted;
+  - the rehashed age/prompt negatives (first and corrected candidates)
+    refused before any grant;
+  - an old-candidate style review refused;
+  - unpriced, unknown-outcome and non-adopted answers held.
+- **Other checks.** Pure 17/17. The legacy real-adapter grant test passes.
+  tsc exit 0.
+- **Not run.** The full file and `npm run check` were not rerun.
+  `npm run check` stays RED.
+
 ## R1 child-anchor style built offline (01fc7eb8), for Codex QA (2026-10-17)
 
 Guy selected R1 and approved the offline milestone, with Codex's four-point

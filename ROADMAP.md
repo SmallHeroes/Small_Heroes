@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## R1 F1 round 1 (21812ea7): the grant binds the adoption to the settled calls; next: Codex re-gate (2026-10-18)
+
+- The R1 sequence below is unchanged. The USD 8 cycle still waits for an
+  explicit Codex PASS at a frozen HEAD.
+- This is round 1 of at most 2 for F1.
+
 ## R1 child-anchor style (01fc7eb8), offline; next: Codex code QA, then the staged USD 8 cycle (2026-10-17)
 
 - Built offline: the opt-in child-anchor-style/v1 contract
