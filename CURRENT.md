@@ -1,5 +1,52 @@
 # SmallHeroes — Current Technical State
 
+## Owner materiality policy: child-anchor-materiality/v1 (a9f54d46), offline, for Codex QA (2026-10-18)
+
+Nothing paid ran: no provider call, key read, round-2 claim, book claim or book folder.
+
+**Owner policy.** Source: OWNER-AUTONOMOUS-BOOK-MATERIALITY-AMENDMENT-20261018.
+- A small cosmetic deviation of a still-recognizable child is a recorded, nonblocking detail.
+- These still block: material identity drift, a different character, wrong age, bad style, unsafe or broken anatomy, and
+  unreadable, uncertain or malformed evidence.
+- 0.70 is unchanged.
+- The terminal HOLD (round 1: identity `repair` for arched vs straight brows) stays accurate under its strict criterion. The
+  amendment supersedes it for FUTURE acceptance only. Old answers are not rewritten.
+
+**Code (a9f54d46, parent 9a7f34f5).** `child-anchor-materiality/v1` is opt-in and versioned.
+- Each visible mismatch gets typed materiality, plus a recognizable-character verdict. A mismatch stays a mismatch, and accepted
+  deviations are listed.
+- Contradictions refuse.
+- Without the opt-in, inspection/v1 bytes and behavior are unchanged.
+- The policy is carried through the judges, the re-review runner (config `acceptance`), the fresh-book profile/plan (its policy must
+  equal its admission re-review), the inspected child plus its correction, and the reviewed-book loader.
+- The page/sheet audition is unchanged; its existing detail impact is already nonblocking.
+
+**Tests.** These were run by the interrupted author session 06a1ea2a. Its log was recovered, and they were not rerun on unchanged code.
+- inspection 34/34
+- driver 13/13. The first run passed, but the following tsc found an ES2022 `.at` in the driver spec (TS2550, exit 2). After the fix,
+  tsc returned 0 and the driver suite was rerun: 13/13.
+- authority 9 + legacy style 17 (26/26)
+- At docs time: `tsc --incremental false` exit 0.
+- `npm run check` was not run and stays RED. Fake replies prove wiring, not pixels.
+
+**Interruption.** That session hit its 75-minute wall clock (exit 1, timedOut) after the code commit. Its Max total is UNREPORTED
+(not 0, not an API charge). This completion stage added the docs, the new configs and the dry plans only.
+
+**Prepared (unconsumed, beside the old files).** In `_review/new-book-autonomous-closure-20261018/`:
+- `rereview-round2-materiality-config.json`: round 2, `acceptance: child-anchor-materiality/v1`, the SAME candidate `6375db61…`.
+- `fresh-book-profile-materiality.json` and `fresh-book-config-materiality.json`: the same fixed claim, bookDir and ONE book.
+- Caps are USD 8/1/7. Spent: 93708. Book: 0.
+
+**Remaining.**
+1. Codex independent QA of 9a7f34f5..docs HEAD.
+2. Round 2: at most 2 fresh Sol 6.1 reviews of the same pixels, with 600000 reserved each under the cumulative USD 1. At a full
+   reservation the design step does not fit; at assumed actuals it does. The meter enforces the cap.
+3. The ONE USD 7 LOW book, only if the re-derived round-2 outcome passes. Samples first.
+
+The gpt-4o auxiliary numeric resemblance is unchanged, at 0.70.
+
+Handoff: _review/new-book-autonomous-closure-20261018/CLAUDE-HANDOFF-MATERIALITY-OFFLINE-20261018.md.
+
 ## Fresh-book driver built (e3f047cc); F2 round 1 (c9efc0e7), for Codex re-gate (2026-10-18)
 
 Nothing paid ran: no provider call, key read, book or claim write.

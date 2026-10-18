@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Materiality policy (a9f54d46) offline; next: Codex QA, then round 2 (materiality), then the one book (2026-10-18)
+
+- Owner policy: a minor cosmetic deviation of a recognizable child is a nonblocking, recorded detail. Material drift still blocks.
+- The old strict HOLD is superseded for future acceptance only; old evidence is not re-marked.
+- Next steps:
+  1. Codex QA.
+  2. Round 2: at most 2 fresh Sol 6.1 reviews of the SAME candidate under the cumulative USD 1.
+  3. The ONE USD 7 LOW book, samples first, only if the gate passes.
+- Full check stays RED. Scale (S1 O3, S2 closed) is unaffected.
+
 ## Fresh-book driver built (e3f047cc), F2 round 1 (c9efc0e7); next: Codex re-gate, then the round-1 re-review, then the one book (2026-10-18)
 
 - The stage wiring is built (text, child, book). It was held on F2 (admission baseline re-adopted after validation); correction round
