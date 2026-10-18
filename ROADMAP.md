@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Autonomous closure offline (7b481cb6, 0f37d484); next: Codex QA, then the round-1 anchor re-review (2026-10-18)
+
+- A: child-anchor-inspection/v1 and the one-use re-review runner of the SAME candidate. Execution waits for a Codex frozen PASS.
+- B: the fresh-book authority (claim, ledger, admission, sample gate) is built. The stage wiring (text/child/audition) is still
+  open and blocks the USD 7 book.
+- Scale (S1 O3, S2 closed) is unaffected. Style is not scale evidence.
+
 ## R1 F1 round 1 (21812ea7): the grant binds the adoption to the settled calls; next: Codex re-gate (2026-10-18)
 
 - The R1 sequence below is unchanged. The USD 8 cycle still waits for an

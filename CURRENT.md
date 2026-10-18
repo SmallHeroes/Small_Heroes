@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Autonomous closure, offline (7b481cb6 A, 0f37d484 B), for Codex QA (2026-10-18)
+
+Owner amendment OWNER-AUTONOMOUS-BOOK-CLOSURE-AMENDMENT-20261018. Nothing paid ran: no provider call, key read or book write.
+
+**Root cause of the diagnostic HOLD (A).** The design context told the judge to check every written trait. The production anchor prompt
+mandates `STAGE0_ANCHOR_NEUTRAL_EXPRESSION`: lips closed, no smile. So "a missing tooth, visible when she smiles" could not be seen, and
+identity was `uncertain`. This was a contract conflict, not evidence of a wrong identity.
+
+**A, `child-anchor-inspection/v1` (opt-in).**
+- **View.** A structured inspection view, derived from the planned prompt. The production clause is pinned by sha256, so drift
+  refuses. The view is bound into the context digest: seven required visible aspects plus the conditions the view excludes.
+- **Judge.** The judge returns matched, mismatch or unreadable for each required aspect.
+  - A trait visible only under an excluded condition is recorded as unobserved: a verbatim single-phrase quote of the design. It is
+    never matched and never a defect.
+  - Unreadable holds. A visible mismatch must be an identity defect, otherwise the answer is refused as incoherent. Uncertain still
+    holds. Age, style, safety and 0.70 are unchanged.
+- **v1 unchanged.** v1 payload bytes, dispositions, adoptions and replay are unchanged. The render recipe stays v1.
+- **Re-review runner.** `scripts/personal-child-anchor-rereview.ts` re-reviews the same saved candidate (no drawing). It rebuilds the
+  authority from the pinned config, the settled render wire and the candidate bytes, and re-derives the 59910.
+  - Claims are fixed per round: at most 2 rounds, 2 reviews per round, 4 in total. Each review reserves 600000 under the USD 1 cap.
+  - Round 2 sends only changed requests. The grant must equal the rebuilt draft. Guards run before every paid call.
+  - The outcome is derived from settled records only.
+
+**B, `scripts/personal-fresh-book-authority.ts`.** A fixed owner-cycle claim, a strict fictional profile with fixed routes, a
+synchronous per-claim guard, the cumulative cycle ledger (USD 8/1/7), admission from the settled amendment, the sample gate, and the
+cover-then-1..8 order. NEW_BOOK_EXPERIMENT and the old slot are untouched.
+
+**Remaining blocker.** The text/child/audition stages are not yet wired to this authority. The fresh book cannot execute until that
+wiring is built and passes QA.
+
+Evidence:
+- tsc exit 0.
+- child-anchor-inspection.spec 17/17. This includes the runner against the real consumed diagnostic, read-only, with fake judges.
+- fresh-book-authority.spec 9/9.
+- The legacy child-anchor-style.spec 17/17.
+- **Not run.** The new-book-experiment full file and `npm run check` were not run. `npm run check` stays RED.
+
+Handoff: _review/new-book-autonomous-closure-20261018/CLAUDE-HANDOFF-AUTONOMOUS-CLOSURE-OFFLINE-20261018.md.
+
 ## R1 F1 correction round 1 (21812ea7), for Codex re-gate (2026-10-18)
 
 Codex QA of 36b86bce held R1 on F1 [P2]. The grant checked the saved
