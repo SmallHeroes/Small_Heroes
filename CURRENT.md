@@ -1,5 +1,50 @@
 # SmallHeroes — Current Technical State
 
+## Fresh-book driver built (e3f047cc); F2 round 1 (c9efc0e7), for Codex re-gate (2026-10-18)
+
+Nothing paid ran: no provider call, key read, book or claim write.
+
+**Built.** `scripts/personal-fresh-book-driver.ts` wires the three stages to the fresh-book authority (this replaces the earlier
+"stage wiring missing" blocker):
+- text: Opus 5.5 author/editor/planner and Sol 6.1 readers/review;
+- child: the anchor inspected under `child-anchor-inspection/v1`;
+- book: samples first, then the rest and the cover.
+F1 (e0f5abd4) is closed: Codex's five original cases pass 5/5.
+
+**F2 [P2] (Codex HOLD of e3f047cc).** `admitStage` pinned its roots AFTER the plan and the awaited admission. So a re-review record
+changed after the acceptance read became the new baseline. Codex withdrew the style PASS at admission's final head read: text
+completed, the one book claim was written and six simulated paid/model callbacks ran.
+
+**Fix.**
+- The baseline is pinned before any reader, including the plan's probe, and held across every await.
+- The baseline covers the configuration, the profile, the re-review config, and now the diagnostic config bytes. It also covers the
+  original and round claim/outcome records and folders, this book's claim/outcome/audition start, and every earlier stage entry.
+- The book stage's second `admitStage` (a broad re-baseline after its own writes) is gone. Exactly the audition grant and start may
+  appear; any other change refuses.
+
+**Evidence.**
+- Reproduced on the held code: three of the four new text negatives completed. The fourth (profile) was already refused.
+- After the fix, all of these refuse with no claim, output or call:
+  - the text negatives: style withdrawn, round outcome record, original claim record, profile;
+  - a text-folder change at the child boundary;
+  - a child-folder change at the book boundary.
+- New controls:
+  - the one child correction: fresh style + design + age under the same context, and the settled validator refuses the rejected
+    candidate and an old-style/new-design pairing;
+  - interrupted audition resume: known costs, same grant/start, cumulative ledger; an orphan refuses and nothing resets.
+- Results:
+  - Codex's exact case refuses (`fresh_book_roots_changed`, 0 calls). This was a scratch copy with only the output paths moved.
+  - F1 is 5/5.
+  - Serial suites: inspection 23, authority 9, driver 12, legacy style 17 (61/61).
+  - tsc 0.
+  - `npm run check` was not run and stays RED. Fake replies prove routing, not pixels.
+
+**Limits.**
+- `profile.request` is the writing input. `parentInputs.about/wish` are metadata and are not passed to `runSimpleWizardBook`.
+- S1 O3/S2 stay closed. The failed scale lineup is not enabled.
+
+Handoff: _review/new-book-autonomous-closure-20261018/CLAUDE-HANDOFF-DRIVER-LINEAGE-ROUND1-20261018.md.
+
 ## Autonomous closure, offline (7b481cb6 A, 0f37d484 B), for Codex QA (2026-10-18)
 
 Owner amendment OWNER-AUTONOMOUS-BOOK-CLOSURE-AMENDMENT-20261018. Nothing paid ran: no provider call, key read or book write.

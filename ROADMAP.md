@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Fresh-book driver built (e3f047cc), F2 round 1 (c9efc0e7); next: Codex re-gate, then the round-1 re-review, then the one book (2026-10-18)
+
+- The stage wiring is built (text, child, book). It was held on F2 (admission baseline re-adopted after validation); correction round
+  1 of max 2 is done.
+- After a frozen PASS: the round-1 re-review of the same candidate, then the USD 7 book only if its gates pass. Grants are pinned to
+  the final docs HEAD.
+- Full check stays RED. Scale (S1 O3, S2 closed) is unaffected.
+
 ## Autonomous closure offline (7b481cb6, 0f37d484); next: Codex QA, then the round-1 anchor re-review (2026-10-18)
 
 - A: child-anchor-inspection/v1 and the one-use re-review runner of the SAME candidate. Execution waits for a Codex frozen PASS.
