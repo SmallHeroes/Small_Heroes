@@ -1,5 +1,23 @@
 # SmallHeroes — Roadmap
 
+## F4 same-book text recovery built offline (88ec8742); next: Codex re-gate, then ONE recovery run (2026-10-18)
+
+- The actual text attempt failed `critic_evidence`: 3 of 12 comparison anchors had prefix-letter errors. API: book 36450,
+  cycle 165380 microUSD. All of its records are immutable.
+- Guy approved ONE bound same-book recovery under the unchanged USD 7 / USD 8 caps. Built: the correction protocol v1,
+  the fixed one-use recovery authority/grant, the replay driver and `--recovery` downstream.
+- Tests:
+  - recovery 7/7, tsc 0;
+  - driver + citation 64/65. The one RED is a stale pre-run real-state assertion.
+  - The full check stays known RED.
+- Next, in order and conditional:
+  1. Codex independent re-gate.
+  2. `recover --execute`, at most 1 correction call.
+  3. `child --recovery`.
+  4. `book --recovery`: samples first.
+
+  Guy gives the final product acceptance. The book is not done.
+
 ## F3 round 1 (e3a35350): native executable pin fixed offline; next: Codex re-gate, then the ONE book's text attempt (2026-10-18)
 
 - Round 2 (materiality) is consumed and independently PASSED 27/27. The first text command refused before claim (`fresh_book_file`).

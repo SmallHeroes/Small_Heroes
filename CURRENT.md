@@ -1,5 +1,59 @@
 # SmallHeroes — Current Technical State
 
+## F4 same-book text recovery (88ec8742), offline, for Codex re-gate; the book is NOT done (2026-10-18)
+
+**Actual failure (unchanged, immutable).** The ONE fresh book's paid text run at 96dedda4 completed the Opus 5.5 Max author
+and editor and the Sol 6.1 final_review (0 findings) and comparison, then failed native `critic_evidence`: 3 of the
+comparison's 12 references had anchors with an added or dropped attached Hebrew prefix letter. The v1 validator was right.
+`text/sealed.json` is failed, and the fixed outcome is `failed_text`. API: book 36450 (final_review 14464 + comparison
+21986, 2 of the 3 planned text calls), diagnostic 128930 (all 8 calls), cycle 165380 microUSD. Max: author+editor
+426658 resource microUSD, reported separately.
+
+**New owner authority.** OWNER-AUTONOMOUS-BOOK-TEXT-RECOVERY-AMENDMENT-20261018 (Guy: "כן מאשר"). It allows one bound
+recovery of the SAME book. At most ONE extra Sol citation-correction call (600000 reserve), then the still-required
+storyboard and its review. The USD 7 book / USD 8 cycle caps are unchanged and cumulative.
+
+**Built (88ec8742, base 96dedda4).**
+- `story-source-citations.ts`: additive `story-source-citations-correction/v1`.
+  - The wire lists exactly the refused reference paths, the returned ids/anchor, the finding's criterion/explanation
+    (read-only) and that page/version's units. It never lists an expected anchor.
+  - The answer may only re-supply startId/endId/anchor of those paths, on the same page and version.
+  - The strict v1 compile of the whole corrected copy decides. The failed answer is never modified.
+- `simple-book-flow.ts`: opt-in `correctReading` hook. It is called only on `critic_evidence`. Absent, nothing changes.
+- `personal-fresh-book-authority.ts`: `FRESH_BOOK_RECOVERY`.
+  - Fixed claim/outcome/audition-start names and the `text-recovery` folder.
+  - A recovery grant that binds the original grant (by sha and its own head), claim, outcome, text seal, text evidence
+    digest, request/admission, the original ledger and the reviewed head/pins.
+  - One-use claim; the recovery paid guard.
+- `personal-fresh-book-driver.ts`:
+  - `recovery-plan` (dry). `recover` replays author/editor/final_review/comparison byte-exactly from saved wires, with no
+    callback; then ONE correction, then the native planner + review through the shared `storyboardVisual` call site.
+  - `child|book --recovery`: the same grant, its own outcome, layout `storyboardDir: text-recovery`, and the audition
+    experiment bound to the recovery claim.
+  - The ledger adds the recovery folder after the failed text. The original line still refuses failed text.
+
+**Tests (serial, provider-free; fake replies prove wiring only).**
+- `fresh-book-recovery.spec` 7/7 exit 0:
+  - protocol positive/negative;
+  - positive replay → correction → planner/review → child → complete book;
+  - invalid or overreaching correction holds after its 1 call;
+  - 8 immutable-input tampers refuse before any call;
+  - tamper after the correction's await halts;
+  - an orphan halts the child;
+  - the real saved book's dry plan is read-only.
+- `fresh-book-driver.spec` + `story-source-citations.spec`: 64/65, exit 1. The one RED (`fresh-book-driver.spec.ts:152`)
+  asserts that the real claim and book folder do not exist yet. They exist since the actual text run, so the assertion is
+  stale state, not this change. It is left as is.
+- `npx tsc --noEmit --incremental false` exit 0. The full check stays known RED and was not rerun.
+
+**Remaining conditional paid sequence (not executed).**
+1. Codex re-gate.
+2. `recover` (1 correction call + Opus planner + Sol review).
+3. `child --recovery`.
+4. `book --recovery`: two samples first, then the remaining pages and cover only if the gates pass.
+
+There is no book, viewer or product PASS.
+
 ## F3 round 1: native executable pin (e3a35350), offline, for Codex re-gate (2026-10-18)
 
 Nothing paid ran in this stage: no provider call, key read, claim, book folder or authority write.
