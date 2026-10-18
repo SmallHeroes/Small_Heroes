@@ -11,6 +11,10 @@
  * Dry by default (plan + grant draft; no key, no provider, no write):
  *   npx tsx --require ./scripts/shims/register-server-only.cjs scripts/personal-fresh-book-driver.ts --config <abs json> plan
  *   ... --config <abs json> <text|child|book> --execute --grant <abs grant.json> --grant-sha <sha256> [--resume]   (only after Codex PASS)
+ * The ONE same-book text recovery line (owner amendment 2026-10-18), after this book's failed_text record:
+ *   ... --config <abs json> recovery-plan --original-grant <abs consumed grant.json>          (dry: plan + recovery grant draft)
+ *   ... --config <abs json> recover --execute --grant <abs recovery grant> --grant-sha <sha256>
+ *   ... --config <abs json> <child|book> --recovery --execute --grant <abs recovery grant> --grant-sha <sha256> [--resume]
  */
 import path from 'node:path';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, writeFileSync } from 'node:fs';
@@ -47,7 +51,9 @@ import { exclusiveJson, exclusiveText, realDirectory } from './personal-causal-t
 import { REREVIEW_AMENDMENT, rereviewConfig, rereviewOutput, folderBaseline, type RereviewConfig } from './personal-child-anchor-rereview';
 import { FRESH_BOOK_CYCLE, FreshBookError, freshBookProfileSchema, freshBookProfileSha, freshBookGrantSchema, assertFreshBookAdmission, freshBookDiagnosticSpend,
   freshBookCycleLedger, claimFreshBook, assertFreshBookPaid, freshBookReadingOrder, type FreshBookEnv, type FreshBookProfile, type FreshBookGrant, type FreshBookStage,
-  type PageGate } from './personal-fresh-book-authority';
+  type PageGate, FRESH_BOOK_RECOVERY, freshBookRecoveryGrantSchema, claimFreshBookRecovery, assertFreshBookRecoveryPaid, type FreshBookRecoveryGrant } from './personal-fresh-book-authority';
+import { prepareSourceCitationCorrection, applySourceCitationCorrection } from '../lib/personal-wizard/story-source-citations';
+import type { CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
 
 export const FRESH_BOOK_DRIVER_VERSION = 'fresh-book-driver/v1' as const;
 const fail = (code: string): never => { throw new FreshBookError(code); };
@@ -84,9 +90,19 @@ const TEXT_API_CALLS = 3, CHILD_API_CALLS = 6;
 const pick = (rules: Record<string, unknown>, steps: string[]): MeterRules => step => steps.includes(step) ? rules[step] as ReturnType<MeterRules> : undefined;
 const TEXT_RULES = pick(stageRules.text, ['comparison', 'final_review', 'storyboard_review']);
 const CHILD_RULES = pick(stageRules.childAnchor, Object.keys(stageRules.childAnchor));
-/** The book's stages in ledger order (each folder re-derived under its own rules). */
-const bookStages = (bookDir: string): FreshBookStage[] => [
+/**
+ * The recovery's API meter: the one citation correction (a Sol reader request of its own stage, settled like the readers, claimed at the
+ * normal 600000 reservation when its request derives no more) and the still-required storyboard review under its own rule.
+ */
+const correctionRule: ReturnType<MeterRules> = { settle: TEXT_RULES('comparison')!.settle, reserve: wire => {
+  const derived = wire?.stage === 'citation_correction' ? TEXT_RULES('comparison')!.reserve(wire) : null;
+  return derived !== null && derived <= FRESH_BOOK_RECOVERY.correctionReserveMicroUsd ? FRESH_BOOK_RECOVERY.correctionReserveMicroUsd : null;
+} };
+const RECOVERY_RULES: MeterRules = step => step === 'citation_correction' ? correctionRule : step === 'storyboard_review' ? TEXT_RULES(step) : undefined;
+/** The book's stages in ledger order (each folder re-derived under its own rules); the recovery line adds its own folder after the failed text. */
+const bookStages = (bookDir: string, recovery = false): FreshBookStage[] => [
   { name: 'text', dir: path.join(bookDir, 'text'), rules: TEXT_RULES, maxCalls: TEXT_API_CALLS },
+  ...(recovery ? [{ name: FRESH_BOOK_RECOVERY.folder, dir: path.join(bookDir, FRESH_BOOK_RECOVERY.folder), rules: RECOVERY_RULES, maxCalls: FRESH_BOOK_RECOVERY.apiCalls }] : []),
   { name: 'child', dir: path.join(bookDir, 'child'), rules: CHILD_RULES, maxCalls: CHILD_API_CALLS },
   { name: 'audition', dir: path.join(bookDir, 'audition'), rules: auditionMeterRules, maxCalls: AUDITION_WORST_CASE_CALLS }];
 
@@ -99,6 +115,9 @@ export const FRESH_BOOK_PINNED = Object.freeze(['scripts/personal-fresh-book-dri
   'lib/personal-wizard/simple-book-reviewed-audition.ts', 'lib/personal-wizard/storyboard.ts', 'lib/personal-wizard/simple-story-engine.ts',
   'lib/personal-wizard/simple-book-budget.ts', 'lib/generation-pipeline/stage0-method-b.ts', 'lib/local-preview-quality.ts', 'lib/generate-image.ts',
   'scripts/shims/register-server-only.cjs']);
+/** Recovery-line grants also pin the correction protocol and its compiler. */
+export const FRESH_BOOK_RECOVERY_PINNED = Object.freeze([...FRESH_BOOK_PINNED, 'lib/personal-wizard/story-source-citations.ts',
+  'lib/personal-wizard/story-causal-experiment.ts']);
 
 export const realFreshBookEnv = (): FreshBookEnv => {
   const git = (...a: string[]) => execFileSync('git', ['-C', workspace(), ...a], { encoding: 'utf8' }).trim();
@@ -121,8 +140,8 @@ function loadRereview(config: FreshBookConfig): RereviewConfig {
   if (previewSha(fileBytes(config.rereviewConfig)) !== config.rereviewConfigSha256) fail('fresh_book_rereview_config');
   return rereviewConfig(config.rereviewConfig);
 }
-const layoutFor = (profile: FreshBookProfile, childImage = 'reference_child.png'): ReviewedBookLayout => reviewedBookLayoutSchema.parse({
-  version: 'reviewed-book-layout/v1', seed: profile.seed, childDesign: profile.child.design, storyboardDir: 'text', childDir: 'child', childImage,
+const layoutFor = (profile: FreshBookProfile, childImage = 'reference_child.png', storyboardDir = 'text'): ReviewedBookLayout => reviewedBookLayoutSchema.parse({
+  version: 'reviewed-book-layout/v1', seed: profile.seed, childDesign: profile.child.design, storyboardDir, childDir: 'child', childImage,
   savedCompanion: null, childAnchor: profile.childAnchor });
 /** The book's child acceptance and its admission re-review must be the same contract (a materiality book is admitted by materiality evidence). */
 const policyOf = (profile: FreshBookProfile, rereview: RereviewConfig) => {
@@ -165,7 +184,8 @@ function rootsOf(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewC
     rereviewConfig: previewSha(fileBytes(config.rereviewConfig)), diagnosticConfig: previewSha(fileBytes(rereview.diagnosticConfig)) };
   const names: string[] = [REREVIEW_AMENDMENT.originalClaimName, REREVIEW_AMENDMENT.originalOutcomeName];
   for (let round = 1; round <= REREVIEW_AMENDMENT.maxRounds; round++) names.push(REREVIEW_AMENDMENT.claimName(round), REREVIEW_AMENDMENT.outcomeName(round));
-  for (const name of [...names, FRESH_BOOK_CYCLE.claimName, FRESH_BOOK_CYCLE.outcomeName, path.basename(auditionStartFile(env))]) {
+  for (const name of [...names, FRESH_BOOK_CYCLE.claimName, FRESH_BOOK_CYCLE.outcomeName, path.basename(auditionStartFile(env)),
+    FRESH_BOOK_RECOVERY.claimName, FRESH_BOOK_RECOVERY.outcomeName, FRESH_BOOK_RECOVERY.auditionStartName]) {
     const file = path.join(env.authorityRoot, name); out[`authority/${name}`] = existsSync(file) ? previewSha(fileBytes(file)) : 'absent';
   }
   for (const [rel, d] of Object.entries(folderBaseline(rereview.diagnosticOutput))) out[`diagnostic/${rel}`] = d;
@@ -219,13 +239,119 @@ async function admitStage(a: { config: FreshBookConfig; env: FreshBookEnv; grant
   same();
   return { planned, outcome, same, guard, recapture };
 }
-/** The cumulative ledger: the diagnostic subcap's settled spend and every book stage, each from its own records. Unknown halts. */
-export function freshBookLedger(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig) {
-  return freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir) });
+
+/**
+ * The consumed original authority and failed evidence the recovery stands on, re-read exactly: the original grant is the one its claim
+ * names (its own head and book), the fixed outcome and the text seal are this failure (failed_text / critic_evidence), and the original
+ * text ledger is re-derived from its own records. Anything else (another failure, a foreign claim or grant) refuses.
+ */
+function recoveryOriginal(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile, originalGrantFile: string) {
+  if (!path.isAbsolute(originalGrantFile)) fail('fresh_book_recovery_original');
+  const at = (name: string) => path.join(env.authorityRoot, name), textDir = path.join(config.bookDir, 'text');
+  const files = { grant: originalGrantFile, claim: at(FRESH_BOOK_CYCLE.claimName), outcome: at(FRESH_BOOK_CYCLE.outcomeName), seal: path.join(textDir, 'sealed.json'),
+    request: path.join(config.bookDir, 'request.json'), admission: path.join(config.bookDir, 'admission.json') };
+  if (Object.values(files).some(f => !existsSync(f))) fail('fresh_book_recovery_original');
+  const digest = Object.fromEntries(Object.entries(files).map(([k, f]) => [k, previewSha(fileBytes(f))])) as Record<keyof typeof files, string>;
+  const grant = freshBookGrantSchema.parse(json(files.grant)), claim = json(files.claim), outcome = json(files.outcome), seal = json(files.seal);
+  const sameDir = (p: unknown) => typeof p === 'string' && path.resolve(p).toLowerCase() === path.resolve(config.bookDir).toLowerCase();
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.grantSha256 !== digest.grant || !sameDir(claim.bookDir) || !sameDir(grant.bookDir) ||
+      claim.profileSha256 !== grant.profileSha256 || grant.profileSha256 !== freshBookProfileSha(profile) || claim.engineHead !== grant.engine.head) fail('fresh_book_recovery_original');
+  if (outcome.cycle !== FRESH_BOOK_CYCLE.id || outcome.status !== FRESH_BOOK_RECOVERY.failedOutcome || outcome.code !== FRESH_BOOK_RECOVERY.failedCode ||
+      canonicalJson(seal) !== canonicalJson({ status: 'failed', code: FRESH_BOOK_RECOVERY.failedCode, runtimeEligible: false })) fail('fresh_book_recovery_original');
+  const text = freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir).slice(0, 1) });
+  return { original: { grantFile: path.resolve(originalGrantFile), grantSha256: digest.grant, engineHead: grant.engine.head, claimSha256: digest.claim,
+    outcomeSha256: digest.outcome, textSealSha256: digest.seal, textEvidenceSha256: previewSha(canonicalJson(folderBaseline(textDir))),
+    requestSha256: digest.request, admissionSha256: digest.admission },
+  ledger: { diagnosticSettledMicroUsd: text.diagnosticSettledMicroUsd, originalTextKnownMicroUsd: text.bookKnownMicroUsd, originalTextCalls: text.stages[0].calls } };
 }
-/** The book's terminal record beside its claim (once): the one book is over; nothing reopens it. */
-function finish(env: FreshBookEnv, status: string, extra: Record<string, unknown>) {
-  exclusiveJson(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName), { cycle: FRESH_BOOK_CYCLE.id, status, ...extra, finishedAt: new Date().toISOString() });
+
+/** Provider-free plan and the recovery grant this exact state needs (no key, no provider, no write). */
+export function planFreshBookRecovery(config: FreshBookConfig, env: FreshBookEnv, originalGrantFile: string) {
+  const base = planFreshBook(config, env), { original, ledger } = recoveryOriginal(config, env, base.rereview, base.profile, originalGrantFile);
+  const plan = { version: FRESH_BOOK_RECOVERY.version, cycle: FRESH_BOOK_CYCLE.id, amendment: FRESH_BOOK_RECOVERY.amendment, basePlanSha256: base.grantDraft.nativePlanSha256,
+    bookDir: path.resolve(config.bookDir), folder: FRESH_BOOK_RECOVERY.folder, storyboardDir: FRESH_BOOK_RECOVERY.folder,
+    replay: { stages: ['author', 'editor', 'final_review', 'comparison'], from: 'text (saved wires/receipts, byte-exact; no provider callback)' },
+    correction: { stage: 'citation_correction', protocol: 'story-source-citations-correction/v1', maxCalls: FRESH_BOOK_RECOVERY.correctionCalls,
+      reserveMicroUsd: FRESH_BOOK_RECOVERY.correctionReserveMicroUsd, model: SOL },
+    then: ['storyboard (Opus 5.5 Claude Max planner)', 'storyboard_review (Sol 6.1)'], downstream: ['child --recovery', 'book --recovery [--resume]'],
+    caps: { ...base.plan.caps, recoveryApiCalls: FRESH_BOOK_RECOVERY.apiCalls }, claim: path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName),
+    outcome: path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName), providerCalls: 0, keyRead: false };
+  const engine = env.head();
+  const pins = Object.fromEntries(FRESH_BOOK_RECOVERY_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
+  const grantDraft: FreshBookRecoveryGrant = freshBookRecoveryGrantSchema.parse({ version: 'fresh-book-recovery-grant/v1', cycle: FRESH_BOOK_CYCLE.id,
+    approval: FRESH_BOOK_CYCLE.approval, amendment: FRESH_BOOK_RECOVERY.amendment, profileSha256: base.plan.profileSha256, bookDir: path.resolve(config.bookDir),
+    original, ledger, allowance: { correctionCalls: FRESH_BOOK_RECOVERY.correctionCalls, correctionReserveMicroUsd: FRESH_BOOK_RECOVERY.correctionReserveMicroUsd,
+      apiCalls: FRESH_BOOK_RECOVERY.apiCalls }, engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
+  const probe = (f: () => unknown) => { try { return f(); } catch (e) { return { refused: e && typeof e === 'object' && 'code' in e ? e.code : String(e) }; } };
+  const state = { recoveryClaimExists: existsSync(plan.claim), recoveryOutcomeExists: existsSync(plan.outcome),
+    recoveryFolderExists: existsSync(path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder)), ledger: probe(() => freshBookLedger(config, env, base.rereview, true)),
+    executablePinned: probe(() => assertFreshBookExecutable(config)), engine };
+  return { plan, grantDraft, state, profile: base.profile, prepared: base.prepared, rereview: base.rereview };
+}
+
+/**
+ * A recovery-line stage's admission, as admitStage: the baseline (recovery grant bytes, the original grant's bytes, configuration, profile,
+ * lineage, both lines' authority records, earlier stage entries including the failed text) pinned FIRST and held across every await; the
+ * grant is exactly the draft this state rebuilds, at the clean reviewed head. Its guard adds the recovery claim and the original claim.
+ */
+async function admitRecovery(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal; earlier: string[] }) {
+  const bytes = fileBytes(a.grantFile);
+  if (previewSha(bytes) !== a.grantSha) fail('fresh_book_recovery_grant');
+  const parsed = freshBookRecoveryGrantSchema.safeParse(JSON.parse(bytes.toString('utf8')));
+  if (!parsed.success) return fail('fresh_book_recovery_grant');
+  const originalBytes = fileBytes(parsed.data.original.grantFile), rereview = loadRereview(a.config);
+  let roots = rootsOf(a.config, a.env, rereview, a.earlier);
+  const planned = planFreshBookRecovery(a.config, a.env, parsed.data.original.grantFile);
+  const outcome = await assertFreshBookAdmission(planned.rereview, a.env);
+  const engine = a.env.head();
+  if (canonicalJson(parsed.data) !== canonicalJson(planned.grantDraft)) fail('fresh_book_recovery_grant');
+  if (!engine.clean || engine.head !== planned.grantDraft.engine.head || engine.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
+  const same = () => {
+    if (a.signal.aborted) fail('fresh_book_cancelled');
+    if (!fileBytes(a.grantFile).equals(bytes)) fail('fresh_book_recovery_grant');
+    if (!fileBytes(planned.grantDraft.original.grantFile).equals(originalBytes)) fail('fresh_book_recovery_original');
+    if (canonicalJson(rootsOf(a.config, a.env, rereview, a.earlier)) !== canonicalJson(roots)) fail('fresh_book_roots_changed');
+    const e = a.env.head();
+    if (!e.clean || e.head !== planned.grantDraft.engine.head || e.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
+    for (const [rel, digest] of Object.entries(planned.grantDraft.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('fresh_book_source_changed');
+  };
+  const guard = () => { same(); assertFreshBookRecoveryPaid({ env: a.env, grantFile: a.grantFile, grantSha: a.grantSha, profile: planned.profile, workspace: workspace() }); };
+  const recapture = (added: string[]) => {
+    const next = rootsOf(a.config, a.env, rereview, a.earlier), changed = Object.keys(next).filter(k => next[k] !== roots[k]);
+    if (canonicalJson(Object.keys(next).sort()) !== canonicalJson(Object.keys(roots).sort()) || canonicalJson(changed.sort()) !== canonicalJson([...added].sort()) ||
+        added.some(k => roots[k] !== 'absent' || next[k] === 'absent')) fail('fresh_book_roots_changed');
+    roots = next; same();
+  };
+  same();
+  return { planned, outcome, same, guard, recapture, grant: planned.grantDraft };
+}
+
+/** Which authority a downstream stage runs under: the original line, or the recovery line (its successor text, its own claim and outcome). */
+type Line = { recovery: boolean; storyboardDir: string; claimName: string; outcomeName: string; auditionStart: (env: FreshBookEnv) => string };
+const ORIGINAL_LINE: Line = { recovery: false, storyboardDir: 'text', claimName: FRESH_BOOK_CYCLE.claimName, outcomeName: FRESH_BOOK_CYCLE.outcomeName,
+  auditionStart: env => auditionStartFile(env) };
+const RECOVERY_LINE: Line = { recovery: true, storyboardDir: FRESH_BOOK_RECOVERY.folder, claimName: FRESH_BOOK_RECOVERY.claimName,
+  outcomeName: FRESH_BOOK_RECOVERY.outcomeName, auditionStart: env => path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.auditionStartName) };
+const lineOf = (recovery?: true) => recovery ? RECOVERY_LINE : ORIGINAL_LINE;
+const admitLine = (args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal }, line: Line, earlier: string[]) =>
+  line.recovery ? admitRecovery({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder] }) : admitStage({ ...args, earlier });
+/**
+ * The text a downstream stage may stand on: the original line's supported text with no terminal outcome; or, on the recovery line, the
+ * failed text exactly as its failure (never ignored globally), its supported successor and no recovery outcome.
+ */
+function linePassed(config: FreshBookConfig, env: FreshBookEnv, line: Line) {
+  const text = path.join(config.bookDir, 'text');
+  if (!line.recovery) return sealedStatus(text) === 'review_supported' && !existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName));
+  return sealedStatus(text) === 'failed' && sealedStatus(path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder)) === 'review_supported' &&
+    existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName)) && !existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName));
+}
+/** The cumulative ledger: the diagnostic subcap's settled spend and every book stage, each from its own records. Unknown halts. */
+export function freshBookLedger(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, recovery = false) {
+  return freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir, recovery) });
+}
+/** The book's terminal record beside its claim (once): the one book is over; nothing reopens it. The recovery line has its own (once). */
+function finish(env: FreshBookEnv, status: string, extra: Record<string, unknown>, name: string = FRESH_BOOK_CYCLE.outcomeName) {
+  exclusiveJson(path.join(env.authorityRoot, name), { cycle: FRESH_BOOK_CYCLE.id, status, ...extra, finishedAt: new Date().toISOString() });
 }
 const codeOf = (error: unknown, fallback: string) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code
   : error instanceof Error && /^[a-z0-9_]{1,120}$/.test(error.message) ? error.message : fallback;
@@ -240,6 +366,50 @@ type Responses = (payload: ReturnType<typeof simpleWizardVisualPayload>, signal:
 type PlannerTransport = (wire: PlannerWire, call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<TransportReply>;
 export type FreshTextTransports = { opus?: OpusTransport; reader?: OpusTransport; responses?: Responses; planner?: PlannerTransport };
 const TEXT_BACKSTOP_MS = generationTimeoutMs(55_000) + 60_000;
+
+/** The storyboard calls of a text stage (one call site for the original text and its recovery): the Opus Max planner, then the Sol review. */
+function storyboardVisual(a: { textDir: string; policy: WirePolicy; claudeMax: SimpleBookBudget; api: AuditionMeter; responses: Responses; planner?: PlannerTransport;
+  guard: () => void; record: (error: unknown) => never; draft: (value: unknown) => void }) {
+  return async (call: SimpleStoryboardDiagnosticCall, s: AbortSignal) => {
+    a.guard();
+    if (call.stage === 'storyboard') {
+      // The planner is Opus 5.5 on the Claude Max route for every storyboard call of this book (fixed; never the Astra route).
+      const instructionFile = path.join(a.textDir, 'storyboard-instructions.txt');
+      exclusiveText(instructionFile, plannerRequest(call).instructions);
+      const wire = prepareOpusStoryboardWire(call, a.policy, instructionFile);
+      const cwd = path.join(a.textDir, 'planner-workspace'); mkdirSync(cwd);
+      const plan = a.planner ?? createOpusStoryboardTransport({ ...a.policy, workspace: cwd });
+      return a.claudeMax.run('storyboard', wire, OPUS_PLANNER.sessionGuardMicroUsd, async () => {
+        const reply = await plan(wire, call, s);
+        a.draft(reply.output);
+        return { value: reply.output, estimatedMicroUsd: reply.estimatedMicroUsd, receipt: reply };
+      }).catch(a.record);
+    }
+    if (call.stage !== 'review') return a.record(new FreshBookError('fresh_book_visual_stage'));
+    const payload = simpleWizardVisualPayload(call, SOL), reserve = TEXT_RULES('storyboard_review')!.reserve(payload);
+    if (reserve === null) return a.record(new FreshBookError('fresh_book_review_wire'));
+    return a.api.run('storyboard_review', payload, reserve, async () => {
+      const observed: unknown[] = [];
+      let response: OpenAI.Responses.Response;
+      try { response = await a.responses(payload, s, generationTimeoutMs(call.maxOutputTokens), failure => observed.push(failure)); }
+      catch (error) {
+        const cause = providerFailureCause(error);
+        throw Object.assign(new FreshBookError(cause.sdkError === 'APIConnectionTimeoutError' ? 'fresh_book_provider_timeout' : 'fresh_book_provider_transport'),
+          { receipt: { estimatedMicroUsd: null, failure: cause, observed } });
+      }
+      const { usage, estimatedMicroUsd, valid } = replaySettlement.answer(RATES.sol, call.maxOutputTokens, payload.model, response);
+      const receipt = { raw: response, usage, estimatedMicroUsd, model: response.model, stage: 'storyboard_review' };
+      if (s.aborted || !valid) throw Object.assign(new FreshBookError('fresh_book_provider_invalid'), { receipt });
+      let output: unknown;
+      try { output = decodePersonalBookProviderOutput(call, JSON.parse(response.output_text)); }
+      catch { throw Object.assign(new FreshBookError('fresh_book_provider_schema'), { receipt }); }
+      return { value: output, estimatedMicroUsd, receipt };
+    }).catch(a.record);
+  };
+}
+const openAIResponses = (key: () => string): Responses => async (payload, s, timeout, observe) =>
+  new OpenAI({ apiKey: key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off', fetch: longCallFetch(timeout + 60_000, observe) })
+    .responses.create(payload, { signal: s, timeout });
 
 export async function runFreshBookText(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
   log: (line: string) => void; transports?: FreshTextTransports }) {
@@ -298,42 +468,7 @@ export async function runFreshBookText(args: { config: FreshBookConfig; env: Fre
           return { value: reply.output, estimatedMicroUsd: reply.estimatedMicroUsd, receipt: reply };
         }).catch(record);
       },
-      visual: async (call: SimpleStoryboardDiagnosticCall, s: AbortSignal) => {
-        guard();
-        if (call.stage === 'storyboard') {
-          // The planner is Opus 5.5 on the Claude Max route for every storyboard call of this book (fixed; never the Astra route).
-          const instructionFile = path.join(textDir, 'storyboard-instructions.txt');
-          exclusiveText(instructionFile, plannerRequest(call).instructions);
-          const wire = prepareOpusStoryboardWire(call, policy, instructionFile);
-          const cwd = path.join(textDir, 'planner-workspace'); mkdirSync(cwd);
-          const plan = transports.planner ?? createOpusStoryboardTransport({ ...policy, workspace: cwd });
-          return claudeMax.run('storyboard', wire, OPUS_PLANNER.sessionGuardMicroUsd, async () => {
-            const reply = await plan(wire, call, s);
-            storyboardDraft = reply.output;
-            return { value: reply.output, estimatedMicroUsd: reply.estimatedMicroUsd, receipt: reply };
-          }).catch(record);
-        }
-        if (call.stage !== 'review') return record(new FreshBookError('fresh_book_visual_stage'));
-        const payload = simpleWizardVisualPayload(call, SOL), reserve = TEXT_RULES('storyboard_review')!.reserve(payload);
-        if (reserve === null) return record(new FreshBookError('fresh_book_review_wire'));
-        return api.run('storyboard_review', payload, reserve, async () => {
-          const observed: unknown[] = [];
-          let response: OpenAI.Responses.Response;
-          try { response = await responses(payload, s, generationTimeoutMs(call.maxOutputTokens), failure => observed.push(failure)); }
-          catch (error) {
-            const cause = providerFailureCause(error);
-            throw Object.assign(new FreshBookError(cause.sdkError === 'APIConnectionTimeoutError' ? 'fresh_book_provider_timeout' : 'fresh_book_provider_transport'),
-              { receipt: { estimatedMicroUsd: null, failure: cause, observed } });
-          }
-          const { usage, estimatedMicroUsd, valid } = replaySettlement.answer(RATES.sol, call.maxOutputTokens, payload.model, response);
-          const receipt = { raw: response, usage, estimatedMicroUsd, model: response.model, stage: 'storyboard_review' };
-          if (s.aborted || !valid) throw Object.assign(new FreshBookError('fresh_book_provider_invalid'), { receipt });
-          let output: unknown;
-          try { output = decodePersonalBookProviderOutput(call, JSON.parse(response.output_text)); }
-          catch { throw Object.assign(new FreshBookError('fresh_book_provider_schema'), { receipt }); }
-          return { value: output, estimatedMicroUsd, receipt };
-        }).catch(record);
-      } });
+      visual: storyboardVisual({ textDir, policy, claudeMax, api, responses, planner: transports.planner, guard, record, draft: d => { storyboardDraft = d; } }) });
     guard();
     exclusiveJson(path.join(textDir, 'simple-book-result.json'), result);
     exclusiveText(path.join(textDir, 'story.md'), `# ${result.source.manuscript.title}\n\n` +
@@ -352,6 +487,119 @@ export async function runFreshBookText(args: { config: FreshBookConfig; env: Fre
   }
 }
 
+/**
+ * The ONE same-book text recovery: the completed author, editor and both readings are REPLAYED from the failed text's saved evidence (each
+ * rebuilt request must equal its saved wire exactly; the saved answer is returned, no provider or model callback), the reading that failed
+ * only its source evidence gets ONE constrained citation correction (its own claim on the recovery meter), the strict compile decides, then
+ * the still-required Opus Max storyboard and Sol storyboard review run on the native call sites. Everything new is written beside the failed
+ * text in its own folder; the failed text, its seal, the original claim and outcome are never written.
+ */
+export async function runFreshBookTextRecovery(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
+  log: (line: string) => void; transports?: Pick<FreshTextTransports, 'reader' | 'responses' | 'planner'> }) {
+  const { config, env, signal } = args, transports = args.transports ?? {};
+  // Its own folder is this stage's output (absent, checked below); the failed text and the original book records are earlier entries.
+  const admitted = await admitRecovery({ ...args, earlier: ['request.json', 'admission.json', 'text'] });
+  const { prepared, options, profile } = loadProfile(config);
+  assertFreshBookExecutable(config);
+  const ledger = freshBookLedger(config, env, admitted.planned.rereview, true);
+  const oldDir = path.join(config.bookDir, 'text'), dir = path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder);
+  if (existsSync(dir)) fail('fresh_book_recovery_used');
+  // No await from the last check to the one recovery claim and its folder.
+  admitted.same();
+  claimFreshBookRecovery(env, admitted.grant, args.grantSha);
+  admitted.recapture([`authority/${FRESH_BOOK_RECOVERY.claimName}`]);
+  try { mkdirSync(dir); } catch { fail('fresh_book_recovery_used'); }
+  mkdirSync(path.join(dir, 'cli-workspace'));
+  exclusiveJson(path.join(dir, 'recovery-admission.json'), { version: FRESH_BOOK_RECOVERY.version, grantSha256: args.grantSha, original: admitted.grant.original,
+    ledger, rereviewOutcome: admitted.outcome });
+  const api = new AuditionMeter(path.join(dir, 'paid-stages'), ledger.nextCapMicroUsd, FRESH_BOOK_RECOVERY.apiCalls, ledger.bookKnownMicroUsd, 0, RECOVERY_RULES);
+  const claudeMax = new SimpleBookBudget(path.join(dir, 'claude-max-stages'), 0);
+  const key = keyReader(config.keyEnvFile);
+  const original: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256, workspace: path.join(oldDir, 'cli-workspace'),
+    maxWireBytes: 104000, rates: { opus: RATES.opus, astra: RATES.sol }, openAIReviewModel: SOL };
+  const policy: WirePolicy = { ...original, workspace: path.join(dir, 'cli-workspace') };
+  const reader = transports.reader ?? createAstraCausalTransport({ key, rates: RATES.sol, model: SOL, fetch: longCallFetch(TEXT_BACKSTOP_MS) });
+  const responses = transports.responses ?? openAIResponses(key);
+  const dispatch = <T extends { stage: string }>(call: T, role: 'opus' | 'astra') => ({ ...call, role, conversationKey: `fresh-book:${prepared.accepted.requestId}:${call.stage}` });
+  let storyboardDraft: unknown = null, failed: string | null = null, corrections = 0;
+  const replayed: string[] = [];
+  const record = (error: unknown): never => { failed ??= codeOf(error, 'fresh_book_provider_transport'); throw error; };
+  const guard = () => { try { admitted.guard(); } catch (error) { record(error); } };
+  /** A completed saved call of the failed text: its claim binds the saved request, and the rebuilt request is exactly it. */
+  const savedCall = (folder: 'claude-max-stages' | 'paid-stages', step: string, wire: unknown) => {
+    const at = (k: string) => path.join(oldDir, folder, `${step}.${k}.json`);
+    if (!['claim', 'wire', 'result', 'receipt'].every(k => existsSync(at(k)))) fail('fresh_book_recovery_replay');
+    const claim = json(at('claim')), saved = json(at('wire')), result = json(at('result'));
+    if (claim.step !== step || previewSha(canonicalJson(saved)) !== claim.wireDigest || result.wireDigest !== claim.wireDigest || result.completed !== true ||
+        canonicalJson(JSON.parse(JSON.stringify(wire))) !== canonicalJson(saved)) fail('fresh_book_recovery_replay');
+    if (replayed.includes(step)) fail('fresh_book_recovery_replay');
+    replayed.push(step);
+    return json(at('receipt'));
+  };
+  const seal = (status: string, extra: Record<string, unknown> = {}) => {
+    exclusiveJson(path.join(dir, 'spend.json'), api.snapshot());
+    exclusiveJson(path.join(dir, 'claude-max-spend.json'), { ...claudeMax.snapshot(), note: 'Claude Max usage is separate: not an API invoice' });
+    exclusiveJson(path.join(dir, 'sealed.json'), { status, ...extra, replayed: [...replayed], runtimeEligible: false });
+  };
+  try {
+    const result = await runSimpleWizardBook({ request: prepared.accepted.canonical, options, seed: profile.seed, signal, reservedWritingUsd: 4, ...FRESH_BOOK_CONTRACTS,
+      publish: view => args.log(`phase ${view.phase}`),
+      opus: async call => {
+        guard();
+        // The saved instruction file is the request's own: its bytes must be this call's instructions (it is never rewritten).
+        const instructionFile = path.join(oldDir, `${call.stage}-instructions.txt`);
+        if (!existsSync(instructionFile) || fileBytes(instructionFile).toString('utf8') !== call.instructions) fail('fresh_book_recovery_replay');
+        try { return savedCall('claude-max-stages', call.stage, prepareCausalWire(dispatch(call, 'opus'), original, 2000000, instructionFile)); }
+        catch (error) { return record(error); }
+      },
+      reader: async call => {
+        guard();
+        try {
+          const receipt = savedCall('paid-stages', call.stage, prepareCausalWire(dispatch(call, 'astra'), original, 2000000));
+          if (canonicalJson(call.schema.parse(JSON.parse(receipt.raw.output_text))) !== canonicalJson(receipt.output)) fail('fresh_book_recovery_replay');
+          return receipt.output;
+        } catch (error) { return record(error); }
+      },
+      correctReading: async (stage, numbered, raw, s) => {
+        if (corrections++ >= FRESH_BOOK_RECOVERY.correctionCalls) return record(new FreshBookError('fresh_book_recovery_correction_used'));
+        guard();
+        const correction = prepareSourceCitationCorrection(numbered, raw);
+        exclusiveJson(path.join(dir, 'citation-correction-request.json'), { stage, failedReceiptSha256: previewSha(fileBytes(path.join(oldDir, 'paid-stages', `${stage}.receipt.json`))),
+          correctionDigest: correction.correctionDigest, body: correction.body });
+        const call = { stage: 'citation_correction' as CausalStage, instructions: correction.instructions, input: correction.input, schema: correction.schema, maxOutputTokens: 16000 };
+        const d = dispatch(call, 'astra'), wire = prepareCausalWire(d, policy, 2000000);
+        guard();
+        const answer = await api.run('citation_correction', wire, FRESH_BOOK_RECOVERY.correctionReserveMicroUsd, async () => {
+          const reply = await reader(wire, d, s);
+          return { value: reply.output, estimatedMicroUsd: reply.estimatedMicroUsd, receipt: reply };
+        }).catch(record);
+        guard();
+        let applied: ReturnType<typeof applySourceCitationCorrection>;
+        try { applied = applySourceCitationCorrection(numbered, raw, correction, answer); } catch (error) { return record(error); }
+        exclusiveJson(path.join(dir, 'citation-correction.json'), { stage, ...applied.provenance, corrected: applied.corrected });
+        return applied.corrected;
+      },
+      visual: storyboardVisual({ textDir: dir, policy, claudeMax, api, responses, planner: transports.planner, guard, record, draft: d => { storyboardDraft = d; } }) });
+    guard();
+    if (canonicalJson(replayed) !== canonicalJson(['author', 'editor', 'final_review', 'comparison'])) fail('fresh_book_recovery_replay');
+    exclusiveJson(path.join(dir, 'simple-book-result.json'), result);
+    exclusiveText(path.join(dir, 'story.md'), `# ${result.source.manuscript.title}\n\n` +
+      result.source.manuscript.pages.map(p => `## עמוד ${p.pageNumber}\n\n${p.text}`).join('\n\n') + '\n');
+    if (result.storyboard) {
+      exclusiveJson(path.join(dir, 'visual_simple_book_result.json'), result);
+      exclusiveJson(path.join(dir, 'owned_storyboard_draft.json'), storyboardDraft ?? fail('fresh_book_draft_missing'));
+    }
+    seal(result.status, { corrections });
+    if (result.status !== 'review_supported') finish(env, 'held_text', { textStatus: result.status }, FRESH_BOOK_RECOVERY.outcomeName);
+    return { status: result.status, corrections, replayed, api: api.snapshot(), claudeMax: claudeMax.snapshot(), ledger: freshBookLedger(config, env, admitted.planned.rereview, true) };
+  } catch (error) {
+    const code = failed ?? codeOf(error, 'fresh_book_text_recovery_failed');
+    if (!existsSync(path.join(dir, 'sealed.json'))) seal('failed', { code, corrections });
+    if (!existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName))) finish(env, 'failed_text_recovery', { code }, FRESH_BOOK_RECOVERY.outcomeName);
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Stage 2: the inspected child anchor.
 // ---------------------------------------------------------------------------------------------------------------
@@ -365,14 +613,15 @@ function anchorAuthority(profile: FreshBookProfile, wardrobe: string) {
 }
 
 export async function runFreshBookChild(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
-  log: (line: string) => void }) {
-  const { config, env, signal } = args;
-  const admitted = await admitStage({ ...args, earlier: ['request.json', 'admission.json', 'text'] });
+  log: (line: string) => void; recovery?: true }) {
+  const { config, env, signal } = args, line = lineOf(args.recovery);
+  const admitted = await admitLine(args, line, ['request.json', 'admission.json', 'text']);
   admitted.guard();
-  if (sealedStatus(path.join(config.bookDir, 'text')) !== 'review_supported' || existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName))) fail('fresh_book_stage_not_passed');
-  const profile = admitted.planned.profile, loaded = loadReviewedStoryboard(config.bookDir, workspace(), layoutFor(profile));
+  if (!linePassed(config, env, line)) fail('fresh_book_stage_not_passed');
+  const profile = admitted.planned.profile, loaded = loadReviewedStoryboard(config.bookDir, workspace(), layoutFor(profile, undefined, line.storyboardDir));
   const anchor = anchorAuthority(profile, loaded.book.plan.wardrobe), contextSha = childAnchorInspectionContextSha(anchor.context);
-  const ledger = freshBookLedger(config, env, admitted.planned.rereview);
+  const ledger = freshBookLedger(config, env, admitted.planned.rereview, line.recovery);
+  const finishLine = (status: string, extra: Record<string, unknown>) => finish(env, status, extra, line.outcomeName);
   const childDir = path.join(config.bookDir, 'child'), images = path.join(childDir, 'illustrations');
   admitted.guard();
   try { mkdirSync(childDir); } catch { fail('fresh_book_child_used'); }
@@ -390,17 +639,17 @@ export async function runFreshBookChild(args: { config: FreshBookConfig; env: Fr
     admitted.guard();
     if (result.status !== 'passed') {
       seal('child_reference_held', { disposition: result.disposition, childAnchor: profile.childAnchor });
-      finish(env, 'held_child', { disposition: result.disposition });
+      finishLine('held_child', { disposition: result.disposition });
       return { status: 'child_reference_held' as const, disposition: result.disposition };
     }
     save('reference_child_adoption', { name: 'child', context: anchor.context, candidate: result.candidate, authority: 'fresh_book_reviewed_passed', anchor: result.record });
-    exclusiveJson(path.join(config.bookDir, 'book-layout.json'), layoutFor(profile, result.candidate.imageName));
+    exclusiveJson(path.join(config.bookDir, 'book-layout.json'), layoutFor(profile, result.candidate.imageName, line.storyboardDir));
     seal('child_reference_passed', { candidate: result.candidate, contextSha, childAnchor: profile.childAnchor,
       ...(result.acceptedDeviations ? { acceptedDeviations: result.acceptedDeviations } : {}) });
     return { status: 'child_reference_passed' as const, candidate: result.candidate };
   } catch (error) {
     if (!existsSync(path.join(childDir, 'sealed.json'))) seal('failed', { code: codeOf(error, 'fresh_book_child_failed') });
-    if (!existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName))) finish(env, 'failed_child', { code: codeOf(error, 'fresh_book_child_failed') });
+    if (!existsSync(path.join(env.authorityRoot, line.outcomeName))) finishLine('failed_child', { code: codeOf(error, 'fresh_book_child_failed') });
     throw error;
   }
 }
@@ -504,13 +753,13 @@ export async function assertInspectedChildSettled(bookDir: string, anchor: Retur
 // ---------------------------------------------------------------------------------------------------------------
 export const FRESH_BOOK_AUDITION_SLOT = 'fresh-book-usd7' as const;
 const auditionStartFile = (env: FreshBookEnv) => path.join(env.authorityRoot, 'owner-cycle-20261017-fresh-book-usd7.audition.json');
-async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile): Promise<AuditionGrant> {
+async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile, line: Line = ORIGINAL_LINE): Promise<AuditionGrant> {
   const layout = readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json'));
-  if (canonicalJson(layout) !== canonicalJson(layoutFor(profile, layout.childImage))) fail('fresh_book_layout');
+  if (canonicalJson(layout) !== canonicalJson(layoutFor(profile, layout.childImage, line.storyboardDir))) fail('fresh_book_layout');
   const loaded = loadReviewedBook(config.bookDir, workspace(), undefined, layout);
   await assertInspectedChildSettled(config.bookDir, anchorAuthority(profile, loaded.book.plan.wardrobe), json(path.join(config.bookDir, 'child', 'reference_child_adoption.json')),
     loaded.childBytes);
-  const stages = bookStages(config.bookDir).slice(0, 2);
+  const stages = bookStages(config.bookDir, line.recovery).slice(0, -1);
   const ledger = freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages });
   // Each stage's saved spend record must say what its own calls re-derive to (a summary is never the authority).
   const evidence = stages.map((s, i) => {
@@ -519,7 +768,7 @@ async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, re
     if (saved.newKnownApiMicroUsd !== ledger.stages[i].knownMicroUsd || saved.unknownCost || saved.unknownOutcome) fail('fresh_book_ledger_record');
     return { file, sha256: previewSha(fileBytes(file)) };
   });
-  const claimSha256 = previewSha(fileBytes(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.claimName)));
+  const claimSha256 = previewSha(fileBytes(path.join(env.authorityRoot, line.claimName)));
   return auditionGrantSchema.parse({ version: 'audition-spend-grant/v1', approvalReference: FRESH_BOOK_CYCLE.approval,
     book: { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest },
     ledger: { priorKnownApiMicroUsd: ledger.bookKnownMicroUsd, evidence,
@@ -531,16 +780,16 @@ async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, re
 }
 
 export async function runFreshBookBook(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
-  log: (line: string) => void; resume?: true }) {
-  const { config, env } = args;
+  log: (line: string) => void; resume?: true; recovery?: true }) {
+  const { config, env } = args, line = lineOf(args.recovery);
   // The audition grant is pinned too (absent on a start, its bytes on a resume); the start record is part of the authority roots.
   const earlier = ['request.json', 'admission.json', 'text', 'child', 'book-layout.json', 'audition.grant.json'];
-  const admitted = await admitStage({ ...args, earlier });
+  const admitted = await admitLine(args, line, earlier);
   admitted.guard();
-  if (sealedStatus(path.join(config.bookDir, 'text')) !== 'review_supported' || sealedStatus(path.join(config.bookDir, 'child')) !== 'child_reference_passed' ||
-      existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName))) fail('fresh_book_stage_not_passed');
-  const grant = await freshAuditionGrant(config, env, admitted.planned.rereview, admitted.planned.profile);
-  const grantFile = path.join(config.bookDir, 'audition.grant.json'), out = path.join(config.bookDir, 'audition'), start = auditionStartFile(env);
+  if (!linePassed(config, env, line) || sealedStatus(path.join(config.bookDir, 'child')) !== 'child_reference_passed' ||
+      existsSync(path.join(env.authorityRoot, line.outcomeName))) fail('fresh_book_stage_not_passed');
+  const grant = await freshAuditionGrant(config, env, admitted.planned.rereview, admitted.planned.profile, line);
+  const grantFile = path.join(config.bookDir, 'audition.grant.json'), out = path.join(config.bookDir, 'audition'), start = line.auditionStart(env);
   admitted.guard();
   if (args.resume) {
     if (!existsSync(grantFile) || canonicalJson(json(grantFile)) !== canonicalJson(grant) || !existsSync(start) || !existsSync(out)) fail('fresh_book_audition_binding');
@@ -564,27 +813,30 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
   const cover = result.manifest.pages.find(p => p.pageNumber === 0);
   const reading = freshBookReadingOrder(cover ? gate(cover.status) : null, pages);
   const status = reading.status === 'complete' && result.manifest.status !== 'qa_supported_audition' ? 'partial' as const : reading.status;
-  const ledger = freshBookLedger(config, env, admitted.planned.rereview);
+  const ledger = freshBookLedger(config, env, admitted.planned.rereview, line.recovery);
   exclusiveJson(path.join(config.bookDir, `book-status${args.resume ? `-${Date.now()}` : ''}.json`), { status, manifestStatus: result.manifest.status,
     order: reading.order, ledger, viewer: out, runtimeEligible: false });
-  finish(env, status, { manifestStatus: result.manifest.status, ledger });
+  finish(env, status, { manifestStatus: result.manifest.status, ledger }, line.outcomeName);
   return { status, manifestStatus: result.manifest.status, order: reading.order, ledger };
 }
 
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const config = freshBookConfig(argValue('--config') ?? fail('fresh_book_arguments')), env = realFreshBookEnv();
-  const stage = ['plan', 'text', 'child', 'book'].find(s => process.argv.includes(s)) ?? 'plan';
-  const execute = process.argv.includes('--execute');
+  const stage = ['recovery-plan', 'recover', 'plan', 'text', 'child', 'book'].find(s => process.argv.includes(s)) ?? 'plan';
+  const execute = process.argv.includes('--execute'), recovery = process.argv.includes('--recovery') ? { recovery: true as const } : {};
   const done = (p: Promise<unknown>) => p.then(r => console.log(JSON.stringify(r, null, 2)))
     .catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
-  if (stage === 'plan' || !execute) done(Promise.resolve().then(() => { const { plan, grantDraft, state } = planFreshBook(config, env); return { plan, grantDraft, state }; }));
+  // The recovery line (dry): the plan and recovery grant draft for the saved failed book (--original-grant: the consumed original grant file).
+  if (stage === 'recovery-plan' || (stage === 'recover' && !execute)) done(Promise.resolve().then(() => {
+    const { plan, grantDraft, state } = planFreshBookRecovery(config, env, argValue('--original-grant') ?? fail('fresh_book_arguments')); return { plan, grantDraft, state }; }));
+  else if (stage === 'plan' || !execute) done(Promise.resolve().then(() => { const { plan, grantDraft, state } = planFreshBook(config, env); return { plan, grantDraft, state }; }));
   else {
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const common = { config, env, grantFile: argValue('--grant') ?? fail('fresh_book_arguments'), grantSha: argValue('--grant-sha') ?? fail('fresh_book_arguments'),
       signal: controller.signal, log: (line: string) => console.log(line) };
-    done(stage === 'text' ? runFreshBookText(common) : stage === 'child' ? runFreshBookChild(common)
-      : runFreshBookBook({ ...common, ...(process.argv.includes('--resume') ? { resume: true as const } : {}) }));
+    done(stage === 'recover' ? runFreshBookTextRecovery(common) : stage === 'text' ? runFreshBookText(common) : stage === 'child' ? runFreshBookChild({ ...common, ...recovery })
+      : runFreshBookBook({ ...common, ...recovery, ...(process.argv.includes('--resume') ? { resume: true as const } : {}) }));
   }
 }
 export type { ChildAnchorInspectionContext };

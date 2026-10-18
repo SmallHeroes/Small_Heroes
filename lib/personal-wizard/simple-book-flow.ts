@@ -3,7 +3,7 @@ import type { PersonalWizardOptions } from './options';
 import { prepareSimpleStory, writeSimpleStory, compileSimpleStory, type SimpleStoryCall } from './simple-story-engine';
 import { createCurrentSimpleStorySource, createRepairedSimpleStorySource, prepareSimpleStoryRepair,
   simpleStoryFindingIsMaterial, type CurrentSimpleStoryResult } from './simple-story-source';
-import { causalReviewPackets, causalSourceReviewPacket, compileCausalSourceReading, type CausalReading } from './story-causal-experiment';
+import { CausalExperimentError, causalReviewPackets, causalSourceReviewPacket, compileCausalSourceReading, type CausalReading } from './story-causal-experiment';
 import { preparePersonalStory } from './story-writer';
 import { canonicalJson } from './request-acceptance';
 import { runSimpleStoryboardDiagnostic, type SimpleStoryboardDiagnosticCall } from './simple-storyboard-diagnostic';
@@ -28,6 +28,11 @@ export async function runSimpleWizardBook(args: {
   momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true; drawnInstantContract?: true;
   /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
   storyboardRepair?: StoryboardRepair;
+  /**
+   * Opt-in (same-book recovery, 2026-10-18): a reading whose settled answer failed ONLY its source evidence gets this one constrained citation
+   * correction (story-source-citations-correction/v1); the returned answer is compiled again under the same strict check. Absent: unchanged.
+   */
+  correctReading?: (stage: SimpleBookReadingCall['stage'], numbered: ReturnType<typeof causalSourceReviewPacket>, raw: unknown, signal: AbortSignal) => Promise<unknown>;
 }) {
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_book_request');
@@ -79,7 +84,14 @@ export async function runSimpleWizardBook(args: {
     const call = { stage: name, instructions: numbered.instructions,
       input: canonicalJson({ packetDigest: numbered.packetDigest, packet: numbered.packet }), schema: numbered.schema, maxOutputTokens: 16000 };
     const raw = await args.reader(call, args.signal); check();
-    const reading = compileCausalSourceReading(packet, raw); readings.push(reading);
+    let reading: CausalReading;
+    try { reading = compileCausalSourceReading(packet, raw); }
+    catch (error) {
+      if (!args.correctReading || !(error instanceof CausalExperimentError) || error.code !== 'critic_evidence') throw error;
+      const corrected = await args.correctReading(name, numbered, raw, args.signal); check();
+      reading = compileCausalSourceReading(packet, corrected);
+    }
+    readings.push(reading);
     view.readings = readings.map(r => ({ stage: r.stage as 'final_review' | 'comparison', summary: r.summary, findings: r.findings }));
     publish('story_review');
   }

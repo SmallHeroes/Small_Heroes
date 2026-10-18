@@ -152,6 +152,65 @@ export function assertFreshBookPaid(args: { env: FreshBookEnv; grantFile: string
   return grant;
 }
 
+/**
+ * The ONE same-book text recovery (Guy 2026-10-18 OWNER-AUTONOMOUS-BOOK-TEXT-RECOVERY-AMENDMENT): after THIS book's terminal failed_text
+ * (critic_evidence) record, a bound successor of the same book, never a reopening. Fixed in code like the cycle: its own claim/outcome/audition
+ * start under the fixed authority root and its own folder beside the failed text, so another label, folder or grant cannot fund a second use;
+ * the original grant, claim, outcome, seal and paid evidence stay byte-identical and are pinned by digest. Its API allowance is additional to
+ * the original text plan: ONE citation correction (normal 600000 reservation) and the still-required storyboard review, inside the unchanged caps.
+ */
+export const FRESH_BOOK_RECOVERY = Object.freeze({
+  version: 'fresh-book-text-recovery/v1',
+  amendment: 'Guy 2026-10-18 OWNER-AUTONOMOUS-BOOK-TEXT-RECOVERY-AMENDMENT-20261018.txt: ONE bound text recovery of the SAME existing book after its failed_text record; preserve all history; at most ONE additional Sol 6.1 citation-correction call (source references only, 600000 microUSD reservation), then the still-required Opus 5.5 Max storyboard and the original Sol storyboard review; same cumulative USD 7 book / USD 8 cycle caps; no writer/editor rerun, reset or second book use.',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.outcome.json',
+  auditionStartName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.audition.json',
+  folder: 'text-recovery',
+  failedOutcome: 'failed_text', failedCode: 'critic_evidence',
+  correctionCalls: 1, correctionReserveMicroUsd: 600_000, apiCalls: 2,
+});
+const sha40 = z.string().regex(/^[a-f0-9]{40}$/), micro = z.number().int().nonnegative();
+export const freshBookRecoveryGrantSchema = z.object({ version: z.literal('fresh-book-recovery-grant/v1'), cycle: z.literal(FRESH_BOOK_CYCLE.id),
+  approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_RECOVERY.amendment), profileSha256: hash,
+  bookDir: z.string().refine(p => path.isAbsolute(p)),
+  /** The consumed original authority and failed evidence, by digest (the original grant's pins bind ITS head, never this one's). */
+  original: z.object({ grantFile: z.string().refine(p => path.isAbsolute(p)), grantSha256: hash, engineHead: sha40, claimSha256: hash, outcomeSha256: hash,
+    textSealSha256: hash, textEvidenceSha256: hash, requestSha256: hash, admissionSha256: hash }).strict(),
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, originalTextKnownMicroUsd: micro, originalTextCalls: micro }).strict(),
+  allowance: z.object({ correctionCalls: z.literal(FRESH_BOOK_RECOVERY.correctionCalls), correctionReserveMicroUsd: z.literal(FRESH_BOOK_RECOVERY.correctionReserveMicroUsd),
+    apiCalls: z.literal(FRESH_BOOK_RECOVERY.apiCalls) }).strict(),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookRecoveryGrant = z.infer<typeof freshBookRecoveryGrantSchema>;
+
+/** The recovery's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookRecovery(env: FreshBookEnv, grant: FreshBookRecoveryGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName))) fail('fresh_book_recovery_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName), 'wx'); } catch { return fail('fresh_book_recovery_used'); }
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, recovery: FRESH_BOOK_RECOVERY.version, grantSha256: grantSha,
+    originalClaimSha256: grant.original.claimSha256, profileSha256: grant.profileSha256, bookDir: path.resolve(grant.bookDir), engineHead: grant.engine.head,
+    claimedAt: new Date().toISOString() }) + '\n'); fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/** Synchronous, before EVERY paid call of a recovery-line stage: the recovery grant bytes, its profile, the claim it wrote, the original claim, source and pins. */
+export function assertFreshBookRecoveryPaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_recovery_grant');
+  const grant = freshBookRecoveryGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  const claimFile = path.join(args.env.authorityRoot, FRESH_BOOK_RECOVERY.claimName), originalClaim = path.join(args.env.authorityRoot, FRESH_BOOK_CYCLE.claimName);
+  if (!existsSync(claimFile) || !existsSync(originalClaim) || previewSha(fileBytes(originalClaim)) !== grant.original.claimSha256) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.recovery !== FRESH_BOOK_RECOVERY.version || claim.grantSha256 !== args.grantSha ||
+      claim.originalClaimSha256 !== grant.original.claimSha256 || claim.profileSha256 !== grant.profileSha256 ||
+      path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() || claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
 /** The sample gate: the remaining pages and the cover are claimable only after BOTH representative samples passed their gates. */
 export type PageGate = { page: number; disposition: 'passed' | 'held_uncertain' | 'repair' | 'failed' | 'pending' };
 export function assertLaterPagesAllowed(samples: readonly PageGate[]) {
