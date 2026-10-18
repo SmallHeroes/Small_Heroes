@@ -1,5 +1,75 @@
 # SmallHeroes — Current Technical State
 
+## F6 + the ONE storyboard-only repair line (bb559295), offline, for independent Codex QA; the book is NOT done (2026-10-18)
+
+**What ran since F5 (once, under recovery grant 199c512c…, engine da2b5841).** The ONE same-book text recovery replayed
+the author, editor and both readings, made its ONE citation correction (4912 microUSD; reserve 600000), then ran the Opus 5.5
+Max planner (623664 microUSD Max, separate from API) and the Sol 6.1 storyboard review (60226 microUSD; reserved 563937).
+The review HELD the storyboard (`held_uncertain`), so the line ended `held_text`, with no successor. The book's API spend is
+101588 of 7000000. The diagnostic is 128930, the cycle 230518 of 8000000, and Max for the book 1050322 (separate). The six
+checks the review did not support were:
+- book manuscript_fidelity (contradiction): page 7's huge blue sky is only implied by light;
+- book continuity (contradiction): the ball is still "shedding colour" after the restoration, and Leo's retained nose dust is
+  not established;
+- page 3 physical_state (uncertain): one actor state combines the dust and a mid-pounce under a quote that establishes only
+  the dust;
+- page 4 physical_state (uncertain): the retained three-colour nose dust is not established by its quote;
+- page 7 moment and physical_state (contradiction): the overhead composition omits the sky the page must show.
+
+**F6 (Codex P2): the review reservation.** The held review reserved 563937, below the owner's normal 600000. Every NEW review
+(only the storyboard-repair line) now reserves max(600000, the request's own bound). One rule (`flooredReviewRule`,
+`STORYBOARD_REPAIR_RULES`) is the claim, the meter's journal and the ledger replay. The stage refuses before its one claim when
+the balance cannot cover the floor (`assertReviewFloorFits`), and the meter refuses the derived maximum before the dispatch
+that first reads the key. The consumed text and recovery folders keep the rule they were claimed under: they are re-derived as
+recorded, never renormalized, repriced or rewritten.
+
+**General rule `storyboard-visible-moment/v1`** (opt-in instruction contract; extends the moments contract). The planner is
+told:
+1. A frame's shot, angle and composition must contain everything its page must show at the drawn instant. Light, a reflection,
+   a shadow, a gaze or an offscreen element never stands in for it: change the shot, never the requirement or the text.
+2. Every continuity state is the end-of-page condition, and every depicted value the drawn-instant condition, never an action
+   in progress. A finished or reversed state is never carried forward.
+3. Every change, relation, attribute and actor state is established, in every part, by its own quote.
+
+There is no schema, compiler or review change. The compiled book carries a `visibleMoment` marker that the loader reads.
+Absent, every byte is unchanged. `storyboard-repair/v1` may add it (`REPAIR_ADDABLE_CONTRACTS`): the held parent is then
+recompiled without it. Generalization path: a future book's first plan can include it in its contract set. This book's
+consumed contract set stays fixed, because its held parent binds to it.
+
+**The storyboard-only repair line (driver and authority).** It has its own claim, outcome, audition start and successor under
+the fixed authority root, and its own folder `storyboard-repair/`.
+- Admission re-derives the consumed recovery exactly: the grant its claim names, at its own head; held_text; the seal; no
+  successor. It also re-derives the held storyboard: the saved draft recompiles to its digest and the review re-judges it held.
+  Both are bound to the recovery's PAID answers: the planner session's output, and the review answer decoded for this book,
+  whose paid request was this book's review input.
+- The repair input is exactly that draft and raw review, plus `addedContracts: ['visibleMomentContract']`. The engine derives
+  all 6 findings.
+- Before the claim, the balance must cover the floor. An offline preview then rebuilds the exact planner request (the text
+  and the correction replayed) and its CLI wire, and measures them. On the real book: content 58732 of 104000 bytes, wire
+  86892 of 104000, Max reservation 1086325 of the 2000000 guard, all 6 findings.
+- The paid run replays author, editor, readers and correction (no callback), then makes ONE Opus 5.5 Max planner call and ONE
+  Sol 6.1 review (floored). Its successor replays the whole chain and binds the paid planner wire to the admitted preview.
+- child and book `--storyboard-repair` re-derive the successor at every entry.
+
+**Tests (provider-free; synthetic replies prove wiring only).** 
+- `storyboard-visible-moment` 4/4. `fresh-book-recovery` 23/23, of which 7 cover the repair line:
+  - the positive path to a complete book;
+  - a held repair ending the line;
+  - F6 for claim, journal and replay, plus the refusal before the key;
+  - 11 immutable-input refusals before the claim;
+  - a mid-planner change halting before the review;
+  - 4 successor tamperings, each also re-sealed.
+  - The real-data tests add the dry plan and the preview.
+- Serial focused run of the 33 related specs (one `vitest run --no-file-parallelism`): exit 1, files 31/33, tests
+  1549/1551, 5349 s. The 2 REDs are stale assertions this range does not touch:
+  - `fresh-book-driver.spec.ts:152`, the real pre-claim expectation (the book was claimed at 96dedda4);
+  - `simple-book-flow.spec.ts:184`, which expects a 25m budget ceiling to be refused (allowed since fe00b1b9).
+- nonincremental tsc 0. The full check stays RED (historical; not re-run).
+
+The repair claim, outcome, folder and successor are absent. Grant and handoff are in
+`_review/new-book-autonomous-closure-20261018/f6-storyboard-repair/`. Next: independent Codex QA, then the ONE repair and the
+book on its line, samples first.
+
 ## F5 round 1 (5d4d3673): verified recovery successor provenance, offline, for Codex re-gate; the book is NOT done (2026-10-18)
 
 **Finding (Codex F5, P2).** At 227869cf the child/book `--recovery` entry trusted the recovery folder's seal and re-captured

@@ -1,5 +1,24 @@
 # SmallHeroes — Roadmap
 
+## F6 + the ONE storyboard-only repair line built offline (bb559295); next: independent Codex QA, then ONE repair and the book (2026-10-18)
+
+- The one text recovery ran once. Its storyboard review HELD it (`held_uncertain`, 6 findings): the page-7 sky is only
+  implied, finished states are carried forward, and some actor-state parts are not quoted. API spend: book 101588, cycle
+  230518. Max for the book: 1050322 (separate).
+- F6: every new review reserves max(600000, its own bound), with one rule for claim, journal and replay. The stage refuses
+  before its claim when the balance cannot cover the floor. History is not renormalized.
+- General rule: the opt-in `storyboard-visible-moment/v1` contract tells the planner three things:
+  - the composition must contain what the page must show;
+  - each state is the end-of-page condition;
+  - each part needs its own quote.
+- `storyboard-repair/v1` may add it.
+- The repair line binds the held draft and review to the recovery's paid answers, and previews the exact planner request
+  before its claim (real book: 58732 content bytes, 86892 wire bytes, 6 findings). It makes ONE Opus Max planner call and ONE
+  floored Sol review, and its successor is replayed at every child or book entry.
+- Tests: visible-moment 4/4, recovery+repair 23/23, the 33 related specs serially 1549/1551 (2 untouched stale REDs:
+  driver `:152`, simple-book-flow `:184`), nonincremental tsc 0. The full check stays RED.
+- Next: independent Codex QA. Then, under the exact grant: repair → child → book (samples first) → viewer → reports.
+
 ## F5 round 1 (5d4d3673): recovery successor provenance verified offline; next: Codex re-gate (2026-10-18)
 
 - Codex F5: child/book `--recovery` trusted a changed successor (0/3).
