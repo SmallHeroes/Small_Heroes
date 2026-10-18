@@ -12,8 +12,8 @@ import { z } from 'zod';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { CHILD_ANCHOR_INSPECTION_VERSION } from '../lib/personal-wizard/child-anchor-style';
-import { AuditionMeter, type MeterRules } from './personal-simple-book-reviewed-audition';
-import { REREVIEW_AMENDMENT, settledRereviewOutcome, type RereviewConfig } from './personal-child-anchor-rereview';
+import { AuditionMeter, auditionReviewRule, type MeterRules } from './personal-simple-book-reviewed-audition';
+import { REREVIEW_AMENDMENT, rereviewAuthority, rereviewOutput, settledRereviewOutcome, type RereviewConfig } from './personal-child-anchor-rereview';
 
 export class FreshBookError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new FreshBookError(code); };
@@ -40,6 +40,8 @@ export const freshBookProfileSchema = z.object({ version: z.literal('fresh-book-
   companion: z.object({ id: z.string().regex(/^[a-z][a-z0-9_]{2,40}$/), design: z.string().trim().min(20).max(1200) }).strict(),
   /** Free-form parent-driven story inputs (what the parent would tell us); no story bank, category or premise list. */
   parentInputs: z.object({ about: z.string().trim().min(20).max(1200), wish: z.string().trim().min(10).max(600) }).strict(),
+  /** The book's seed and the reviewed wizard request those inputs fill (the driver checks it names this child and companion, no photo). */
+  seed: z.string().regex(/^[a-z0-9-]{8,120}$/), request: z.record(z.string(), z.unknown()),
   routes: z.object({ author: z.literal(FRESH_BOOK_CYCLE.routes.author), editor: z.literal(FRESH_BOOK_CYCLE.routes.editor),
     storyboardPlanner: z.literal(FRESH_BOOK_CYCLE.routes.storyboardPlanner), judges: z.literal(FRESH_BOOK_CYCLE.routes.judges),
     image: z.literal(FRESH_BOOK_CYCLE.routes.image) }).strict(),
@@ -73,6 +75,24 @@ export async function assertFreshBookAdmission(rereview: RereviewConfig, env: Pi
   if (outcome.disposition !== 'passed') fail('fresh_book_admission_held');
   return outcome;
 }
+
+/**
+ * The diagnostic subcap's settled spend, derived only from records: the original diagnostic's own calls (re-derived by the re-review
+ * authority) plus every claimed re-review round's calls, each re-derived under the review rule. An unfinished round or any unknown halts.
+ */
+export function freshBookDiagnosticSpend(rereview: RereviewConfig, env: Pick<FreshBookEnv, 'authorityRoot'>) {
+  let total = rereviewAuthority({ ...rereview, round: 1 }).originalSettledMicroUsd;
+  for (let round = 1; round <= REREVIEW_AMENDMENT.maxRounds && existsSync(path.join(env.authorityRoot, REREVIEW_AMENDMENT.claimName(round))); round++) {
+    if (!existsSync(path.join(env.authorityRoot, REREVIEW_AMENDMENT.outcomeName(round)))) fail('fresh_book_admission_inflight');
+    const stages = path.join(rereviewOutput(rereview, round), 'paid-stages');
+    if (!existsSync(stages)) continue;
+    const snapshot = new AuditionMeter(stages, REREVIEW_AMENDMENT.cumulativeCapMicroUsd, REREVIEW_AMENDMENT.maxReviewsPerRound, total, 0, REREVIEW_RULES).snapshot();
+    if (snapshot.unknownCost || snapshot.unknownOutcome || snapshot.reservedUnsettledMicroUsd) fail('fresh_book_ledger_unknown');
+    total += snapshot.newKnownApiMicroUsd;
+  }
+  return total;
+}
+const REREVIEW_RULES: MeterRules = step => step === 'reference_child_style_qa' || step === 'reference_child_qa' ? auditionReviewRule : undefined;
 
 /** One stage's meter folder and the rules its calls settle under (the stage driver's own). */
 export type FreshBookStage = { name: string; dir: string; rules: MeterRules; maxCalls: number };

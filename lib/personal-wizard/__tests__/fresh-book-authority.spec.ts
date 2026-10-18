@@ -17,7 +17,7 @@ const profile: FreshBookProfile = freshBookProfileSchema.parse({ version: 'fresh
     wardrobe: 'a teal raincoat, grey leggings and yellow boots', fictional: true },
   companion: { id: 'otter_pip', design: 'a small river otter with a cream chest patch and one notched ear' },
   parentInputs: { about: 'She is curious, a little afraid of deep water, and loves collecting smooth stones.', wish: 'to feel brave trying new things' },
-  routes: FRESH_BOOK_CYCLE.routes, childAnchor: 'child-anchor-inspection/v1' });
+  seed: 'fresh-book-test-seed', request: { kind: 'synthetic' }, routes: FRESH_BOOK_CYCLE.routes, childAnchor: 'child-anchor-inspection/v1' });
 const roots: string[] = [];
 afterEach(() => { for (const r of roots.splice(0)) rmSync(r, { recursive: true, force: true }); });
 const setup = () => {
