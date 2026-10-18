@@ -58,6 +58,15 @@ const RATES = replaySettlement.rates;
 const workspace = () => path.resolve(__dirname, '..');
 const fileBytes = (file: string) => { const s = lstatSync(file); if (!s.isFile() || s.isSymbolicLink() || s.size > 32000000) fail('fresh_book_file'); return readFileSync(file); };
 const json = (file: string) => JSON.parse(fileBytes(file).toString('utf8'));
+/**
+ * The pinned native executable: a binary, not a bounded data artifact (no data-size cap), hashed whole as the native transports hash it at
+ * spawn; never a link, a directory or a missing path. The dry plan reports it and the text stage refuses on it before the claim.
+ */
+export function assertFreshBookExecutable(config: Pick<FreshBookConfig, 'executable' | 'executableSha256'>) {
+  const s = lstatSync(config.executable, { throwIfNoEntry: false });
+  if (!s || !s.isFile() || s.isSymbolicLink() || previewSha(readFileSync(config.executable)) !== config.executableSha256) fail('fresh_book_executable_changed');
+  return true as const;
+}
 
 export const freshBookConfigSchema = z.object({ version: z.literal('fresh-book-driver-config/v1'), profileFile: abs, profileSha256: hash,
   rereviewConfig: abs, rereviewConfigSha256: hash, bookDir: abs, executable: abs, executableSha256: hash, keyEnvFile: abs }).strict();
@@ -142,7 +151,8 @@ export function planFreshBook(config: FreshBookConfig, env: FreshBookEnv) {
     bookDir: path.resolve(config.bookDir) });
   // Read-only state for the operator (never part of the plan or grant): what each stage would find now.
   const probe = (f: () => unknown) => { try { return f(); } catch (e) { return { refused: e && typeof e === 'object' && 'code' in e ? e.code : String(e) }; } };
-  const state = { claimExists: existsSync(plan.claim), bookDirExists: existsSync(config.bookDir), diagnosticSettledMicroUsd: probe(() => freshBookDiagnosticSpend(rereview, env)) };
+  const state = { claimExists: existsSync(plan.claim), bookDirExists: existsSync(config.bookDir), diagnosticSettledMicroUsd: probe(() => freshBookDiagnosticSpend(rereview, env)),
+    executablePinned: probe(() => assertFreshBookExecutable(config)) };
   return { plan, grantDraft, state, profile, prepared, rereview };
 }
 
@@ -235,7 +245,7 @@ export async function runFreshBookText(args: { config: FreshBookConfig; env: Fre
   log: (line: string) => void; transports?: FreshTextTransports }) {
   const { config, env, signal } = args, transports = args.transports ?? {};
   const admitted = await admitStage({ ...args, earlier: [] }), { prepared, options, profile } = { ...loadProfile(config) };
-  if (!args.transports?.opus && previewSha(fileBytes(config.executable)) !== config.executableSha256) fail('fresh_book_executable_changed');
+  assertFreshBookExecutable(config);
   const ledger = freshBookLedger(config, env, admitted.planned.rereview);
   if (existsSync(config.bookDir)) fail('fresh_book_slot_used');
   realDirectory(path.dirname(config.bookDir));

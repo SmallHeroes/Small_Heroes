@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
@@ -16,10 +16,10 @@ import * as images from '../../generate-image';
 import { CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorInspectionContextSha } from '../child-anchor-style';
 import { auditionReviewRule, type AuditionMeter } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
-import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
-import { FRESH_BOOK_CYCLE, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
-import { planFreshBook, runFreshBookText, runFreshBookChild, runFreshBookBook, type FreshBookConfig, type FreshTextTransports }
-  from '../../../scripts/personal-fresh-book-driver';
+import { planRereview, runRereview, rereviewConfig, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
+import { FRESH_BOOK_CYCLE, freshBookProfileSchema, assertFreshBookAdmission, freshBookDiagnosticSpend } from '../../../scripts/personal-fresh-book-authority';
+import { planFreshBook, runFreshBookText, runFreshBookChild, runFreshBookBook, assertFreshBookExecutable, freshBookConfig, type FreshBookConfig,
+  type FreshTextTransports } from '../../../scripts/personal-fresh-book-driver';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -120,6 +120,38 @@ function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' | 'r
     return reply({ candidateSha: text.candidateSha, contextSha: text.contextSha, checks, ...(page ? { landmarkInventory: inventory } : {}) });
   });
 }
+
+/** F3: the pinned executable is a binary (the real one is a ~248MB regular hardlink), never read through the 32MB data-artifact reader. */
+describe('fresh-book driver: the pinned native executable', { timeout: 60_000 }, () => {
+  const STAGED = 'C:/GNart/Work/Small_Heroes/_review/new-book-autonomous-closure-20261018/fresh-book-config-materiality.json';
+  it('a matching regular binary over 32MB (and its hardlink) passes; wrong hash, missing, directory or link refuse; data files keep the 32MB cap', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'fresh-exe-')); roots.push(root);
+    const big = Buffer.alloc(33_000_000, 7), exe = path.join(root, 'SYNTHETIC-big.exe'); writeFileSync(exe, big);
+    const pinned = { executable: exe, executableSha256: sha(big) };
+    expect(assertFreshBookExecutable(pinned)).toBe(true);
+    const hard = path.join(root, 'hardlink.exe'); linkSync(exe, hard);
+    expect(assertFreshBookExecutable({ ...pinned, executable: hard })).toBe(true);
+    for (const bad of [{ ...pinned, executableSha256: 'a'.repeat(64) }, { ...pinned, executable: path.join(root, 'missing.exe') }, { ...pinned, executable: root }])
+      expect(() => assertFreshBookExecutable(bad)).toThrow('fresh_book_executable_changed');
+    let link: string | null = path.join(root, 'link.exe');
+    try { symlinkSync(exe, link, 'file'); } catch { link = null; }
+    if (link) expect(() => assertFreshBookExecutable({ ...pinned, executable: link })).toThrow('fresh_book_executable_changed');
+    // The data reader is unchanged: a JSON/config artifact over 32MB is still refused.
+    const data = path.join(root, 'big-config.json'); writeFileSync(data, Buffer.concat([Buffer.from('{"a":"'), Buffer.alloc(32_000_001, 97), Buffer.from('"}')]));
+    expect(() => freshBookConfig(data)).toThrow('fresh_book_file');
+  });
+  it.skipIf(!existsSync(STAGED))('the staged configuration\'s real pinned executable passes the same seam (read only, never spawned)', () => {
+    const staged = json(STAGED);
+    expect(assertFreshBookExecutable(staged)).toBe(true);
+    expect(() => assertFreshBookExecutable({ ...staged, executableSha256: '0'.repeat(64) })).toThrow('fresh_book_executable_changed');
+  });
+  it.skipIf(!existsSync(STAGED))('the staged admission still re-derives passed from the settled round-2 records; nothing claimed (read only)', async () => {
+    const staged = json(STAGED), env = { authorityRoot: FRESH_BOOK_CYCLE.authorityRoot }, rereview = rereviewConfig(staged.rereviewConfig);
+    expect(await assertFreshBookAdmission(rereview, env)).toMatchObject({ disposition: 'passed', acceptance: CHILD_ANCHOR_MATERIALITY_VERSION, design: { round: 2 } });
+    expect(freshBookDiagnosticSpend(rereview, env)).toBe(128930);
+    expect([existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.claimName)), existsSync(staged.bookDir)]).toEqual([false, false]);
+  });
+});
 
 describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer (native stages, synthetic providers)', { timeout: 180_000 }, () => {
   /** A temporary authority root and output parent; the real consumed diagnostic is read only. Round 1 re-review run for real (fake judges). */
@@ -229,6 +261,25 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
       await expect(runFreshBookText({ ...s.common, transports: textTransports() })).rejects.toThrow(rereview === 'none' ? 'fresh_book_admission_missing' : 'fresh_book_admission_held');
       expect([existsSync(path.join(s.authority, FRESH_BOOK_CYCLE.claimName)), existsSync(s.config.bookDir)]).toEqual([false, false]);
     }
+  });
+
+  it('native text path (no injected transport): a >32MB pinned binary passes the executable guard; a changed one refuses before claim, folder, key or call', async () => {
+    const s = await setup(), big = Buffer.alloc(33_000_000, 9), exe = path.join(s.root, 'SYNTHETIC-big-claude.exe'); writeFileSync(exe, big);
+    const native = async (config: FreshBookConfig) => {
+      const { grantDraft, state } = planFreshBook(config, s.env), grantFile = path.join(s.root, `native-grant-${sha(JSON.stringify(config)).slice(0, 8)}.json`);
+      writeFileSync(grantFile, JSON.stringify(grantDraft));
+      return { state, run: runFreshBookText({ ...s.common, config, grantFile, grantSha: sha(readFileSync(grantFile)) }) };
+    };
+    const changed = await native({ ...s.config, executable: exe, executableSha256: 'b'.repeat(64) });
+    expect(changed.state.executablePinned).toEqual({ refused: 'fresh_book_executable_changed' });
+    await expect(changed.run).rejects.toThrow('fresh_book_executable_changed');
+    expect([existsSync(path.join(s.authority, FRESH_BOOK_CYCLE.claimName)), existsSync(s.config.bookDir)]).toEqual([false, false]);
+    // The matching binary passes; the run then stops at the next pre-claim check (the slot already exists), never reaching the claim or a key.
+    mkdirSync(s.config.bookDir);
+    const pinned = await native({ ...s.config, executable: exe, executableSha256: sha(big), keyEnvFile: path.join(s.root, 'absent.env') });
+    expect(pinned.state.executablePinned).toBe(true);
+    await expect(pinned.run).rejects.toThrow('fresh_book_slot_used');
+    expect(existsSync(path.join(s.authority, FRESH_BOOK_CYCLE.claimName))).toBe(false);
   });
 
   it('the source moving after admission, before the claim, refuses with no claim; a dirty tree at a later call stops before its claim', async () => {
