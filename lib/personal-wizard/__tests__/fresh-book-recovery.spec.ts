@@ -16,7 +16,11 @@ import * as images from '../../generate-image';
 import { causalSourceReviewPacket, causalReviewPackets } from '../story-causal-experiment';
 import { preparePersonalStory } from '../story-writer';
 import { resolvePersonalWizardOptions } from '../options';
-import { citationTokens, compileSourceCitationReview, invalidSourceCitations, prepareSourceCitationCorrection, applySourceCitationCorrection } from '../story-source-citations';
+import { citationTokens, compileSourceCitationReview, invalidSourceCitations, prepareSourceCitationCorrection, applySourceCitationCorrection,
+  restoreSourceCitationReview } from '../story-source-citations';
+import { canonicalJson } from '../request-acceptance';
+import { previewSha } from '../../local-story-preview';
+import { folderBaseline } from '../../../scripts/personal-child-anchor-rereview';
 import { CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_ANCHOR_INSPECTION_VERSION, childAnchorInspectionContextSha } from '../child-anchor-style';
 import { auditionReviewRule, type AuditionMeter } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
@@ -159,6 +163,15 @@ describe('story-source-citations-correction/v1 (provider-free)', { timeout: 60_0
     const valid = applySourceCitationCorrection(review, raw, c, ok).corrected;
     expect(() => prepareSourceCitationCorrection(review, valid)).toThrow('critic_evidence');
   });
+  it('restores a review from the request it sent, exactly; a changed unit, instruction or packet field refuses', async () => {
+    const { review } = await failed(), restored = restoreSourceCitationReview(structuredClone(review.packet), review.instructions);
+    expect(restored.catalogue).toEqual(review.catalogue); expect(restored.packetDigest).toBe(review.packetDigest);
+    const unit = structuredClone(review.packet) as any; unit.original.pages[0].units[0].text += 'x';
+    expect(() => restoreSourceCitationReview(unit, review.instructions)).toThrow('critic_binding');
+    expect(() => restoreSourceCitationReview(review.packet, review.instructions + ' ')).toThrow('critic_binding');
+    expect(() => restoreSourceCitationReview({ ...review.packet, sourcePacketDigest: 'c'.repeat(64) }, review.instructions)).not.toThrow();
+    expect(restoreSourceCitationReview({ ...review.packet, sourcePacketDigest: 'c'.repeat(64) }, review.instructions).packetDigest).not.toBe(review.packetDigest);
+  });
 });
 
 describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synthetic providers)', { timeout: 240_000 }, () => {
@@ -234,6 +247,8 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
     expect({ ...corr.corrected, findings: corr.corrected.findings.map((x: any) => ({ ...x, original: null })) })
       .toEqual({ ...failedRaw, findings: failedRaw.findings.map((x: any) => ({ ...x, original: null })) });
     // Cumulative: the original text's 2 calls (14000) stay; the recovery adds its own; nothing reset.
+    expect(json(path.join(s.authority, FRESH_BOOK_RECOVERY.successorName))).toMatchObject({ grantSha256: g.grantSha, stage: 'comparison',
+      originalClaimSha256: sha(readFileSync(path.join(s.authority, FRESH_BOOK_CYCLE.claimName))) });
     expect(out.ledger.stages.slice(0, 2)).toEqual([{ name: 'text', knownMicroUsd: 14000, calls: 2 }, expect.objectContaining({ name: 'text-recovery', calls: 2 })]);
     expect(s.frozen()).toEqual(before);
     // The recovery is used once: the same, a re-issued or a relabelled grant cannot start another.
@@ -322,6 +337,58 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
     await expect(runFreshBookChild({ ...og, recovery: true })).rejects.toThrow();
     expect(vi.mocked(images.generateGPTImage).mock.calls.length).toBe(0);
     expect(existsSync(path.join(o.config.bookDir, 'child'))).toBe(false);
+  });
+
+  /** The F5 successor changes (Codex 2026-10-18): each leaves usage/settlement intact; `reseal` also rewrites the durable record to the changed folder. */
+  const tamperSuccessor = (s: Awaited<ReturnType<typeof failedBook>>, kind: string, reseal = false) => {
+    const dir = recoveryDir(s), write = (file: string, edit: (x: any) => void) => { const x = json(file); edit(x); writeFileSync(file, JSON.stringify(x)); };
+    if (kind === 'paid_correction_raw') write(path.join(dir, 'paid-stages', 'citation_correction.receipt.json'), r => {
+      const answer = JSON.parse(r.raw.output_text); answer.corrections[0].anchor = 'ציטוט שאיננו'; r.raw.output_text = JSON.stringify(answer); r.output = answer; });
+    else if (kind === 'compiled_correction') write(path.join(dir, 'citation-correction.json'), p => {
+      p.corrected.summary = 'This semantic summary was changed AFTER recovery.'; p.corrected.findings[0].explanation = 'A different finding, not the frozen failed answer.'; });
+    else write(path.join(dir, 'recovery-admission.json'), p => { p.grantSha256 = '0'.repeat(64); p.original.claimSha256 = '1'.repeat(64); });
+    if (reseal) write(path.join(s.authority, FRESH_BOOK_RECOVERY.successorName), r => { r.successorSha256 = previewSha(canonicalJson(folderBaseline(dir))); });
+  };
+  it.each(['paid_correction_raw', 'compiled_correction', 'recovery_admission'])('F5: a changed successor (%s) refuses the child BEFORE its folder, key or render, even with a re-sealed record', async kind => {
+    const s = await failedBook(), g = s.grant();
+    await runFreshBookTextRecovery({ ...g, transports: textTransports() });
+    const before = s.frozen(), record = readFileSync(path.join(s.authority, FRESH_BOOK_RECOVERY.successorName));
+    for (const reseal of [false, true]) {
+      tamperSuccessor(s, kind, reseal);
+      providers();
+      await expect(runFreshBookChild({ ...g, recovery: true }), `${kind} reseal=${reseal}`).rejects.toThrow('fresh_book_recovery_successor');
+      expect([kind, reseal, vi.mocked(images.generateGPTImage).mock.calls.length, sdk.create.mock.calls.length, existsSync(path.join(s.config.bookDir, 'child'))])
+        .toEqual([kind, reseal, 0, 0, false]);
+    }
+    expect(s.frozen()).toEqual(before);
+    expect(existsSync(path.join(s.authority, FRESH_BOOK_RECOVERY.outcomeName))).toBe(false);
+    expect(readFileSync(path.join(s.authority, FRESH_BOOK_RECOVERY.successorName)).equals(record)).toBe(false);
+  });
+  it('F5: a successor change AFTER the check (during an awaited render) halts at the next guard; book and resume entry refuse a changed successor', async () => {
+    const s = await failedBook(), g = s.grant(), before = s.frozen();
+    await runFreshBookTextRecovery({ ...g, transports: textTransports() });
+    // Child: the check passes, then the successor changes during the first render: no review call follows.
+    providers();
+    const render = vi.mocked(images.generateGPTImage), real = render.getMockImplementation()!;
+    render.mockImplementationOnce(async input => { tamperSuccessor(s, 'compiled_correction'); return real(input); });
+    await expect(runFreshBookChild({ ...g, recovery: true })).rejects.toThrow('fresh_book_roots_changed');
+    expect([render.mock.calls.length, sdk.create.mock.calls.length]).toEqual([1, 0]);
+    expect(json(path.join(s.authority, FRESH_BOOK_RECOVERY.outcomeName)).status).toBe('failed_child');
+    // Book/resume on a second book: the child passes, the book starts and the successor changes during its first render.
+    const b = await failedBook(), bg = b.grant();
+    await runFreshBookTextRecovery({ ...bg, transports: textTransports() });
+    providers();
+    expect(await runFreshBookChild({ ...bg, recovery: true })).toMatchObject({ status: 'child_reference_passed' });
+    const r2 = vi.mocked(images.generateGPTImage), real2 = r2.getMockImplementation()!, rendered = r2.mock.calls.length;
+    r2.mockImplementationOnce(async input => { tamperSuccessor(b, 'paid_correction_raw'); return real2(input); });
+    await expect(runFreshBookBook({ ...bg, recovery: true })).rejects.toThrow('fresh_book_roots_changed');
+    expect(r2.mock.calls.length).toBe(rendered + 1);
+    expect(existsSync(path.join(b.config.bookDir, 'audition.grant.json'))).toBe(true);
+    await expect(runFreshBookBook({ ...bg, recovery: true, resume: true })).rejects.toThrow('fresh_book_recovery_successor');
+    await expect(runFreshBookBook({ ...bg, recovery: true })).rejects.toThrow('fresh_book_recovery_successor');
+    expect(r2.mock.calls.length).toBe(rendered + 1);
+    expect(existsSync(path.join(b.authority, FRESH_BOOK_RECOVERY.outcomeName))).toBe(false);
+    expect(s.frozen()).toEqual(before);
   });
 });
 

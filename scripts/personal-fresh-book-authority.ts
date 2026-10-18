@@ -165,6 +165,8 @@ export const FRESH_BOOK_RECOVERY = Object.freeze({
   claimName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.claim.json',
   outcomeName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.outcome.json',
   auditionStartName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.audition.json',
+  /** The verified successor's one durable provenance record (written once, at completion, only after its chain re-verifies). */
+  successorName: 'owner-cycle-20261017-fresh-book-usd7.text-recovery.successor.json',
   folder: 'text-recovery',
   failedOutcome: 'failed_text', failedCode: 'critic_evidence',
   correctionCalls: 1, correctionReserveMicroUsd: 600_000, apiCalls: 2,

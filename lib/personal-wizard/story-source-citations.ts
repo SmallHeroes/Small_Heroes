@@ -137,6 +137,24 @@ export function invalidSourceCitations(review: PreparedSourceCitationReview, raw
   return { output: parsed.data, invalid };
 }
 
+/**
+ * A prepared review restored from the request it actually sent (its numbered packet and instructions): the catalogue is rebuilt from the
+ * packet's own units and the whole is re-verified as a freshly prepared one (digests, unit boundaries, sources). Anything else refuses.
+ */
+export function restoreSourceCitationReview(packet: unknown, instructions: unknown): PreparedSourceCitationReview {
+  if (!packet || typeof packet !== 'object' || typeof instructions !== 'string') return fail('critic_binding');
+  const body = packet as any, catalogue: Unit[] = [];
+  const sides: [unknown, Unit['side']][] = 'manuscript' in body ? [[body.manuscript, String(body.version).includes('/original-') ? 'original' : 'revised']]
+    : [[body.original, 'original'], [body.revised, 'revised']];
+  try {
+    for (const [text, side] of sides) for (const page of (text as { pages: { pageNumber: number; units: { text: string }[] }[] }).pages)
+      catalogue.push(...sourceUnits(page.units.map(u => u.text).join(''), page.pageNumber, side));
+  } catch { return fail('critic_binding'); }
+  const review = { packet: body, packetDigest: digest(body), instructions, catalogue, schema: sourceCriticSchema } as PreparedSourceCitationReview;
+  assertPreparedReview(review);
+  return review;
+}
+
 /** The one correction request for a failed answer. Refuses (critic_evidence) when nothing is invalid or a refused reference names no unit of its version. */
 export function prepareSourceCitationCorrection(review: PreparedSourceCitationReview, raw: unknown) {
   const { output, invalid } = invalidSourceCitations(review, raw);

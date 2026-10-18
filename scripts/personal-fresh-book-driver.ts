@@ -52,7 +52,7 @@ import { REREVIEW_AMENDMENT, rereviewConfig, rereviewOutput, folderBaseline, typ
 import { FRESH_BOOK_CYCLE, FreshBookError, freshBookProfileSchema, freshBookProfileSha, freshBookGrantSchema, assertFreshBookAdmission, freshBookDiagnosticSpend,
   freshBookCycleLedger, claimFreshBook, assertFreshBookPaid, freshBookReadingOrder, type FreshBookEnv, type FreshBookProfile, type FreshBookGrant, type FreshBookStage,
   type PageGate, FRESH_BOOK_RECOVERY, freshBookRecoveryGrantSchema, claimFreshBookRecovery, assertFreshBookRecoveryPaid, type FreshBookRecoveryGrant } from './personal-fresh-book-authority';
-import { prepareSourceCitationCorrection, applySourceCitationCorrection } from '../lib/personal-wizard/story-source-citations';
+import { prepareSourceCitationCorrection, applySourceCitationCorrection, restoreSourceCitationReview } from '../lib/personal-wizard/story-source-citations';
 import type { CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
 
 export const FRESH_BOOK_DRIVER_VERSION = 'fresh-book-driver/v1' as const;
@@ -185,7 +185,7 @@ function rootsOf(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewC
   const names: string[] = [REREVIEW_AMENDMENT.originalClaimName, REREVIEW_AMENDMENT.originalOutcomeName];
   for (let round = 1; round <= REREVIEW_AMENDMENT.maxRounds; round++) names.push(REREVIEW_AMENDMENT.claimName(round), REREVIEW_AMENDMENT.outcomeName(round));
   for (const name of [...names, FRESH_BOOK_CYCLE.claimName, FRESH_BOOK_CYCLE.outcomeName, path.basename(auditionStartFile(env)),
-    FRESH_BOOK_RECOVERY.claimName, FRESH_BOOK_RECOVERY.outcomeName, FRESH_BOOK_RECOVERY.auditionStartName]) {
+    FRESH_BOOK_RECOVERY.claimName, FRESH_BOOK_RECOVERY.outcomeName, FRESH_BOOK_RECOVERY.auditionStartName, FRESH_BOOK_RECOVERY.successorName]) {
     const file = path.join(env.authorityRoot, name); out[`authority/${name}`] = existsSync(file) ? previewSha(fileBytes(file)) : 'absent';
   }
   for (const [rel, d] of Object.entries(folderBaseline(rereview.diagnosticOutput))) out[`diagnostic/${rel}`] = d;
@@ -275,7 +275,9 @@ export function planFreshBookRecovery(config: FreshBookConfig, env: FreshBookEnv
       reserveMicroUsd: FRESH_BOOK_RECOVERY.correctionReserveMicroUsd, model: SOL },
     then: ['storyboard (Opus 5.5 Claude Max planner)', 'storyboard_review (Sol 6.1)'], downstream: ['child --recovery', 'book --recovery [--resume]'],
     caps: { ...base.plan.caps, recoveryApiCalls: FRESH_BOOK_RECOVERY.apiCalls }, claim: path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName),
-    outcome: path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName), providerCalls: 0, keyRead: false };
+    outcome: path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName), successor: path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.successorName),
+    successorAdmission: 'downstream re-derives the successor from the failed evidence (request, paid wire and raw answer, strict apply, readings) and its one durable record',
+    providerCalls: 0, keyRead: false };
   const engine = env.head();
   const pins = Object.fromEntries(FRESH_BOOK_RECOVERY_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
   const grantDraft: FreshBookRecoveryGrant = freshBookRecoveryGrantSchema.parse({ version: 'fresh-book-recovery-grant/v1', cycle: FRESH_BOOK_CYCLE.id,
@@ -283,7 +285,7 @@ export function planFreshBookRecovery(config: FreshBookConfig, env: FreshBookEnv
     original, ledger, allowance: { correctionCalls: FRESH_BOOK_RECOVERY.correctionCalls, correctionReserveMicroUsd: FRESH_BOOK_RECOVERY.correctionReserveMicroUsd,
       apiCalls: FRESH_BOOK_RECOVERY.apiCalls }, engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
   const probe = (f: () => unknown) => { try { return f(); } catch (e) { return { refused: e && typeof e === 'object' && 'code' in e ? e.code : String(e) }; } };
-  const state = { recoveryClaimExists: existsSync(plan.claim), recoveryOutcomeExists: existsSync(plan.outcome),
+  const state = { recoveryClaimExists: existsSync(plan.claim), recoveryOutcomeExists: existsSync(plan.outcome), successorExists: existsSync(plan.successor),
     recoveryFolderExists: existsSync(path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder)), ledger: probe(() => freshBookLedger(config, env, base.rereview, true)),
     executablePinned: probe(() => assertFreshBookExecutable(config)), engine };
   return { plan, grantDraft, state, profile: base.profile, prepared: base.prepared, rereview: base.rereview };
@@ -326,6 +328,75 @@ async function admitRecovery(a: { config: FreshBookConfig; env: FreshBookEnv; gr
   return { planned, outcome, same, guard, recapture, grant: planned.grantDraft };
 }
 
+/**
+ * The recovery's successor, re-derived from the immutable failed evidence at its completion and at every downstream entry (never its own
+ * seal, summary or a re-captured folder): its admission is this grant's; the correction request rebuilds from the failed reading's saved
+ * request and answer; the one paid correction wire is exactly that request and its answer is its own raw output; the strict apply reproduces
+ * the saved correction; the saved result's readings are the untouched reading and the corrected one, on the reviewed manuscript. Completion
+ * writes the ONE durable successor record (the folder by digest, bound to this grant and both claims); afterwards it must equal the re-derivation.
+ */
+function verifyRecoverySuccessor(a: { config: FreshBookConfig; env: FreshBookEnv; grant: FreshBookRecoveryGrant; grantSha: string; requestId: string;
+  rereviewOutcome: unknown }, write = false) {
+  const { config, env, grant } = a, oldDir = path.join(config.bookDir, 'text'), dir = path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder);
+  const refuse = (): never => fail('fresh_book_recovery_successor'), same = (x: unknown, y: unknown) => canonicalJson(x) === canonicalJson(y);
+  const successorFile = path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.successorName), READERS = ['final_review', 'comparison'] as const;
+  const original: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256, workspace: path.join(oldDir, 'cli-workspace'),
+    maxWireBytes: 104000, rates: { opus: RATES.opus, astra: RATES.sol }, openAIReviewModel: SOL };
+  const wireOf = (call: { stage: CausalStage; instructions: string; input: string; schema: z.ZodTypeAny }, policy: WirePolicy) =>
+    prepareCausalWire({ ...call, maxOutputTokens: 16000, role: 'astra', conversationKey: `fresh-book:${a.requestId}:${call.stage}` }, policy, 2000000);
+  /** A settled API call: its claim, wire and result bind each other, and the saved wire is exactly the rebuilt request. */
+  const settled = (folder: string, step: string, wire?: unknown) => {
+    const file = (k: string) => path.join(folder, 'paid-stages', `${step}.${k}.json`);
+    const claim = json(file('claim')), saved = json(file('wire')), result = json(file('result'));
+    if (claim.step !== step || previewSha(canonicalJson(saved)) !== claim.wireDigest || result.wireDigest !== claim.wireDigest || result.completed !== true ||
+        (wire !== undefined && !same(JSON.parse(JSON.stringify(wire)), saved))) refuse();
+    return { claim, wire: saved, receiptFile: file('receipt'), receipt: json(file('receipt')) };
+  };
+  /** A saved reading of the failed text: its review restored from the request it sent (which must rebuild exactly) and its own settled answer. */
+  const reading = (step: (typeof READERS)[number]) => {
+    const s = settled(oldDir, step), { packetDigest, packet } = JSON.parse(s.wire.payload.input), review = restoreSourceCitationReview(packet, s.wire.payload.instructions);
+    if (packetDigest !== review.packetDigest) refuse();
+    settled(oldDir, step, wireOf({ stage: step, instructions: review.instructions, input: canonicalJson({ packetDigest: review.packetDigest, packet: review.packet }),
+      schema: review.schema }, original));
+    const raw = review.schema.parse(JSON.parse(s.receipt.raw.output_text));
+    if (!same(raw, s.receipt.output)) refuse();
+    return { review, raw, receiptFile: s.receiptFile };
+  };
+  let record: Record<string, unknown>;
+  try {
+    if (!same(json(path.join(dir, 'sealed.json')), { status: 'review_supported', corrections: 1, replayed: ['author', 'editor', 'final_review', 'comparison'],
+      runtimeEligible: false })) refuse();
+    const admission = json(path.join(dir, 'recovery-admission.json'));
+    if (!same(Object.keys(admission).sort(), ['grantSha256', 'ledger', 'original', 'rereviewOutcome', 'version']) || admission.version !== FRESH_BOOK_RECOVERY.version ||
+        admission.grantSha256 !== a.grantSha || !same(admission.original, grant.original) || !same(admission.rereviewOutcome, a.rereviewOutcome) ||
+        admission.ledger?.diagnosticSettledMicroUsd !== grant.ledger.diagnosticSettledMicroUsd || admission.ledger?.bookKnownMicroUsd !== grant.ledger.originalTextKnownMicroUsd ||
+        !same(admission.ledger?.stages?.[0], { name: 'text', knownMicroUsd: grant.ledger.originalTextKnownMicroUsd, calls: grant.ledger.originalTextCalls })) refuse();
+    const request = json(path.join(dir, 'citation-correction-request.json')), stage = READERS.find(s => s === request.stage) ?? refuse();
+    const failed = reading(stage), correction = prepareSourceCitationCorrection(failed.review, failed.raw);
+    if (!same(request, { stage, failedReceiptSha256: previewSha(fileBytes(failed.receiptFile)), correctionDigest: correction.correctionDigest, body: correction.body })) refuse();
+    const paid = settled(dir, 'citation_correction', wireOf({ stage: 'citation_correction' as CausalStage, instructions: correction.instructions, input: correction.input,
+      schema: correction.schema }, { ...original, workspace: path.join(dir, 'cli-workspace') }));
+    const answer = correction.schema.parse(JSON.parse(paid.receipt.raw.output_text));
+    if (paid.claim.maximumMicroUsd !== FRESH_BOOK_RECOVERY.correctionReserveMicroUsd || !same(answer, paid.receipt.output)) refuse();
+    const applied = applySourceCitationCorrection(failed.review, failed.raw, correction, answer);
+    if (!same(json(path.join(dir, 'citation-correction.json')), { stage, ...applied.provenance, corrected: applied.corrected })) refuse();
+    const result = json(path.join(dir, 'simple-book-result.json')), at = READERS.indexOf(stage);
+    if (result.status !== 'review_supported' || !same(json(path.join(dir, 'visual_simple_book_result.json')), result) || !Array.isArray(result.readings) ||
+        !same(result.readings.map((r: any) => r?.sourceEvidence?.output), READERS.map(s => s === stage ? applied.compiled.raw : reading(s).raw)) ||
+        !same({ summary: result.readings[at].summary, findings: result.readings[at].findings }, { summary: applied.compiled.summary, findings: applied.compiled.findings })) refuse();
+    // The successor's source is the manuscript the failed reading reviewed (no rewritten text).
+    const reviewed = (failed.review.packet as any).revised ?? (failed.review.packet as any).manuscript;
+    if (!same({ title: result.source?.manuscript?.title, pages: result.source?.manuscript?.pages?.map((p: any) => ({ pageNumber: p.pageNumber, text: p.text })) },
+      { title: reviewed.title, pages: reviewed.pages.map((p: any) => ({ pageNumber: p.pageNumber, text: p.units.map((u: { text: string }) => u.text).join('') })) })) refuse();
+    record = { cycle: FRESH_BOOK_CYCLE.id, recovery: FRESH_BOOK_RECOVERY.version, grantSha256: a.grantSha, originalClaimSha256: grant.original.claimSha256,
+      recoveryClaimSha256: previewSha(fileBytes(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName))), stage, correction: applied.provenance,
+      successorSha256: previewSha(canonicalJson(folderBaseline(dir))) };
+  } catch { return refuse(); }
+  if (write) exclusiveJson(successorFile, record);
+  else if (!existsSync(successorFile) || !same(json(successorFile), record)) refuse();
+  return record;
+}
+
 /** Which authority a downstream stage runs under: the original line, or the recovery line (its successor text, its own claim and outcome). */
 type Line = { recovery: boolean; storyboardDir: string; claimName: string; outcomeName: string; auditionStart: (env: FreshBookEnv) => string };
 const ORIGINAL_LINE: Line = { recovery: false, storyboardDir: 'text', claimName: FRESH_BOOK_CYCLE.claimName, outcomeName: FRESH_BOOK_CYCLE.outcomeName,
@@ -337,13 +408,18 @@ const admitLine = (args: { config: FreshBookConfig; env: FreshBookEnv; grantFile
   line.recovery ? admitRecovery({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder] }) : admitStage({ ...args, earlier });
 /**
  * The text a downstream stage may stand on: the original line's supported text with no terminal outcome; or, on the recovery line, the
- * failed text exactly as its failure (never ignored globally), its supported successor and no recovery outcome.
+ * failed text exactly as its failure (never ignored globally), no recovery outcome, and its successor re-verified against its durable record
+ * (synchronous; the caller's next guard holds what was verified to the baseline pinned before every await).
  */
-function linePassed(config: FreshBookConfig, env: FreshBookEnv, line: Line) {
-  const text = path.join(config.bookDir, 'text');
+function linePassed(a: { config: FreshBookConfig; env: FreshBookEnv; grantSha: string }, line: Line, admitted: Awaited<ReturnType<typeof admitLine>>) {
+  const { config, env } = a, text = path.join(config.bookDir, 'text');
   if (!line.recovery) return sealedStatus(text) === 'review_supported' && !existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName));
-  return sealedStatus(text) === 'failed' && sealedStatus(path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder)) === 'review_supported' &&
-    existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName)) && !existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName));
+  if (sealedStatus(text) !== 'failed' || !existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName)) ||
+      existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName))) return false;
+  if (!('grant' in admitted)) return fail('fresh_book_recovery_grant');
+  verifyRecoverySuccessor({ config, env, grant: admitted.grant, grantSha: a.grantSha, requestId: admitted.planned.prepared.accepted.requestId,
+    rereviewOutcome: admitted.outcome });
+  return true;
 }
 /** The cumulative ledger: the diagnostic subcap's settled spend and every book stage, each from its own records. Unknown halts. */
 export function freshBookLedger(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, recovery = false) {
@@ -591,6 +667,12 @@ export async function runFreshBookTextRecovery(args: { config: FreshBookConfig; 
     }
     seal(result.status, { corrections });
     if (result.status !== 'review_supported') finish(env, 'held_text', { textStatus: result.status }, FRESH_BOOK_RECOVERY.outcomeName);
+    else {
+      // The successor's ONE durable provenance: its chain re-derived from the failed evidence, then recorded once; only that write is accepted.
+      guard();
+      verifyRecoverySuccessor({ config, env, grant: admitted.grant, grantSha: args.grantSha, requestId: prepared.accepted.requestId, rereviewOutcome: admitted.outcome }, true);
+      admitted.recapture([`authority/${FRESH_BOOK_RECOVERY.successorName}`]);
+    }
     return { status: result.status, corrections, replayed, api: api.snapshot(), claudeMax: claudeMax.snapshot(), ledger: freshBookLedger(config, env, admitted.planned.rereview, true) };
   } catch (error) {
     const code = failed ?? codeOf(error, 'fresh_book_text_recovery_failed');
@@ -617,7 +699,8 @@ export async function runFreshBookChild(args: { config: FreshBookConfig; env: Fr
   const { config, env, signal } = args, line = lineOf(args.recovery);
   const admitted = await admitLine(args, line, ['request.json', 'admission.json', 'text']);
   admitted.guard();
-  if (!linePassed(config, env, line)) fail('fresh_book_stage_not_passed');
+  if (!linePassed(args, line, admitted)) fail('fresh_book_stage_not_passed');
+  admitted.guard();
   const profile = admitted.planned.profile, loaded = loadReviewedStoryboard(config.bookDir, workspace(), layoutFor(profile, undefined, line.storyboardDir));
   const anchor = anchorAuthority(profile, loaded.book.plan.wardrobe), contextSha = childAnchorInspectionContextSha(anchor.context);
   const ledger = freshBookLedger(config, env, admitted.planned.rereview, line.recovery);
@@ -786,7 +869,7 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
   const earlier = ['request.json', 'admission.json', 'text', 'child', 'book-layout.json', 'audition.grant.json'];
   const admitted = await admitLine(args, line, earlier);
   admitted.guard();
-  if (!linePassed(config, env, line) || sealedStatus(path.join(config.bookDir, 'child')) !== 'child_reference_passed' ||
+  if (!linePassed(args, line, admitted) || sealedStatus(path.join(config.bookDir, 'child')) !== 'child_reference_passed' ||
       existsSync(path.join(env.authorityRoot, line.outcomeName))) fail('fresh_book_stage_not_passed');
   const grant = await freshAuditionGrant(config, env, admitted.planned.rereview, admitted.planned.profile, line);
   const grantFile = path.join(config.bookDir, 'audition.grant.json'), out = path.join(config.bookDir, 'audition'), start = line.auditionStart(env);
