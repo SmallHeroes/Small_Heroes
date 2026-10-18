@@ -141,10 +141,13 @@ export function planFreshBook(config: FreshBookConfig, env: FreshBookEnv) {
   return { plan, grantDraft, state, profile, prepared, rereview };
 }
 
-/** The re-review lineage the admission stands on, and each earlier stage folder of this book, by digest (pinned at stage start). */
+/**
+ * The re-review lineage the admission stands on (original claim/outcome/folder and its configuration, every round's claim/outcome/folder),
+ * this book's claim, outcome and audition start, and each earlier stage entry of this book, by digest (pinned before any reader validates them).
+ */
 function rootsOf(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, folders: string[]) {
   const out: Record<string, string> = { config: previewSha(canonicalJson(config)), profile: previewSha(fileBytes(config.profileFile)),
-    rereviewConfig: previewSha(fileBytes(config.rereviewConfig)) };
+    rereviewConfig: previewSha(fileBytes(config.rereviewConfig)), diagnosticConfig: previewSha(fileBytes(rereview.diagnosticConfig)) };
   const names: string[] = [REREVIEW_AMENDMENT.originalClaimName, REREVIEW_AMENDMENT.originalOutcomeName];
   for (let round = 1; round <= REREVIEW_AMENDMENT.maxRounds; round++) names.push(REREVIEW_AMENDMENT.claimName(round), REREVIEW_AMENDMENT.outcomeName(round));
   for (const name of [...names, FRESH_BOOK_CYCLE.claimName, FRESH_BOOK_CYCLE.outcomeName, path.basename(auditionStartFile(env))]) {
@@ -166,33 +169,36 @@ function rootsOf(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewC
 
 /**
  * A stage's admission: the grant is exactly the draft this state rebuilds and the externally pinned bytes; admission's own final read is
- * clean at its head and branch. Returns the synchronous guard of THAT captured baseline (grant bytes, profile, claim when it exists, source,
- * configuration, re-review lineage, earlier stage folders), for every write and every paid call.
+ * clean at its head and branch. The baseline (grant bytes, configuration, profile, re-review lineage, this book's authority records, earlier
+ * stage entries) is pinned FIRST, before the plan, its probe or the awaited admission read any of it, and held across every await: what was
+ * validated is exactly what is pinned, never a later re-capture. Returns the synchronous guard of that baseline, for every write and paid call.
  */
 async function admitStage(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal; earlier: string[] }) {
   const bytes = fileBytes(a.grantFile);
   if (previewSha(bytes) !== a.grantSha) fail('fresh_book_grant');
+  const rereview = loadRereview(a.config);
+  let roots = rootsOf(a.config, a.env, rereview, a.earlier);
   const planned = planFreshBook(a.config, a.env);
   const outcome = await assertFreshBookAdmission(planned.rereview, a.env);
   const engine = a.env.head();
   if (canonicalJson(JSON.parse(bytes.toString('utf8'))) !== canonicalJson(planned.grantDraft)) fail('fresh_book_grant');
   if (!engine.clean || engine.head !== planned.grantDraft.engine.head || engine.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
-  let roots = rootsOf(a.config, a.env, planned.rereview, a.earlier);
   const same = () => {
     if (a.signal.aborted) fail('fresh_book_cancelled');
     const now = fileBytes(a.grantFile);
     if (!now.equals(bytes)) fail('fresh_book_grant');
-    if (canonicalJson(rootsOf(a.config, a.env, planned.rereview, a.earlier)) !== canonicalJson(roots)) fail('fresh_book_roots_changed');
+    if (canonicalJson(rootsOf(a.config, a.env, rereview, a.earlier)) !== canonicalJson(roots)) fail('fresh_book_roots_changed');
     const e = a.env.head();
     if (!e.clean || e.head !== planned.grantDraft.engine.head || e.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
     for (const [rel, digest] of Object.entries(planned.grantDraft.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('fresh_book_source_changed');
   };
   /** Before every paid call: the captured baseline, then the claim this grant wrote (same profile, folder and head). */
   const guard = () => { same(); assertFreshBookPaid({ env: a.env, grantFile: a.grantFile, grantSha: a.grantSha, profile: planned.profile, workspace: workspace() }); };
-  /** After this stage's own exclusive write to the authority root (the claim): the ONLY accepted change is that file appearing. */
-  const recapture = (name: string) => {
-    const next = rootsOf(a.config, a.env, planned.rereview, a.earlier), changed = Object.keys(next).filter(k => next[k] !== roots[k]);
-    if (changed.length !== 1 || changed[0] !== `authority/${name}` || roots[changed[0]] !== 'absent') fail('fresh_book_roots_changed');
+  /** After this stage's own exclusive writes (the claim; the audition grant and start): the ONLY accepted change is exactly these appearing. */
+  const recapture = (added: string[]) => {
+    const next = rootsOf(a.config, a.env, rereview, a.earlier), changed = Object.keys(next).filter(k => next[k] !== roots[k]);
+    if (canonicalJson(Object.keys(next).sort()) !== canonicalJson(Object.keys(roots).sort()) || canonicalJson(changed.sort()) !== canonicalJson([...added].sort()) ||
+        added.some(k => roots[k] !== 'absent' || next[k] === 'absent')) fail('fresh_book_roots_changed');
     roots = next; same();
   };
   same();
@@ -231,7 +237,7 @@ export async function runFreshBookText(args: { config: FreshBookConfig; env: Fre
   // No await from the last check to the one claim and the book folder.
   admitted.same();
   claimFreshBook(env, admitted.planned.grantDraft, args.grantSha);
-  admitted.recapture(FRESH_BOOK_CYCLE.claimName);
+  admitted.recapture([`authority/${FRESH_BOOK_CYCLE.claimName}`]);
   try { mkdirSync(config.bookDir); } catch { fail('fresh_book_slot_used'); }
   const textDir = path.join(config.bookDir, 'text'); mkdirSync(textDir); mkdirSync(path.join(textDir, 'cli-workspace'));
   exclusiveJson(path.join(config.bookDir, 'request.json'), { version: 'local-simple-wizard-request/v1', requestId: prepared.accepted.requestId,
@@ -510,7 +516,8 @@ async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, re
 export async function runFreshBookBook(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true }) {
   const { config, env } = args;
-  const earlier = ['request.json', 'admission.json', 'text', 'child', 'book-layout.json', ...(args.resume ? ['audition.grant.json'] : [])];
+  // The audition grant is pinned too (absent on a start, its bytes on a resume); the start record is part of the authority roots.
+  const earlier = ['request.json', 'admission.json', 'text', 'child', 'book-layout.json', 'audition.grant.json'];
   const admitted = await admitStage({ ...args, earlier });
   admitted.guard();
   if (sealedStatus(path.join(config.bookDir, 'text')) !== 'review_supported' || sealedStatus(path.join(config.bookDir, 'child')) !== 'child_reference_passed' ||
@@ -526,13 +533,13 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
     if (existsSync(grantFile) || existsSync(start) || existsSync(out)) fail('fresh_book_audition_used');
     exclusiveJson(grantFile, grant);
     exclusiveJson(start, { version: 'fresh-book-audition-start/v1', out: path.resolve(out), grantSha256: previewSha(fileBytes(grantFile)), claimSha256: grant.experiment!.claimSha256 });
+    // The audition grant and its start record are this stage's own writes: exactly these two are accepted, nothing else that moved.
+    admitted.recapture(['book/audition.grant.json', `authority/${path.basename(start)}`]);
   }
-  // The audition grant and its start record are this stage's own writes: pinned from here on, with everything before them.
-  const pinned = await admitStage({ ...args, earlier: [...earlier.filter(f => f !== 'audition.grant.json'), 'audition.grant.json'] });
   process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
   const result = await runReviewedAudition({ bookDir: config.bookDir, out, keyFile: config.keyEnvFile, grantFile, signal: args.signal, log: args.log,
     layout: readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json')), ...(args.resume ? { resume: true as const } : {}),
-    experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256: grant.experiment!.claimSha256, guard: pinned.guard } });
+    experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256: grant.experiment!.claimSha256, guard: admitted.guard } });
   if (result.mode !== 'render') return fail('fresh_book_audition_mode');
   // A drawn page that is not qa_supported is held; an undrawn one is pending. Complete only when the audition itself is fully supported.
   const gate = (status: unknown): PageGate['disposition'] => status === 'qa_supported' ? 'passed' : 'held_uncertain';

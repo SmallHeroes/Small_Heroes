@@ -71,8 +71,8 @@ function textTransports(): Required<FreshTextTransports> {
 }
 
 /** Provider answers at the SDK boundary for the child anchor and the audition (the real adapters, meters and settlement run). */
-function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' } = {}) {
-  let shade = 40;
+function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' | 'repair_once' } = {}) {
+  let shade = 40, designs = 0;
   vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
     const buffer = await png(shade++ % 250, 1024), usage = { input_tokens: 100, output_tokens: 300 };
     input.observeProviderResponse?.({ data: [{ b64_json: buffer.toString('base64') }], usage });
@@ -86,8 +86,11 @@ function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' } = 
   sdk.create.mockImplementation(async (payload: any) => {
     const text = JSON.parse(payload.input[0].content[0].text), name: string = payload.text.format.name;
     const reply = (value: unknown) => ({ model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 }, output_text: JSON.stringify(value) });
+    // 'repair_once': the first candidate's design review finds one known non-identity defect (with its correction); every later one passes.
+    const repair = name.includes('design_inspection') && opts.anchor === 'repair_once' && designs++ === 0;
     if (name.includes('design_inspection')) return reply({ candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha,
-      inspectionVersion: CHILD_ANCHOR_INSPECTION_VERSION, checks: passChecks().map(c => c.category === 'identity' && opts.anchor === 'uncertain' ? { ...c, verdict: 'uncertain' } : c),
+      inspectionVersion: CHILD_ANCHOR_INSPECTION_VERSION, checks: passChecks().map(c => c.category === 'identity' && opts.anchor === 'uncertain' ? { ...c, verdict: 'uncertain' }
+        : repair && c.category === QUALITY_CATEGORIES.find(k => k !== 'identity') ? { ...c, verdict: 'defect', correction: 'Soften the outline.' } : c),
       apparentAge: { requestedAge: text.apparentAge.requestedAge, verdict: 'compatible', observation: 'reads the age', correction: '' },
       visibleEvidence: CHILD_ANCHOR_REQUIRED_VISIBLE.map(aspect => ({ aspect, verdict: 'matched', observation: `${aspect} seen` })), unobservedConditional: [] });
     if (name.startsWith('child_anchor_style')) return reply({ candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha, assessable: true,
@@ -222,6 +225,132 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
     // The first reader settled; the change during it stops the next one before its claim.
     expect(claims(path.join(s.config.bookDir, 'text', 'paid-stages'))).toEqual(['final_review']);
     expect(json(path.join(s.authority, FRESH_BOOK_CYCLE.outcomeName))).toMatchObject({ status: 'failed_text' });
+  });
+
+  /**
+   * The accepted baseline is pinned BEFORE any reader validates it: a change after admission's own reads (here, at its final head read) is
+   * never adopted as a new baseline. Each case refuses with no claim, no output and no model or provider call.
+   */
+  const rereviewStages = (s: Awaited<ReturnType<typeof setup>>) => path.join(path.dirname(s.config.bookDir), 'child-anchor-rereview-r1-anchor-diag-20261018-round1', 'paid-stages');
+  const afterAdmission = (s: Awaited<ReturnType<typeof setup>>, change: () => void) => {
+    let reads = 0;
+    return { ...s.env, head: () => { const state = s.env.head(); if (++reads === 2) change(); return state; } };
+  };
+  const textMutations: Record<string, (s: Awaited<ReturnType<typeof setup>>) => void> = {
+    // Codex's case: only the re-review style answer is withdrawn; request, usage and price stay, so its meter still re-derives.
+    'style pass withdrawn': s => { const file = path.join(rereviewStages(s), 'reference_child_style_qa.receipt.json'), receipt = json(file);
+      receipt.raw.output_text = JSON.stringify({ ...JSON.parse(receipt.raw.output_text), assessable: false }); writeFileSync(file, JSON.stringify(receipt)); },
+    're-review round outcome record': s => writeFileSync(path.join(s.authority, REREVIEW_AMENDMENT.outcomeName(1)), '{"changed":true}'),
+    'original diagnostic claim record': s => writeFileSync(path.join(s.authority, REREVIEW_AMENDMENT.originalClaimName), '{"changed":true}'),
+    'profile bytes': s => writeFileSync(s.config.profileFile, readFileSync(s.config.profileFile, 'utf8') + ' '),
+  };
+  it.each(Object.keys(textMutations))('text: a change after admission is not re-adopted (%s): no claim, no folder, no call', async name => {
+    const s = await setup(), t = textTransports();
+    expect(await import('../../../scripts/personal-fresh-book-authority').then(m => m.assertFreshBookAdmission(json(s.config.rereviewConfig), s.env)))
+      .toMatchObject({ disposition: 'passed' });
+    await expect(runFreshBookText({ ...s.common, env: afterAdmission(s, () => textMutations[name](s)), transports: t }))
+      .rejects.toThrow(/^fresh_book_(roots|profile)_changed$/);
+    expect([existsSync(path.join(s.authority, FRESH_BOOK_CYCLE.claimName)), existsSync(s.config.bookDir)]).toEqual([false, false]);
+    expect([t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0, 0, 0]);
+  });
+  it('child and book: an earlier stage changed after admission refuses before any folder, write or paid call', async () => {
+    const s = await setup();
+    await runFreshBookText({ ...s.common, transports: textTransports() });
+    providers();
+    const render = vi.mocked(images.generateGPTImage);
+    await expect(runFreshBookChild({ ...s.common, env: afterAdmission(s, () => writeFileSync(path.join(s.config.bookDir, 'text', 'story.md'), 'changed')) }))
+      .rejects.toThrow('fresh_book_roots_changed');
+    expect([existsSync(path.join(s.config.bookDir, 'child')), render.mock.calls.length, sdk.create.mock.calls.length]).toEqual([false, 0, 0]);
+    // The book stage on a clean second book of the same shape: the child folder moved after admission.
+    const b = await setup();
+    await runFreshBookText({ ...b.common, transports: textTransports() });
+    providers(); await runFreshBookChild(b.common);
+    const before = { render: vi.mocked(images.generateGPTImage).mock.calls.length, sdk: sdk.create.mock.calls.length };
+    await expect(runFreshBookBook({ ...b.common, env: afterAdmission(b, () => writeFileSync(path.join(b.config.bookDir, 'child', 'context.json'), '{}')) }))
+      .rejects.toThrow('fresh_book_roots_changed');
+    expect(['audition.grant.json', 'audition'].map(n => existsSync(path.join(b.config.bookDir, n)))).toEqual([false, false]);
+    expect(existsSync(path.join(b.authority, 'owner-cycle-20261017-fresh-book-usd7.audition.json'))).toBe(false);
+    expect({ render: vi.mocked(images.generateGPTImage).mock.calls.length, sdk: sdk.create.mock.calls.length }).toEqual(before);
+  });
+
+  it('the one child correction: the rejected first candidate is an edit input only; the corrected one gets its own style, design and age under the same context', async () => {
+    const s = await setup();
+    await runFreshBookText({ ...s.common, transports: textTransports() });
+    providers({ anchor: 'repair_once' });
+    const child = await runFreshBookChild(s.common) as { status: string; candidate: { imageName: string; imageSha: string } };
+    expect(child.status).toBe('child_reference_passed');
+    const dir = path.join(s.config.bookDir, 'child'), paid = path.join(dir, 'paid-stages');
+    expect(claims(paid)).toEqual(['reference_child', 'reference_child_qa', 'reference_child_repair', 'reference_child_repair_qa', 'reference_child_repair_style_qa',
+      'reference_child_style_qa']);
+    const first = json(path.join(paid, 'reference_child.receipt.json')).candidate, repaired = json(path.join(paid, 'reference_child_repair.receipt.json')).candidate;
+    expect(repaired.imageSha).not.toBe(first.imageSha);
+    expect(child.candidate).toEqual(repaired);
+    expect(json(path.join(dir, 'reference_child_correction_input.json'))).toMatchObject({ candidate: first, authority: 'rejected_edit_input_only_not_canonical' });
+    // The correction's render edits the rejected image; its reviews bind the NEW candidate, the same context and the correction's own recipe.
+    expect(json(path.join(paid, 'reference_child_repair.wire.json')).references.map((r: any) => r.imageSha)).toEqual([first.imageSha]);
+    const context = json(path.join(dir, 'context.json')), contextSha = childAnchorInspectionContextSha(context);
+    const asked = (step: string) => JSON.parse(json(path.join(paid, `${step}.wire.json`)).input[0].content[0].text);
+    for (const step of ['reference_child_repair_style_qa', 'reference_child_repair_qa']) expect(asked(step)).toMatchObject({ candidateSha: repaired.imageSha, contextSha });
+    expect(asked('reference_child_repair_style_qa').recipeSha).not.toBe(asked('reference_child_style_qa').recipeSha);
+    expect(asked('reference_child_repair_qa').apparentAge).toMatchObject({ requestedAge: 5 });
+    const style = json(path.join(dir, 'reference_child_repair_style_review.json')), design = json(path.join(dir, 'reference_child_repair_design_review.json'));
+    expect([style.disposition, design.design, design.apparentAge.verdict]).toEqual(['passed', 'passed', 'compatible']);
+    expect(json(path.join(dir, 'reference_child_design_review.json')).design).toBe('repair');
+    // The settled-adoption validator (the book stage's admission of the child) admits only the real final candidate.
+    const keep = Object.fromEntries(readdirSync(dir, { recursive: true, withFileTypes: false }).map(String).filter(n => n.endsWith('.json'))
+      .map(n => [n, readFileSync(path.join(dir, n))]));
+    const restore = () => { for (const [n, bytes] of Object.entries(keep)) writeFileSync(path.join(dir, n), bytes); };
+    const refusedBook = async () => {
+      await expect(runFreshBookBook(s.common)).rejects.toThrow(/^(child_anchor|audition_child)_/);
+      expect(['audition.grant.json', 'audition'].map(n => existsSync(path.join(s.config.bookDir, n)))).toEqual([false, false]);
+    };
+    // (a) the adoption names the rejected first image
+    const adoption = json(path.join(dir, 'reference_child_adoption.json'));
+    writeFileSync(path.join(dir, 'reference_child_adoption.json'), JSON.stringify({ ...adoption, candidate: first }));
+    await refusedBook(); restore();
+    // (b) the first candidate's style answer paired with the corrected candidate's design answer
+    writeFileSync(path.join(paid, 'reference_child_repair_style_qa.receipt.json'), readFileSync(path.join(paid, 'reference_child_style_qa.receipt.json')));
+    await refusedBook(); restore();
+    // Honest: the untouched evidence admits the corrected candidate and the book proceeds.
+    const book = await runFreshBookBook(s.common);
+    expect(json(path.join(s.config.bookDir, 'book-layout.json')).childImage).toBe(repaired.imageName);
+    expect(book.ledger.stages.find(x => x.name === 'child')!.calls).toBe(6);
+  });
+
+  it('an interrupted audition resumes only with known costs, the same book, grant and start, and the cumulative ledger; an orphan refuses, nothing resets', async () => {
+    const s = await setup();
+    await runFreshBookText({ ...s.common, transports: textTransports() });
+    providers(); await runFreshBookChild(s.common);
+    const out = path.join(s.config.bookDir, 'audition'), paid = path.join(out, 'paid-stages');
+    const start = path.join(s.authority, 'owner-cycle-20261017-fresh-book-usd7.audition.json');
+    // Interrupt before a paid claim (the guard refuses once the first sample page has settled): nothing is in flight, every cost is known.
+    let stopped = false;
+    const interrupted = { ...s.env, head: () => { const h = s.env.head();
+      if (existsSync(paid) && readdirSync(paid).some(n => /^page_\d+_0\.result\.json$/.test(n))) stopped = true;
+      return stopped ? { ...h, clean: false } : h; } };
+    await expect(runFreshBookBook({ ...s.common, env: interrupted })).rejects.toThrow('fresh_book_source_changed');
+    expect(existsSync(path.join(s.authority, FRESH_BOOK_CYCLE.outcomeName))).toBe(false);
+    const firstClaims = claims(paid), grantBytes = readFileSync(path.join(s.config.bookDir, 'audition.grant.json')), startBytes = readFileSync(start);
+    expect(firstClaims.some(n => /^page_/.test(n))).toBe(true);
+    // A fresh start of the same book is refused (the grant, start and folder exist); it never resets them.
+    await expect(runFreshBookBook(s.common)).rejects.toThrow('fresh_book_audition_used');
+    // An orphan (claimed, never settled: unknown cost) refuses the resume before any new claim; it stays.
+    const orphan = path.join(paid, 'orphan.claim.json');
+    writeFileSync(orphan, JSON.stringify({ step: 'page_9_0', seq: 999 }));
+    await expect(runFreshBookBook({ ...s.common, resume: true })).rejects.toThrow();
+    expect(claims(paid)).toEqual([...firstClaims, 'orphan'].sort());
+    expect(readdirSync(out).filter(n => /^resume-/.test(n))).toEqual([]);
+    rmSync(orphan);
+    // Known costs: the same grant and start (unchanged bytes), the earlier claims kept, the ledger cumulative across both runs.
+    const book = await runFreshBookBook({ ...s.common, resume: true });
+    expect(book.status).toBe('complete');
+    expect([readFileSync(path.join(s.config.bookDir, 'audition.grant.json')).equals(grantBytes), readFileSync(start).equals(startBytes)]).toEqual([true, true]);
+    const after = claims(paid);
+    expect(firstClaims.every(n => after.includes(n))).toBe(true);
+    expect(after.some(n => /^r1_/.test(n))).toBe(true);
+    const audition = book.ledger.stages.find(x => x.name === 'audition')!;
+    expect(audition.calls).toBe(after.length);
+    expect(book.ledger.bookKnownMicroUsd).toBe(book.ledger.stages.reduce((n, x) => n + x.knownMicroUsd, 0));
   });
 
   it('an orphan claim (unknown cost) halts every later stage; it is never reset', async () => {
