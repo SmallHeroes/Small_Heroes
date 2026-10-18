@@ -10,7 +10,7 @@ import type { z } from 'zod';
 import { auditionReviewRule, digestImages, type AuditionMeter } from './personal-simple-book-reviewed-audition';
 import { SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { childAnchorDesignPayload, childAnchorDesignReviewSchema, childAnchorStylePayload, childAnchorStyleReviewSchema, ChildAnchorStyleError,
-  CHILD_ANCHOR_INSPECTION_VERSION, childAnchorInspectedDesignPayload, childAnchorInspectedDesignReviewSchema, childAnchorInspectionContextSha,
+  childAnchorInspectedDesignPayload, childAnchorInspectedDesignSchemaFor, childAnchorInspectionContextSha,
   type ChildAnchorRecipe, type ChildAnchorInspectionContext } from '../lib/personal-wizard/child-anchor-style';
 import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 
@@ -57,16 +57,19 @@ export function childAnchorJudges(args: { bytesOf: (image: AuditionImage) => Buf
     const imageURLs = await candidateViews(args.bytesOf(candidate));
     return send(step, childAnchorDesignPayload({ candidateSha: candidate.imageSha, contextSha, context, recipe, imageURLs }), childAnchorDesignReviewSchema);
   };
-  /** child-anchor-inspection/v1 (opt-in): the same calls bound to the inspection version and its authoritative context. */
+  /**
+   * child-anchor-inspection/v1 (opt-in): the same calls bound to the inspection version and its authoritative context. A materiality context
+   * (child-anchor-materiality/v1) binds its own version, criterion and schema the same way.
+   */
   const inspectedStyle: ChildAnchorInspectedStyleJudge = async (step, candidate, context, recipeSha) => {
     check();
     return send(step, childAnchorStylePayload({ candidateSha: candidate.imageSha, contextSha: childAnchorInspectionContextSha(context), recipeSha,
-      candidateURL: dataUrl(args.bytesOf(candidate)), inspection: CHILD_ANCHOR_INSPECTION_VERSION }), childAnchorStyleReviewSchema);
+      candidateURL: dataUrl(args.bytesOf(candidate)), inspection: context.version }), childAnchorStyleReviewSchema);
   };
   const inspectedDesign: ChildAnchorInspectedDesignJudge = async (step, candidate, context, recipe) => {
     check();
     const imageURLs = await candidateViews(args.bytesOf(candidate));
-    return send(step, childAnchorInspectedDesignPayload({ candidateSha: candidate.imageSha, context, recipe, imageURLs }), childAnchorInspectedDesignReviewSchema);
+    return send(step, childAnchorInspectedDesignPayload({ candidateSha: candidate.imageSha, context, recipe, imageURLs }), childAnchorInspectedDesignSchemaFor(context));
   };
   return { style, design, inspectedStyle, inspectedDesign };
 }
@@ -77,4 +80,4 @@ export const inspectedDesignWire = async (candidate: AuditionImage, bytes: Buffe
   digestImages(childAnchorInspectedDesignPayload({ candidateSha: candidate.imageSha, context, recipe, imageURLs: await candidateViews(bytes) }));
 export const inspectedStyleWire = (candidate: AuditionImage, bytes: Buffer, context: ChildAnchorInspectionContext, recipeSha: string) =>
   digestImages(childAnchorStylePayload({ candidateSha: candidate.imageSha, contextSha: childAnchorInspectionContextSha(context), recipeSha,
-    candidateURL: dataUrl(bytes), inspection: CHILD_ANCHOR_INSPECTION_VERSION }));
+    candidateURL: dataUrl(bytes), inspection: context.version }));

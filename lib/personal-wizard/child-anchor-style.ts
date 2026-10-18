@@ -185,10 +185,10 @@ const sol = (instructions: string, text: string, imageURLs: readonly string[], f
  * Absent, the v1 request is byte-identical.
  */
 export function childAnchorStylePayload(args: { candidateSha: string; contextSha: string; recipeSha: string; candidateURL: string;
-  inspection?: typeof CHILD_ANCHOR_INSPECTION_VERSION }) {
+  inspection?: ChildAnchorInspectionContext['version'] }) {
   const text = JSON.stringify({ ...binding(args, args.inspection ?? CHILD_ANCHOR_STYLE_VERSION), imageRoles: ['candidate_complete'] });
-  return sol(CHILD_ANCHOR_STYLE_INSTRUCTION, text, [args.candidateURL],
-    zodTextFormat(childAnchorStyleReviewSchema, args.inspection ? 'child_anchor_style_inspection_v1' : 'child_anchor_style_v1'));
+  return sol(CHILD_ANCHOR_STYLE_INSTRUCTION, text, [args.candidateURL], zodTextFormat(childAnchorStyleReviewSchema,
+    args.inspection === CHILD_ANCHOR_MATERIALITY_VERSION ? 'child_anchor_style_materiality_v1' : args.inspection ? 'child_anchor_style_inspection_v1' : 'child_anchor_style_v1'));
 }
 /** The design + age review: the complete candidate and its four crops, the written design context, the existing judge instruction plus age. */
 export function childAnchorDesignPayload(args: { candidateSha: string; contextSha: string; context: unknown; recipe: ChildAnchorRecipe;
@@ -282,16 +282,33 @@ export function childAnchorInspectionView(prompt: string): ChildAnchorInspection
     requiredVisible: [...CHILD_ANCHOR_REQUIRED_VISIBLE], excludedConditions: [...CHILD_ANCHOR_EXCLUDED_CONDITIONS] });
 }
 export const CHILD_ANCHOR_INSPECTION_RULE = 'Judge the written design against actual pixels as this inspection view shows it. Every required visible aspect is judged; a design trait whose visibility depends on a condition this view excludes is recorded as unobserved, never as matched or as a defect. Unreadable required evidence or omitted required design is not pass. Mark unrelated scene/framing categories pass with N/A evidence. This does not grant production qualification.';
-const inspectionContextSchema = z.object({ version: z.literal(CHILD_ANCHOR_INSPECTION_VERSION), scope: z.literal('noncommercial_reference_design_only'),
+/**
+ * child-anchor-materiality/v1 (opt-in, owner amendment 2026-10-18): the same inspection view, plus an explicit materiality rule bound into
+ * the context (and so into its digest, every request and the adoption). A visible difference stays a recorded mismatch; the judge also says
+ * whether it is a cosmetic deviation of a still-recognizable character or material identity drift. Absent, the inspection/v1 context, its
+ * digest and every request are byte-identical.
+ */
+export const CHILD_ANCHOR_MATERIALITY_VERSION = 'child-anchor-materiality/v1' as const;
+export const CHILD_ANCHOR_MATERIALITY_AMENDMENT = 'OWNER-AUTONOMOUS-BOOK-MATERIALITY-AMENDMENT-20261018' as const;
+export const CHILD_ANCHOR_MATERIALITY_RULE = 'A small cosmetic design deviation that does not materially alter the recognizable child is recorded with its evidence and does not by itself block. Material identity drift, a different-looking child or character, unreadable required evidence or uncertain materiality still block. Apparent age, style, anatomy and safety keep their own gates; materiality never excuses them.';
+export const childAnchorAcceptanceVersions = [CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION] as const;
+const inspectionContextSchema = z.object({ version: z.enum(childAnchorAcceptanceVersions), scope: z.literal('noncommercial_reference_design_only'),
   design: z.object({ age: z.number().int().min(2).max(12), address: z.enum(['boy', 'girl']), fictionalDesign: z.string().min(20).max(1500),
     wardrobe: z.string().min(5).max(400), role: z.literal('child') }).strict(),
-  view: inspectionViewSchema, inspection: z.literal(CHILD_ANCHOR_INSPECTION_RULE) }).strict();
+  view: inspectionViewSchema, inspection: z.literal(CHILD_ANCHOR_INSPECTION_RULE),
+  materiality: z.object({ rule: z.literal(CHILD_ANCHOR_MATERIALITY_RULE), amendment: z.literal(CHILD_ANCHOR_MATERIALITY_AMENDMENT) }).strict().optional() }).strict()
+  .refine(c => (c.version === CHILD_ANCHOR_MATERIALITY_VERSION) === (c.materiality !== undefined), 'child_anchor_acceptance_version');
 export type ChildAnchorInspectionContext = z.infer<typeof inspectionContextSchema>;
-/** The authoritative inspection context of one anchor: the child's written design as configured and the view of its planned prompt. */
-export const childAnchorInspectionContext = (child: ChildAnchorChild, prompt: string): ChildAnchorInspectionContext =>
-  inspectionContextSchema.parse({ version: CHILD_ANCHOR_INSPECTION_VERSION, scope: 'noncommercial_reference_design_only',
+export type ChildAnchorAcceptanceVersion = ChildAnchorInspectionContext['version'];
+/**
+ * The authoritative inspection context of one anchor: the child's written design as configured and the view of its planned prompt.
+ * `acceptance` (opt-in) binds the materiality rule and its owner amendment; absent, the inspection/v1 context exactly.
+ */
+export const childAnchorInspectionContext = (child: ChildAnchorChild, prompt: string, acceptance: ChildAnchorAcceptanceVersion = CHILD_ANCHOR_INSPECTION_VERSION): ChildAnchorInspectionContext =>
+  inspectionContextSchema.parse({ version: acceptance, scope: 'noncommercial_reference_design_only',
     design: { age: child.age, address: child.gender, fictionalDesign: child.design, wardrobe: child.wardrobe, role: 'child' },
-    view: childAnchorInspectionView(prompt), inspection: CHILD_ANCHOR_INSPECTION_RULE });
+    view: childAnchorInspectionView(prompt), inspection: CHILD_ANCHOR_INSPECTION_RULE,
+    ...(acceptance === CHILD_ANCHOR_MATERIALITY_VERSION ? { materiality: { rule: CHILD_ANCHOR_MATERIALITY_RULE, amendment: CHILD_ANCHOR_MATERIALITY_AMENDMENT } } : {}) });
 export const childAnchorInspectionContextSha = (context: ChildAnchorInspectionContext) => sha(canonicalJson(inspectionContextSchema.parse(context)));
 
 export const CHILD_ANCHOR_INSPECTION_INSTRUCTION = `INSPECTION VIEW (child-anchor-inspection/v1): the candidate is a neutral identity anchor drawn under context.view: its
@@ -310,26 +327,53 @@ const unobservedSchema = z.object({ trait: z.string().trim().min(8).max(200), co
 export const childAnchorInspectedDesignReviewSchema = previewQualityReviewSchema.extend({ recipeSha: hash, inspectionVersion: z.literal(CHILD_ANCHOR_INSPECTION_VERSION),
   apparentAge: apparentAgeSchema, visibleEvidence: z.array(visibleEvidenceSchema).length(CHILD_ANCHOR_REQUIRED_VISIBLE.length),
   unobservedConditional: z.array(unobservedSchema).max(3) }).strict();
-/** The design + age review under the inspection view: the same five views and judge instruction as v1, plus age and the view's rule. */
+/** The materiality contract's view rule: the inspection rule's structure, with the judged materiality of each visible difference. */
+export const CHILD_ANCHOR_MATERIALITY_INSTRUCTION = `INSPECTION VIEW WITH MATERIALITY (child-anchor-materiality/v1; context.materiality): the candidate is a neutral identity anchor drawn
+under context.view: its mandatory expression clause (context.view.expression) and pose. Copy acceptanceVersion exactly. For EACH aspect in
+context.view.requiredVisible return one visibleEvidence entry: matched (visible in the pixels and matching the written design), mismatch (visible
+and different from the written design; never call a visible difference matched), or unreadable (this view should show it but it cannot be
+judged). For a mismatch also give materiality and name the exact difference in deviation:
+- cosmetic: a small deviation of a design detail; the child stays clearly recognizable as the same written character;
+- material: the difference changes who the child reads as (a different-looking child or character) or replaces a defining element of the written design;
+- uncertain: you cannot tell; this is not cosmetic.
+A matched or unreadable entry has materiality not_applicable and an empty deviation. Also return recognizableCharacter: same_character,
+different_character or uncertain, with the evidence. Materiality is ONLY about identity design: anatomy, safety, apparent age and style are
+judged in their own categories and fields and are never excused as cosmetic.
+A written design trait whose visibility depends on a condition that context.view.excludedConditions names is not evidence either way: record
+it in unobservedConditional with the trait quoted VERBATIM from context.design.fictionalDesign (one phrase, no sentence break) and that
+condition. It is neither matched nor a defect, never stands for a required aspect, and nothing else may be recorded there. If the condition is
+in fact visible in the pixels, the trait is observable: judge it.
+The identity check passes only when no required aspect is unreadable, every mismatch is cosmetic and recognizableCharacter is same_character;
+the cosmetic deviations are then recorded, not repaired. A material mismatch or a different character is an identity defect with its
+correction. Uncertain stays uncertain and is not pass.`;
+const materialityEvidenceSchema = visibleEvidenceSchema.extend({ materiality: z.enum(['not_applicable', 'cosmetic', 'material', 'uncertain']),
+  deviation: z.string().max(600) }).strict();
+export const childAnchorMaterialityDesignReviewSchema = previewQualityReviewSchema.extend({ recipeSha: hash, acceptanceVersion: z.literal(CHILD_ANCHOR_MATERIALITY_VERSION),
+  apparentAge: apparentAgeSchema, visibleEvidence: z.array(materialityEvidenceSchema).length(CHILD_ANCHOR_REQUIRED_VISIBLE.length),
+  unobservedConditional: z.array(unobservedSchema).max(3),
+  recognizableCharacter: z.object({ verdict: z.enum(['same_character', 'different_character', 'uncertain']), observation: longNote }).strict() }).strict();
+/** The strict answer schema of an inspected design review under this context's acceptance version. */
+export const childAnchorInspectedDesignSchemaFor = (context: Pick<ChildAnchorInspectionContext, 'version'>) =>
+  context.version === CHILD_ANCHOR_MATERIALITY_VERSION ? childAnchorMaterialityDesignReviewSchema : childAnchorInspectedDesignReviewSchema;
+/**
+ * The design + age review under the inspection view: the same five views and judge instruction as v1, plus age and the view's rule. Under a
+ * materiality context the view rule is the materiality one, with its own binding version, schema and format name.
+ */
 export function childAnchorInspectedDesignPayload(args: { candidateSha: string; context: ChildAnchorInspectionContext; recipe: ChildAnchorRecipe;
   imageURLs: readonly string[] }) {
   if (args.imageURLs.length !== 5) fail('child_anchor_review_input_limit');
-  const contextSha = childAnchorInspectionContextSha(args.context);
-  const text = JSON.stringify({ ...binding({ candidateSha: args.candidateSha, contextSha, recipeSha: childAnchorRecipeSha(args.recipe) }, CHILD_ANCHOR_INSPECTION_VERSION),
+  const contextSha = childAnchorInspectionContextSha(args.context), materiality = args.context.version === CHILD_ANCHOR_MATERIALITY_VERSION;
+  const text = JSON.stringify({ ...binding({ candidateSha: args.candidateSha, contextSha, recipeSha: childAnchorRecipeSha(args.recipe) }, args.context.version),
     context: args.context, apparentAge: { requestedAge: args.recipe.requestedAge },
     imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right'] });
-  return sol(`${PREVIEW_JUDGE_INSTRUCTION}\n${CHILD_ANCHOR_AGE_INSTRUCTION}\n${CHILD_ANCHOR_INSPECTION_INSTRUCTION}`, text, args.imageURLs,
-    zodTextFormat(childAnchorInspectedDesignReviewSchema, 'child_anchor_design_inspection_v1'));
+  return sol(`${PREVIEW_JUDGE_INSTRUCTION}\n${CHILD_ANCHOR_AGE_INSTRUCTION}\n${materiality ? CHILD_ANCHOR_MATERIALITY_INSTRUCTION : CHILD_ANCHOR_INSPECTION_INSTRUCTION}`, text, args.imageURLs,
+    materiality ? zodTextFormat(childAnchorMaterialityDesignReviewSchema, 'child_anchor_design_materiality_v1')
+      : zodTextFormat(childAnchorInspectedDesignReviewSchema, 'child_anchor_design_inspection_v1'));
 }
 const normalized = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
-/**
- * An inspected design + age answer bound to this candidate, context (by digest) and recipe. Structure the judge cannot talk around:
- * every required aspect exactly once; a visible mismatch must be an identity defect (otherwise the answer refuses as incoherent); any
- * unreadable required aspect holds; an unobserved trait must be a verbatim single-phrase quote of the written design under a condition the
- * view excludes (otherwise refused). The eight categories still go through qualityDisposition unchanged, so uncertain still holds.
- */
-export function childAnchorInspectedDesignDisposition(value: unknown, candidateSha: string, context: ChildAnchorInspectionContext, recipe: ChildAnchorRecipe) {
-  const full = childAnchorInspectedDesignReviewSchema.parse(value), contextSha = childAnchorInspectionContextSha(context);
+/** The structure both inspected contracts share: recipe/age binding, every required aspect exactly once, verbatim excluded-condition traits. */
+function assertInspectionStructure(full: z.infer<typeof childAnchorInspectedDesignReviewSchema> | z.infer<typeof childAnchorMaterialityDesignReviewSchema>,
+  context: ChildAnchorInspectionContext, recipe: ChildAnchorRecipe) {
   if (full.recipeSha !== childAnchorRecipeSha(recipe) || full.apparentAge.requestedAge !== recipe.requestedAge ||
       recipe.requestedAge !== context.design.age) fail('child_anchor_evidence_binding');
   if (full.apparentAge.verdict === 'defect' && !full.apparentAge.correction.trim()) fail('child_anchor_missing_correction');
@@ -338,6 +382,44 @@ export function childAnchorInspectedDesignDisposition(value: unknown, candidateS
   const design = normalized(context.design.fictionalDesign), traits = full.unobservedConditional.map(u => normalized(u.trait));
   if (new Set(traits).size !== traits.length || full.unobservedConditional.some((u, i) => !design.includes(traits[i]) || /[.!?;]\s/.test(u.trait.trim()) ||
       !(context.view.excludedConditions as readonly string[]).includes(u.condition))) fail('child_anchor_inspection_unobserved');
+}
+/**
+ * The materiality answer: the shared structure, then a typed materiality on every entry (not_applicable exactly when not a mismatch; a
+ * resolved mismatch names its deviation), coherent with the identity check: a material mismatch or a different character must be an
+ * identity defect; an identity defect must rest on one of them; identity pass needs everything resolved, cosmetic and the same character.
+ * Anything else refuses. Unreadable, uncertain materiality or an uncertain character holds. Accepted deviations stay mismatches, listed.
+ */
+function childAnchorMaterialityDesignDisposition(value: unknown, candidateSha: string, context: ChildAnchorInspectionContext, recipe: ChildAnchorRecipe) {
+  const full = childAnchorMaterialityDesignReviewSchema.parse(value), contextSha = childAnchorInspectionContextSha(context);
+  assertInspectionStructure(full, context, recipe);
+  const mismatches = full.visibleEvidence.filter(e => e.verdict === 'mismatch');
+  if (full.visibleEvidence.some(e => (e.verdict === 'mismatch') === (e.materiality === 'not_applicable')) ||
+      full.visibleEvidence.some(e => e.verdict !== 'mismatch' && e.deviation.trim()) ||
+      mismatches.some(e => e.materiality !== 'uncertain' && !e.deviation.trim())) fail('child_anchor_materiality_incoherent');
+  const identity = full.checks.find(c => c.category === 'identity')?.verdict;
+  const material = mismatches.some(e => e.materiality === 'material') || full.recognizableCharacter.verdict === 'different_character';
+  const unresolved = full.visibleEvidence.some(e => e.verdict === 'unreadable') || mismatches.some(e => e.materiality === 'uncertain') ||
+    full.recognizableCharacter.verdict === 'uncertain';
+  if ((material && identity !== 'defect') || (identity === 'defect' && !material) || (identity === 'pass' && unresolved)) fail('child_anchor_materiality_incoherent');
+  const { recipeSha: _r, acceptanceVersion: _v, apparentAge, visibleEvidence, unobservedConditional, recognizableCharacter: _c, ...legacy } = full;
+  const quality = qualityDisposition(legacy, candidateSha, contextSha);
+  const disposition = unresolved ? 'held_uncertain' as const : quality.disposition;
+  return { review: quality.review as PreviewQualityReview, design: disposition, apparentAge, visibleEvidence, unobservedConditional,
+    /** Recorded cosmetic deviations of a recognizable character: still mismatches, never rewritten as matched. */
+    acceptedDeviations: material ? [] : mismatches.filter(e => e.materiality === 'cosmetic').map(e => ({ aspect: e.aspect, deviation: e.deviation, observation: e.observation })),
+    recognizableCharacter: full.recognizableCharacter, full };
+}
+/**
+ * An inspected design + age answer bound to this candidate, context (by digest) and recipe. Structure the judge cannot talk around:
+ * every required aspect exactly once; a visible mismatch must be an identity defect (otherwise the answer refuses as incoherent); any
+ * unreadable required aspect holds; an unobserved trait must be a verbatim single-phrase quote of the written design under a condition the
+ * view excludes (otherwise refused). The eight categories still go through qualityDisposition unchanged, so uncertain still holds.
+ * A materiality context (opt-in) is judged under its own contract instead (childAnchorMaterialityDesignDisposition).
+ */
+export function childAnchorInspectedDesignDisposition(value: unknown, candidateSha: string, context: ChildAnchorInspectionContext, recipe: ChildAnchorRecipe) {
+  if (context.version === CHILD_ANCHOR_MATERIALITY_VERSION) return childAnchorMaterialityDesignDisposition(value, candidateSha, context, recipe);
+  const full = childAnchorInspectedDesignReviewSchema.parse(value), contextSha = childAnchorInspectionContextSha(context);
+  assertInspectionStructure(full, context, recipe);
   const identity = full.checks.find(c => c.category === 'identity');
   if (full.visibleEvidence.some(e => e.verdict === 'mismatch') && identity?.verdict !== 'defect') fail('child_anchor_inspection_incoherent');
   if (identity?.verdict === 'pass' && full.visibleEvidence.some(e => e.verdict !== 'matched')) fail('child_anchor_inspection_incoherent');
@@ -349,10 +431,11 @@ export function childAnchorInspectedDesignDisposition(value: unknown, candidateS
     unobservedConditional, full };
 }
 /** The saved acceptance of an anchor adopted under the inspection view: context, recipe and both answers, re-derived on every read. */
-export const childAnchorInspectedAdoptionSchema = z.object({ version: z.literal(CHILD_ANCHOR_INSPECTION_VERSION), context: z.unknown(), contextSha: hash,
+export const childAnchorInspectedAdoptionSchema = z.object({ version: z.enum(childAnchorAcceptanceVersions), context: z.unknown(), contextSha: hash,
   recipe: z.unknown(), recipeSha: hash, style: z.unknown(), design: z.unknown() }).strict();
+/** The record's version is its context's acceptance version (inspection/v1 records are byte-identical to before). */
 export const childAnchorInspectedAdoptionRecord = (context: ChildAnchorInspectionContext, recipe: ChildAnchorRecipe, style: ChildAnchorStyleReview, design: unknown) =>
-  ({ version: CHILD_ANCHOR_INSPECTION_VERSION, context, contextSha: childAnchorInspectionContextSha(context), recipe, recipeSha: childAnchorRecipeSha(recipe), style, design });
+  ({ version: context.version, context, contextSha: childAnchorInspectionContextSha(context), recipe, recipeSha: childAnchorRecipeSha(recipe), style, design });
 /**
  * The adoption admits only when both answers bind this candidate, THIS context (the caller's authoritative one, by digest) and the recipe,
  * and together pass. A style answer bound to any other context (a v1 one) never pairs with an inspected design answer.
@@ -360,10 +443,10 @@ export const childAnchorInspectedAdoptionRecord = (context: ChildAnchorInspectio
 export function assertChildAnchorInspectedAccepted(anchor: unknown, candidateSha: string, authority: ChildAnchorInspectionContext) {
   const saved = childAnchorInspectedAdoptionSchema.parse(anchor), recipe = childAnchorRecipeSchema.parse(saved.recipe);
   const context = inspectionContextSchema.parse(saved.context), contextSha = childAnchorInspectionContextSha(authority);
-  if (childAnchorRecipeSha(recipe) !== saved.recipeSha || childAnchorInspectionContextSha(context) !== contextSha || saved.contextSha !== contextSha)
-    fail('child_anchor_evidence_binding');
+  if (childAnchorRecipeSha(recipe) !== saved.recipeSha || childAnchorInspectionContextSha(context) !== contextSha || saved.contextSha !== contextSha ||
+      saved.version !== authority.version) fail('child_anchor_evidence_binding');
   const design = childAnchorInspectedDesignDisposition(saved.design, candidateSha, authority, recipe);
   const outcome = childAnchorDisposition(childAnchorStyleDisposition(saved.style, candidateSha, contextSha, saved.recipeSha), design);
   if (outcome.disposition !== 'passed') fail('child_anchor_not_accepted');
-  return { recipe, unobservedConditional: design.unobservedConditional };
+  return { recipe, unobservedConditional: design.unobservedConditional, ...('acceptedDeviations' in design ? { acceptedDeviations: design.acceptedDeviations } : {}) };
 }

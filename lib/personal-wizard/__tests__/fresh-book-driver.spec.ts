@@ -13,7 +13,7 @@ import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { SimpleStoryDraft } from '../simple-story-engine';
 import { decodePersonalBookProviderOutput } from '../book-openai';
 import * as images from '../../generate-image';
-import { CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_ANCHOR_INSPECTION_VERSION, childAnchorInspectionContextSha } from '../child-anchor-style';
+import { CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorInspectionContextSha } from '../child-anchor-style';
 import { auditionReviewRule, type AuditionMeter } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
 import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
@@ -71,6 +71,18 @@ function textTransports(): Required<FreshTextTransports> {
 }
 
 /** Provider answers at the SDK boundary for the child anchor and the audition (the real adapters, meters and settlement run). */
+/** A child-anchor-materiality/v1 design answer for the bound request: one face difference, cosmetic (identity pass) or material (identity defect). */
+const materialAnswer = (text: any, drift: 'cosmetic' | 'material') => ({ candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha,
+  acceptanceVersion: CHILD_ANCHOR_MATERIALITY_VERSION,
+  checks: passChecks().map(c => c.category === 'identity' && drift === 'material' ? { ...c, verdict: 'defect', correction: 'Draw the face as written.' } : c),
+  apparentAge: { requestedAge: text.apparentAge.requestedAge, verdict: 'compatible', observation: 'reads the age', correction: '' },
+  visibleEvidence: CHILD_ANCHOR_REQUIRED_VISIBLE.map(aspect => aspect === 'face'
+    ? { aspect, verdict: 'mismatch', observation: 'face drawn differently', materiality: drift, deviation: `a ${drift} face difference` }
+    : { aspect, verdict: 'matched', observation: `${aspect} seen`, materiality: 'not_applicable', deviation: '' }),
+  unobservedConditional: text.context.design.fictionalDesign.includes('visible when she smiles')
+    ? [{ trait: 'One front baby tooth missing, visible when she smiles', condition: 'open_mouth_or_smile', observation: 'lips closed' }] : [],
+  recognizableCharacter: { verdict: drift === 'material' ? 'different_character' : 'same_character', observation: 'compared with the written design' } });
+
 function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' | 'repair_once' } = {}) {
   let shade = 40, designs = 0;
   vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
@@ -87,7 +99,9 @@ function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' | 'r
     const text = JSON.parse(payload.input[0].content[0].text), name: string = payload.text.format.name;
     const reply = (value: unknown) => ({ model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 }, output_text: JSON.stringify(value) });
     // 'repair_once': the first candidate's design review finds one known non-identity defect (with its correction); every later one passes.
-    const repair = name.includes('design_inspection') && opts.anchor === 'repair_once' && designs++ === 0;
+    const repair = /design_(inspection|materiality)/.test(name) && opts.anchor === 'repair_once' && designs++ === 0;
+    // Materiality: the first candidate's face differs materially (identity defect); the corrected one differs only cosmetically and passes.
+    if (name.includes('design_materiality')) return reply(materialAnswer(text, repair ? 'material' : 'cosmetic'));
     if (name.includes('design_inspection')) return reply({ candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha,
       inspectionVersion: CHILD_ANCHOR_INSPECTION_VERSION, checks: passChecks().map(c => c.category === 'identity' && opts.anchor === 'uncertain' ? { ...c, verdict: 'uncertain' }
         : repair && c.category === QUALITY_CATEGORIES.find(k => k !== 'identity') ? { ...c, verdict: 'defect', correction: 'Soften the outline.' } : c),
@@ -109,7 +123,7 @@ function providers(opts: { heldPage?: number; anchor?: 'pass' | 'uncertain' | 'r
 
 describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer (native stages, synthetic providers)', { timeout: 180_000 }, () => {
   /** A temporary authority root and output parent; the real consumed diagnostic is read only. Round 1 re-review run for real (fake judges). */
-  async function setup(opts: { rereview?: 'passed' | 'held' | 'none' } = {}) {
+  async function setup(opts: { rereview?: 'passed' | 'held' | 'none'; materiality?: true } = {}) {
     const root = mkdtempSync(path.join(tmpdir(), 'fresh-driver-')); roots.push(root);
     const authority = path.join(root, 'book-authority'), parent = path.join(root, 'renders'); mkdirSync(authority); mkdirSync(parent);
     for (const n of [REREVIEW_AMENDMENT.originalClaimName, REREVIEW_AMENDMENT.originalOutcomeName]) writeFileSync(path.join(authority, n), '{}');
@@ -118,10 +132,12 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
       outputParent: parent, keyEnvFile: path.join(root, 'no-key.env') };
     let head = 'f'.repeat(40), clean = true;
     const env = { authorityRoot: authority, head: () => ({ head, branch: 'claude/book-render-20261009', clean }) } satisfies RereviewEnv;
-    if (opts.rereview !== 'none') {
-      const { grantDraft } = await planRereview(rereview, env), g = path.join(root, 'rereview-grant.json'); writeFileSync(g, JSON.stringify(grantDraft));
-      const identity = opts.rereview === 'held' ? 'uncertain' : 'pass';
-      await runRereview({ config: rereview, env, grantFile: g, grantSha: sha(readFileSync(g)), signal: new AbortController().signal, log: () => {},
+    // Materiality: round 1 is the held v1 review; round 2 is the materiality one (a cosmetic face difference), as the amendment runs it.
+    const rounds: RereviewConfig[] = opts.materiality ? [rereview, { ...rereview, round: 2, acceptance: CHILD_ANCHOR_MATERIALITY_VERSION }] : [rereview];
+    if (opts.rereview !== 'none') for (const cfg of rounds) {
+      const { grantDraft } = await planRereview(cfg, env), g = path.join(root, `rereview-grant-${cfg.round}.json`); writeFileSync(g, JSON.stringify(grantDraft));
+      const identity = opts.rereview === 'held' || (opts.materiality && cfg.round === 1) ? 'uncertain' : 'pass';
+      await runRereview({ config: cfg, env, grantFile: g, grantSha: sha(readFileSync(g)), signal: new AbortController().signal, log: () => {},
         adapters: (directory: string, meter: AuditionMeter, guard: () => void) => {
           const reply = (wire: unknown, value: unknown) => { const raw = { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', output_text: JSON.stringify(value),
             usage: { input_tokens: 2000, output_tokens: 300 } }; const s = auditionReviewRule.settle(wire, { raw }, true);
@@ -132,6 +148,8 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
               return meter.run(step, wire, 600000, async () => reply(wire, { candidateSha: c.imageSha, contextSha: childAnchorInspectionContextSha(ctx), recipeSha, assessable: true,
                 style01Match: true, looksPhotoreal: false, looksPortrait: false, notes: 'watercolor' })); },
             inspectedDesign: async (step: string, c: any, ctx: any, r: any) => { guard(); const wire = await inspectedDesignWire(c, readFileSync(path.join(directory, c.imageName)), ctx, r);
+              if (ctx.version === CHILD_ANCHOR_MATERIALITY_VERSION) return meter.run(step, wire, 600000, async () =>
+                reply(wire, materialAnswer({ ...JSON.parse((wire as any).input[0].content[0].text), candidateSha: c.imageSha }, 'cosmetic')));
               return meter.run(step, wire, 600000, async () => reply(wire, { candidateSha: c.imageSha, contextSha: childAnchorInspectionContextSha(ctx),
                 recipeSha: (JSON.parse((wire as any).input[0].content[0].text)).recipeSha, inspectionVersion: CHILD_ANCHOR_INSPECTION_VERSION,
                 checks: passChecks().map(x => x.category === 'identity' ? { ...x, verdict: identity, observation: 'identity' } : x),
@@ -140,14 +158,14 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
                 unobservedConditional: [{ trait: 'One front baby tooth missing, visible when she smiles', condition: 'open_mouth_or_smile', observation: 'lips closed' }] })); } } as any;
         } });
     }
-    const rereviewFile = path.join(root, 'rereview-config.json'); writeFileSync(rereviewFile, JSON.stringify(rereview));
+    const rereviewFile = path.join(root, 'rereview-config.json'); writeFileSync(rereviewFile, JSON.stringify(rounds[rounds.length - 1]));
     const profile = freshBookProfileSchema.parse({ version: 'fresh-book-profile/v1', cycle: FRESH_BOOK_CYCLE.id,
       child: { name: 'נועה', age: 5, gender: 'girl', design: 'A fictional five-year-old girl with short dark-brown hair, dark brown eyes and light olive skin; natural child proportions.',
         wardrobe: 'a red shirt, blue shorts and teal shoes', fictional: true },
       companion: { id: 'fox_uri', design: 'the registry fox Uri, copper fur and lantern eyes' },
       parentInputs: { about: 'She loves drawing in the garden and inventing games.', wish: 'to enjoy a silly adventure' },
       seed: 'fresh-book-driver-test-seed', request: { ...structuredClone(f.request), companion: { id: 'fox_uri' } }, routes: FRESH_BOOK_CYCLE.routes,
-      childAnchor: CHILD_ANCHOR_INSPECTION_VERSION });
+      childAnchor: opts.materiality ? CHILD_ANCHOR_MATERIALITY_VERSION : CHILD_ANCHOR_INSPECTION_VERSION });
     const profileFile = path.join(root, 'profile.json'); writeFileSync(profileFile, JSON.stringify(profile));
     const executable = path.join(root, 'SYNTHETIC-claude.exe'); writeFileSync(executable, 'never spawned');
     const keyEnvFile = path.join(root, 'SYNTHETIC.env'); writeFileSync(keyEnvFile, 'OPENAI_API_KEY=sk-synthetic-test-value-not-a-credential-000\n');
@@ -155,7 +173,7 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
       rereviewConfigSha256: sha(readFileSync(rereviewFile)), bookDir: path.join(parent, 'fresh-book'), executable, executableSha256: sha(readFileSync(executable)), keyEnvFile };
     const { grantDraft } = planFreshBook(config, env), grantFile = path.join(root, 'fresh-grant.json'); writeFileSync(grantFile, JSON.stringify(grantDraft));
     const common = { config, env, grantFile, grantSha: sha(readFileSync(grantFile)), signal: new AbortController().signal, log: () => {} };
-    return { root, authority, config, env, common, setHead: (h: string) => { head = h; }, setClean: (c: boolean) => { clean = c; } };
+    return { root, authority, config, env, common, rereview, profile, setHead: (h: string) => { head = h; }, setClean: (c: boolean) => { clean = c; } };
   }
   const claims = (dir: string) => readdirSync(dir).filter(n => n.endsWith('.claim.json')).map(n => n.replace('.claim.json', '')).sort();
 
@@ -317,6 +335,42 @@ describe.skipIf(!real)('fresh-book driver: one book from admission to the viewer
     expect(book.ledger.stages.find(x => x.name === 'child')!.calls).toBe(6);
   });
 
+  it('materiality book: admitted by the round-2 materiality evidence; a material first child is corrected once; the corrected one passes with its cosmetic note; the book loads it', async () => {
+    const s = await setup({ materiality: true });
+    // The book and its admission must be the same contract: a materiality profile against v1 admission evidence refuses at planning.
+    const v1File = path.join(s.root, 'rereview-v1.json'); writeFileSync(v1File, JSON.stringify(s.rereview));
+    expect(() => planFreshBook({ ...s.config, rereviewConfig: v1File, rereviewConfigSha256: sha(readFileSync(v1File)) }, s.env)).toThrow('fresh_book_policy_mismatch');
+    expect(planFreshBook(s.config, s.env).plan).toMatchObject({ childAnchor: CHILD_ANCHOR_MATERIALITY_VERSION, policyAmendment: 'OWNER-AUTONOMOUS-BOOK-MATERIALITY-AMENDMENT-20261018' });
+    await runFreshBookText({ ...s.common, transports: textTransports() });
+    // Admission derived from the latest matching settled records (round 2), never round 1's v1 answers or a flag.
+    expect(json(path.join(s.config.bookDir, 'admission.json')).rereviewOutcome).toMatchObject({ disposition: 'passed', acceptance: CHILD_ANCHOR_MATERIALITY_VERSION,
+      design: { round: 2, acceptedDeviations: [expect.objectContaining({ aspect: 'face' })] } });
+    providers({ anchor: 'repair_once' });
+    const child = await runFreshBookChild(s.common) as { status: string; candidate: { imageSha: string } };
+    expect(child.status).toBe('child_reference_passed');
+    const dir = path.join(s.config.bookDir, 'child'), paid = path.join(dir, 'paid-stages');
+    const context = json(path.join(dir, 'context.json')), contextSha = childAnchorInspectionContextSha(context);
+    expect(context.version).toBe(CHILD_ANCHOR_MATERIALITY_VERSION);
+    const asked = (step: string) => json(path.join(paid, `${step}.wire.json`));
+    for (const step of ['reference_child_style_qa', 'reference_child_qa', 'reference_child_repair_style_qa', 'reference_child_repair_qa'])
+      expect([JSON.parse(asked(step).input[0].content[0].text).contextSha, asked(step).text.format.name]).toEqual([contextSha,
+        step.endsWith('style_qa') ? 'child_anchor_style_materiality_v1' : 'child_anchor_design_materiality_v1']);
+    expect(json(path.join(dir, 'reference_child_design_review.json')).design).toBe('repair');
+    const repaired = json(path.join(dir, 'reference_child_repair_design_review.json'));
+    expect([repaired.design, repaired.visibleEvidence.find((e: any) => e.aspect === 'face').verdict, repaired.acceptedDeviations.map((d: any) => d.aspect)])
+      .toEqual(['passed', 'mismatch', ['face']]);
+    expect(json(path.join(dir, 'sealed.json'))).toMatchObject({ childAnchor: CHILD_ANCHOR_MATERIALITY_VERSION, acceptedDeviations: [expect.objectContaining({ aspect: 'face' })] });
+    expect(json(path.join(s.config.bookDir, 'book-layout.json')).childAnchor).toBe(CHILD_ANCHOR_MATERIALITY_VERSION);
+    // A relabelled adoption (the v1 version on the same evidence) refuses before any book write; the honest one proceeds.
+    const file = path.join(dir, 'reference_child_adoption.json'), adoption = readFileSync(file);
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(adoption.toString()), anchor: { ...JSON.parse(adoption.toString()).anchor, version: CHILD_ANCHOR_INSPECTION_VERSION } }));
+    await expect(runFreshBookBook(s.common)).rejects.toThrow(/^(child_anchor|audition_child|fresh_book)_/);
+    expect(existsSync(path.join(s.config.bookDir, 'audition.grant.json'))).toBe(false);
+    writeFileSync(file, adoption);
+    const book = await runFreshBookBook(s.common);
+    expect(book.ledger.stages.find(x => x.name === 'child')!.calls).toBe(6);
+    expect(book.ledger.diagnosticSettledMicroUsd).toBeGreaterThan(59910);
+  });
   it('an interrupted audition resumes only with known costs, the same book, grant and start, and the cumulative ledger; an orphan refuses, nothing resets', async () => {
     const s = await setup();
     await runFreshBookText({ ...s.common, transports: textTransports() });

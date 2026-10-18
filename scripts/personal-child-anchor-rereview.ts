@@ -21,7 +21,8 @@ import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { CHILD_ANCHOR_INSPECTION_VERSION, resolveChildAnchorTechnique, childAnchorDescriptionRequest, assertChildAnchorRenderPlan,
   childAnchorAttemptRecipe, childAnchorRecipeSha, childAnchorInspectionContext, childAnchorInspectionContextSha, childAnchorStyleDisposition,
-  childAnchorStyleReviewSchema, childAnchorInspectedDesignDisposition, childAnchorInspectedDesignReviewSchema, childAnchorDisposition,
+  childAnchorStyleReviewSchema, childAnchorInspectedDesignDisposition, childAnchorInspectedDesignSchemaFor, childAnchorDisposition,
+  CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_MATERIALITY_AMENDMENT,
   type ChildAnchorInspectionContext, type ChildAnchorRecipe } from '../lib/personal-wizard/child-anchor-style';
 import { AuditionMeter, auditionAdapters, auditionRenderRule, auditionReviewRule, keyReader, verifyMeterRecords, type MeterRule, type MeterRules }
   from './personal-simple-book-reviewed-audition';
@@ -58,7 +59,9 @@ const rulesOf = (rules: Record<string, MeterRule>): MeterRules => step => Object
 
 export const rereviewConfigSchema = z.object({ version: z.literal('child-anchor-rereview-config/v1'), round: z.number().int().min(1).max(REREVIEW_AMENDMENT.maxRounds),
   diagnosticOutput: z.string().refine(p => path.isAbsolute(p)), diagnosticConfig: z.string().refine(p => path.isAbsolute(p)), diagnosticConfigSha256: hash,
-  candidateSha256: hash, outputParent: z.string().refine(p => path.isAbsolute(p)), keyEnvFile: z.string().refine(p => path.isAbsolute(p)) }).strict();
+  candidateSha256: hash, outputParent: z.string().refine(p => path.isAbsolute(p)), keyEnvFile: z.string().refine(p => path.isAbsolute(p)),
+  /** Opt-in (owner materiality amendment 2026-10-18): the round's context and criterion are child-anchor-materiality/v1. Absent: inspection/v1. */
+  acceptance: z.literal(CHILD_ANCHOR_MATERIALITY_VERSION).optional() }).strict();
 export type RereviewConfig = z.infer<typeof rereviewConfigSchema>;
 export function rereviewConfig(file: string) {
   if (!path.isAbsolute(file)) fail('rereview_config');
@@ -113,7 +116,7 @@ export function rereviewAuthority(config: RereviewConfig) {
   const candidateBytes = fileBytes(path.join(out, 'illustrations', 'reference_child.png'));
   if (previewSha(candidateBytes) !== config.candidateSha256 || results.anchor?.image?.imageSha !== config.candidateSha256 ||
       results.anchor?.image?.imageName !== 'reference_child.png') fail('rereview_candidate');
-  const context = childAnchorInspectionContext(diagnostic.child, request.prompt);
+  const context = childAnchorInspectionContext(diagnostic.child, request.prompt, config.acceptance);
   return { diagnostic, recipe, recipeSha: childAnchorRecipeSha(recipe), context, contextSha: childAnchorInspectionContextSha(context),
     candidate: { imageName: 'reference_child.png', imageSha: config.candidateSha256 } as AuditionImage, candidateBytes,
     originalSettledMicroUsd: snapshot.newKnownApiMicroUsd, baseline: folderBaseline(out) };
@@ -167,10 +170,13 @@ export async function planRereview(config: RereviewConfig, env: RereviewEnv) {
   });
   // The accepted earlier lineage this plan stands on, captured now (before any await) as part of the admission baseline.
   const lineage = lineageOf(config, root);
-  // A later round follows only a held earlier one (a passed amendment needs no more reviews).
+  // A later round follows only a held earlier one (a passed amendment needs no more reviews): judged under this round's contract and,
+  // for a materiality round, also under the inspection/v1 contract the earlier rounds may have used (their own answers, never re-labelled).
   if (earlier.length) {
     const prior = await settledRereviewOutcome(config, { authority: a, rounds: config.round - 1 });
-    if (prior.disposition === 'passed') fail('rereview_already_passed');
+    const { acceptance: _a, ...legacy } = config;
+    const priorLegacy = config.acceptance ? await settledRereviewOutcome(legacy, { rounds: config.round - 1 }) : prior;
+    if (prior.disposition === 'passed' || priorLegacy.disposition === 'passed') fail('rereview_already_passed');
   }
   let prior = a.originalSettledMicroUsd;
   for (const e of earlier) { if (e.priorMicroUsd !== prior) fail('rereview_round_ledger'); prior += e.knownMicroUsd; }
@@ -184,8 +190,10 @@ export async function planRereview(config: RereviewConfig, env: RereviewEnv) {
     return steps.map(step => { const fits = settled + SOL_PIXEL_REVIEW_SLOT_MICRO_USD <= REREVIEW_AMENDMENT.cumulativeCapMicroUsd; settled += settle; return { step, fits }; }); };
   const worst = admission(SOL_PIXEL_REVIEW_SLOT_MICRO_USD), assumed = admission(40000);
   const engine = env.head();
+  // The opt-in acceptance and its owner amendment are named in the plan and the grant (absent: both byte-identical to inspection/v1's).
+  const policy = config.acceptance ? { acceptance: config.acceptance, policyAmendment: CHILD_ANCHOR_MATERIALITY_AMENDMENT } : {};
   const plan = { version: CHILD_ANCHOR_REREVIEW_VERSION, amendment: REREVIEW_AMENDMENT.id, round: config.round, output: rereviewOutput(config),
-    inspection: CHILD_ANCHOR_INSPECTION_VERSION, candidateSha256: a.candidate.imageSha, recipeSha: a.recipeSha, contextSha: a.contextSha,
+    inspection: CHILD_ANCHOR_INSPECTION_VERSION, ...policy, candidateSha256: a.candidate.imageSha, recipeSha: a.recipeSha, contextSha: a.contextSha,
     diagnosticConfigSha256: config.diagnosticConfigSha256, diagnosticBaselineSha256: previewSha(canonicalJson(a.baseline)),
     steps: steps.map(step => ({ step, reservationMicroUsd: SOL_PIXEL_REVIEW_SLOT_MICRO_USD, wireDigest: previewSha(canonicalJson(wires[step])) })),
     reused: REREVIEW_STEPS.filter(s => !steps.includes(s)),
@@ -193,7 +201,7 @@ export async function planRereview(config: RereviewConfig, env: RereviewEnv) {
     admissionIfEachSettlesAtItsReservation: worst, admissionAtAssumedActuals: assumed,
     claim: path.join(root, REREVIEW_AMENDMENT.claimName(config.round)), providerCalls: 0, keyRead: false };
   const pins = Object.fromEntries(REREVIEW_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
-  const grantDraft = { version: 'child-anchor-rereview-grant/v1', amendment: REREVIEW_AMENDMENT.id, approval: REREVIEW_AMENDMENT.approval, round: config.round,
+  const grantDraft = { version: 'child-anchor-rereview-grant/v1', amendment: REREVIEW_AMENDMENT.id, approval: REREVIEW_AMENDMENT.approval, round: config.round, ...policy,
     engine: { head: engine.head, branch: engine.branch }, pins, configSha256: previewSha(canonicalJson(config)), planSha256: previewSha(canonicalJson(plan)) };
   return { plan, grantDraft, authority: a, wires, steps, lineage };
 }
@@ -332,7 +340,7 @@ export async function settledRereviewOutcome(config: RereviewConfig, opts: { aut
       const step = record.claim.step as Step;
       if (record.claim.wireDigest !== previewSha(canonicalJson(wires[step])) || !record.result?.completed || !Number.isSafeInteger(record.result.estimatedMicroUsd)) continue;
       const raw = json(path.join(stages, `${step}.receipt.json`))?.raw;
-      const schema = step === 'reference_child_style_qa' ? childAnchorStyleReviewSchema : childAnchorInspectedDesignReviewSchema;
+      const schema = step === 'reference_child_style_qa' ? childAnchorStyleReviewSchema : childAnchorInspectedDesignSchemaFor(a.context);
       let value: unknown; try { value = schema.parse(JSON.parse(raw.output_text)); } catch { continue; }
       answers[step] = { round, value };
     }
@@ -344,7 +352,10 @@ export async function settledRereviewOutcome(config: RereviewConfig, opts: { aut
     candidateSha256: a.candidate.imageSha, recipeSha: a.recipeSha, contextSha: a.contextSha,
     style: style ? { round: answers.reference_child_style_qa!.round, disposition: style.disposition } : null,
     design: design ? { round: answers.reference_child_qa!.round, disposition: design.design, apparentAge: design.apparentAge.verdict,
-      visibleEvidence: design.visibleEvidence.map(e => ({ aspect: e.aspect, verdict: e.verdict })), unobservedConditional: design.unobservedConditional } : null };
+      visibleEvidence: design.visibleEvidence.map(e => ({ aspect: e.aspect, verdict: e.verdict, ...('materiality' in e ? { materiality: e.materiality } : {}) })),
+      unobservedConditional: design.unobservedConditional,
+      ...('acceptedDeviations' in design ? { acceptedDeviations: design.acceptedDeviations, recognizableCharacter: design.recognizableCharacter.verdict } : {}) } : null,
+    ...(a.context.version === CHILD_ANCHOR_MATERIALITY_VERSION ? { acceptance: a.context.version, policyAmendment: CHILD_ANCHOR_MATERIALITY_AMENDMENT } : {}) };
 }
 export type RereviewOutcome = Awaited<ReturnType<typeof settledRereviewOutcome>>;
 export type { ChildAnchorInspectionContext, ChildAnchorRecipe };

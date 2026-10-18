@@ -8,7 +8,8 @@ import { STAGE0_ANCHOR_NEUTRAL_EXPRESSION } from '../../generation-pipeline/stag
 import { CHILD_ANCHOR_TECHNIQUE_MANIFEST, CHILD_ANCHOR_MANIFEST_SHA256, CHILD_ANCHOR_STYLE_VERSION, CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_REQUIRED_VISIBLE,
   childAnchorRecipeSchema, childAnchorRecipeSha, childAnchorDescriptionRequest, childAnchorDesignDisposition, childAnchorDisposition, childAnchorStyleDisposition,
   childAnchorStylePayload, childAnchorInspectionContext, childAnchorInspectionContextSha, childAnchorInspectedDesignDisposition, childAnchorInspectedDesignPayload,
-  childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted, childAnchorInspectionView } from '../child-anchor-style';
+  childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted, childAnchorInspectionView, CHILD_ANCHOR_MATERIALITY_VERSION,
+  CHILD_ANCHOR_INSPECTION_INSTRUCTION, CHILD_ANCHOR_MATERIALITY_INSTRUCTION } from '../child-anchor-style';
 import { auditionReviewRule, type AuditionMeter } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
 import { planRereview, runRereview, settledRereviewOutcome, rereviewOutput, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv }
@@ -125,6 +126,103 @@ describe('inspected adoption: same candidate, THIS context, both answers', () =>
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+// child-anchor-materiality/v1 (owner amendment 2026-10-18): typed cosmetic vs material identity difference.
+// ---------------------------------------------------------------------------------------------------------------
+const materialContext = childAnchorInspectionContext(child, request.prompt, CHILD_ANCHOR_MATERIALITY_VERSION), MCTX = childAnchorInspectionContextSha(materialContext);
+type Diff = { aspect: string; verdict?: string; materiality: string; deviation?: string };
+const material = (over: { identity?: 'pass' | 'defect' | 'uncertain'; diffs?: Diff[]; character?: string; age?: string; defect?: string; contextSha?: string } = {}) => ({
+  candidateSha: A, contextSha: over.contextSha ?? MCTX, recipeSha: childAnchorRecipeSha(recipe), acceptanceVersion: CHILD_ANCHOR_MATERIALITY_VERSION,
+  checks: checks(over.identity ?? 'pass').map(c => c.category === over.defect ? { ...c, verdict: 'defect', correction: 'fix it' } : c),
+  apparentAge: { requestedAge: 6, verdict: over.age ?? 'compatible', observation: 'reads six', correction: over.age === 'defect' ? 'older build' : '' },
+  visibleEvidence: CHILD_ANCHOR_REQUIRED_VISIBLE.map(aspect => { const d = over.diffs?.find(x => x.aspect === aspect);
+    return { aspect, verdict: d ? d.verdict ?? 'mismatch' : 'matched', observation: `${aspect} seen`, materiality: d?.materiality ?? 'not_applicable',
+      deviation: d?.deviation ?? (d && d.materiality !== 'not_applicable' ? 'drawn differently from the written design' : '') }; }),
+  unobservedConditional: [{ trait: TOOTH, condition: 'open_mouth_or_smile', observation: 'lips closed per the anchor clause' }],
+  recognizableCharacter: { verdict: over.character ?? 'same_character', observation: 'the same written child' } });
+const cosmetic = { aspect: 'face', materiality: 'cosmetic' };
+
+describe('child-anchor-materiality/v1: versioned opt-in, legacy parity', () => {
+  it('absent acceptance: the inspection/v1 context, digest and requests are unchanged; the opt-in binds rule + amendment into a new digest', () => {
+    expect(childAnchorInspectionContext(child, request.prompt, CHILD_ANCHOR_INSPECTION_VERSION)).toEqual(context);
+    expect('materiality' in context).toBe(false);
+    expect(materialContext).toMatchObject({ version: CHILD_ANCHOR_MATERIALITY_VERSION, materiality: { amendment: 'OWNER-AUTONOMOUS-BOOK-MATERIALITY-AMENDMENT-20261018' } });
+    expect(MCTX).not.toBe(CTX);
+    const legacy = childAnchorInspectedDesignPayload({ candidateSha: A, context, recipe, imageURLs: Array(5).fill('data:image/png;base64,AA==') });
+    expect([(legacy.text.format as { name: string }).name, textOf(legacy).version]).toEqual(['child_anchor_design_inspection_v1', CHILD_ANCHOR_INSPECTION_VERSION]);
+    expect(legacy.instructions).toContain(CHILD_ANCHOR_INSPECTION_INSTRUCTION);
+    const p = childAnchorInspectedDesignPayload({ candidateSha: A, context: materialContext, recipe, imageURLs: Array(5).fill('data:image/png;base64,AA==') });
+    expect([(p.text.format as { name: string }).name, textOf(p).version, textOf(p).contextSha]).toEqual(['child_anchor_design_materiality_v1', CHILD_ANCHOR_MATERIALITY_VERSION, MCTX]);
+    expect(p.instructions).toContain(CHILD_ANCHOR_MATERIALITY_INSTRUCTION);
+    expect(p.instructions).not.toContain(CHILD_ANCHOR_INSPECTION_INSTRUCTION);
+    const s = childAnchorStylePayload({ candidateSha: A, contextSha: MCTX, recipeSha: childAnchorRecipeSha(recipe), candidateURL: 'data:image/png;base64,AA==', inspection: CHILD_ANCHOR_MATERIALITY_VERSION });
+    expect([(s.text.format as { name: string }).name, textOf(s).version]).toEqual(['child_anchor_style_materiality_v1', CHILD_ANCHOR_MATERIALITY_VERSION]);
+    // A context claiming one version with the other's fields refuses.
+    expect(() => childAnchorInspectedDesignDisposition(material(), A, { ...context, version: CHILD_ANCHOR_MATERIALITY_VERSION } as never, recipe)).toThrow();
+  });
+  it('old and new answers never cross: a v1 answer under materiality and a materiality answer under v1 both refuse', () => {
+    expect(() => childAnchorInspectedDesignDisposition(inspected({ contextSha: MCTX }), A, materialContext, recipe)).toThrow();
+    expect(() => childAnchorInspectedDesignDisposition(material({ contextSha: CTX }), A, context, recipe)).toThrow();
+  });
+});
+
+describe('child-anchor-materiality/v1: disposition', () => {
+  const run = (v: unknown) => childAnchorInspectedDesignDisposition(v, A, materialContext, recipe);
+  const styled = childAnchorStyleDisposition(style({ contextSha: MCTX }), A, MCTX, childAnchorRecipeSha(recipe));
+  it('exact match passes with no accepted deviation', () => {
+    const d = run(material());
+    expect([d.design, (d as { acceptedDeviations: unknown[] }).acceptedDeviations]).toEqual(['passed', []]);
+  });
+  it('a cosmetic difference of a recognizable character passes WITH notes; the evidence stays a mismatch, never matched', () => {
+    const d = run(material({ diffs: [{ ...cosmetic, deviation: 'arched instead of short straight' }] })) as ReturnType<typeof run> & { acceptedDeviations: unknown[] };
+    expect(d.design).toBe('passed');
+    expect(d.acceptedDeviations).toEqual([{ aspect: 'face', deviation: 'arched instead of short straight', observation: 'face seen' }]);
+    expect(d.visibleEvidence.find(e => e.aspect === 'face')!.verdict).toBe('mismatch');
+    expect(childAnchorDisposition(styled, d).disposition).toBe('passed');
+  });
+  it('material identity drift or a different character is a repair; calling it identity pass refuses', () => {
+    const d = run(material({ identity: 'defect', diffs: [{ aspect: 'hair', materiality: 'material' }] }));
+    expect(childAnchorDisposition(styled, d)).toMatchObject({ disposition: 'repair', corrections: [expect.stringContaining('identity:')] });
+    expect(run(material({ identity: 'defect', diffs: [cosmetic], character: 'different_character' })).design).toBe('repair');
+    expect(() => run(material({ diffs: [{ aspect: 'hair', materiality: 'material' }] }))).toThrow('child_anchor_materiality_incoherent');
+    expect(() => run(material({ character: 'different_character' }))).toThrow('child_anchor_materiality_incoherent');
+  });
+  it('uncertain, missing or contradictory materiality never passes', () => {
+    expect(run(material({ identity: 'uncertain', diffs: [{ aspect: 'face', materiality: 'uncertain' }] })).design).toBe('held_uncertain');
+    expect(run(material({ identity: 'uncertain', character: 'uncertain' })).design).toBe('held_uncertain');
+    for (const v of [material({ diffs: [{ aspect: 'face', materiality: 'uncertain' }] }), material({ character: 'uncertain' }),
+      material({ diffs: [{ aspect: 'face', materiality: 'not_applicable' }] }), material({ diffs: [{ aspect: 'face', verdict: 'matched', materiality: 'cosmetic' }] }),
+      material({ diffs: [{ ...cosmetic, deviation: ' ' }] }), material({ identity: 'defect', diffs: [cosmetic] })])
+      expect(() => run(v)).toThrow('child_anchor_materiality_incoherent');
+    const { recognizableCharacter: _c, ...missing } = material();
+    expect(() => run(missing)).toThrow();
+  });
+  it('unreadable required face evidence holds; identity pass over it refuses', () => {
+    expect(run(material({ identity: 'uncertain', diffs: [{ aspect: 'face', verdict: 'unreadable', materiality: 'not_applicable' }] })).design).toBe('held_uncertain');
+    expect(() => run(material({ diffs: [{ aspect: 'face', verdict: 'unreadable', materiality: 'not_applicable' }] }))).toThrow('child_anchor_materiality_incoherent');
+  });
+  it('age, style, anatomy and safety keep their own gates beside an accepted cosmetic difference', () => {
+    expect(childAnchorDisposition(styled, run(material({ diffs: [cosmetic], age: 'defect' }))).disposition).toBe('repair');
+    expect(childAnchorDisposition(styled, run(material({ diffs: [cosmetic], age: 'uncertain' }))).disposition).toBe('held_uncertain');
+    expect(run(material({ diffs: [cosmetic], defect: 'anatomy' })).design).toBe('repair');
+    expect(run(material({ diffs: [cosmetic], defect: 'safety' })).design).toBe('repair');
+    const badStyle = childAnchorStyleDisposition(style({ contextSha: MCTX, style01Match: false }), A, MCTX, childAnchorRecipeSha(recipe));
+    expect(childAnchorDisposition(badStyle, run(material({ diffs: [cosmetic] }))).disposition).toBe('repair');
+  });
+  it('adoption: same candidate, THIS materiality context and version; old-context style, a relabelled record or a v1 authority refuse', () => {
+    const ok = childAnchorInspectedAdoptionRecord(materialContext, recipe, style({ contextSha: MCTX }), material({ diffs: [cosmetic] }));
+    expect(ok.version).toBe(CHILD_ANCHOR_MATERIALITY_VERSION);
+    expect(assertChildAnchorInspectedAccepted(ok, A, materialContext).acceptedDeviations).toHaveLength(1);
+    expect(() => assertChildAnchorInspectedAccepted(childAnchorInspectedAdoptionRecord(materialContext, recipe, style(), material({ diffs: [cosmetic] })), A, materialContext))
+      .toThrow('child_anchor_evidence_binding');
+    expect(() => assertChildAnchorInspectedAccepted({ ...ok, version: CHILD_ANCHOR_INSPECTION_VERSION }, A, materialContext)).toThrow('child_anchor_evidence_binding');
+    expect(() => assertChildAnchorInspectedAccepted(ok, A, context)).toThrow('child_anchor_evidence_binding');
+    // The v1 adoption record is byte-identical in shape and still has no accepted-deviation channel.
+    const v1 = childAnchorInspectedAdoptionRecord(context, recipe, style(), inspected());
+    expect([v1.version, 'acceptedDeviations' in assertChildAnchorInspectedAccepted(v1, A, context)]).toEqual([CHILD_ANCHOR_INSPECTION_VERSION, false]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
 // The amendment runner against the REAL consumed diagnostic (read only; a temporary copy is the only thing ever mutated), with fake judges.
 // ---------------------------------------------------------------------------------------------------------------
 const ORIGINAL = 'C:/GNart/Work/book-renders/child-anchor-probe-r1-anchor-diag-20261018';
@@ -149,7 +247,7 @@ describe.skipIf(!real)('amendment re-review runner (real saved lineage, fake jud
     return { file, digest: sha(readFileSync(file)) };
   };
   /** Fake judges through the REAL meter and rule: the request the real judge would send, an answer we choose, priced like a Sol reply. */
-  const fakeAdapters = (answers: { style: unknown; design: (ctx: string) => unknown }, hook?: () => void) => (directory: string, meter: AuditionMeter, guard: () => void) => {
+  const fakeAdapters = (answers: { style: unknown; design: (ctx: string, context: typeof materialContext) => unknown }, hook?: () => void) => (directory: string, meter: AuditionMeter, guard: () => void) => {
     const reply = (wire: unknown, value: unknown) => {
       const raw = { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', output_text: JSON.stringify(value), usage: { input_tokens: 2000, output_tokens: 300 } };
       const settled = auditionReviewRule.settle(wire, { raw }, true);
@@ -164,7 +262,7 @@ describe.skipIf(!real)('amendment re-review runner (real saved lineage, fake jud
       },
       inspectedDesign: async (step: string, candidate: { imageName: string; imageSha: string }, ctx: typeof context, r: typeof recipe) => {
         hook?.(); guard(); const wire = await inspectedDesignWire(candidate, readFileSync(path.join(directory, candidate.imageName)), ctx, r);
-        return meter.run(step, wire, 600000, async () => reply(wire, { ...(answers.design(childAnchorInspectionContextSha(ctx)) as object), candidateSha: candidate.imageSha, recipeSha: childAnchorRecipeSha(r) }));
+        return meter.run(step, wire, 600000, async () => reply(wire, { ...(answers.design(childAnchorInspectionContextSha(ctx), ctx) as object), candidateSha: candidate.imageSha, recipeSha: childAnchorRecipeSha(r) }));
       },
     };
   };
@@ -248,5 +346,47 @@ describe.skipIf(!real)('amendment re-review runner (real saved lineage, fake jud
     await expect(run).rejects.toThrow(code);
     expect({ claimWritten: existsSync(claim), outputCreated: existsSync(out), outcomeWritten: existsSync(path.join(s.authority, REREVIEW_AMENDMENT.outcomeName(1))), judged })
       .toEqual({ claimWritten: false, outputCreated: false, outcomeWritten: false, judged: 0 });
+  });
+  it('materiality round 2: after the actual-shaped v1 round 1 (visible face difference -> repair), the changed contract sends exactly two fresh reviews; history stays v1', async () => {
+    const s = setup(), g = await grantFor(s);
+    // Parity: the legacy plan's context is the one the actual round 1 used.
+    expect((await planRereview(s.config, s.env)).plan.contextSha).toBe('41ed25faf289d3126a2bf22e5eff35af0b2b207b00550e00bc473feb366c7f26');
+    const v1Repair = { style: style(), design: (ctx: string) => inspected({ contextSha: ctx, identity: 'defect', evidence: { face: 'mismatch' } }) };
+    expect(await runRereview({ config: s.config, env: s.env, grantFile: g.file, grantSha: g.digest, signal: new AbortController().signal, log: () => {},
+      adapters: fakeAdapters(v1Repair) })).toMatchObject({ disposition: 'repair' });
+    const round2 = { ...s.config, round: 2 };
+    await expect(planRereview(round2, s.env)).rejects.toThrow('rereview_unchanged_criteria');
+    const m = { ...round2, acceptance: CHILD_ANCHOR_MATERIALITY_VERSION };
+    const { plan, grantDraft } = await planRereview(m, s.env);
+    expect(plan).toMatchObject({ round: 2, reviewsBefore: 2, acceptance: CHILD_ANCHOR_MATERIALITY_VERSION, policyAmendment: 'OWNER-AUTONOMOUS-BOOK-MATERIALITY-AMENDMENT-20261018' });
+    expect(plan.steps.map(x => x.step)).toEqual(['reference_child_style_qa', 'reference_child_qa']);
+    expect(plan.contextSha).not.toBe('41ed25faf289d3126a2bf22e5eff35af0b2b207b00550e00bc473feb366c7f26');
+    expect(plan.priorSettledMicroUsd).toBeGreaterThan(59910);
+    expect(grantDraft).toMatchObject({ round: 2, acceptance: CHILD_ANCHOR_MATERIALITY_VERSION });
+    const file = path.join(s.root, 'grant-2m.json'); writeFileSync(file, JSON.stringify(grantDraft));
+    const answer = { style: style(), design: (ctx: string, c: typeof materialContext) => ({ ...material({ contextSha: ctx, diffs: [{ ...cosmetic, deviation: 'arched brows' }] }),
+      ...(c.version === CHILD_ANCHOR_MATERIALITY_VERSION ? {} : { never: true }) }) };
+    expect(await runRereview({ config: m, env: s.env, grantFile: file, grantSha: sha(readFileSync(file)), signal: new AbortController().signal, log: () => {},
+      adapters: fakeAdapters(answer) })).toMatchObject({ status: 'complete', disposition: 'passed' });
+    const outcome = await settledRereviewOutcome(m, { rounds: 2 });
+    expect(outcome).toMatchObject({ disposition: 'passed', acceptance: CHILD_ANCHOR_MATERIALITY_VERSION, style: { round: 2 },
+      design: { round: 2, acceptedDeviations: [expect.objectContaining({ aspect: 'face', deviation: 'arched brows' })], recognizableCharacter: 'same_character' } });
+    expect(outcome.design!.visibleEvidence.find(e => e.aspect === 'face')).toMatchObject({ verdict: 'mismatch', materiality: 'cosmetic' });
+    // History under its own contract: round 1's answers stay a v1 repair; they never become a materiality pass, and round 2's never a v1 one.
+    expect(await settledRereviewOutcome(round2, { rounds: 2 })).toMatchObject({ disposition: 'repair', style: { round: 1 }, design: { round: 1 } });
+    expect((await settledRereviewOutcome(m, { rounds: 1 })).disposition).toBe('held_uncertain');
+    // The four new reviews are spent: nothing further can be planned.
+    await expect(planRereview({ ...m, round: 3 } as never, s.env)).rejects.toThrow();
+  });
+  it('materiality round 2 with a material difference is a repair, not a pass (no second chance under the amendment)', async () => {
+    const s = setup(), g = await grantFor(s);
+    await runRereview({ config: s.config, env: s.env, grantFile: g.file, grantSha: g.digest, signal: new AbortController().signal, log: () => {},
+      adapters: fakeAdapters({ style: style(), design: (ctx: string) => inspected({ contextSha: ctx, identity: 'defect', evidence: { face: 'mismatch' } }) }) });
+    const m = { ...s.config, round: 2, acceptance: CHILD_ANCHOR_MATERIALITY_VERSION };
+    const { grantDraft } = await planRereview(m, s.env), file = path.join(s.root, 'grant-2x.json'); writeFileSync(file, JSON.stringify(grantDraft));
+    expect(await runRereview({ config: m, env: s.env, grantFile: file, grantSha: sha(readFileSync(file)), signal: new AbortController().signal, log: () => {},
+      adapters: fakeAdapters({ style: style(), design: (ctx: string) => material({ contextSha: ctx, identity: 'defect', diffs: [{ aspect: 'hair', materiality: 'material' }] }) }) }))
+      .toMatchObject({ disposition: 'repair' });
+    await expect(planRereview({ ...m, round: 2 }, s.env)).rejects.toThrow('rereview_round_used');
   });
 });

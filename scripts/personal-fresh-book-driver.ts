@@ -29,7 +29,7 @@ import { generationTimeoutMs } from '../lib/personal-wizard/story-config';
 import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import type { BookDesignReferenceRole } from '../lib/generate-image';
 import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-reviewed-audition';
-import { CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique, childAnchorDescriptionRequest, childAnchorCorrectionPrompt,
+import { CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_MATERIALITY_AMENDMENT, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique, childAnchorDescriptionRequest, childAnchorCorrectionPrompt,
   assertChildAnchorRenderPlan, childAnchorAttemptRecipe, childAnchorRecipeSha, childAnchorStyleDisposition, childAnchorDisposition,
   childAnchorInspectionContext, childAnchorInspectionContextSha, childAnchorInspectedDesignDisposition, childAnchorInspectedAdoptionRecord,
   assertChildAnchorInspectedAccepted, type ChildAnchorChild, type ChildAnchorInspectionContext, type ChildAnchorRecipe } from '../lib/personal-wizard/child-anchor-style';
@@ -114,15 +114,20 @@ function loadRereview(config: FreshBookConfig): RereviewConfig {
 }
 const layoutFor = (profile: FreshBookProfile, childImage = 'reference_child.png'): ReviewedBookLayout => reviewedBookLayoutSchema.parse({
   version: 'reviewed-book-layout/v1', seed: profile.seed, childDesign: profile.child.design, storyboardDir: 'text', childDir: 'child', childImage,
-  savedCompanion: null, childAnchor: CHILD_ANCHOR_INSPECTION_VERSION });
+  savedCompanion: null, childAnchor: profile.childAnchor });
+/** The book's child acceptance and its admission re-review must be the same contract (a materiality book is admitted by materiality evidence). */
+const policyOf = (profile: FreshBookProfile, rereview: RereviewConfig) => {
+  if (profile.childAnchor !== (rereview.acceptance ?? CHILD_ANCHOR_INSPECTION_VERSION)) fail('fresh_book_policy_mismatch');
+  return profile.childAnchor === CHILD_ANCHOR_MATERIALITY_VERSION ? { policyAmendment: CHILD_ANCHOR_MATERIALITY_AMENDMENT } : {};
+};
 
 /** Provider-free plan and the grant this exact state needs. Independent of the future re-review result, which every stage re-derives. */
 export function planFreshBook(config: FreshBookConfig, env: FreshBookEnv) {
-  const { profile, prepared } = loadProfile(config), rereview = loadRereview(config);
+  const { profile, prepared } = loadProfile(config), rereview = loadRereview(config), policy = policyOf(profile, rereview);
   const plan = { version: FRESH_BOOK_DRIVER_VERSION, cycle: FRESH_BOOK_CYCLE.id, profileSha256: freshBookProfileSha(profile), seed: profile.seed,
     requestId: prepared.accepted.requestId, child: { name: profile.child.name, age: profile.child.age, gender: profile.child.gender, fictional: true },
     companion: profile.companion.id, bookDir: path.resolve(config.bookDir), routes: FRESH_BOOK_CYCLE.routes, contracts: FRESH_BOOK_CONTRACTS,
-    childAnchor: CHILD_ANCHOR_INSPECTION_VERSION, stages: ['text', 'child', 'book'],
+    childAnchor: profile.childAnchor, ...policy, stages: ['text', 'child', 'book'],
     caps: { cycleCeilingMicroUsd: FRESH_BOOK_CYCLE.cycleCeilingMicroUsd, diagnosticSubcapMicroUsd: FRESH_BOOK_CYCLE.diagnosticSubcapMicroUsd,
       bookSubcapMicroUsd: FRESH_BOOK_CYCLE.bookSubcapMicroUsd, textApiCalls: TEXT_API_CALLS, childApiCalls: CHILD_API_CALLS, auditionCalls: AUDITION_WORST_CASE_CALLS,
       pageAttempts: FRESH_BOOK_CYCLE.pageAttempts, imageQuality: 'low' },
@@ -346,7 +351,7 @@ function anchorAuthority(profile: FreshBookProfile, wardrobe: string) {
   const child: ChildAnchorChild = { age: profile.child.age, gender: profile.child.gender, design: profile.child.design, wardrobe };
   const technique = resolveChildAnchorTechnique(workspace()), request = childAnchorDescriptionRequest(child);
   assertChildAnchorRenderPlan(request.prompt, technique.length, request.referenceMode);
-  return { child, technique, request, context: childAnchorInspectionContext(child, request.prompt) };
+  return { child, technique, request, context: childAnchorInspectionContext(child, request.prompt, profile.childAnchor) };
 }
 
 export async function runFreshBookChild(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
@@ -374,13 +379,14 @@ export async function runFreshBookChild(args: { config: FreshBookConfig; env: Fr
     const result = await inspectedAnchor({ anchor, images, render, style: judges.inspectedStyle, design: judges.inspectedDesign, check: admitted.guard, save, log: args.log });
     admitted.guard();
     if (result.status !== 'passed') {
-      seal('child_reference_held', { disposition: result.disposition, childAnchor: CHILD_ANCHOR_INSPECTION_VERSION });
+      seal('child_reference_held', { disposition: result.disposition, childAnchor: profile.childAnchor });
       finish(env, 'held_child', { disposition: result.disposition });
       return { status: 'child_reference_held' as const, disposition: result.disposition };
     }
     save('reference_child_adoption', { name: 'child', context: anchor.context, candidate: result.candidate, authority: 'fresh_book_reviewed_passed', anchor: result.record });
     exclusiveJson(path.join(config.bookDir, 'book-layout.json'), layoutFor(profile, result.candidate.imageName));
-    seal('child_reference_passed', { candidate: result.candidate, contextSha, childAnchor: CHILD_ANCHOR_INSPECTION_VERSION });
+    seal('child_reference_passed', { candidate: result.candidate, contextSha, childAnchor: profile.childAnchor,
+      ...(result.acceptedDeviations ? { acceptedDeviations: result.acceptedDeviations } : {}) });
     return { status: 'child_reference_passed' as const, candidate: result.candidate };
   } catch (error) {
     if (!existsSync(path.join(childDir, 'sealed.json'))) seal('failed', { code: codeOf(error, 'fresh_book_child_failed') });
@@ -415,7 +421,8 @@ async function inspectedAnchor(a: { anchor: ReturnType<typeof anchorAuthority>; 
     if (style.disposition === 'held_uncertain') return { candidate, recipe, style, design: null, outcome: childAnchorDisposition(style, null) };
     const design = childAnchorInspectedDesignDisposition(await a.design(`${step}_qa`, candidate, context, recipe), candidate.imageSha, context, recipe); a.check();
     a.save(`${step}_design_review`, { recipe, recipeSha, design: design.design, apparentAge: design.apparentAge, visibleEvidence: design.visibleEvidence,
-      unobservedConditional: design.unobservedConditional, review: design.full });
+      unobservedConditional: design.unobservedConditional,
+      ...('acceptedDeviations' in design ? { acceptedDeviations: design.acceptedDeviations, recognizableCharacter: design.recognizableCharacter } : {}), review: design.full });
     a.log(`${step} design: ${design.design}, apparent age: ${design.apparentAge.verdict}`);
     return { candidate, recipe, style, design, outcome: childAnchorDisposition(style, design) };
   };
@@ -428,8 +435,8 @@ async function inspectedAnchor(a: { anchor: ReturnType<typeof anchorAuthority>; 
   }
   if (current.outcome.disposition !== 'passed' || !current.design) return { status: 'held' as const, disposition: current.outcome.disposition };
   const record = childAnchorInspectedAdoptionRecord(context, current.recipe, current.style.review, current.design.full);
-  assertChildAnchorInspectedAccepted(record, current.candidate.imageSha, context);
-  return { status: 'passed' as const, candidate: current.candidate, record };
+  const accepted = assertChildAnchorInspectedAccepted(record, current.candidate.imageSha, context);
+  return { status: 'passed' as const, candidate: current.candidate, record, acceptedDeviations: accepted.acceptedDeviations };
 }
 
 /**

@@ -11,7 +11,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
-import { CHILD_ANCHOR_INSPECTION_VERSION } from '../lib/personal-wizard/child-anchor-style';
+import { childAnchorAcceptanceVersions } from '../lib/personal-wizard/child-anchor-style';
 import { AuditionMeter, auditionReviewRule, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { REREVIEW_AMENDMENT, rereviewAuthority, rereviewOutput, settledRereviewOutcome, type RereviewConfig } from './personal-child-anchor-rereview';
 
@@ -45,7 +45,8 @@ export const freshBookProfileSchema = z.object({ version: z.literal('fresh-book-
   routes: z.object({ author: z.literal(FRESH_BOOK_CYCLE.routes.author), editor: z.literal(FRESH_BOOK_CYCLE.routes.editor),
     storyboardPlanner: z.literal(FRESH_BOOK_CYCLE.routes.storyboardPlanner), judges: z.literal(FRESH_BOOK_CYCLE.routes.judges),
     image: z.literal(FRESH_BOOK_CYCLE.routes.image) }).strict(),
-  childAnchor: z.literal(CHILD_ANCHOR_INSPECTION_VERSION),
+  /** The child anchor's acceptance contract; child-anchor-materiality/v1 is the owner's 2026-10-18 opt-in (its admission re-review must match). */
+  childAnchor: z.enum(childAnchorAcceptanceVersions),
 }).strict().superRefine((p, ctx) => {
   if ((FRESH_BOOK_CYCLE.excludedCompanions as readonly string[]).includes(p.companion.id)) ctx.addIssue({ code: 'custom', message: 'fresh_book_companion_scope' });
 });

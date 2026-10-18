@@ -23,7 +23,7 @@ import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition,
   currentPersonalStoryboardFrame, storyboardOwnerAcceptance, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
-import { CHILD_ANCHOR_INSPECTION_VERSION, childAnchorDescriptionRequest, childAnchorInspectionContext, assertChildAnchorInspectedAccepted }
+import { childAnchorAcceptanceVersions, childAnchorDescriptionRequest, childAnchorInspectionContext, assertChildAnchorInspectedAccepted }
   from '../lib/personal-wizard/child-anchor-style';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-moments';
@@ -56,8 +56,11 @@ export const reviewedBookLayoutSchema = z.object({ version: z.literal('reviewed-
   childDesign: z.string().trim().min(20).max(1500), storyboardDir: folder, childDir: folder, childImage: z.string().regex(/^[a-z0-9_]+\.png$/),
   /** The companion copy a historical run saved beside its child; null: the registry card alone is the reference. */
   savedCompanion: z.string().regex(/^[A-Za-z0-9_.-]{1,80}\/illustrations\/[a-z0-9_]+\.png$/).refine(s => folder.safeParse(s.split('/')[0]).success).nullable(),
-  /** Opt-in (fresh book, 2026-10-18): the child was adopted under child-anchor-inspection/v1. Absent: the legacy child check, unchanged. */
-  childAnchor: z.literal(CHILD_ANCHOR_INSPECTION_VERSION).optional() }).strict();
+  /**
+   * Opt-in (fresh book, 2026-10-18): the child was adopted under child-anchor-inspection/v1, or child-anchor-materiality/v1 (owner amendment).
+   * Absent: the legacy child check, unchanged.
+   */
+  childAnchor: z.enum(childAnchorAcceptanceVersions).optional() }).strict();
 export type ReviewedBookLayout = z.infer<typeof reviewedBookLayoutSchema>;
 /** The ONE already-reviewed book (2026-10-08): its historical folders and constants, unchanged. */
 export const LEGACY_BOOK_LAYOUT: ReviewedBookLayout = Object.freeze({ version: 'reviewed-book-layout/v1', seed: SEED, childDesign: CHILD_DESIGN,
@@ -272,11 +275,11 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
   const adoption = read(path.join(childDir, 'reference_child_adoption.json'));
   const childContext = simpleReferenceDesignContext(reviewedChildDesign(prepared, active.book, layout));
   const childBytes = readFileSync(path.join(childDir, 'illustrations', layout.childImage));
-  if (layout.childAnchor === CHILD_ANCHOR_INSPECTION_VERSION) {
-    // The inspected anchor: its context is rebuilt from this book (age, address, written design, active wardrobe) and the request the
-    // anchor's renderer plans; both settled answers must bind this candidate and THAT context and pass together.
+  if (layout.childAnchor) {
+    // The inspected anchor: its context is rebuilt from this book (age, address, written design, active wardrobe), the request the
+    // anchor's renderer plans and the layout's acceptance version; both settled answers must bind this candidate and THAT context and pass together.
     const child = { age: prepared.brief.child.age, gender: prepared.brief.child.address as 'boy' | 'girl', design: layout.childDesign, wardrobe: active.book.plan.wardrobe };
-    const authority = childAnchorInspectionContext(child, childAnchorDescriptionRequest(child).prompt);
+    const authority = childAnchorInspectionContext(child, childAnchorDescriptionRequest(child).prompt, layout.childAnchor);
     if (adoption.name !== 'child' || canonicalJson(adoption.context) !== canonicalJson(authority) || previewSha(childBytes) !== adoption.candidate?.imageSha)
       fail('audition_child_reference');
     try { assertChildAnchorInspectedAccepted(adoption.anchor, previewSha(childBytes), authority); } catch { fail('audition_child_reference'); }
