@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## F5 round 1 (5d4d3673): recovery successor provenance verified offline; next: Codex re-gate (2026-10-18)
+
+- Codex F5: child/book `--recovery` trusted a changed successor (0/3).
+- Now the successor is re-derived from the failed evidence and its one durable record, at completion and at every
+  child/book/resume entry.
+- Tests: recovery 12/12, driver 16/17 (the same stale RED), tsc 0. The full check stays RED.
+- Next: Codex re-gate, then the F4 sequence: recover → child → book, samples first. The book is not done.
+
 ## F4 same-book text recovery built offline (88ec8742); next: Codex re-gate, then ONE recovery run (2026-10-18)
 
 - The actual text attempt failed `critic_evidence`: 3 of 12 comparison anchors had prefix-letter errors. API: book 36450,

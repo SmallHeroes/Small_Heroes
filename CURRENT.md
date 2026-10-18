@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## F5 round 1 (5d4d3673): verified recovery successor provenance, offline, for Codex re-gate; the book is NOT done (2026-10-18)
+
+**Finding (Codex F5, P2).** At 227869cf the child/book `--recovery` entry trusted the recovery folder's seal and re-captured
+it as a new baseline. A changed paid correction raw answer, a changed compiled summary/explanation, or a foreign admission
+grant/claim each still rendered once under the same grant (Codex 0/3).
+
+**Fix (`verifyRecoverySuccessor`, driver).** The successor is re-derived from the immutable failed evidence, at completion and at
+every child/book/resume entry:
+- the admission is this grant's (original, ledger, re-review outcome);
+- the correction request rebuilds from the failed reading's saved request (new additive `restoreSourceCitationReview`; the
+  wire is rebuilt exactly) and its saved answer;
+- the one paid correction wire rebuilds exactly, and its answer is its own raw output;
+- the strict apply reproduces `citation-correction.json`;
+- the saved readings are the untouched reading and the corrected one, on the reviewed manuscript.
+
+Completion then writes ONE durable successor record (`...text-recovery.successor.json`, fixed authority root, exclusive),
+binding the folder digest, the grant and both claims. Downstream must match it. The record is in the authority roots, so the
+baseline pinned before every await holds it at every guard. The strict v1 validator, the allowance (ONE correction, 600000
+reserve), the caps and all original records are unchanged.
+
+**Tests (provider-free, synthetic replies prove wiring only).**
+- recovery spec 12/12, including:
+  - the 3 Codex controls, each also with a re-sealed record: refused before the child folder, key or render;
+  - a change during an awaited child render, and during a book render, halts at the next guard;
+  - book and resume entry refuse a changed successor.
+- driver spec 16/17. The sole RED is the unchanged stale real-state pre-claim assertion (`fresh-book-driver.spec.ts:152`).
+- nonincremental tsc 0.
+- The full check stays RED.
+
+The real recovery claim, outcome, folder and successor record are still absent. A new recovery grant is pinned to the reviewed
+docs HEAD (handoff in `_review/.../f4-text-recovery`). Next: Codex re-gate, then the same steps as F4.
+
 ## F4 same-book text recovery (88ec8742), offline, for Codex re-gate; the book is NOT done (2026-10-18)
 
 **Actual failure (unchanged, immutable).** The ONE fresh book's paid text run at 96dedda4 completed the Opus 5.5 Max author
