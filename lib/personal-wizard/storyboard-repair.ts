@@ -11,7 +11,7 @@ import 'server-only';
  */
 export const STORYBOARD_REPAIR_VERSION = 'storyboard-repair/v1' as const;
 /** Opt-in contracts a repair may add on top of its parent's (the parent is then recompiled without them). */
-export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract'] as const;
+export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract', 'visibleMomentContract'] as const;
 /**
  * A repair of a held parent. When the parent is itself a repaired storyboard, `parentRepair` is the parent's own repair input (recompiled
  * with it to the parent's digest); `addedContracts` names the opt-in contracts this repair adds. Both absent: exactly the original shape.

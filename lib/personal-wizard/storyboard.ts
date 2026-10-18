@@ -23,6 +23,7 @@ import { STORYBOARD_PRESERVATION_VERSION, PRESERVATION_STORYBOARD_ADDENDUM, asse
 import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } from './storyboard-scene-location';
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from './storyboard-compiler-rules';
 import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, assertStoryboardRepair, storyboardRepairFindings, type StoryboardRepair } from './storyboard-repair';
+import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -48,6 +49,8 @@ type BookData = {
   repair?: { version: typeof STORYBOARD_REPAIR_VERSION; parentStoryboardDigest: string };
   /** Present only for opt-in drawn-instant storyboards; absent keeps every older digest/packet unchanged. */
   drawnInstant?: typeof DRAWN_INSTANT_CONTRACT_VERSION;
+  /** Present only for opt-in visible-moment storyboards; absent keeps every older digest/packet unchanged. */
+  visibleMoment?: typeof VISIBLE_MOMENT_CONTRACT_VERSION;
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -58,7 +61,7 @@ const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Sour
 /** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true,
   landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true, repair?: StoryboardRepair,
-  drawnInstantContract?: true) {
+  drawnInstantContract?: true, visibleMomentContract?: true) {
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
   if (momentContract !== undefined && momentContract !== true) fail('moment_policy');
   if (landmarkKindContract !== undefined && landmarkKindContract !== true) fail('landmark_kind_policy');
@@ -66,6 +69,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   if (compilerRulesContract !== undefined && compilerRulesContract !== true) fail('compiler_rules_policy');
   // The drawn-instant contract completes the moments contract's drawn instant, so it needs that contract.
   if (drawnInstantContract !== undefined && (drawnInstantContract !== true || momentContract !== true)) fail('drawn_instant_policy');
+  // The visible-moment contract states rules about the moments contract's requirements and drawn instants, so it needs that contract too.
+  if (visibleMomentContract !== undefined && (visibleMomentContract !== true || momentContract !== true)) fail('visible_moment_policy');
   // A repair re-plans a HELD storyboard of this same source under its own contracts; a preservation re-plan is a different contract.
   if (repair !== undefined) {
     assertStoryboardRepair(repair);
@@ -123,11 +128,12 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   const held = repair === undefined ? undefined : (() => {
     const added = new Set(repair.addedContracts ?? []);
     if (added.has('drawnInstantContract') && drawnInstantContract !== true) fail('repair_policy');
+    if (added.has('visibleMomentContract') && visibleMomentContract !== true) fail('repair_policy');
     let parent: PersonalStoryboard;
     try {
       parent = compilePersonalStoryboard(preparePersonalStoryboard(request, writerResult, options, actorOwnedAppearance, momentContract, landmarkKindContract,
-        undefined, sceneLocationContract, compilerRulesContract, repair.parentRepair, added.has('drawnInstantContract') ? undefined : drawnInstantContract),
-        structuredClone(repair.draft));
+        undefined, sceneLocationContract, compilerRulesContract, repair.parentRepair, added.has('drawnInstantContract') ? undefined : drawnInstantContract,
+        added.has('visibleMomentContract') ? undefined : visibleMomentContract), structuredClone(repair.draft));
     } catch (error) {
       // A nested repair's own refusal keeps its code; a draft that does not compile under the parent's contracts is not that parent.
       if (error instanceof Error && error.message.startsWith('personal_storyboard_repair_')) throw error;
@@ -152,6 +158,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(sceneLocationContract ? { sceneLocationContract: SCENE_LOCATION_CONTRACT_VERSION } : {}),
     ...(compilerRulesContract ? { compilerRulesContract: COMPILER_RULES_CONTRACT_VERSION } : {}),
     ...(drawnInstantContract ? { drawnInstantContract: DRAWN_INSTANT_CONTRACT_VERSION } : {}),
+    ...(visibleMomentContract ? { visibleMomentContract: VISIBLE_MOMENT_CONTRACT_VERSION } : {}),
     ...(prior ? { storyboardPreservation: { version: STORYBOARD_PRESERVATION_VERSION, parentStoryboardDigest: prior.parentStoryboardDigest, draft: digest(prior.draft) } } : {}),
     ...(held ? { storyboardRepair: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, draft: digest(held.draft),
       review: digest(held.review), ...(held.parentRepair ? { parentRepair: digest(held.parentRepair) } : {}),
@@ -166,6 +173,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(sceneLocationContract ? { sceneLocationContract: true as const } : {}),
     ...(compilerRulesContract ? { compilerRulesContract: true as const } : {}),
     ...(drawnInstantContract ? { drawnInstantContract: true as const } : {}),
+    ...(visibleMomentContract ? { visibleMomentContract: true as const } : {}),
     ...(prior ? { preservation: prior } : {}),
     ...(held ? { repair: { parentStoryboardDigest: held.parentStoryboardDigest, draft: held.draft, review: held.review,
       ...(held.parentRepair ? { parentRepair: held.parentRepair } : {}), ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}) } } : {}),
@@ -197,9 +205,9 @@ function parentStoryboardDigest(request: unknown, writerResult: unknown, options
 /** New/current operation: an archive or stripped receipt is never current evidence. */
 export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true,
   momentContract?: true, landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true,
-  repair?: StoryboardRepair, drawnInstantContract?: true) {
+  repair?: StoryboardRepair, drawnInstantContract?: true, visibleMomentContract?: true) {
   return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract,
-    landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract);
+    landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract, visibleMomentContract);
 }
 
 function assertSource(source: Source) {
@@ -248,14 +256,17 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown): Pe
   const repair = source.repair ? { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: source.repair.parentStoryboardDigest } : undefined;
   // Drawn instant: validated with the moments above (actorStates and the completeness check); the marker records it.
   const drawnInstant = source.drawnInstantContract ? DRAWN_INSTANT_CONTRACT_VERSION : undefined;
+  // Visible moment: an instruction contract only (no schema or compiler change); the marker records it.
+  const visibleMoment = source.visibleMomentContract ? VISIBLE_MOMENT_CONTRACT_VERSION : undefined;
   const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled, ...(moments ? { moments } : {}),
     ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}), ...(compilerRules ? { compilerRules } : {}),
-    ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}) });
+    ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
     ...compiled, ...(moments ? { moments } : {}), ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}),
-    ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}) } as PersonalStoryboard;
+    ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}),
+    ...(visibleMoment ? { visibleMoment } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -331,7 +342,8 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
-    source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract);
+    source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
+    source.visibleMomentContract);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   const accepted = ownerAcceptance === undefined ? null : bindOwnerAcceptance(book, decision, ownerAcceptance);
@@ -367,7 +379,8 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   if (!current) return fail('current_source_required');
   admitCurrentStoryboardStory(source.request, source.result, current.options);
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
-    source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract);
+    source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
+    source.visibleMomentContract);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return ownerAcceptance === undefined ? personalStoryboardFrame(book, rawReview, pageNumber, current)
     : personalStoryboardFrame(book, rawReview, pageNumber, current, ownerAcceptance);
@@ -375,12 +388,13 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
 
 /** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */
 export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; preservation?: unknown;
-  sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true }) =>
+  sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true }) =>
   (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '')
   + (source.landmarkKindContract ? '\n' + KIND_STORYBOARD_ADDENDUM : '') + (source.preservation ? '\n' + PRESERVATION_STORYBOARD_ADDENDUM : '')
   + (source.sceneLocationContract ? '\n' + SCENE_LOCATION_STORYBOARD_ADDENDUM : '')
   + (source.compilerRulesContract ? '\n' + COMPILER_RULES_STORYBOARD_ADDENDUM : '')
   + (source.drawnInstantContract ? '\n' + DRAWN_INSTANT_STORYBOARD_ADDENDUM : '')
+  + (source.visibleMomentContract ? '\n' + VISIBLE_MOMENT_STORYBOARD_ADDENDUM : '')
   + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM : '');
 // The landmark-kind contract adds no schema: its kind is an ordinary invariant, given meaning only by the bound book marker. The drawn-instant
 // contract adds actorStates to every depicted instant.

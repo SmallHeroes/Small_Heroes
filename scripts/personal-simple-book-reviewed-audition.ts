@@ -30,6 +30,7 @@ import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-mo
 import { SCENE_LOCATION_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-scene-location';
 import { COMPILER_RULES_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-compiler-rules';
 import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-drawn-instant';
+import { VISIBLE_MOMENT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-visible-moment';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
@@ -110,6 +111,13 @@ export function savedSceneLocationContract(savedBook: { sceneLocation?: unknown 
   const marker = savedBook?.sceneLocation;
   if (marker === undefined) return undefined;
   return marker === SCENE_LOCATION_CONTRACT_VERSION ? true : fail('audition_board_binding');
+}
+
+/** The visible-moment contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
+export function savedVisibleMomentContract(savedBook: { visibleMoment?: unknown } | undefined): true | undefined {
+  const marker = savedBook?.visibleMoment;
+  if (marker === undefined) return undefined;
+  return marker === VISIBLE_MOMENT_CONTRACT_VERSION ? true : fail('audition_board_binding');
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -237,7 +245,7 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   if (existsSync(repairFile) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
-    savedDrawnInstantContract(saved));
+    savedDrawnInstantContract(saved), savedVisibleMomentContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
   // The book binds first: a changed book refuses here before its saved review is read (the review names the saved book's digests).
