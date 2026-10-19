@@ -1,5 +1,25 @@
 # SmallHeroes — Roadmap
 
+## F7 round 1 (7e53b542): repair admission binds the whole original authority; next: Codex re-gate, then ONE repair and the book (2026-10-19)
+
+- Codex F7 at 0f018abe: a changed original grant byte or outcome code still allowed a (mocked) repair. The rest of
+  Codex's QA passed: 43/43 focused tests, 30/30 checks, tsc 0.
+- Now the original authority is re-derived with the recovery line's own `recoveryOriginal` and must equal the consumed
+  recovery grant's record. The original grant's bytes are frozen across every await and downstream entry.
+- 
+- `fresh-book-recovery` 24/24:
+  - 4 new immutable-input cases (original grant byte, original outcome code, text seal, request), each refused before the
+    repair claim, folder, key, planner or review;
+  - 1 new across-await case: a mid-planner original-grant change blocks the review; after a supported repair a changed
+    original outcome refuses the child, and once restored it admits again; a change during a book render stops the book,
+    its resume and a fresh entry.
+- Focused serial run of the 5 relevant specs: exit 1, 60/61. The single RED is the unchanged stale
+  `fresh-book-driver.spec.ts:152`. The driver spec is otherwise 16/17 (F1/F2/F3 and the normal path); storyboard-repair 9/9,
+  drawn-instant 7/7, visible-moment 4/4.
+- nonincremental tsc 0. The 33-spec suite is not re-run: no other dependency changed. The full check stays RED._SHORT
+- Next: narrow Codex re-gate of the new range and the replacement grant. Then repair → child → book (samples first) →
+  viewer → engine report.
+
 ## F6 + the ONE storyboard-only repair line built offline (bb559295); next: independent Codex QA, then ONE repair and the book (2026-10-18)
 
 - The one text recovery ran once. Its storyboard review HELD it (`held_uncertain`, 6 findings): the page-7 sky is only

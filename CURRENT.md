@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## F7 round 1 (7e53b542): the storyboard repair binds the whole original authority, offline, for Codex re-gate; the book is NOT done (2026-10-19)
+
+**Finding (Codex F7, P2, at 0f018abe).** The repair's admission checked the consumed recovery grant and the original CLAIM,
+but not the rest of the original authority that grant pins. Codex's two independent controls succeeded through a mocked
+repair claim, folder, planner and review:
+- one whitespace byte appended to the ORIGINAL grant;
+- the original outcome's `code` changed.
+
+Codex's QA otherwise passed: 43/43 focused tests, 30/30 plan, grant, ledger and preservation checks, and tsc 0.
+
+**Fix (driver only; reuses the recovery line's verifier, no new authority logic):**
+- `recoveryHeld` re-derives the original authority with `recoveryOriginal`: the original grant under its OWN head and exact
+  bytes, its claim, the failed outcome and seal, the request, the admission, the failed text evidence and the original
+  ledger. The result must equal `grant.original` and `grant.ledger` of the consumed recovery grant, or the stage refuses
+  `fresh_book_recovery_original`. Nothing is re-pinned to today's head.
+- `admitStoryboardRepair` freezes the original grant's bytes first, at the digest the recovery grant recorded, and holds
+  them in `same()` across every await, paid call and child/book/resume entry, as `admitRecovery` does.
+
+**Tests (provider-free; synthetic replies prove wiring only).** 
+- `fresh-book-recovery` 24/24:
+  - 4 new immutable-input cases (original grant byte, original outcome code, text seal, request), each refused before the
+    repair claim, folder, key, planner or review;
+  - 1 new across-await case: a mid-planner original-grant change blocks the review; after a supported repair a changed
+    original outcome refuses the child, and once restored it admits again; a change during a book render stops the book,
+    its resume and a fresh entry.
+- Focused serial run of the 5 relevant specs: exit 1, 60/61. The single RED is the unchanged stale
+  `fresh-book-driver.spec.ts:152`. The driver spec is otherwise 16/17 (F1/F2/F3 and the normal path); storyboard-repair 9/9,
+  drawn-instant 7/7, visible-moment 4/4.
+- nonincremental tsc 0. The 33-spec suite is not re-run: no other dependency changed. The full check stays RED.
+
+Real records are unchanged (Codex verified them against its baselines). The ONE repair remains unused. A replacement unused
+grant pins the new head; the 0f018abe grant stays as history. Next: Codex's narrow re-gate, then the ONE repair and the book.
+
 ## F6 + the ONE storyboard-only repair line (bb559295), offline, for independent Codex QA; the book is NOT done (2026-10-18)
 
 **What ran since F5 (once, under recovery grant 199c512c…, engine da2b5841).** The ONE same-book text recovery replayed
