@@ -10,7 +10,8 @@ import { preparePersonalStoryboard, prepareCurrentPersonalStoryboard, compilePer
   PERSONAL_STORYBOARD_INSTRUCTION } from '../storyboard';
 import { STORYBOARD_MOMENTS_VERSION, MOMENT_STORYBOARD_ADDENDUM, momentWholeBookDraftSchema } from '../storyboard-moments';
 import { REPAIR_STORYBOARD_ADDENDUM } from '../storyboard-repair';
-import { SELF_CHECK_STORYBOARD_ADDENDUM, SELF_CHECK_REVIEW_ADDENDUM, STORYBOARD_SELF_CHECK_VERSION } from '../storyboard-self-check';
+import { SELF_CHECK_STORYBOARD_ADDENDUM, SELF_CHECK_REVIEW_ADDENDUM, STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, resolveSelfCheckSections,
+  validateStoryboardSelfCheck } from '../storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_VERSION, STORYBOARD_REVIEW_IMPACT_ADDENDUM, storyboardReviewRefs } from '../storyboard-review-impact';
 import { STORYBOARD_DIAGNOSIS_VERSION, STORYBOARD_MAX_ATTEMPTS, diagnosisDigest } from '../storyboard-diagnosis';
 import { REVIEW_IMPACT_ORDER } from '../review-impact';
@@ -273,6 +274,47 @@ describe('engine recovery: planner self-check, typed review materiality and the 
     expect(storyboardRecovery(first).diagnosis).toBeNull();
     expect(() => compilePersonalStoryboard(first, withCheck(d2, first, s => { s.resolutions = [{ finding: 'book:x', cause: 'composition', confirmed: 'c', hypothesis: '',
       impact: 'story', remedy: 'r', changed: ['p3:plan'], quotes: [], check: 'k' }]; }))).toThrow('storyboard_self_check_resolutions_without_diagnosis');
+  });
+
+  it('section names (storyboard-self-check-names/v1, opt-in compile): book-level names resolve to the engine\'s own; strict v1 and every check unchanged', async () => {
+    const f = await personalStoryboardFixture(), { continuation } = await heldChain(f);
+    const source = prepare(f, { repair: continuation, selfCheck: true, impact: true });
+    const repairCtx = { diagnosis: (source.planningInput as any).priorReviewedStoryboard.diagnosis, parentDraft: continuation.draft };
+    // The candidate answers both diagnosed findings (pages 2 and 4) and also changes two book-level sections: a prop design and a location design.
+    const d3 = momentDraft(f, d => { d.plan.pages[3].composition = continuation.draft.plan.pages[3].composition; d.plan.pages[4].composition = 'the lane, the pause made visible';
+      d.plan.pages[2].composition = 'the idea forming, framed from inside'; d.plan.recurringProps[0].design = 'one red cotton ribbon, knotted twice';
+      d.plan.locations[1].design = 'stone lane beside the garden wall'; });
+    const named = (n0: string[], n1: string[]) => withCheck(d3, source, s => { s.resolutions[0].changed = ['p2:plan', ...n0]; s.resolutions[1].changed = ['p4:plan', ...n1]; }, repairCtx);
+    const strict = (draft: any) => () => compilePersonalStoryboard(source, structuredClone(draft));
+    const opted = (draft: any) => compilePersonalStoryboard(source, structuredClone(draft), { selfCheckNames: true });
+    // The planner's short book-level names: strict v1 refuses exactly as before; the opt-in resolves each to the ONE engine section with that key.
+    const short = named(['book:recurringProps'], ['book:locations']);
+    expect(strict(short)).toThrow('storyboard_self_check_resolution_changed');
+    const book = opted(short);
+    expect(book.selfCheck!.resolutions.map(r => r.changed)).toEqual([['p2:plan', 'book:plan.recurringProps'], ['p4:plan', 'book:plan.locations']]);
+    expect(book.selfCheckNames).toBe(STORYBOARD_SELF_CHECK_NAMES_VERSION);
+    expect(personalStoryboardReviewInput(book)).toMatchObject({ selfCheck: { resolutions: book.selfCheck!.resolutions } });
+    // A group name becomes the group's sections this candidate changed; exact engine names stay and compile under both.
+    expect(opted(named(['book:plan'], [])).selfCheck!.resolutions[0].changed).toEqual(['p2:plan', 'book:plan.locations', 'book:plan.recurringProps']);
+    const exact = named(['book:plan.recurringProps'], ['book:plan.locations']);
+    const plainBook = compilePersonalStoryboard(source, structuredClone(exact)), exactBook = opted(exact);
+    expect(exactBook.selfCheck).toEqual(plainBook.selfCheck);
+    // The marker is bound: the same content compiled under the correction is a different, marked book (never the strict one's digest).
+    expect(['selfCheckNames' in plainBook, exactBook.storyboardDigest === plainBook.storyboardDigest]).toEqual([false, false]);
+    expect({ ...exactBook, storyboardDigest: '', selfCheckNames: undefined }).toEqual({ ...plainBook, storyboardDigest: '', selfCheckNames: undefined });
+    // No substantive check relaxes: a name that resolves to an UNCHANGED section, an empty group, an unknown name and a wrong page all still refuse.
+    for (const n of [['book:wardrobe'], ['book:continuity'], ['book:nothing'], ['p5:plan'], ['book:']])
+      expect(() => opted(named(n, [])), n.join()).toThrow('storyboard_self_check_resolution_changed');
+    // Deterministic and narrow: an ambiguous key stays as written (and is refused); duplicates collapse; page names pass through.
+    const sections = new Set(['book:plan.version', 'book:moments.version', 'book:plan.locations', 'p1:plan']);
+    expect(resolveSelfCheckSections(['book:version'], sections, ['book:plan.version'])).toEqual(['book:version']);
+    expect(resolveSelfCheckSections(['book:locations', 'book:plan', 'p1:plan'], sections, ['book:plan.locations'])).toEqual(['book:plan.locations', 'p1:plan']);
+    expect(resolveSelfCheckSections(['book:moments'], sections, ['book:moments.version'])).toEqual(['book:moments.version']);
+    // Policy: the option alone, only true, only on a self-check source; the validator's own option is strict too.
+    expect(() => compilePersonalStoryboard(source, structuredClone(exact), { selfCheckNames: true, other: true } as never)).toThrow('personal_storyboard_self_check_names_policy');
+    expect(() => compilePersonalStoryboard(source, structuredClone(exact), { selfCheckNames: 'yes' } as never)).toThrow('personal_storyboard_self_check_names_policy');
+    expect(() => compilePersonalStoryboard(prepare(f), momentDraft(f), { selfCheckNames: true })).toThrow('personal_storyboard_self_check_names_policy');
+    expect(() => validateStoryboardSelfCheck({}, {} as never, [], undefined, { sectionNames: 'yes' } as never)).toThrow('storyboard_self_check_options');
   });
 
   it('swaps and stale histories refuse: another review, a dropped ancestor, a foreign parent; the stage ceiling stops a fourth attempt', async () => {

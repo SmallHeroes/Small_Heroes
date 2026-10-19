@@ -24,7 +24,8 @@ import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } f
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from './storyboard-compiler-rules';
 import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, assertStoryboardRepair, storyboardRepairFindings, type StoryboardRepair } from './storyboard-repair';
 import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
-import { STORYBOARD_SELF_CHECK_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck, type StoryboardSelfCheck } from './storyboard-self-check';
+import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck,
+  type StoryboardSelfCheck } from './storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_VERSION, storyboardReviewIssueSchema, storyboardReviewRefs, storyboardImpactDisposition } from './storyboard-review-impact';
 import { storyboardDiagnosis, diagnosisDigest, chainAttempts, STORYBOARD_MAX_ATTEMPTS, type ChainAttempt, type StoryboardDiagnosis } from './storyboard-diagnosis';
 import { recoveryState, assertNextAttempt, StageRecoveryError } from './stage-recovery';
@@ -59,6 +60,8 @@ type BookData = {
   selfCheck?: StoryboardSelfCheck;
   /** Present only under the opt-in typed review materiality policy; absent keeps the all-or-nothing disposition. */
   reviewImpact?: typeof STORYBOARD_REVIEW_IMPACT_VERSION;
+  /** Present only when compiled under the opt-in self-check section-name resolution (storyboard-self-check-names/v1). */
+  selfCheckNames?: typeof STORYBOARD_SELF_CHECK_NAMES_VERSION;
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -313,9 +316,15 @@ actorAppearance.child.clothing is CHILD-ONLY illustration clothing, not biograph
 actorAppearance.companion delegates physical design and accessories exclusively to supplied companionVisualAuthority.
 These roles are distinct from supporting cast and scene props. Preserve the supplied companion canon; do not invent a new costume.`;
 
-/** Existing diagnostic compiler, including cover, framing variety and inherited state. */
-export function compilePersonalStoryboard(source: Source, rawDraft: unknown): PersonalStoryboard {
+/**
+ * Existing diagnostic compiler, including cover, framing variety and inherited state. `options.selfCheckNames` (opt-in, self-check sources
+ * only) resolves a self-check resolution's book-level section names (storyboard-self-check-names/v1); it is a compile-level correction, so the
+ * source and the planner's request are unchanged, and the book and its digest carry its marker. Absent: exactly the existing compile.
+ */
+export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true }): PersonalStoryboard {
   assertSource(source);
+  if (options !== undefined && (Object.keys(options).some(k => k !== 'selfCheckNames') || options.selfCheckNames !== true || !source.selfCheckContract))
+    fail('self_check_names_policy');
   const object = rawDraft && typeof rawDraft === 'object' ? rawDraft as Record<string, unknown> : null;
   if (!source.momentContract && object && 'moments' in object) fail('moments_not_enabled');
   if (source.momentContract && !(object && 'moments' in object)) fail('moments_required');
@@ -330,7 +339,9 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown): Pe
   // Self-check: bound to this plan, these page texts and (for a diagnosed repair) the diagnosis and what this draft changed from its parent.
   const selfCheck = source.selfCheckContract ? validateStoryboardSelfCheck(rawSelfCheck, { plan: compiled.plan, sequence: compiled.sequence, moments: moments! },
     previewStoryEvidence(source.story).texts, source.repair
-      ? { diagnosis: recoveryOf.get(source)?.diagnosis ?? null, parentDraft: source.repair.draft, candidateDraft: rawDraft } : undefined) : undefined;
+      ? { diagnosis: recoveryOf.get(source)?.diagnosis ?? null, parentDraft: source.repair.draft, candidateDraft: rawDraft } : undefined,
+    options?.selfCheckNames ? { sectionNames: true } : undefined) : undefined;
+  const selfCheckNames = options?.selfCheckNames ? STORYBOARD_SELF_CHECK_NAMES_VERSION : undefined;
   // Typed review materiality: a policy marker only (the disposition reads it); the review schema and input follow it.
   const reviewImpact = source.reviewImpactPolicy ? STORYBOARD_REVIEW_IMPACT_VERSION : undefined;
   // Landmark kinds: syntax checked here; their meaning is the semantic review's (KIND_REVIEW_ADDENDUM).
@@ -349,13 +360,14 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown): Pe
   const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled, ...(moments ? { moments } : {}),
     ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}), ...(compilerRules ? { compilerRules } : {}),
     ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}),
-    ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}) });
+    ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}), ...(selfCheckNames ? { selfCheckNames } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
     ...compiled, ...(moments ? { moments } : {}), ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}),
     ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}),
-    ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}) } as PersonalStoryboard;
+    ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}),
+    ...(selfCheckNames ? { selfCheckNames } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -541,11 +553,11 @@ function drawnSequenceState(book: PersonalStoryboard, pageNumber: number, ledger
     endOfPageLedger: page.states.filter(s => overridden.has(s.entityId)) };
 }
 
-/** Injectable author seam only. No default SDK/key, pricing, retry or network path. */
+/** Injectable author seam only. No default SDK/key, pricing, retry or network path. `compile` passes the opt-in compile options. */
 export async function authorPersonalStoryboard(source: Source, author: (call: {
   instructions: string; input: Source['planningInput'];
   schema: ReturnType<typeof storyboardDraftSchema>; signal: AbortSignal;
-}) => Promise<unknown>, signal: AbortSignal) {
+}) => Promise<unknown>, signal: AbortSignal, compile?: { selfCheckNames?: true }) {
   assertSource(source);
   if (signal.aborted) fail('cancelled');
   let raw: unknown;
@@ -557,5 +569,5 @@ export async function authorPersonalStoryboard(source: Source, author: (call: {
   if (signal.aborted) fail('cancelled');
   // Recheck after async authoring: a parent edit cannot resurrect an old request/result.
   assertSource(source);
-  return compilePersonalStoryboard(source, raw);
+  return compile ? compilePersonalStoryboard(source, raw, compile) : compilePersonalStoryboard(source, raw);
 }

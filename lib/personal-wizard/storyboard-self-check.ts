@@ -99,11 +99,35 @@ const fail = (code: string): never => { throw Error(`storyboard_self_check_${cod
 const overlaps = (a: string, b: string) => a.includes(b) || b.includes(a);
 
 /**
+ * Opt-in, versioned SECTION-NAME RESOLUTION for a resolution's `changed` list (storyboard-self-check-names/v1). The v1 instruction names
+ * book-level sections only as `book:...`, while the engine's names are `book:<group>.<key>`, so a planner can name a section it truly
+ * changed in a form the strict v1 check refuses. Deterministic and narrow: an exact engine name stays; `book:<key>` becomes the ONE book
+ * section with that own key; `book:<group>` (plan, continuity, sequence, moments) becomes that group's sections the candidate changed;
+ * anything else stays as written (and is refused as before). Every resolved name must still be a section that actually changed, so no
+ * substantive check is relaxed. Absent: the strict v1 check, byte-identical.
+ */
+export const STORYBOARD_SELF_CHECK_NAMES_VERSION = 'storyboard-self-check-names/v1' as const;
+const BOOK_SECTION_GROUPS = ['plan', 'continuity', 'sequence', 'moments'] as const;
+export function resolveSelfCheckSections(names: readonly string[], sections: ReadonlySet<string>, moved: readonly string[]) {
+  const resolved = names.flatMap(name => {
+    if (sections.has(name) || !name.startsWith('book:')) return [name];
+    const key = name.slice('book:'.length);
+    const byKey = [...sections].filter(s => s.startsWith('book:') && s.slice(s.indexOf('.') + 1) === key);
+    if (byKey.length === 1) return byKey;
+    const group = (BOOK_SECTION_GROUPS as readonly string[]).includes(key) ? moved.filter(s => s.startsWith(`book:${key}.`)) : [];
+    return group.length ? group : [name];
+  });
+  return [...new Set(resolved)];
+}
+
+/**
  * Deterministic validation of the self-check against the compiled plan, sequence and moments, the exact page texts and (for a diagnosed
  * repair) the diagnosis and the parent draft. Structure and quotes only: whether a quote semantically establishes its part is the review's.
  */
 export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewPlan; sequence: Sequence; moments: StoryboardMoments }, texts: readonly string[],
-  repair?: { diagnosis: StoryboardDiagnosis | null; parentDraft: unknown; candidateDraft: unknown }): StoryboardSelfCheck {
+  repair?: { diagnosis: StoryboardDiagnosis | null; parentDraft: unknown; candidateDraft: unknown }, options?: { sectionNames?: true }): StoryboardSelfCheck {
+  if (options !== undefined && (Object.keys(options).some(k => k !== 'sectionNames') || (options.sectionNames !== undefined && options.sectionNames !== true)))
+    fail('options');
   const s = selfCheckSchema.parse(raw);
   if (s.frames.length !== book.plan.pages.length || texts.length !== book.plan.pages.length) fail('coverage');
   s.frames.forEach((frame, n) => {
@@ -145,6 +169,8 @@ export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewP
     fail('resolution_coverage');
   const moved = changedSections(repair.parentDraft, repair.candidateDraft), sections = new Set(Object.keys(draftSections(repair.candidateDraft)));
   const anywhere = (q: string) => texts.some(t => t.includes(q));
+  // Opt-in (storyboard-self-check-names/v1): book-level names resolve to the engine's own names first; the checks below are unchanged.
+  if (options?.sectionNames) for (const r of s.resolutions) r.changed = resolveSelfCheckSections(r.changed, sections, moved);
   for (const r of s.resolutions) {
     if (r.changed.some(c => !sections.has(c) || !moved.includes(c))) fail('resolution_changed');
     if (r.quotes.some(q => !anywhere(q))) fail('resolution_quote');

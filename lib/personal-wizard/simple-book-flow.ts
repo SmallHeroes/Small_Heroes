@@ -30,6 +30,8 @@ export async function runSimpleWizardBook(args: {
   visibleMomentContract?: true;
   /** Opt-in planner self-check (needs the moments contract) and typed review materiality; absent keeps the exact existing calls. */
   selfCheckContract?: true; reviewImpactPolicy?: true;
+  /** Opt-in compile-level self-check section-name resolution (storyboard-self-check-names/v1); absent keeps the exact compile. */
+  selfCheckNames?: true;
   /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
   storyboardRepair?: StoryboardRepair;
   /**
@@ -111,6 +113,7 @@ export async function runSimpleWizardBook(args: {
     ...(args.visibleMomentContract ? { visibleMomentContract: true as const } : {}),
     ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
     ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
+    ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}),
     ...(args.storyboardRepair ? { repair: args.storyboardRepair } : {}),
     generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');

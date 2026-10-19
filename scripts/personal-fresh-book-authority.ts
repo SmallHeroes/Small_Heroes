@@ -371,6 +371,85 @@ export function assertFreshBookStoryboardContinuationPaid(args: { env: FreshBook
   return grant;
 }
 
+/**
+ * The bound REVALIDATION of the continuation's paid answer (same owner amendment, same allowance): the ONE continuation ran its Opus 5.5
+ * Max planner, and the engine refused the paid answer at compile with `storyboard_self_check_resolution_changed` (book-level section names
+ * the strict v1 check did not resolve) BEFORE its ONE Sol review. This line completes that same allowance: the SAME paid answer (its saved
+ * planner call replayed, never re-sent) is compiled under the opt-in storyboard-self-check-names/v1 correction and gets the ONE unspent review
+ * (at least the normal 600000). No new planner call, no fourth storyboard attempt, no new book. Fixed in code like every earlier line: its own
+ * claim/outcome/audition start/successor and folder; every earlier grant, claim, outcome, seal, answer and cost stays byte-identical.
+ */
+export const FRESH_BOOK_STORYBOARD_REVALIDATION = Object.freeze({
+  version: 'fresh-book-storyboard-revalidation/v1',
+  amendment: 'Guy 2026-10-19 OWNER-GENERAL-STORYBOARD-RECOVERY-AMENDMENT-20261019.txt (ONE further Opus 5.5 Max planner and ONE further Sol 6.1 review): the continuation\'s paid planner answer was refused at compile by an engine vocabulary defect (book-level self-check section names) before its review; this bound successor completes the SAME allowance: the same paid answer, compiled under the corrected engine (storyboard-self-check-names/v1), gets the ONE unspent Sol 6.1 storyboard review (at least the normal 600000 microUSD reservation); no new planner call, no fourth attempt, no new book; then child, references, two samples, the rest and the cover on their gates; same cumulative USD 7 book / USD 8 cycle caps.',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-revalidation.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-revalidation.outcome.json',
+  auditionStartName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-revalidation.audition.json',
+  /** The verified successor's one durable provenance record (written once, at completion, only after its whole chain replays). */
+  successorName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-revalidation.successor.json',
+  folder: 'storyboard-revalidation',
+  /** The ONE terminal record it stands on: the continuation refused at compile for exactly this reason, before its review. */
+  failedOutcome: 'failed_storyboard_continuation', failedCode: 'storyboard_self_check_resolution_changed',
+  ownHeldOutcome: 'held_storyboard_revalidation',
+  admittedStatuses: Object.freeze(['review_supported', 'review_supported_with_notes'] as const),
+  plannerCalls: 0, apiCalls: 1, reviewReserveFloorMicroUsd: 600_000,
+});
+export const freshBookStoryboardRevalidationGrantSchema = z.object({ version: z.literal('fresh-book-storyboard-revalidation-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_STORYBOARD_REVALIDATION.amendment),
+  profileSha256: hash, bookDir: z.string().refine(p => path.isAbsolute(p)),
+  /** The consumed continuation authority, its refusal and its PAID planner answer, by digest (its grant's pins bind ITS head, never this one's). */
+  continuation: z.object({ grantFile: z.string().refine(p => path.isAbsolute(p)), grantSha256: hash, claimSha256: hash, outcomeSha256: hash, sealSha256: hash,
+    folderSha256: hash, plannerReceiptSha256: hash, plannerWireDigest: hash, plannerMaxMicroUsd: micro, repairClaimSha256: hash, recoveryClaimSha256: hash,
+    originalClaimSha256: hash }).strict(),
+  /** The paid answer compiled under the correction: its digests, coverage and every section name the correction resolved. */
+  candidate: z.object({ sourceDigest: hash, storyboardDigest: hash, draftSha256: hash, claims: z.number().int().positive(), resolutions: z.number().int().positive(),
+    resolvedNames: z.array(z.object({ from: z.string().min(1).max(80), to: z.array(z.string().min(1).max(80)).min(1).max(16) }).strict()).min(1).max(24) }).strict(),
+  /** The stage's recovery facts this review completes: attempt 3 of 3, the consumed continuation's state and diagnosis. */
+  recovery: z.object({ attempt: z.literal(3), maxAttempts: z.literal(3), stateSha256: hash, diagnosisDigest: hash }).strict(),
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, bookKnownMicroUsd: micro, calls: micro }).strict(),
+  allowance: z.object({ plannerCalls: z.literal(0), apiCalls: z.literal(FRESH_BOOK_STORYBOARD_REVALIDATION.apiCalls),
+    reviewReserveFloorMicroUsd: z.literal(FRESH_BOOK_STORYBOARD_REVALIDATION.reviewReserveFloorMicroUsd) }).strict(),
+  compile: z.tuple([z.literal('storyboard-self-check-names/v1')]),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookStoryboardRevalidationGrant = z.infer<typeof freshBookStoryboardRevalidationGrantSchema>;
+
+/** The revalidation's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookStoryboardRevalidation(env: FreshBookEnv, grant: FreshBookStoryboardRevalidationGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_REVALIDATION.outcomeName))) fail('fresh_book_storyboard_revalidation_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_REVALIDATION.claimName), 'wx'); } catch { return fail('fresh_book_storyboard_revalidation_used'); }
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, storyboardRevalidation: FRESH_BOOK_STORYBOARD_REVALIDATION.version, grantSha256: grantSha,
+    continuationClaimSha256: grant.continuation.claimSha256, repairClaimSha256: grant.continuation.repairClaimSha256,
+    recoveryClaimSha256: grant.continuation.recoveryClaimSha256, originalClaimSha256: grant.continuation.originalClaimSha256, profileSha256: grant.profileSha256,
+    bookDir: path.resolve(grant.bookDir), engineHead: grant.engine.head, claimedAt: new Date().toISOString() }) + '\n'); fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/**
+ * Synchronous, before EVERY paid call of a revalidation-line stage: the revalidation grant bytes, its profile, the claim it wrote, the
+ * continuation, repair, recovery and original claims it names, the clean source at its head and every pinned file.
+ */
+export function assertFreshBookStoryboardRevalidationPaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_storyboard_revalidation_grant');
+  const grant = freshBookStoryboardRevalidationGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  const at = (name: string) => path.join(args.env.authorityRoot, name), claimFile = at(FRESH_BOOK_STORYBOARD_REVALIDATION.claimName);
+  const named = [[FRESH_BOOK_STORYBOARD_CONTINUATION.claimName, grant.continuation.claimSha256], [FRESH_BOOK_STORYBOARD_REPAIR.claimName, grant.continuation.repairClaimSha256],
+    [FRESH_BOOK_RECOVERY.claimName, grant.continuation.recoveryClaimSha256], [FRESH_BOOK_CYCLE.claimName, grant.continuation.originalClaimSha256]] as const;
+  if (!existsSync(claimFile) || named.some(([name, digest]) => !existsSync(at(name)) || previewSha(fileBytes(at(name))) !== digest)) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.storyboardRevalidation !== FRESH_BOOK_STORYBOARD_REVALIDATION.version || claim.grantSha256 !== args.grantSha ||
+      claim.continuationClaimSha256 !== grant.continuation.claimSha256 || claim.repairClaimSha256 !== grant.continuation.repairClaimSha256 ||
+      claim.recoveryClaimSha256 !== grant.continuation.recoveryClaimSha256 || claim.originalClaimSha256 !== grant.continuation.originalClaimSha256 ||
+      claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
+      claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
 /** The sample gate: the remaining pages and the cover are claimable only after BOTH representative samples passed their gates. */
 export type PageGate = { page: number; disposition: 'passed' | 'held_uncertain' | 'repair' | 'failed' | 'pending' };
 export function assertLaterPagesAllowed(samples: readonly PageGate[]) {

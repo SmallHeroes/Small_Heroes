@@ -57,6 +57,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   selfCheckContract?: true;
   /** Opt-in typed review materiality (the review's schema, instruction and disposition); absent keeps the exact existing calls. */
   reviewImpactPolicy?: true;
+  /** Opt-in compile-level self-check section-name resolution (needs the self-check; no call or source changes); absent keeps the exact compile. */
+  selfCheckNames?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
@@ -106,7 +108,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.momentContract ? { momentContract: true as const } : {}),
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
       ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
-      ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}) } }), args.signal);
+      ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}) } }), args.signal, args.selfCheckNames ? { selfCheckNames: true } : undefined);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
   const rawReview = await dispatch({ stage: 'review', instructions: storyboardReviewInstructions(args),
