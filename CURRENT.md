@@ -1,5 +1,74 @@
 # SmallHeroes — Current Technical State
 
+## Continuation refused at compile; engine correction + bound revalidation (39350d6e), offline, for Codex QA; the book is NOT done (2026-10-19)
+
+**What happened.** Codex passed 86e5c37f and the continuation grant f14ab4b9…, and the ONE diagnosed continuation ran once
+(claim 08:53:51Z, outcome 08:58:23Z, native exit 1). Its Opus 5.5 Max planner answered in 267 s with 34731 output tokens,
+inside the 50000 self-check cap (the old 32000 would have cut it off). The Max estimate was 1002229 microUSD, separate from
+the API. The engine refused that PAID answer at compile with `storyboard_self_check_resolution_changed`, BEFORE its ONE Sol
+review:
+- The outcome is `failed_storyboard_continuation`: terminal and immutable, with no successor.
+- API spend is unchanged: book 155406, cycle 284336, no review claimed.
+
+**Cause (an engine vocabulary defect, not the plan).** Three of the six resolutions named the book-level sections they changed
+in the v1 instruction's own short form: `book:recurringProps`, `book:continuity`, `book:locations`. The instruction
+(`SELF_CHECK_STORYBOARD_ADDENDUM`) lists book sections only as `book:...`. The validator matches the engine's exact names
+(`book:plan.recurringProps`, `book:continuity.entities`, `book:plan.locations`), and each section named WAS changed by the
+candidate. The same paid answer compiles completely once those names resolve:
+- 66 claims, 6 resolutions;
+- every diagnosed finding answered;
+- protected page 7 unchanged; protected page 3 changed only where a resolution names it (the continuity remedy keeps pages
+  2-3 at the rim), which the protected-page rule allows.
+
+**The general correction (opt-in, versioned; strict v1 byte-identical).** `storyboard-self-check-names/v1`
+(`resolveSelfCheckSections`, `compilePersonalStoryboard(source, draft, { selfCheckNames: true })`):
+- An exact engine name stays.
+- `book:<key>` becomes the ONE book section with that own key; an ambiguous key stays and is refused.
+- `book:<group>` (plan, continuity, sequence, moments) becomes the group's sections this candidate changed.
+- Anything else stays as written and is refused as before.
+- Every resolved name must still be a section the candidate ACTUALLY changed, so no substantive check is relaxed.
+
+It is compile-level: the source and the planner request are unchanged, so a paid answer stays replayable. The compiled book and
+its digest carry the `selfCheckNames` marker, and the review reads the engine's names. The reviewed-audition loader takes the
+marker only from the saved, digest-bound book (`savedSelfCheckNames`; an unknown marker refuses).
+
+**The bound line: `fresh-book-storyboard-revalidation/v1` (same amendment, same allowance).** It completes the continuation's
+unspent review:
+- **Allowance.** plannerCalls 0, apiCalls 1, floor 600000.
+- **No planner call.** The continuation's ONE paid planner session is replayed under its own saved wire (40d0ce15…) and
+  re-decoded from its own CLI output.
+- **Compile and review.** The answer is compiled under the correction and gets the ONE Sol 6.1 review at max(600000, its
+  bound).
+- **Admission (`continuationFailed`) re-derives exactly this refusal:**
+  - the consumed continuation and its whole lineage, via the continuation's own verifiers;
+  - its outcome and seal;
+  - NO review claim, and one settled planner session whose wire is the request the engine rebuilds now;
+  - the strict compile refusing the paid answer with exactly the recorded code, and the corrected compile admitting it, every
+    corrected name recorded.
+- **Own records.** Its own claim, outcome, audition start, successor and folder. The successor is replayed at every child, book
+  and resume entry; `child|book --storyboard-revalidation` carry the page recovery rule.
+- **Recovery.** It reviews the stage's attempt 3 of 3: held ends the line (`stop_allowance_exhausted`).
+- **Shared flow.** In the shared repair flow, the first refusal raised inside an engine callback is now rethrown as itself
+  (the callback wrappers renamed it); the success path is unchanged.
+
+**Real book, read only (dry plan and review preview).**
+- Candidate db61a2dd…: 66 claims, 6 resolutions, 3 corrected names.
+- Review content 78603 of 104000 bytes; floored reservation 632866 (floor 600000).
+- API ledger: book 155406, calls 5. Max for the book: 2553812 (text 426658, recovery 623664, repair 501261, continuation
+  1002229), separate.
+
+**Tests.**
+- 6 new tests pass: engine 1 (section names); driver 5 (positive with child and book on the line, held, 15 pre-claim
+  refusals, successor tamper, the real-data dry plan and review preview).
+- The 38 affected spec files, serially per file: 1654 passed, 3 failed, 1 skipped.
+  - Known REDs: `fresh-book-driver.spec.ts:152` and `simple-book-flow.spec.ts:184`.
+  - `simple-book-flow.spec.ts:1774` is a timeout under its own 90 s limit: it passes alone at this code (89.5 s) and fails
+    identically at base 86e5c37f (91.2 s; hash-verified stash control).
+- nonincremental tsc 0. The full check stays RED.
+
+**Next.** Codex's independent QA of the range and the unused revalidation grant. After a PASS: the ONE review, then child,
+references, two samples, the rest and the cover, the viewer and the reports.
+
 ## Engine recovery (e02f9712): diagnosis after two held candidates, typed materiality, planner self-check, ONE diagnosed continuation, offline, for Codex QA; the book is NOT done (2026-10-19)
 
 **Before this round.** Codex passed F7, and the ONE storyboard repair ran under grant 999accd5…: native exit 0, but its own Sol

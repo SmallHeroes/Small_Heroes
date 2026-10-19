@@ -1,5 +1,25 @@
 # SmallHeroes — Roadmap
 
+## Continuation refused at compile; correction + bound revalidation built offline (39350d6e); next: Codex QA, then the ONE review and the book (2026-10-19)
+
+- **What happened.** Codex passed 86e5c37f, and the ONE diagnosed continuation ran. Its Opus Max answer cost 1002229 Max
+  microUSD, which is separate from the API. The engine refused that answer at compile (`storyboard_self_check_resolution_changed`)
+  BEFORE the review was spent:
+  - three book-level section names were in the instruction's own short form;
+  - the outcome `failed_storyboard_continuation` stays immutable;
+  - the API is unchanged: book 155406, cycle 284336.
+- **Built (opt-in, versioned; strict v1 byte-identical):**
+  - `storyboard-self-check-names/v1`: short book-level names resolve to the ONE engine section they name, and only to
+    sections the candidate actually changed; nothing is relaxed.
+  - the `fresh-book-storyboard-revalidation/v1` line: the SAME paid answer, replayed (no planner call), compiled under the
+    correction, and given the ONE unspent floored Sol review. It is bound to exactly this refusal.
+- **Real book (read only):** candidate db61a2dd…, 66 claims, 6 resolutions, 3 corrected names. The review request is
+  78603 of 104000 bytes, with a reserve of 632866.
+- **Tests:** 6 new pass. The 38 affected files serially: 1654 passed, 3 failed (stale `:152` and `:184`; `:1774` is a 90 s
+  timeout that fails identically at base 86e5c37f). tsc 0. The full check stays RED.
+- **Next:** Codex QA of the range and the unused revalidation grant. Then: the ONE review → child → samples → rest + cover →
+  viewer → QA report → consolidated engine report.
+
 ## Engine recovery built offline (e02f9712); next: independent Codex QA, then the ONE diagnosed continuation and the book (2026-10-19)
 
 - The ONE storyboard repair ran and its review held it (6 findings). Guy chose a general engine fix: retries, diagnosis
