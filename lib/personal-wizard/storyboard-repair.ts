@@ -11,13 +11,21 @@ import 'server-only';
  */
 export const STORYBOARD_REPAIR_VERSION = 'storyboard-repair/v1' as const;
 /** Opt-in contracts a repair may add on top of its parent's (the parent is then recompiled without them). */
-export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy'] as const;
+export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy', 'claimBasisContract'] as const;
+/**
+ * An owner's explicit, bounded extension of the storyboard stage's attempt ceiling (storyboard-attempt-extension/v1): exactly one attempt
+ * above the base ceiling, only once the base ceiling is spent, bound to the owner's approval record by digest. Never a reset.
+ */
+export const STORYBOARD_ATTEMPT_EXTENSION_VERSION = 'storyboard-attempt-extension/v1' as const;
+export type StoryboardAttemptExtension = { version: typeof STORYBOARD_ATTEMPT_EXTENSION_VERSION; maxAttempts: number; approvalSha256: string };
 /**
  * A repair of a held parent. When the parent is itself a repaired storyboard, `parentRepair` is the parent's own repair input (recompiled
- * with it to the parent's digest); `addedContracts` names the opt-in contracts this repair adds. Both absent: exactly the original shape.
+ * with it to the parent's digest); `addedContracts` names the opt-in contracts this repair adds; `parentCompile` the parent's own opt-in
+ * compile options (a parent compiled under storyboard-self-check-names/v1 recompiles under it); `extension` an owner's bounded attempt
+ * extension. All absent: exactly the original shape.
  */
 export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown; review: unknown; parentRepair?: StoryboardRepair;
-  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][] };
+  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][]; parentCompile?: { selfCheckNames: true }; extension?: StoryboardAttemptExtension };
 /** At most this many repairs above the first held storyboard. */
 const MAX_REPAIR_DEPTH = 3;
 
@@ -32,13 +40,21 @@ const fail = (code: string): never => { throw Error(`personal_storyboard_${code}
 export function assertStoryboardRepair(repair: unknown, depth = 0): asserts repair is StoryboardRepair {
   const r = repair as Partial<StoryboardRepair> | null;
   const keys = r && typeof r === 'object' && !Array.isArray(r) ? Object.keys(r).sort() : [];
-  const optional: string[] = keys.filter(k => k === 'parentRepair' || k === 'addedContracts');
+  const optional: string[] = keys.filter(k => k === 'parentRepair' || k === 'addedContracts' || k === 'parentCompile' || k === 'extension');
   if (!r || typeof r !== 'object' || Array.isArray(r) || depth > MAX_REPAIR_DEPTH ||
       keys.filter(k => !optional.includes(k)).join(',') !== 'draft,parentStoryboardDigest,review' ||
       typeof r.parentStoryboardDigest !== 'string' || !HASH.test(r.parentStoryboardDigest) ||
       !r.draft || typeof r.draft !== 'object' || Array.isArray(r.draft) || !r.review || typeof r.review !== 'object' || Array.isArray(r.review)) fail('repair_policy');
   if ('addedContracts' in r! && (!Array.isArray(r!.addedContracts) || !r!.addedContracts.length ||
       new Set(r!.addedContracts).size !== r!.addedContracts.length || r!.addedContracts.some(c => !(REPAIR_ADDABLE_CONTRACTS as readonly string[]).includes(c)))) fail('repair_policy');
+  if ('parentCompile' in r! && JSON.stringify(r!.parentCompile) !== JSON.stringify({ selfCheckNames: true })) fail('repair_policy');
+  // The extension is the outermost repair's only (an ancestor never carries one) and has exactly its own three fields.
+  if ('extension' in r!) {
+    const e = r!.extension as Partial<StoryboardAttemptExtension> | undefined;
+    if (depth !== 0 || !e || typeof e !== 'object' || Object.keys(e).sort().join(',') !== 'approvalSha256,maxAttempts,version' ||
+        e.version !== STORYBOARD_ATTEMPT_EXTENSION_VERSION || !Number.isSafeInteger(e.maxAttempts) || typeof e.approvalSha256 !== 'string' ||
+        !HASH.test(e.approvalSha256)) fail('repair_policy');
+  }
   if ('parentRepair' in r!) assertStoryboardRepair(r!.parentRepair, depth + 1);
 }
 

@@ -83,7 +83,7 @@ describe('visible-moment contract (opt-in instruction contract; extends the mome
 
   it('a repair may add it: the held parent recompiles WITHOUT it to its digest; every finding reaches the planner; any other shape refuses', async () => {
     const f = await personalStoryboardFixture(), draft = momentDraft(f);
-    expect(REPAIR_ADDABLE_CONTRACTS).toEqual(['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy']);
+    expect(REPAIR_ADDABLE_CONTRACTS).toEqual(['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy', 'claimBasisContract']);
     const parent = compilePersonalStoryboard(prepare(f, { drawnInstant: true }), draft), review = held(supported(f, parent));
     expect(storyboardReviewDisposition(parent, review).disposition).toBe('held_uncertain');
     const repair = { parentStoryboardDigest: parent.storyboardDigest, draft, review, addedContracts: ['visibleMomentContract'] };

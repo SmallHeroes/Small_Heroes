@@ -31,19 +31,21 @@ export type DrawnInstantGap = { pageNumber: number; drawnEvidence: string; chang
 /**
  * Every change a page makes after its frame's declared drawn instant that the declaration does not override. Positions are the FIRST occurrence
  * of each quote in the page text (texts[n]; texts[0] is the cover); a change whose quote begins inside or before the drawn instant's quote has
- * happened by then. Pure: the moments, plan and sequence must already be validated against the same texts.
+ * happened by then. Pure: the moments, plan and sequence must already be validated against the same texts. `visibleOnly` (a later opt-in
+ * contract): only the entities the frame shows (its visibleCastIds and visibleEntityIds) need an override.
  */
-export function drawnInstantGaps(moments: StoryboardMoments, plan: PreviewPlan, sequence: Sequence, texts: readonly string[]): DrawnInstantGap[] {
+export function drawnInstantGaps(moments: StoryboardMoments, plan: PreviewPlan, sequence: Sequence, texts: readonly string[], visibleOnly?: true): DrawnInstantGap[] {
   const gaps: DrawnInstantGap[] = [];
   moments.frames.forEach((frame, n) => {
     const d = frame.depicted;
     if (n === 0 || !d) return;
     const text = texts[n], end = text.indexOf(d.evidence) + d.evidence.length, later = (quote: string) => text.indexOf(quote) >= end;
     const page = sequence.pages[n - 1];
+    const shown = new Set([...page.visibleCastIds, ...plan.continuity!.pages[n].visibleEntityIds]), drawn = (entityId: string) => !visibleOnly || shown.has(entityId);
     const relations = new Set(d.relations.map(o => o.entityId)), attributes = new Set(d.attributes.map(a => `${a.entityId}:${a.attribute}`));
-    for (const t of page.transitions) if (later(t.evidence) && !relations.has(t.entityId))
+    for (const t of page.transitions) if (later(t.evidence) && !relations.has(t.entityId) && drawn(t.entityId))
       gaps.push({ pageNumber: n, drawnEvidence: d.evidence, changeEvidence: t.evidence, kind: 'relation', entityId: t.entityId, to: t.to });
-    for (const c of plan.continuity!.pages[n].changes) if (later(c.storyEvidence) && !attributes.has(`${c.entityId}:${c.attribute}`))
+    for (const c of plan.continuity!.pages[n].changes) if (later(c.storyEvidence) && !attributes.has(`${c.entityId}:${c.attribute}`) && drawn(c.entityId))
       gaps.push({ pageNumber: n, drawnEvidence: d.evidence, changeEvidence: c.storyEvidence, kind: 'attribute', entityId: c.entityId,
         attribute: c.attribute, value: c.value });
   });

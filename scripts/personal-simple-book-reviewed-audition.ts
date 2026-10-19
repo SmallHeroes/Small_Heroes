@@ -32,6 +32,7 @@ import { COMPILER_RULES_CONTRACT_VERSION } from '../lib/personal-wizard/storyboa
 import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { VISIBLE_MOMENT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-visible-moment';
 import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION } from '../lib/personal-wizard/storyboard-self-check';
+import { CLAIM_BASIS_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-claim-basis';
 import { STORYBOARD_REVIEW_IMPACT_VERSION } from '../lib/personal-wizard/storyboard-review-impact';
 import { STAGE_RECOVERY_VERSION } from '../lib/personal-wizard/stage-recovery';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
@@ -141,6 +142,12 @@ export function savedSelfCheckNames(savedBook: { selfCheckNames?: unknown } | un
   const marker = savedBook?.selfCheckNames;
   if (marker === undefined) return undefined;
   return marker === STORYBOARD_SELF_CHECK_NAMES_VERSION ? { selfCheckNames: true } : fail('audition_board_binding');
+}
+
+/** The claim basis comes only from the saved, digest-bound book (its marker names the version); an unknown version is refused. */
+export function savedClaimBasisContract(savedBook: { claimBasis?: { version?: unknown } } | undefined): true | undefined {
+  if (savedBook?.claimBasis === undefined) return undefined;
+  return savedBook.claimBasis?.version === CLAIM_BASIS_CONTRACT_VERSION ? true : fail('audition_board_binding');
 }
 
 /** A reviewed storyboard's admitted status: supported, or supported with bound detail notes (typed policy; the recomputed disposition decides). */
@@ -271,7 +278,8 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   if (existsSync(repairFile) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
-    savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved));
+    savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
+    savedClaimBasisContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const names = savedSelfCheckNames(saved);
   const book = names ? compilePersonalStoryboard(source, parentDraft, names) : compilePersonalStoryboard(source, parentDraft);

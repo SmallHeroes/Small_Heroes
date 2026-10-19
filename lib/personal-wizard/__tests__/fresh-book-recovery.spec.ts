@@ -26,17 +26,19 @@ import { auditionReviewRule, AuditionMeter, verifyMeterRecords, savedSelfCheckNa
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
 import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
 import { FRESH_BOOK_CYCLE, FRESH_BOOK_RECOVERY, FRESH_BOOK_STORYBOARD_REPAIR, FRESH_BOOK_STORYBOARD_CONTINUATION, FRESH_BOOK_STORYBOARD_REVALIDATION,
-  freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
+  FRESH_BOOK_STORYBOARD_EXTENSION, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
 import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTextRecovery, runFreshBookChild, runFreshBookBook, freshBookConfig, realFreshBookEnv,
   planFreshBookStoryboardRepair, previewFreshBookStoryboardRepair, runFreshBookStoryboardRepair, flooredReviewRule, assertReviewFloorFits,
   planFreshBookStoryboardContinuation, previewFreshBookStoryboardContinuation, runFreshBookStoryboardContinuation,
   planFreshBookStoryboardRevalidation, previewFreshBookStoryboardRevalidation, runFreshBookStoryboardRevalidation,
+  planFreshBookStoryboardExtension, previewFreshBookStoryboardExtension, runFreshBookStoryboardExtension, EXTENSION_ADMISSION_FILE,
   STORYBOARD_REPAIR_RULES, REVIEW_RESERVE_FLOOR_MICRO_USD, type FreshBookConfig, type FreshTextTransports } from '../../../scripts/personal-fresh-book-driver';
 import { stageRules } from '../../../scripts/personal-new-book-experiment';
 import { VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from '../storyboard-visible-moment';
 import { REPAIR_STORYBOARD_ADDENDUM } from '../storyboard-repair';
 import { SELF_CHECK_STORYBOARD_ADDENDUM } from '../storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from '../storyboard-review-impact';
+import { CLAIM_BASIS_STORYBOARD_ADDENDUM, CLAIM_BASIS_REVIEW_ADDENDUM, claimBasisSectionsView } from '../storyboard-claim-basis';
 import { fullSelfCheck } from './storyboard-self-check-fixture';
 const plainJson = (value: unknown) => JSON.parse(JSON.stringify(value));
 
@@ -1058,6 +1060,231 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
             vi.restoreAllMocks();
           }
         });
+
+        describe('the ONE owner-approved extension (attempt 4 of 4 under the claim basis, after the revalidation\'s own review held it)', () => {
+          const EXTL = FRESH_BOOK_STORYBOARD_EXTENSION;
+          const extDir = (s: { config: FreshBookConfig }) => path.join(s.config.bookDir, EXTL.folder);
+          /** The revalidation's own review holds its candidate (page 4's causal action omitted) at the base ceiling. */
+          const heldRevalidation = typedReview(r => { r.frames[4].checks[0] = { ...r.frames[4].checks[0], verdict: 'contradiction', observation: 'the causal action is omitted',
+            issues: [{ impact: 'story', ref: 'p4', note: 'the causal action is omitted', whyNotMaterial: '' }] }; });
+          /** The claim-basis review: every check lists its issues, every issue its citation (empty unless `change` gives one). */
+          const basisReview = (change: (r: any) => void = () => {}) => (r: any) => {
+            const all = () => [...r.bookChecks, ...r.frames.flatMap((x: any) => x.checks)];
+            for (const c of all()) c.issues = [];
+            change(r);
+            for (const c of all()) c.issues = c.issues.map((i: any) => ({ citation: '', ...i }));
+            return r;
+          };
+          /** Page 3's narrow requirement quote, bound by the review to that page's whole first sentence: a verified citation note. */
+          const citationNote = (r: any) => { r.frames[3].checks[0] = { ...r.frames[3].checks[0], verdict: 'uncertain', observation: 'the requirement quote alone is narrow',
+            issues: [{ impact: 'evidence', ref: 'p3:requirement:0', note: 'the quote names only the carrying', citation: 'p3:s1',
+              whyNotMaterial: 'that sentence states the whole requirement: they leave the hut carrying the ribbon' }] }; };
+          /**
+           * The extension's planner: it reads its own request (the held attempt-3 draft without its self-check, every finding with its typed issues,
+           * the diagnosis under the owner's ceiling), adopts the contract's shape, re-plans the diagnosed pages, binds a narrow requirement on page 3,
+           * and returns the whole storyboard with a full self-check measured on the contract's neutral view (as the compiler measures it).
+           */
+          const basisPlanner = () => vi.fn(async (_w: any, call: any) => {
+            const input = JSON.parse(call.input), prior = input.priorReviewedStoryboard, diagnosis = prior.diagnosis;
+            const draft = structuredClone(prior.storyboard);
+            draft.moments.frames = draft.moments.frames.map((fr: any) => ({ ...fr, staging: [],
+              requirements: fr.requirements.map((q: any) => ({ entityId: null, revealPage: null, ...q })) }));
+            const bookPage = [1, 2, 3, 4, 5, 6, 7, 8].find(n => !diagnosis.protectedPages.includes(n))!;
+            for (const n of new Set<number>(diagnosis.findings.map((x: any) => x.key.startsWith('page:') ? Number(x.key.split(':')[1]) : bookPage)))
+              draft.plan.pages[n].composition += ' (re-planned under the claim basis)';
+            draft.moments.frames[3].requirements = [{ kind: 'show', subject: 'the ribbon carried out of the hut', evidence: 'carrying the ribbon', entityId: null, revealPage: null }];
+            const texts = [input.story.title, ...input.story.pages.map((p: any) => p.text)];
+            const selfCheck = fullSelfCheck(claimBasisSectionsView(draft), texts, { diagnosis, parentDraft: claimBasisSectionsView(prior.storyboard) });
+            const strip = ({ pageNumber: _n, ...row }: any) => row;
+            const wire = { plan: { ...draft.plan, pages: draft.plan.pages.map(strip), continuity: { ...draft.plan.continuity, pages: draft.plan.continuity.pages.map(strip) } },
+              sequence: { ...draft.sequence, pages: draft.sequence.pages.map(strip) }, moments: draft.moments, selfCheck };
+            return cliReply(decodePersonalBookProviderOutput(call, wire), .44);
+          });
+          /** The refused continuation, its revalidation held by its own review, then a NEW reviewed head and the owner's approval record. */
+          async function heldRevalidationBook() {
+            const s = await refusedBook(), revalidation = await s.revalidationGrant();
+            expect((await runFreshBookStoryboardRevalidation({ ...revalidation, transports: transports(heldRevalidation) })).status).toBe('held_contradiction');
+            expect(json(path.join(s.authority, REVAL.outcomeName))).toMatchObject({ status: 'held_storyboard_revalidation', recovery: 'stop_allowance_exhausted' });
+            s.setHead('7'.repeat(40));
+            const approvalFile = path.join(s.root, 'OWNER-APPROVAL.txt');
+            writeFileSync(approvalFile, `Synthetic owner approval record (test only).\n${EXTL.approvalLine}\n`);
+            const extensionGrant = async (name = 'extension-grant.json') => {
+              const g = (await planFreshBookStoryboardExtension(s.config, s.env, revalidation.grantFile, approvalFile)).grantDraft, file = path.join(s.root, name);
+              writeFileSync(file, JSON.stringify(g)); return { ...s.original, grantFile: file, grantSha: sha(readFileSync(file)) }; };
+            const frozenHeld = () => ({ ...s.frozenRefused(), revalidation: tree(revalDir(s)), revalidationGrant: sha(readFileSync(revalidation.grantFile)),
+              revalidationClaim: sha(readFileSync(path.join(s.authority, REVAL.claimName))), revalidationOutcome: sha(readFileSync(path.join(s.authority, REVAL.outcomeName))),
+              approval: sha(readFileSync(approvalFile)) });
+            return { ...s, revalidation, approvalFile, extensionGrant, frozenHeld };
+          }
+          type HeldRevalidation = Awaited<ReturnType<typeof heldRevalidationBook>>;
+          const extTransports = (review: (r: any) => any) => ({ ...textTransports({ review }), planner: basisPlanner() });
+
+          it('positive: ONE claim-basis planner and ONE floored typed review (a verified citation note) admit attempt 4; successor; child and book on its line', async () => {
+            const s = await heldRevalidationBook(), before = s.frozenHeld(), g = await s.extensionGrant(), t = extTransports(basisReview(citationNote));
+            const planned = await planFreshBookStoryboardExtension(s.config, s.env, s.revalidation.grantFile, s.approvalFile);
+            expect(planned.grantDraft.ownerApproval).toEqual({ file: path.resolve(s.approvalFile), sha256: sha(readFileSync(s.approvalFile)) });
+            expect(planned.grantDraft.recovery).toMatchObject({ attempts: 3, maxAttempts: 4, consecutiveFailures: 3, mode: 'diagnose_and_change_strategy' });
+            expect([planned.grantDraft.allowance, planned.grantDraft.addedContracts, planned.grantDraft.compile]).toEqual([{ plannerCalls: 1, apiCalls: 1,
+              reviewReserveFloorMicroUsd: 600000 }, ['claimBasisContract'], ['storyboard-self-check-names/v1']]);
+            expect(planned.recoveryRecord.attempts.map(a => [a.line, a.disposition])).toEqual([['text-recovery', 'held_uncertain'], ['storyboard-repair', 'held_uncertain'],
+              [REVAL.folder, 'held_contradiction']]);
+            expect(planned.diagnosisRecord.diagnosis.allowance).toEqual({ nextAttempt: 4, maxAttempts: 4, remainingAfterNext: 0 });
+            expect(planned.input).toMatchObject({ addedContracts: ['claimBasisContract'], parentCompile: { selfCheckNames: true },
+              extension: { version: 'storyboard-attempt-extension/v1', maxAttempts: 4, approvalSha256: sha(readFileSync(s.approvalFile)) } });
+            expect([planned.plan.providerCalls, planned.plan.keyRead, planned.state.claimExists, planned.state.folderExists]).toEqual([0, false, false, false]);
+            // Deterministic: the same saved evidence plans the same grant.
+            expect((await planFreshBookStoryboardExtension(s.config, s.env, s.revalidation.grantFile, s.approvalFile)).grantDraft).toEqual(planned.grantDraft);
+            const out = await runFreshBookStoryboardExtension({ ...g, transports: t });
+            expect(out.status).toBe('review_supported_with_notes');
+            // Replay only for the text and the correction: exactly one planner session and one review.
+            expect([t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0, 1, 1]);
+            const dir = extDir(s);
+            expect([claims(path.join(dir, 'paid-stages')), claims(path.join(dir, 'claude-max-stages'))]).toEqual([['storyboard_review'], ['storyboard']]);
+            expect(json(path.join(dir, 'paid-stages', 'storyboard_review.claim.json')).maximumMicroUsd).toBeGreaterThanOrEqual(600000);
+            // The planner's request: the held attempt-3 draft without its own self-check, every finding with its typed issues, the diagnosis under the owner's ceiling.
+            const plannerCall = vi.mocked(t.planner).mock.calls[0][1] as any, input = JSON.parse(plannerCall.input);
+            const { selfCheck: _own, ...withoutOwn } = json(path.join(revalDir(s), 'owned_storyboard_draft.json'));
+            expect(input.priorReviewedStoryboard.storyboard).toEqual(withoutOwn);
+            expect(input.priorReviewedStoryboard.reviewFindings).toEqual([{ scope: 'page', pageNumber: 4, category: 'moment', verdict: 'contradiction',
+              observation: 'the causal action is omitted', issues: [{ impact: 'story', ref: 'p4', note: 'the causal action is omitted' }] }]);
+            expect([input.priorReviewedStoryboard.diagnosis.allowance, 'narrativePlan' in input]).toEqual([{ nextAttempt: 4, maxAttempts: 4, remainingAfterNext: 0 }, false]);
+            expect(plannerCall.instructions).toContain(CLAIM_BASIS_STORYBOARD_ADDENDUM);
+            expect(plannerCall.context).toMatchObject({ claimBasisContract: true, selfCheckContract: true, drawnInstantContract: true });
+            const reviewPayload = vi.mocked(t.responses).mock.calls[0][0] as any;
+            expect(reviewPayload.instructions).toContain(CLAIM_BASIS_REVIEW_ADDENDUM);
+            expect(JSON.parse(reviewPayload.input)).toMatchObject({ claimBasis: { version: 'storyboard-claim-basis/v1' } });
+            // The durable records: the input, the recovery state, the diagnosis, the final state, the admitted preview, the seal, the successor.
+            expect(json(path.join(dir, 'storyboard_repair_input.json'))).toEqual(plainJson(planned.input));
+            expect(json(path.join(dir, 'recovery-state.json'))).toEqual(plainJson(planned.recoveryRecord));
+            expect(json(path.join(dir, 'diagnosis.json'))).toEqual(plainJson(planned.diagnosisRecord));
+            expect(json(path.join(dir, 'recovery-final.json'))).toMatchObject({ terminal: 'admitted', attempt: { attempt: 4, line: EXTL.folder, outcome: 'admitted',
+              disposition: 'review_supported_with_notes', notes: [{ pageNumber: 3 }] } });
+            const admission = json(path.join(dir, EXTENSION_ADMISSION_FILE));
+            expect(admission.preview).toEqual(await previewFreshBookStoryboardExtension(s.config, json(path.join(dir, 'storyboard_repair_input.json'))));
+            expect(admission.preview.wireDigest).toBe(json(path.join(dir, 'claude-max-stages', 'storyboard.claim.json')).wireDigest);
+            expect(json(path.join(dir, 'sealed.json'))).toEqual({ status: 'review_supported_with_notes', extended: { parentStoryboardDigest: planned.grantDraft.held.storyboardDigest,
+              addedContracts: ['claimBasisContract'], attempt: 4 }, replayed: REPLAYED, runtimeEligible: false });
+            const result = json(path.join(dir, 'simple-book-result.json'));
+            expect(result.storyboard.storyboard).toMatchObject({ claimBasis: { version: 'storyboard-claim-basis/v1', hiddenOverridesDropped: [] },
+              selfCheckNames: 'storyboard-self-check-names/v1', repair: { parentStoryboardDigest: planned.grantDraft.held.storyboardDigest } });
+            expect(result.source.manuscript).toEqual(json(path.join(revalDir(s), 'simple-book-result.json')).source.manuscript);
+            expect(json(path.join(s.authority, EXTL.successorName))).toMatchObject({ grantSha256: g.grantSha, ownerApprovalSha256: sha(readFileSync(s.approvalFile)),
+              disposition: 'review_supported_with_notes', notes: 1, parentStoryboardDigest: planned.grantDraft.held.storyboardDigest,
+              revalidationClaimSha256: sha(readFileSync(path.join(s.authority, REVAL.claimName))) });
+            expect(out.ledger.stages.map(x => [x.name, x.calls])).toEqual([['text', 2], ['text-recovery', 2], ['storyboard-repair', 1], ['storyboard-continuation', 0],
+              ['storyboard-revalidation', 1], [EXTL.folder, 1], ['child', 0], ['audition', 0]]);
+            expect(s.frozenHeld()).toEqual(before);
+            // Once only; the held revalidation's line stays closed; downstream runs only on this line.
+            await expect(runFreshBookStoryboardExtension({ ...g, transports: extTransports(basisReview()) })).rejects.toThrow(/fresh_book_storyboard_extension_(used|grant)|fresh_book_roots_changed/);
+            await expect(runFreshBookStoryboardExtension({ ...(await s.extensionGrant('relabelled.json')), transports: extTransports(basisReview()) }))
+              .rejects.toThrow('fresh_book_storyboard_extension_used');
+            providers();
+            await expect(runFreshBookChild({ ...s.revalidation, storyboardRevalidation: true })).rejects.toThrow(/fresh_book_stage_not_passed|fresh_book_storyboard_revalidation_grant|fresh_book_source_changed/);
+            await expect(runFreshBookChild({ ...g, storyboardRevalidation: true })).rejects.toThrow('fresh_book_storyboard_revalidation_grant');
+            expect(existsSync(path.join(s.config.bookDir, 'child'))).toBe(false);
+            expect(await runFreshBookChild({ ...g, storyboardExtension: true })).toMatchObject({ status: 'child_reference_passed' });
+            expect(json(path.join(s.config.bookDir, 'book-layout.json')).storyboardDir).toBe(EXTL.folder);
+            const book = await runFreshBookBook({ ...g, storyboardExtension: true });
+            expect(book.status).toBe('complete');
+            expect(book.ledger.stages.map(x => x.name)).toEqual(['text', 'text-recovery', 'storyboard-repair', 'storyboard-continuation', 'storyboard-revalidation',
+              EXTL.folder, 'child', 'audition']);
+            const auditionGrant = json(path.join(s.config.bookDir, 'audition.grant.json'));
+            expect([auditionGrant.scope.recovery, auditionGrant.experiment.claimSha256]).toEqual(['stage-recovery/v1', sha(readFileSync(path.join(s.authority, EXTL.claimName)))]);
+            expect(json(path.join(s.authority, EXTL.outcomeName)).status).toBe('complete');
+            expect(s.frozenHeld()).toEqual(before);
+          }, 900_000);
+
+          it('held by its review: the owner\'s ceiling is reached (attempt 4 of 4, stop_allowance_exhausted); no attempt 5; no child', async () => {
+            const s = await heldRevalidationBook(), before = s.frozenHeld(), g = await s.extensionGrant();
+            const t = extTransports(basisReview(r => { r.frames[4].checks[0] = { ...r.frames[4].checks[0], verdict: 'contradiction',
+              observation: 'the causal action is still omitted', issues: [{ impact: 'story', ref: 'p4', note: 'the causal action is still omitted', whyNotMaterial: '' }] }; }));
+            expect((await runFreshBookStoryboardExtension({ ...g, transports: t })).status).toBe('held_contradiction');
+            expect([t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([1, 1]);
+            expect(json(path.join(s.authority, EXTL.outcomeName))).toMatchObject({ status: 'held_storyboard_extension', textStatus: 'held_contradiction',
+              recovery: 'stop_allowance_exhausted' });
+            expect(json(path.join(extDir(s), 'recovery-final.json'))).toMatchObject({ terminal: 'stop_allowance_exhausted', remaining: 0, consecutiveFailures: 4,
+              attempt: { attempt: 4, outcome: 'held' } });
+            expect(existsSync(path.join(s.authority, EXTL.successorName))).toBe(false);
+            const t2 = extTransports(basisReview());
+            await expect(runFreshBookStoryboardExtension({ ...(await s.extensionGrant('again.json')), transports: t2 })).rejects.toThrow('fresh_book_storyboard_extension_used');
+            expect([t2.planner, t2.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0]);
+            providers();
+            await expect(runFreshBookChild({ ...g, storyboardExtension: true })).rejects.toThrow('fresh_book_stage_not_passed');
+            expect(existsSync(path.join(s.config.bookDir, 'child'))).toBe(false);
+            expect(s.frozenHeld()).toEqual(before);
+          }, 900_000);
+
+          it('immutable inputs: the owner\'s record, the held revalidation and its lineage, the grant\'s ceiling, contracts or approval, the head or the tree refuse BEFORE the claim or any call', async () => {
+            const rev = (s: HeldRevalidation, ...p: string[]) => path.join(revalDir(s), ...p);
+            const regrant = <G extends { grantFile: string }>(g: G) => ({ ...g, grantSha: sha(readFileSync(g.grantFile)) });
+            const cases: Record<string, (s: HeldRevalidation) => Promise<{ grant: Awaited<ReturnType<HeldRevalidation['extensionGrant']>>; expect: RegExp }>> = {
+              'owner record changed': async s => { const g = await s.extensionGrant(); writeFileSync(s.approvalFile, readFileSync(s.approvalFile, 'utf8') + ' ');
+                return { grant: g, expect: /fresh_book_storyboard_extension_approval/ }; },
+              'revalidation outcome no longer at the ceiling': async s => { const g = await s.extensionGrant();
+                edit(path.join(s.authority, REVAL.outcomeName), o => { o.recovery = 'diagnose_and_change_strategy'; });
+                return { grant: g, expect: /fresh_book_storyboard_extension_revalidation/ }; },
+              'revalidation terminal record changed': async s => { const g = await s.extensionGrant(); edit(rev(s, 'recovery-final.json'), r => { r.remaining = 1; });
+                return { grant: g, expect: /fresh_book_storyboard_extension_revalidation/ }; },
+              'revalidation review answer changed': async s => { const g = await s.extensionGrant();
+                edit(rev(s, 'paid-stages', 'storyboard_review.receipt.json'), r => { const a = JSON.parse(r.raw.output_text), k = Object.keys(a.frames[4])[0];
+                  a.frames[4][k].observation += ' (reworded)'; r.raw.output_text = JSON.stringify(a); });
+                return { grant: g, expect: /fresh_book_storyboard_extension_revalidation|fresh_book_ledger/ }; },
+              'a revalidation successor appeared': async s => { const g = await s.extensionGrant(); writeFileSync(path.join(s.authority, REVAL.successorName), '{}');
+                return { grant: g, expect: /fresh_book_storyboard_extension_revalidation/ }; },
+              'consumed revalidation grant bytes changed': async s => { const g = await s.extensionGrant();
+                writeFileSync(s.revalidation.grantFile, readFileSync(s.revalidation.grantFile, 'utf8') + ' ');
+                return { grant: g, expect: /fresh_book_storyboard_extension_revalidation/ }; },
+              'consumed continuation grant bytes changed': async s => { const g = await s.extensionGrant();
+                writeFileSync(s.continuation.grantFile, readFileSync(s.continuation.grantFile, 'utf8') + ' ');
+                return { grant: g, expect: /fresh_book_storyboard_(revalidation_continuation|extension_revalidation)/ }; },
+              'unknown cost in the continuation planner record': async s => { const g = await s.extensionGrant();
+                edit(path.join(contDir(s), 'claude-max-stages', 'storyboard.result.json'), r => { r.estimatedMicroUsd = null; });
+                return { grant: g, expect: /fresh_book_storyboard_(extension_unknown_cost|extension_revalidation|revalidation_continuation)/ }; },
+              'grant raises the ceiling': async s => { const g = await s.extensionGrant(); edit(g.grantFile, x => { x.recovery.maxAttempts = 5; });
+                return { grant: regrant(g), expect: /fresh_book_storyboard_extension_grant/ }; },
+              'grant drops the claim basis': async s => { const g = await s.extensionGrant(); edit(g.grantFile, x => { x.addedContracts = []; });
+                return { grant: regrant(g), expect: /fresh_book_storyboard_extension_grant/ }; },
+              'grant names another approval': async s => { const g = await s.extensionGrant(); edit(g.grantFile, x => { x.ownerApproval.sha256 = 'e'.repeat(64); });
+                return { grant: regrant(g), expect: /fresh_book_storyboard_extension_(approval|grant)/ }; },
+              'head moved after the grant': async s => { const g = await s.extensionGrant(); s.setHead('6'.repeat(40));
+                return { grant: g, expect: /fresh_book_storyboard_extension_grant|fresh_book_source_changed/ }; },
+              'dirty tree': async s => { const g = await s.extensionGrant(); s.setClean(false); return { grant: g, expect: /fresh_book_source_changed/ }; },
+            };
+            for (const [name, mutate] of Object.entries(cases)) {
+              const s = await heldRevalidationBook(), t = extTransports(basisReview());
+              let c: Awaited<ReturnType<typeof mutate>>;
+              try { c = await mutate(s); } catch (e) { throw new Error(`${name}: ${e}`); }
+              await expect(runFreshBookStoryboardExtension({ ...c.grant, transports: t }), name).rejects.toThrow(c.expect);
+              expect([name, existsSync(path.join(s.authority, EXTL.claimName)), existsSync(extDir(s)),
+                ...[t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)]).toEqual([name, false, false, 0, 0, 0, 0]);
+            }
+            // The plan itself needs the owner's record by absolute path, with the owner's verbatim line (never a summary of it).
+            const s = await heldRevalidationBook(), bare = path.join(s.root, 'NO-LINE.txt');
+            writeFileSync(bare, 'A summary of the approval, without its verbatim line.\n');
+            await expect(planFreshBookStoryboardExtension(s.config, s.env, s.revalidation.grantFile, bare)).rejects.toThrow('fresh_book_storyboard_extension_approval');
+            await expect(planFreshBookStoryboardExtension(s.config, s.env, s.revalidation.grantFile, 'OWNER-APPROVAL.txt')).rejects.toThrow('fresh_book_storyboard_extension_approval');
+            // The balance must cover the review's floor before the claim (the same F6 rule, its own code).
+            expect(() => assertReviewFloorFits({ bookKnownMicroUsd: 6_400_001, nextCapMicroUsd: 7_000_000 }, 'fresh_book_storyboard_extension_budget'))
+              .toThrow('fresh_book_storyboard_extension_budget');
+          }, 1_800_000);  // fourteen whole held chains (text, recovery, repair, continuation, revalidation), each built from scratch
+
+          it('a changed extension successor (its planner output, its recovery records) or the owner\'s record refuses the child BEFORE its folder, key or render', async () => {
+            for (const kind of ['planner_output', 'recovery_state', 'recovery_final', 'approval']) {
+              const s = await heldRevalidationBook(), g = await s.extensionGrant();
+              expect((await runFreshBookStoryboardExtension({ ...g, transports: extTransports(basisReview()) })).status).toBe('review_supported');
+              const dir = extDir(s);
+              if (kind === 'planner_output') edit(path.join(dir, 'claude-max-stages', 'storyboard.receipt.json'), r => { r.output.plan.pages[2].composition += ' changed'; });
+              else if (kind === 'recovery_state') edit(path.join(dir, 'recovery-state.json'), r => { r.maxAttempts = 5; });
+              else if (kind === 'recovery_final') edit(path.join(dir, 'recovery-final.json'), r => { r.terminal = 'stop_allowance_exhausted'; });
+              else writeFileSync(s.approvalFile, readFileSync(s.approvalFile, 'utf8') + ' ');
+              providers();
+              await expect(runFreshBookChild({ ...g, storyboardExtension: true }), kind).rejects.toThrow(/fresh_book_storyboard_extension_(successor|approval)/);
+              expect([kind, vi.mocked(images.generateGPTImage).mock.calls.length, sdk.create.mock.calls.length, existsSync(path.join(s.config.bookDir, 'child'))])
+                .toEqual([kind, 0, 0, false]);
+              vi.restoreAllMocks();
+            }
+          }, 900_000);
+        });
       });
     });
   });
@@ -1171,4 +1398,43 @@ describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_CONTINUATION_GRANT)
       preview.reviewReserveMicroUsd <= 7_000_000 - grantDraft.ledger.bookKnownMicroUsd]).toEqual([true, true, true]);
     expect([tree(config.bookDir), authority()]).toEqual([book, records]);
   });
+});
+
+const REAL_REVALIDATION_GRANT = 'C:/GNart/Work/Small_Heroes/_review/new-book-autonomous-closure-20261018/engine-revalidation-20261019/fresh-book-storyboard-revalidation-grant-STAGED-a4aaeb0e.json';
+const REAL_OWNER_APPROVAL = 'C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/OWNER-APPROVAL-REFINED-B-ATTEMPT4-20261019.txt';
+describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_REVALIDATION_GRANT) || !existsSync(REAL_OWNER_APPROVAL) ||
+  !existsSync(path.join(FRESH_BOOK_CYCLE.authorityRoot, FRESH_BOOK_STORYBOARD_REVALIDATION.outcomeName)))('the actual held revalidation: the owner-approved extension dry plan and planner preview (read only, no key, no provider, no write)', () => {
+  const authority = () => Object.fromEntries(readdirSync(FRESH_BOOK_CYCLE.authorityRoot).filter(n => n.includes('fresh-book-usd7'))
+    .map(n => [n, sha(readFileSync(path.join(FRESH_BOOK_CYCLE.authorityRoot, n)))]));
+  it('binds the held revalidation (its 10 findings) and the owner\'s record, derives attempt 4 of 4, and the ONE planner request fits every limit', async () => {
+    const config = freshBookConfig(REAL_CONFIG), env = realFreshBookEnv(), book = tree(config.bookDir), records = authority();
+    const { plan, grantDraft, input, recoveryRecord, diagnosisRecord } = await planFreshBookStoryboardExtension(config, env, REAL_REVALIDATION_GRANT, REAL_OWNER_APPROVAL);
+    // The consumed revalidation (its unused-then-consumed grant 059c6686..., its review held it at the base ceiling), exactly as it ran on 2026-10-19.
+    expect(grantDraft.revalidation.grantSha256).toBe(sha(readFileSync(REAL_REVALIDATION_GRANT)));
+    expect(grantDraft.revalidation.grantSha256.slice(0, 8)).toBe('059c6686');
+    expect(grantDraft.revalidation).toMatchObject({ originalClaimSha256: '96ef1b42631c32f9c5158f7b2a771f09a3080b2371e2c2bf030dd6d07d1a245b',
+      repairClaimSha256: '127cab961bbaa076cc9e298ba1be8a8d74ef760b3c0ea18550e70200d150b4a6' });
+    expect(grantDraft.ownerApproval).toEqual({ file: path.resolve(REAL_OWNER_APPROVAL), sha256: sha(readFileSync(REAL_OWNER_APPROVAL)) });
+    expect(grantDraft.held).toEqual({ sourceDigest: 'a508438ee9c0d3a4aba99d6197745c2bebb8fd57221f9b01319828d2876feb72',
+      storyboardDigest: 'db61a2dd99875171557410b2faacad068715cd7ca8f666b66944718bee35d1db', reviewDigest: '4f8f60272fad680e7dea3ff316dae3678ac123943953bc3bbfa3c502d329dc8f',
+      disposition: 'held_uncertain', draftSha256: '7dee3b5efa4bdc92a4e46fa51ec07a000d0aedba5591d972946c04a4d5ed750a', findings: 10 });
+    // The API ledger through the revalidation; the planner sessions are Claude Max, reported separately.
+    expect(grantDraft.ledger).toEqual({ diagnosticSettledMicroUsd: 128930, bookKnownMicroUsd: 247596, calls: 6 });
+    expect([plan.providerCalls, plan.keyRead, grantDraft.allowance, grantDraft.addedContracts]).toEqual([0, false,
+      { plannerCalls: 1, apiCalls: 1, reviewReserveFloorMicroUsd: 600000 }, ['claimBasisContract']]);
+    // The engine's recovery state under the owner's ceiling: three consecutive held candidates (their own contexts and costs), one attempt left.
+    expect(grantDraft.recovery).toMatchObject({ attempts: 3, maxAttempts: 4, consecutiveFailures: 3, mode: 'diagnose_and_change_strategy' });
+    expect(recoveryRecord.attempts.map(a => [a.line, a.storyboardDigest.slice(0, 8), a.findings.length, a.costs])).toEqual([
+      ['text-recovery', 'ffd56099', 6, { plannerClaudeMaxMicroUsd: 623664, reviewApiMicroUsd: 60226 }],
+      ['storyboard-repair', '4f3d55d9', 6, { plannerClaudeMaxMicroUsd: 501261, reviewApiMicroUsd: 53818 }],
+      ['storyboard-revalidation', 'db61a2dd', 10, { plannerClaudeMaxMicroUsd: 1002229, reviewApiMicroUsd: 92190 }]]);
+    expect(diagnosisRecord.diagnosis.allowance).toEqual({ nextAttempt: 4, maxAttempts: 4, remainingAfterNext: 0 });
+    expect(input).toMatchObject({ addedContracts: ['claimBasisContract'], parentCompile: { selfCheckNames: true },
+      extension: { version: 'storyboard-attempt-extension/v1', maxAttempts: 4, approvalSha256: grantDraft.ownerApproval.sha256 } });
+    const preview = await previewFreshBookStoryboardExtension(config, input);
+    expect(preview).toMatchObject({ findings: 10, resolutionsRequired: 10, protectedPages: [4], outputCap: 50000, diagnosisDigest: grantDraft.recovery.diagnosisDigest });
+    expect([preview.contentBytes <= preview.contentByteLimit, preview.wireBytes <= preview.wireByteLimit, preview.argvChars <= preview.argvLimit,
+      preview.reservedMicroUsd <= preview.sessionGuardMicroUsd]).toEqual([true, true, true, true]);
+    expect([tree(config.bookDir), authority()]).toEqual([book, records]);
+  }, 240_000);  // re-derives the whole saved lineage (text, recovery, repair, continuation, revalidation) from its paid records
 });

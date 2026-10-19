@@ -67,13 +67,22 @@ For physical_state: every depicted override and requirement must be supported by
 this page. A requirement that bans something the data requires, or demands something the data forbids, is a contradiction.`;
 
 /**
+ * Opt-in policy hooks a later contract supplies (storyboard-claim-basis/v1, which needs the drawn-instant contract): its frame schema, the
+ * page(s) whose text holds a requirement's evidence, and visible-only drawn-instant completeness (a depicted instant may then keep no override
+ * once the compiler dropped the overrides of entities its frame does not show). Absent, exactly the existing validation.
+ */
+export type MomentsPolicy = { schema: z.ZodTypeAny; requirementPages: (requirement: { kind: string; revealPage?: number | null }, n: number) => number[];
+  visibleOnly: true };
+/**
  * Deterministic validation against the compiled plan/sequence and the exact page texts. With the opt-in drawn-instant contract, every depicted
  * instant also lists actorStates (a temporary look of a visible child or companion, quoted on its page), an instant may consist of those alone,
  * and every change its page makes after the drawn instant must be overridden (drawnInstantGaps).
  */
-export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, sequence: Sequence, texts: readonly string[], drawnInstant?: true): StoryboardMoments {
+export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, sequence: Sequence, texts: readonly string[], drawnInstant?: true,
+  policy?: MomentsPolicy): StoryboardMoments {
   if (drawnInstant !== undefined && drawnInstant !== true) fail('drawn_instant_policy');
-  const m: StoryboardMoments = (drawnInstant ? drawnInstantMomentsSchema : storyboardMomentsSchema).parse(raw);
+  if (policy !== undefined && (drawnInstant !== true || policy.visibleOnly !== true)) fail('moments_policy');
+  const m: StoryboardMoments = (policy ? policy.schema : drawnInstant ? drawnInstantMomentsSchema : storyboardMomentsSchema).parse(raw);
   if (!plan.continuity || m.frames.length !== plan.pages.length || texts.length !== plan.pages.length) fail('coverage');
   const entities = [BOOK_SEQUENCE_ROLES.child, BOOK_SEQUENCE_ROLES.companion, ...plan.continuity!.entities.map(e => e.id)];
   const locations = plan.locations.map(l => l.id);
@@ -82,13 +91,16 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
   const mutable = new Set(sequence.mutableAttributes.map(a => `${a.entityId}:${a.attribute}`));
   m.frames.forEach((frame, n) => {
     const quoted = (evidence: string) => n === 0 ? texts[0].includes(evidence) || texts[1].includes(evidence) : texts[n].includes(evidence);
-    if (frame.requirements.some(r => !quoted(r.evidence))) fail('requirement_evidence');
+    // Under a policy a requirement's evidence lives on the page(s) the policy names (for example a withheld entity's reveal page).
+    const requirementQuoted = (r: StoryboardMoments['frames'][number]['requirements'][number]) => policy
+      ? policy.requirementPages(r as { kind: string; revealPage?: number | null }, n).some(p => texts[p]?.includes(r.evidence)) : quoted(r.evidence);
+    if (frame.requirements.some(r => !requirementQuoted(r))) fail('requirement_evidence');
     if (new Set(frame.requirements.map(r => `${r.kind}:${r.subject.toLowerCase()}`)).size !== frame.requirements.length) fail('duplicate_requirement');
     const d = frame.depicted;
     if (!d) return;
     if (n === 0) fail('cover_depicted');
     const actorStates = drawnInstant ? (d as z.infer<typeof drawnInstantDepictedSchema>).actorStates : [];
-    if (!d.relations.length && !d.attributes.length && !actorStates.length) fail('depicted_empty');
+    if (!policy && !d.relations.length && !d.attributes.length && !actorStates.length) fail('depicted_empty');
     if (!texts[n].includes(d.evidence) || [...d.relations, ...d.attributes, ...actorStates].some(o => !texts[n].includes(o.evidence))) fail('depicted_evidence');
     const page = sequence.pages[n - 1], ledger = new Map(page.states.map(s => [s.entityId, s.value]));
     if (new Set(actorStates.map(a => a.actorId)).size !== actorStates.length) fail('duplicate_actor_state');
@@ -115,8 +127,9 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
     if (new Set(d.attributes.map(a => `${a.entityId}:${a.attribute}`)).size !== d.attributes.length ||
       d.attributes.some(a => !mutable.has(`${a.entityId}:${a.attribute}`))) fail('depicted_attribute');
   });
-  // Drawn-instant contract: a change the page makes after its drawn instant must be overridden, offscreen or not.
-  const gap = drawnInstant ? drawnInstantGaps(m, plan, sequence, texts)[0] : undefined;
+  // Drawn-instant contract: a change the page makes after its drawn instant must be overridden, offscreen or not (under a visible-only
+  // policy: for the entities its frame shows).
+  const gap = drawnInstant ? drawnInstantGaps(m, plan, sequence, texts, policy?.visibleOnly)[0] : undefined;
   if (gap) fail(gap.kind === 'relation' ? 'drawn_instant_relation' : 'drawn_instant_attribute');
   return m;
 }
@@ -142,15 +155,36 @@ export function planAtDrawnInstant(plan: PreviewPlan, moments: StoryboardMoments
   return copy;
 }
 
-export function momentRenderSection(moments: StoryboardMoments, pageNumber: number) {
+/**
+ * The frame's moment lines for the render prompt. Under the claim-basis contract (its frames carry `staging`): a staged claim is illustration
+ * direction, a withheld entity waits for its reveal page, and a verified citation (`citations`, by claim ref) replaces a claim's narrow quote.
+ * A frame without `staging` renders exactly as before.
+ */
+export function momentRenderSection(moments: StoryboardMoments, pageNumber: number, citations?: ReadonlyMap<string, string>) {
   const frame = moments.frames[pageNumber];
   const lines: string[] = [];
+  const basis = 'staging' in frame ? { staged: new Set((frame as unknown as { staging: { ref: string }[] }).staging.map(s => s.ref)) } : null;
+  const cited = (ref: string, evidence: string) => basis && citations?.get(ref) ? citations.get(ref)! : evidence;
   if (frame.depicted) lines.push(`DRAWN INSTANT (this picture, not the end of the page): "${frame.depicted.evidence}". ` +
     'The sequence relations above already describe this instant; later pages still continue from the end-of-page ledger.');
   // Drawn-instant contract only: the temporary looks declared for this instant (absent field, absent line).
   const looks = frame.depicted && 'actorStates' in frame.depicted ? (frame.depicted as z.infer<typeof drawnInstantDepictedSchema>).actorStates : [];
-  if (looks.length) lines.push('AT THIS INSTANT ONLY (temporary look, not the end of the page):', ...looks.map(a => `- ${a.actorId}: ${a.state} (text: "${a.evidence}")`));
-  if (frame.requirements.length) lines.push('PAGE MEANING (source-quoted, story-critical):', ...frame.requirements.map(r =>
-    `- ${r.kind === 'show' ? 'MUST SHOW' : 'MUST AVOID'}: ${r.subject} (text: "${r.evidence}")`));
+  if (looks.length) lines.push('AT THIS INSTANT ONLY (temporary look, not the end of the page):', ...looks.map(a => `- ${a.actorId}: ${a.state} (text: "${
+    cited(`p${pageNumber}:actor:${a.actorId}`, a.evidence)}")${basis?.staged.has(`p${pageNumber}:actor:${a.actorId}`) ? ' [visual direction]' : ''}`));
+  if (!basis) {
+    if (frame.requirements.length) lines.push('PAGE MEANING (source-quoted, story-critical):', ...frame.requirements.map(r =>
+      `- ${r.kind === 'show' ? 'MUST SHOW' : 'MUST AVOID'}: ${r.subject} (text: "${r.evidence}")`));
+    return lines.join('\n');
+  }
+  const all = frame.requirements.map((r, i) => ({ r: r as { kind: string; subject: string; evidence: string; revealPage?: number | null },
+    ref: `p${pageNumber}:requirement:${i}` }));
+  const stated = all.filter(x => x.r.kind !== 'withhold' && !basis.staged.has(x.ref)), withheld = all.filter(x => x.r.kind === 'withhold');
+  const staged = all.filter(x => x.r.kind !== 'withhold' && basis.staged.has(x.ref));
+  if (stated.length) lines.push('PAGE MEANING (source-quoted, story-critical):', ...stated.map(({ r, ref }) =>
+    `- ${r.kind === 'show' ? 'MUST SHOW' : 'MUST AVOID'}: ${r.subject} (text: "${cited(ref, r.evidence)}")`));
+  if (withheld.length) lines.push('NOT YET (revealed on a later page; keep it out of this picture):', ...withheld.map(({ r }) =>
+    `- ${r.subject} (first shown on page ${r.revealPage})`));
+  if (staged.length) lines.push('ILLUSTRATION DIRECTION (a visual choice that fits the text, not a story fact):', ...staged.map(({ r }) =>
+    `- ${r.kind === 'show' ? 'SHOW' : 'AVOID'}: ${r.subject}`));
   return lines.join('\n');
 }

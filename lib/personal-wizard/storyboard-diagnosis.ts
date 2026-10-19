@@ -58,9 +58,13 @@ export const chainAttempts = (chain: readonly Pick<ChainAttempt, 'storyboardDige
   candidateDigest: a.storyboardDigest, contextDigest: a.contextDigest, outcome: 'held',
   findings: a.findings.map(f => ({ key: findingKey(f), verdict: f.verdict, observation: f.observation })) }));
 
-/** The diagnosis of a chain of held candidates (oldest first); requires two consecutive failures and a remaining attempt (stage-recovery). */
-export function storyboardDiagnosis(chain: readonly ChainAttempt[]) {
-  const state = recoveryState(chainAttempts(chain), { maxAttempts: STORYBOARD_MAX_ATTEMPTS });
+/**
+ * The diagnosis of a chain of held candidates (oldest first); requires two consecutive failures and a remaining attempt (stage-recovery).
+ * `maxAttempts` is the stage ceiling (an owner's bounded extension raises it by its own bound record; never lowered or reset).
+ */
+export function storyboardDiagnosis(chain: readonly ChainAttempt[], maxAttempts: number = STORYBOARD_MAX_ATTEMPTS) {
+  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < STORYBOARD_MAX_ATTEMPTS) fail('allowance_policy');
+  const state = recoveryState(chainAttempts(chain), { maxAttempts });
   if (state.mode === 'stop_allowance_exhausted') return fail('allowance_exhausted');
   if (state.mode !== 'diagnose_and_change_strategy' || !state.trajectory) return fail('not_two_consecutive_failures');
   const [previous, latest] = chain.slice(-2), moved = changedSections(previous.draft, latest.draft);

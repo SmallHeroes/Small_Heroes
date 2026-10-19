@@ -127,7 +127,7 @@ describe('personal writer -> whole-book storyboard -> identical render/QA state'
     const f = await personalStoryboardFixture(length as string);
     expect(f.book.narrativeSpreads).toBe(count); expect(f.book.displayPages).toBe(display);
     expect(f.source.planningInput.story.pages).toEqual(f.result.manuscript.pages);
-    expect(f.source.planningInput.narrativePlan.ending).toBe(f.result.plan.ending);
+    expect(f.source.planningInput.narrativePlan?.ending).toBe(f.result.plan.ending);
     expect(f.book.sequence.pages).toHaveLength(count as number);
     expect(f.book.runtimeEligible).toBe(false);
     for (let n = 0; n <= (count as number); n++) {

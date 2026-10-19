@@ -125,20 +125,28 @@ export function resolveSelfCheckSections(names: readonly string[], sections: Rea
  * repair) the diagnosis and the parent draft. Structure and quotes only: whether a quote semantically establishes its part is the review's.
  */
 export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewPlan; sequence: Sequence; moments: StoryboardMoments }, texts: readonly string[],
-  repair?: { diagnosis: StoryboardDiagnosis | null; parentDraft: unknown; candidateDraft: unknown }, options?: { sectionNames?: true }): StoryboardSelfCheck {
-  if (options !== undefined && (Object.keys(options).some(k => k !== 'sectionNames') || (options.sectionNames !== undefined && options.sectionNames !== true)))
+  repair?: { diagnosis: StoryboardDiagnosis | null; parentDraft: unknown; candidateDraft: unknown },
+  options?: { sectionNames?: true; ignoredRefs?: ReadonlySet<string>; alsoChanged?: readonly string[] }): StoryboardSelfCheck {
+  if (options !== undefined && (Object.keys(options).some(k => k !== 'sectionNames' && k !== 'ignoredRefs' && k !== 'alsoChanged') ||
+      (options.sectionNames !== undefined && options.sectionNames !== true) || (options.ignoredRefs !== undefined && !(options.ignoredRefs instanceof Set)) ||
+      (options.alsoChanged !== undefined && !Array.isArray(options.alsoChanged))))
     fail('options');
   const s = selfCheckSchema.parse(raw);
   if (s.frames.length !== book.plan.pages.length || texts.length !== book.plan.pages.length) fail('coverage');
+  // Opt-in (claim-basis contract): claims of overrides the compiler dropped (their entity is not visible) are ignored, never coverage.
+  const ignored = options?.ignoredRefs;
+  if (ignored) s.frames.forEach(frame => { frame.claims = frame.claims.filter(c => !ignored.has(c.ref)); });
   s.frames.forEach((frame, n) => {
     const quoted = (q: string) => n === 0 ? texts[0].includes(q) || texts[1].includes(q) : texts[n].includes(q);
-    // Claims: exactly this frame's evidence-bearing claims, each split into quoted parts that include its own declared quote.
-    const expected = new Map(storyboardFrameClaims(book, n).map(c => [c.ref, c.evidence]));
+    // Claims: exactly this frame's evidence-bearing claims, each split into quoted parts that include its own declared quote. A claim whose
+    // quote lives on another page (a withheld entity's reveal page) is quoted from that page.
+    const expected = new Map(storyboardFrameClaims(book, n).map(c => [c.ref, c]));
     if (frame.claims.length !== expected.size || new Set(frame.claims.map(c => c.ref)).size !== frame.claims.length ||
         frame.claims.some(c => !expected.has(c.ref))) fail('claim_coverage');
     for (const c of frame.claims) {
-      if (c.parts.some(p => !quoted(p.quote))) fail('claim_quote');
-      if (!c.parts.some(p => overlaps(p.quote, expected.get(c.ref)!))) fail('claim_binding');
+      const claim = expected.get(c.ref)!, on = (q: string) => claim.page === undefined ? quoted(q) : texts[claim.page].includes(q);
+      if (c.parts.some(p => !on(p.quote))) fail('claim_quote');
+      if (!c.parts.some(p => overlaps(p.quote, claim.evidence))) fail('claim_binding');
     }
     if (frame.grounding.some(g => g.quote !== null && !quoted(g.quote))) fail('grounding_quote');
     // Events and the key event the picture draws.
@@ -171,8 +179,11 @@ export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewP
   const anywhere = (q: string) => texts.some(t => t.includes(q));
   // Opt-in (storyboard-self-check-names/v1): book-level names resolve to the engine's own names first; the checks below are unchanged.
   if (options?.sectionNames) for (const r of s.resolutions) r.changed = resolveSelfCheckSections(r.changed, sections, moved);
+  // Opt-in (claim basis): `moved` is measured on the contract's neutral view; a resolution may also name a section whose raw bytes changed
+  // (adopting the contract's shape), while the protected-page rule below stays on the neutral view.
+  const nameable = new Set([...moved, ...(options?.alsoChanged ?? [])]);
   for (const r of s.resolutions) {
-    if (r.changed.some(c => !sections.has(c) || !moved.includes(c))) fail('resolution_changed');
+    if (r.changed.some(c => !sections.has(c) || !nameable.has(c))) fail('resolution_changed');
     if (r.quotes.some(q => !anywhere(q))) fail('resolution_quote');
     if (r.cause === 'not_a_defect' ? !r.quotes.length : !r.changed.length) fail('resolution_basis');
   }

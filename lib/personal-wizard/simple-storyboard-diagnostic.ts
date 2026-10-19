@@ -1,13 +1,14 @@
 import 'server-only';
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
-import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema,
+import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema,
   personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions, storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
 import { DRAWN_INSTANT_REVIEW_ADDENDUM } from './storyboard-drawn-instant';
 import { SELF_CHECK_REVIEW_ADDENDUM } from './storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from './storyboard-review-impact';
+import { CLAIM_BASIS_REVIEW_ADDENDUM, CLAIM_BASIS_SELF_CHECK_REVIEW_RULE } from './storyboard-claim-basis';
 import type { StoryboardPreservation } from './storyboard-preservation';
 import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
@@ -16,13 +17,21 @@ import { personalBookOutputLimits } from './book-config';
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
 export const SIMPLE_STORYBOARD_INPUT_LIMIT = 104_000;
 export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
-  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema | typeof impactStoryboardReviewSchema;
+  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema | typeof impactStoryboardReviewSchema
+    | typeof claimBasisStoryboardReviewSchema;
 };
 /** The review call's instructions for a storyboard under these contracts (shared by every caller that reviews a storyboard). */
 export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; reviewImpactPolicy?: true }) => PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
+  selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true }) => PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
   + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
-  + (contracts.selfCheckContract ? '\n' + SELF_CHECK_REVIEW_ADDENDUM : '') + (contracts.reviewImpactPolicy ? '\n' + STORYBOARD_REVIEW_IMPACT_ADDENDUM : '');
+  + (contracts.selfCheckContract ? '\n' + (contracts.claimBasisContract ? claimBasisSelfCheckReviewAddendum() : SELF_CHECK_REVIEW_ADDENDUM) : '')
+  + (contracts.reviewImpactPolicy ? '\n' + STORYBOARD_REVIEW_IMPACT_ADDENDUM : '') + (contracts.claimBasisContract ? '\n' + CLAIM_BASIS_REVIEW_ADDENDUM : '');
+/** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
+function claimBasisSelfCheckReviewAddendum() {
+  const lines = SELF_CHECK_REVIEW_ADDENDUM.split('\n'), at = lines.findIndex(l => l.startsWith('- claims:'));
+  if (at < 0) return fail('claim_basis_review_rule');
+  return [...lines.slice(0, at), CLAIM_BASIS_SELF_CHECK_REVIEW_RULE, ...lines.slice(at + 1)].join('\n');
+}
 export class SimpleStoryboardDiagnosticError extends Error {
   constructor(readonly code: string) { super(`simple_storyboard_diagnostic_${code}`); }
 }
@@ -59,6 +68,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   reviewImpactPolicy?: true;
   /** Opt-in compile-level self-check section-name resolution (needs the self-check; no call or source changes); absent keeps the exact compile. */
   selfCheckNames?: true;
+  /** Opt-in claim basis (storyboard-claim-basis/v1: needs the moments, drawn-instant, self-check and typed-review contracts); absent keeps the exact existing calls. */
+  claimBasisContract?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
@@ -67,7 +78,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
     args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
-    args.selfCheckContract, args.reviewImpactPolicy);
+    args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length, args.selfCheckContract ? { selfCheck: true } : undefined);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -76,7 +87,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
         args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
-        args.selfCheckContract, args.reviewImpactPolicy).sourceDigest !== source.sourceDigest) fail('source_changed');
+        args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');
@@ -108,16 +119,19 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.momentContract ? { momentContract: true as const } : {}),
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
       ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
-      ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}) } }), args.signal, args.selfCheckNames ? { selfCheckNames: true } : undefined);
+      ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
+      ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}) } }), args.signal, args.selfCheckNames ? { selfCheckNames: true } : undefined);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
   const rawReview = await dispatch({ stage: 'review', instructions: storyboardReviewInstructions(args),
-    input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: args.reviewImpactPolicy ? impactStoryboardReviewSchema : personalStoryboardReviewSchema,
+    input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: args.claimBasisContract ? claimBasisStoryboardReviewSchema
+      : args.reviewImpactPolicy ? impactStoryboardReviewSchema : personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,
       ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
-      ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}) } });
+      ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
+      ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();
   // Supported, or (typed policy only) supported with bound detail notes, which the packets then carry.

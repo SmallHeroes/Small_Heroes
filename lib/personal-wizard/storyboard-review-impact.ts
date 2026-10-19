@@ -39,7 +39,8 @@ An issue you cannot positively justify as detail is not detail. Do not inflate d
 
 type Sequence = z.infer<typeof bookSequenceSchema>;
 type Storyboardish = { plan: PreviewPlan; sequence: Sequence; moments?: StoryboardMoments };
-export type StoryboardClaim = { ref: string; evidence: string };
+/** A claim and its declared quote; `page` only when that quote lives on another page (a claim-basis withhold requirement: its reveal page). */
+export type StoryboardClaim = { ref: string; evidence: string; page?: number };
 
 /**
  * Every evidence-bearing claim of frame n, with its declared quote, under one reference vocabulary shared by the planner's self-check and the
@@ -48,7 +49,10 @@ export type StoryboardClaim = { ref: string; evidence: string };
  */
 export function storyboardFrameClaims(book: Storyboardish, n: number): StoryboardClaim[] {
   const claims: StoryboardClaim[] = [], frame = book.moments?.frames[n], d = frame?.depicted ?? null;
-  frame?.requirements.forEach((r, i) => claims.push({ ref: `p${n}:requirement:${i}`, evidence: r.evidence }));
+  frame?.requirements.forEach((r, i) => {
+    const reveal = (r as { revealPage?: number | null }).revealPage;
+    claims.push({ ref: `p${n}:requirement:${i}`, evidence: r.evidence, ...(typeof reveal === 'number' ? { page: reveal } : {}) });
+  });
   if (d) {
     claims.push({ ref: `p${n}:instant`, evidence: d.evidence });
     d.relations.forEach(o => claims.push({ ref: `p${n}:relation:${o.entityId}`, evidence: o.evidence }));
@@ -83,16 +87,20 @@ export type ImpactFinding = { scope: 'book' | 'page'; pageNumber?: number; categ
  * The typed disposition. A check is a NOTE only when it is not supported and every issue is a bound, positively justified detail; it is
  * BLOCKING otherwise (with the first reason that applies). Supported checks must carry no issues. Held when anything blocks: uncertain when
  * a blocking check is uncertain or the review does not bind (unknown materiality, unbound reference, issues on a supported check),
- * contradiction otherwise; supported with notes when only notes remain.
+ * contradiction otherwise; supported with notes when only notes remain. `citation` (claim-basis contract only): an evidence issue the
+ * reviewer bound to one verified source span of its claim's page is that reviewer's own binding note (its impact stays evidence; the claim
+ * stands with the cited span), never an inferred or lowered impact.
  */
-export function storyboardImpactDisposition(checks: { scope: 'book' | 'page'; pageNumber?: number; check: ImpactCheck }[], refs: readonly string[]) {
+export function storyboardImpactDisposition(checks: { scope: 'book' | 'page'; pageNumber?: number; check: ImpactCheck }[], refs: readonly string[],
+  citation?: (issue: StoryboardReviewIssue) => boolean) {
   const known = new Set(refs), blocking: ImpactFinding[] = [], notes: ImpactFinding[] = [];
+  const material = (i: StoryboardReviewIssue) => impactIsMaterial(i.impact) && !(citation?.(i) ?? false);
   for (const { scope, pageNumber, check } of checks) {
     const base = { scope, ...(scope === 'page' ? { pageNumber } : {}), category: check.category, verdict: check.verdict, observation: check.observation, issues: check.issues };
     if (check.verdict === 'supported') { if (check.issues.length) blocking.push({ ...base, reason: 'issues_on_supported' }); continue; }
     const reason: ImpactFinding['reason'] | null = !check.issues.length ? 'unknown_materiality'
       : check.issues.some(i => !known.has(i.ref)) ? 'unbound_reference'
-      : check.issues.some(i => impactIsMaterial(i.impact)) ? 'blocking_impact'
+      : check.issues.some(material) ? 'blocking_impact'
       : check.issues.some(i => !i.whyNotMaterial) ? 'unjustified_detail' : null;
     (reason ? blocking : notes).push({ ...base, reason: reason ?? 'blocking_impact' });
   }
