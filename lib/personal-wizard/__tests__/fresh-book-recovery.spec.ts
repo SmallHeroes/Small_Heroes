@@ -555,6 +555,19 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
         'editor answer changed (the replay)': s => { const g = s.repairGrant();
           edit(path.join(s.config.bookDir, 'text', 'claude-max-stages', 'editor.receipt.json'), r => { r.output.pages[0].text += ' שינוי.'; });
           return { grant: g, expect: /./ }; },
+        // F7: the ORIGINAL authority the consumed recovery grant pins (its grant bytes, its failed outcome, seal, request and text evidence).
+        'F7 original grant: one whitespace byte appended': s => { const g = s.repairGrant();
+          writeFileSync(s.original.grantFile, Buffer.concat([readFileSync(s.original.grantFile), Buffer.from(' ')]));
+          return { grant: g, expect: /fresh_book_recovery_original/ }; },
+        'F7 original outcome code changed': s => { const g = s.repairGrant();
+          edit(path.join(s.authority, FRESH_BOOK_CYCLE.outcomeName), o => { o.code = 'unrelated_terminal_failure'; });
+          return { grant: g, expect: /fresh_book_recovery_original/ }; },
+        'F7 original text seal changed': s => { const g = s.repairGrant();
+          edit(path.join(s.config.bookDir, 'text', 'sealed.json'), x => { x.note = 'rewritten'; });
+          return { grant: g, expect: /fresh_book_recovery_original/ }; },
+        'F7 original request changed': s => { const g = s.repairGrant();
+          writeFileSync(path.join(s.config.bookDir, 'request.json'), readFileSync(path.join(s.config.bookDir, 'request.json'), 'utf8') + '\n');
+          return { grant: g, expect: /fresh_book_recovery_original/ }; },
       };
       for (const [name, mutate] of Object.entries(cases)) {
         const s = await heldBook(), t = textTransports();
@@ -578,6 +591,35 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
       expect(json(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName))).toMatchObject({ status: 'failed_storyboard_repair', code: 'fresh_book_roots_changed' });
       expect(claims(path.join(repairDir(s), 'paid-stages'))).toEqual([]);
       expect(existsSync(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.successorName))).toBe(false);
+    });
+
+    it('F7: an original-grant change during the paid planner halts before the review; after a supported repair a changed original record refuses child, book and resume', async () => {
+      const appendByte = (file: string) => writeFileSync(file, Buffer.concat([readFileSync(file), Buffer.from(' ')]));
+      // During the planner session (after its await): the next guard refuses with the lineage code; no review call, no review claim.
+      const s = await heldBook(), g = s.repairGrant(), t = textTransports(), plan = vi.mocked(t.planner).getMockImplementation()!;
+      vi.mocked(t.planner).mockImplementationOnce(async (w, call, sig) => { appendByte(s.original.grantFile); return plan(w, call, sig); });
+      await expect(runFreshBookStoryboardRepair({ ...g, transports: t })).rejects.toThrow(/fresh_book_recovery_original|simple_storyboard_diagnostic_review_callback_failed/);
+      expect(vi.mocked(t.responses).mock.calls.length).toBe(0);
+      expect(json(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName))).toMatchObject({ status: 'failed_storyboard_repair', code: 'fresh_book_recovery_original' });
+      expect(claims(path.join(repairDir(s), 'paid-stages'))).toEqual([]);
+      // After a supported repair: a changed original outcome refuses the child before its folder, key or render; restored, it admits again.
+      const a = await heldBook(), ag = a.repairGrant();
+      expect((await runFreshBookStoryboardRepair({ ...ag, transports: textTransports() })).status).toBe('review_supported');
+      const outcomeFile = path.join(a.authority, FRESH_BOOK_CYCLE.outcomeName), kept = readFileSync(outcomeFile);
+      writeFileSync(outcomeFile, JSON.stringify({ ...json(outcomeFile), code: 'unrelated_terminal_failure' }));
+      providers();
+      await expect(runFreshBookChild({ ...ag, storyboardRepair: true })).rejects.toThrow('fresh_book_recovery_original');
+      expect([existsSync(path.join(a.config.bookDir, 'child')), vi.mocked(images.generateGPTImage).mock.calls.length, sdk.create.mock.calls.length]).toEqual([false, 0, 0]);
+      writeFileSync(outcomeFile, kept);
+      expect(await runFreshBookChild({ ...ag, storyboardRepair: true })).toMatchObject({ status: 'child_reference_passed' });
+      // During an awaited book render the original grant changes: the next guard refuses; a resume and a fresh entry refuse before any render.
+      const render = vi.mocked(images.generateGPTImage), real = render.getMockImplementation()!, rendered = render.mock.calls.length;
+      render.mockImplementationOnce(async input => { appendByte(a.original.grantFile); return real(input); });
+      await expect(runFreshBookBook({ ...ag, storyboardRepair: true })).rejects.toThrow('fresh_book_recovery_original');
+      expect(render.mock.calls.length).toBe(rendered + 1);
+      await expect(runFreshBookBook({ ...ag, storyboardRepair: true, resume: true })).rejects.toThrow('fresh_book_recovery_original');
+      await expect(runFreshBookBook({ ...ag, storyboardRepair: true })).rejects.toThrow('fresh_book_recovery_original');
+      expect([render.mock.calls.length, existsSync(path.join(a.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName))]).toEqual([rendered + 1, false]);
     });
 
     /** Successor changes after a supported repair; `reseal` also rewrites the durable record to the changed folder. */

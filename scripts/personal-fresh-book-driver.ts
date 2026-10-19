@@ -752,7 +752,8 @@ const REPAIR_OWN_CALLS = Object.freeze([`${FRESH_BOOK_STORYBOARD_REPAIR.folder}/
 
 /**
  * The consumed recovery and the held storyboard the repair stands on, re-read exactly: the recovery grant its claim names, that claim (naming
- * the original claim, at the recovery grant's own head), its terminal held_text record, its folder sealed held (one correction, the four
+ * the original claim, at the recovery grant's own head), the whole ORIGINAL authority that grant consumed (re-derived by recoveryOriginal,
+ * equal to its recorded original and ledger), its terminal held_text record, its folder sealed held (one correction, the four
  * replays) with no successor, and its held storyboard re-derived: the saved draft recompiled under this book's contracts from the recovery's
  * own saved source to its saved book, and its own raw review re-judged to that held disposition. The ledger it stands on is the stages before
  * it (the failed text and the recovery), so later stages never move it. The repair input is exactly that draft and that raw review (the
@@ -773,6 +774,13 @@ function recoveryHeld(config: FreshBookConfig, env: FreshBookEnv, rereview: Rere
   if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.recovery !== FRESH_BOOK_RECOVERY.version || claim.grantSha256 !== digest.grant ||
       claim.originalClaimSha256 !== digest.originalClaim || grant.original.claimSha256 !== digest.originalClaim || claim.engineHead !== grant.engine.head ||
       !sameDir(claim.bookDir) || !sameDir(grant.bookDir) || grant.profileSha256 !== freshBookProfileSha(profile) || claim.profileSha256 !== grant.profileSha256) refuse();
+  // F7 (Codex 2026-10-18): the ORIGINAL authority this recovery consumed, re-derived by the recovery line's own verifier (the original grant
+  // under its OWN head and exact bytes, its claim, the failed outcome and seal, the request, the admission, the failed text evidence and the
+  // original ledger), must be exactly what the consumed recovery grant recorded. A changed original record or byte is not that authority.
+  let lineage: ReturnType<typeof recoveryOriginal>;
+  try { lineage = recoveryOriginal(config, env, rereview, profile, grant.original.grantFile); }
+  catch (error) { if (error instanceof FreshBookError) throw error; return fail('fresh_book_recovery_original'); }
+  if (!sameJson(lineage.original, grant.original) || !sameJson(lineage.ledger, grant.ledger)) fail('fresh_book_recovery_original');
   if (outcome.cycle !== FRESH_BOOK_CYCLE.id || outcome.status !== FRESH_BOOK_STORYBOARD_REPAIR.heldOutcome ||
       !(FRESH_BOOK_STORYBOARD_REPAIR.heldStatuses as readonly string[]).includes(outcome.textStatus) ||
       !sameJson(seal, { status: outcome.textStatus, corrections: 1, replayed: ['author', 'editor', 'final_review', 'comparison'], runtimeEligible: false })) refuse();
@@ -862,8 +870,9 @@ export function planFreshBookStoryboardRepair(config: FreshBookConfig, env: Fres
 }
 
 /**
- * A storyboard-repair-line stage's admission, as admitRecovery: the baseline (repair grant bytes, the recovery grant's bytes, configuration,
- * profile, lineage, every line's authority records, earlier stage entries including the failed text and the held recovery) pinned FIRST and
+ * A storyboard-repair-line stage's admission, as admitRecovery: the baseline (repair grant bytes, the recovery grant's bytes and the original
+ * grant's bytes it names (at their recorded digest), configuration, profile, lineage, every line's authority records, earlier stage entries
+ * including the failed text and the held recovery) pinned FIRST and
  * held across every await; the grant is exactly the draft this state rebuilds, at the clean reviewed head. Its guard adds the repair claim and
  * the recovery and original claims it names.
  */
@@ -873,6 +882,12 @@ async function admitStoryboardRepair(a: { config: FreshBookConfig; env: FreshBoo
   const parsed = freshBookStoryboardRepairGrantSchema.safeParse(JSON.parse(bytes.toString('utf8')));
   if (!parsed.success) return fail('fresh_book_storyboard_repair_grant');
   const recoveryBytes = fileBytes(parsed.data.recovery.grantFile), rereview = loadRereview(a.config);
+  // F7: the original grant the consumed recovery grant names is frozen too, at its own recorded bytes (never re-pinned to this head), and held
+  // across every await below exactly as the recovery line holds it.
+  let named: FreshBookRecoveryGrant;
+  try { named = freshBookRecoveryGrantSchema.parse(JSON.parse(recoveryBytes.toString('utf8'))); } catch { return fail('fresh_book_storyboard_repair_recovery'); }
+  const originalFile = named.original.grantFile, originalBytes = fileBytes(originalFile);
+  if (previewSha(originalBytes) !== named.original.grantSha256) fail('fresh_book_recovery_original');
   let roots = rootsOf(a.config, a.env, rereview, a.earlier);
   const planned = planFreshBookStoryboardRepair(a.config, a.env, parsed.data.recovery.grantFile);
   const outcome = await assertFreshBookAdmission(planned.rereview, a.env);
@@ -883,6 +898,7 @@ async function admitStoryboardRepair(a: { config: FreshBookConfig; env: FreshBoo
     if (a.signal.aborted) fail('fresh_book_cancelled');
     if (!fileBytes(a.grantFile).equals(bytes)) fail('fresh_book_storyboard_repair_grant');
     if (!fileBytes(planned.grantDraft.recovery.grantFile).equals(recoveryBytes)) fail('fresh_book_storyboard_repair_recovery');
+    if (!fileBytes(originalFile).equals(originalBytes)) fail('fresh_book_recovery_original');
     if (canonicalJson(rootsOf(a.config, a.env, rereview, a.earlier)) !== canonicalJson(roots)) fail('fresh_book_roots_changed');
     const e = a.env.head();
     if (!e.clean || e.head !== planned.grantDraft.engine.head || e.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
