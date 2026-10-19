@@ -1,5 +1,23 @@
 # SmallHeroes — Roadmap
 
+## Refined B approved: claim-basis contract and attempt 4 of 4 built offline (28606b65); next: Codex QA, then the ONE extension and the book (2026-10-19)
+
+- **What happened.** The ONE revalidation review held candidate db61a2dd… (10 blocking checks; 17 of its 19 issue entries were
+  evidence). Outcome `held_storyboard_revalidation`, `stop_allowance_exhausted`. API: book 247596, cycle 376526. No images.
+- **Owner.** Guy approved refined B ("מאשר B המתוקן"): a general engine fix, Codex code QA, then ONE more attempt (4 of 4) under the
+  same caps.
+- **Built (opt-in, versioned; absent, byte-identical):**
+  - `storyboard-claim-basis/v1`: stated claims, staging (visual direction) and verified citations of stable source spans kept
+    apart; withhold-until-reveal bound to the first frame that shows the entity; one visible-state authority (hidden overrides
+    dropped and recorded); a neutral view for what a candidate changed.
+  - `storyboard-attempt-extension/v1` and the `fresh-book-storyboard-extension/v1` line: one planner and one review; held ends
+    the line.
+- **Real book (read only):** the planner request fits (wire 102582 of 104000, argv 30759 of 31000).
+- **Tests:** 12 new pass; focused mutants 41/41. The 39 affected files serially: 1667 passed, 2 failed (stale `:152`, `:184`),
+  1 skipped; the recovery file exited -1 silently in that run (cause not established) and passes alone. tsc 0. The full check
+  stays RED.
+- **Next:** Codex QA → the ONE extension → child → samples → rest + cover → viewer → QA report → consolidated engine report.
+
 ## Continuation refused at compile; correction + bound revalidation built offline (39350d6e); next: Codex QA, then the ONE review and the book (2026-10-19)
 
 - **What happened.** Codex passed 86e5c37f, and the ONE diagnosed continuation ran. Its Opus Max answer cost 1002229 Max

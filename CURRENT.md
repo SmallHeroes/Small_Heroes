@@ -1,5 +1,91 @@
 # SmallHeroes — Current Technical State
 
+## Refined B: the claim-basis contract and the owner-approved attempt 4 of 4, built offline (28606b65), for Codex QA; the book is NOT done (2026-10-19)
+
+**What happened since a4aaeb0e.** Codex passed a4aaeb0e and the unused revalidation grant 059c6686…. The ONE revalidation review
+ran once (native exit 0, 12:24:38Z..12:26:51Z), and its Sol 6.1 review HELD candidate db61a2dd… (`held_uncertain`):
+- 10 blocking checks (3 contradiction, 7 uncertain); 19 issue entries (17 evidence, 2 continuity); 16 unique references;
+  0 justified detail notes.
+- Outcome `held_storyboard_revalidation`, recovery `stop_allowance_exhausted` (attempt 3 of 3). No successor, child,
+  references or pages.
+- Cost: the one review, 92190 microUSD. API: book 247596 / 6 calls, diagnostic 128930, cycle 376526 of 8000000. Max for the
+  book stays 2553812 (separate).
+- Codex's outcome QA verified it (36/36; `CODEX-REVALIDATION-OUTCOME-VERIFIED-HELD-20261019.txt`).
+
+**Corrections to my previous report (Codex's outcome QA).**
+- The original text failed on 3 of 12 changed or omitted prefix letters, not on "one citation anchor".
+- The 19 entries are not 19 independent story defects.
+- Kept as limits here: no blanket "an override may never cite a transition sentence" gate; no rule that a depicted location
+  equals the end-of-page ledger; a reveal binds the actual reveal event, never a name's first occurrence; "find the establishing
+  sentence" is not an entailment algorithm.
+
+**Owner decision.** Guy approved refined Proposal B in chat ("מאשר B המתוקן"; record `OWNER-APPROVAL-REFINED-B-ATTEMPT4-20261019.txt`,
+sha256 b2b3a33e…): one general engine milestone, Codex code QA, then ONE more storyboard attempt (4 of 4) under the unchanged
+USD 7 book / USD 8 cycle caps.
+
+**The general contract `storyboard-claim-basis/v1`** (opt-in, versioned; needs the moments, drawn-instant, self-check and
+typed-review contracts; absent, every source, digest, instruction, schema, review input and packet is byte-identical):
+- **Stated claims** still need their own bound evidence; uncertain support for a consequential fact still holds.
+- **Visual direction (staging).** `moments.frames[n].staging` lists the frame's own claims that are a visual choice the text
+  does not state (gesture, gaze, expression, posture, arrangement). The review judges them only for contradiction and for
+  identity, age, style and safety; the renderer receives them as ILLUSTRATION DIRECTION or `[visual direction]`. The drawn
+  instant, scene cuts and withholds are never staged (refused at compile).
+- **Withheld until a reveal.** `{kind: "withhold", entityId, revealPage}`, for a declared entity or a cast member. The reveal page
+  must be the FIRST later frame whose structured visible ids show it, and the quote must be on that page; the review judges that
+  the quote is the reveal event. show and avoid keep entityId and revealPage null.
+- **Citation.** The review input carries stable source spans (`p{n}:s{k}`). An evidence issue that cites ONE span of its claim's
+  own page (the cover: the title or page 1; a withhold: its reveal page), differs from the claim's own quote and gives its reason
+  is the reviewer's binding note. Structure only, nothing inferred: another page, a missing span, the claim's own quote, no
+  reason or any other impact still blocks, and a material impact is never lowered.
+- **One visible-state authority.** A frame's visible ids (sequence visibleCastIds and continuity visibleEntityIds) decide what it
+  shows. Drawn-instant completeness covers visible entities only; an override of a hidden entity is dropped at compile and
+  recorded (`book.claimBasis.hiddenOverridesDropped`), never a claim, a review reference or a render line.
+- **Neutral view.** What a candidate changed is measured on `claimBasisSectionsView` of both drafts: adopting the contract's shape,
+  or the compiler dropping a parent's hidden override on a protected page, is never a change. A resolution may also name a
+  section whose raw bytes changed.
+- **Instructions.** The drawn-instant completeness rule and the self-check review rule are replaced, not contradicted; new
+  planner and review addenda. Composition against state: placement comes from the relations at the drawn instant (one
+  structured authority), stated to the planner; material continuity stays hard in review. There is no free-prose geography
+  checker and no word list.
+- **Planner input under the contract.** The previous storyboard without its own self-check; every blocking finding with its typed
+  issues; the narrative plan only when a plan-judging book check held. This keeps the real request inside the wire limit.
+
+**`storyboard-attempt-extension/v1`.** Exactly one attempt above the stage's 3-attempt ceiling, only once the chain holds exactly
+3 held candidates, bound in the source digest and the attempt's context with the owner record's sha256. Never on an ancestor;
+a ceiling of 5 refuses. `parentCompile {selfCheckNames: true}` recompiles a parent made under the section-name correction.
+
+**The line `fresh-book-storyboard-extension/v1`.** Its own claim, outcome, audition start, successor and folder. ONE Opus 5.5 Max
+planner and ONE Sol 6.1 review at max(600000, its bound).
+- Admission re-derives the held revalidation and its whole lineage, the owner's record (its bytes and the verbatim line), the
+  engine's recovery state (3 consecutive held candidates, the owner's ceiling of 4, one attempt left) and the diagnosis, and
+  measures the planner request before the claim.
+- Held ends the line (`held_storyboard_extension`, `stop_allowance_exhausted`); there is no attempt 5.
+- Downstream: `child|book --storyboard-extension`, with the page recovery rule.
+
+**Found by the new tests before any spend.** The successor check compared the admission record's keys with a mis-sorted literal,
+so an admitted review could never have recorded its successor: the paid line would have ended failed after its planner and its
+review. Fixed with an order-proof comparison and covered end to end.
+
+**Real book, read only (dry plan and planner preview).** Held db61a2dd… (10 findings), attempt 4 of 4, API book 247596. The
+request: content 67478 of 104000, wire 102582 of 104000, argv 30759 of 31000, session reserve 1551361 of 2000000, output cap
+50000; 10 resolutions required; protected page 4.
+
+**Tests.**
+- 12 new, all pass. Engine 7: byte-identity and policy; hidden entity not drawn; withhold (renamed ids, a cast member, a
+  two-page gap); staging and ordinary pointing; citation and its negatives; the extension and the neutral view; the diagnostic
+  call path. Driver 5: positive through child and book; held; 13 pre-claim refusals plus the plan's own approval refusals;
+  successor tamper; the real-data dry plan and preview.
+- Focused mutation controls on the new code: 41 of 41 killed against the committed tests (an earlier pass, before two tests
+  were strengthened, left 2).
+- The 39 affected spec files, serially: 1667 passed, 2 failed, 1 skipped.
+  - Only the stale `fresh-book-driver.spec.ts:152` and `simple-book-flow.spec.ts:184` fail (`:1774` passed this time).
+  - In that run `fresh-book-recovery.spec.ts` exited -1 with no output after 994 s (cause not established). Alone it passes
+    (38 passed, 1 skipped, 1687 s) and is counted from that run.
+- nonincremental tsc 0. The full check stays RED.
+
+**Next.** Codex's independent code QA of the range and the unused extension grant. After a PASS: the ONE extension; if admitted,
+child, references, two samples, the rest and the cover, the viewer and the reports. Held: an honest stop, no attempt 5.
+
 ## Continuation refused at compile; engine correction + bound revalidation (39350d6e), offline, for Codex QA; the book is NOT done (2026-10-19)
 
 **What happened.** Codex passed 86e5c37f and the continuation grant f14ab4b9…, and the ONE diagnosed continuation ran once
