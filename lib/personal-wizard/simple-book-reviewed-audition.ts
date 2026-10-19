@@ -13,6 +13,8 @@ import type { AuditionImage } from './simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
 import type { BookDesignReferenceRole } from '../generate-image';
 import type { PersonalWizardOptions } from './options';
+import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
+import { findingTrajectory, STAGE_RECOVERY_VERSION, type RecoveryFinding } from './stage-recovery';
 
 /**
  * Reviewed audition: bounded attempts per image, every image judged, findings published next to the picture.
@@ -27,7 +29,7 @@ import type { PersonalWizardOptions } from './options';
  */
 export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v9',
   sheetAttempts: 2, pageAttempts: 3, identityThreshold: 0.7,
-  impactOrder: ['safety', 'story', 'identity', 'continuity', 'detail'] as const,
+  impactOrder: REVIEW_IMPACT_ORDER,
   selection: 'eligible_then_fewest_story_identity_continuity_detail_then_earliest' as const,
   safety: 'any safety defect or uncertain makes a candidate ineligible' as const,
   status: 'qa_supported requires no safety/story/identity/continuity finding and a measured child identity >= 0.70' as const,
@@ -493,6 +495,46 @@ export function auditionCorrections(attempt: AuditionAttempt | undefined, phase:
   return notes.length ? `\nREVIEWED FINDINGS FROM THE PREVIOUS ATTEMPT. They can be wrong: resolve each against the written requirements and references, and keep everything that was already correct.\n${notes.join('\n')}` : '';
 }
 
+/**
+ * A held page attempt's material findings under stable keys (impact and requirement, never a name or a page), the reviewer's notes as their
+ * words (the same requirement and impact reported twice is one finding); a failed child measurement is one more. Detail notes never count.
+ */
+export function auditionAttemptFindings(attempt: AuditionAttempt): RecoveryFinding[] {
+  const byKey = new Map<string, RecoveryFinding>();
+  for (const f of attempt.assessment?.findings ?? []) {
+    if (!impactIsMaterial(f.impact) || !(f.bound || f.impact === 'safety')) continue;
+    const key = `${f.impact}:${f.requirement}`, seen = byKey.get(key);
+    byKey.set(key, seen ? { ...seen, observation: `${seen.observation} | ${f.note}` } : { key, verdict: f.verdict, observation: f.note });
+  }
+  if (attempt.candidate && !identityPassed(attempt.identity)) byKey.set('identity:cast:child', { key: 'identity:cast:child', verdict: 'defect',
+    observation: 'the measured child resemblance was below 0.70 or missing' });
+  return [...byKey.values()];
+}
+/**
+ * Opt-in (stage-recovery/v1) diagnosis after two consecutive HELD attempts of one image, inside its existing attempt ceiling: which findings
+ * persisted through the targeted correction (with both reviews' words), which are new and which the last attempt resolved, and a changed
+ * strategy for the persistent ones. Only held attempts count (a render error, an unusable review or unknown identity evidence never reaches
+ * here); fewer than two consecutive held attempts: null, and the existing correction applies. Derived from the attempts themselves.
+ */
+export function auditionRecoveryDiagnosis(attempts: readonly AuditionAttempt[]) {
+  if (attempts.length < 2) return null;
+  const [previous, latest] = attempts.slice(-2);
+  if (previous.status !== 'held' || latest.status !== 'held') return null;
+  const before = auditionAttemptFindings(previous), after = auditionAttemptFindings(latest);
+  if (!after.length) return null;
+  const moves = findingTrajectory(before, after), words = new Map(before.map(f => [f.key, f.observation]));
+  const persistent = after.filter(f => moves.find(m => m.key === f.key)!.trajectory !== 'new');
+  const fresh = after.filter(f => moves.find(m => m.key === f.key)!.trajectory === 'new');
+  const resolved = before.filter(f => !after.some(g => g.key === f.key));
+  const line = (f: RecoveryFinding) => `- [${f.key.split(':')[0]}] ${f.key.slice(f.key.indexOf(':') + 1)}: ${f.observation}`;
+  const prompt = `\nDIAGNOSIS AFTER TWO HELD ATTEMPTS (${STAGE_RECOVERY_VERSION}). A targeted correction did not resolve everything, so change the approach for what persisted, not only its wording. The findings can be wrong: resolve each against the written requirements and references.`
+    + (persistent.length ? `\nPERSISTENT (held in both attempts):\n${persistent.map(f => `${line(f)}${words.get(f.key) !== f.observation ? ` (earlier: ${words.get(f.key)})` : ''}`).join('\n')}` : '')
+    + (fresh.length ? `\nNEW in the last attempt:\n${fresh.map(line).join('\n')}` : '')
+    + (resolved.length ? `\nRESOLVED by the last attempt (keep it exactly as it now is):\n${resolved.map(f => `- [${f.key.split(':')[0]}] ${f.key.slice(f.key.indexOf(':') + 1)}`).join('\n')}` : '')
+    + '\nFor each persistent finding, satisfy it differently than before: change how the picture shows that element (its size, position, visibility and what surrounds it) within the planned framing, remove whatever competes with it or hides it, and follow its written design and the references literally. Keep everything else that was already correct.';
+  return { version: STAGE_RECOVERY_VERSION, afterAttempts: [previous.attempt, latest.attempt], trajectory: moves, prompt };
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Page checks derived from the storyboard (no new model, no new data).
 // ---------------------------------------------------------------------------------------------------------------
@@ -601,7 +643,14 @@ async function attemptStep<T>(check: () => void, work: () => Promise<T>): Promis
 
 export type ReferenceStatus = Record<'entities' | 'locations', { image: AuditionImage; status: 'approved_reference' | 'diagnostic_candidate'; knownFlaws: AuditionFinding[] }>;
 export type SavedSheet = { context: unknown; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus };
-export type SavedPage = { pageNumber: number; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus };
+export type SavedPage = { pageNumber: number; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus;
+  /** Opt-in stage-recovery/v1 only: every diagnosis an attempt of this page carried (the attempt it preceded and the diagnosis). */
+  recovery?: { version: typeof STAGE_RECOVERY_VERSION; diagnoses: { beforeAttempt: number; diagnosis: NonNullable<ReturnType<typeof auditionRecoveryDiagnosis>> }[] } };
+/** The diagnoses a page's attempts carried under the opt-in recovery rule, re-derived from those attempts (each from the ones before it). */
+export const pageRecoveryDiagnoses = (attempts: readonly AuditionAttempt[]) => attempts.flatMap((a, i) => {
+  const diagnosis = auditionRecoveryDiagnosis(attempts.slice(0, i));
+  return diagnosis ? [{ beforeAttempt: a.attempt, diagnosis }] : [];
+});
 type Judge = (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
   predecessor: AuditionImage | null, kind: 'sheet' | 'page') => Promise<unknown>;
 type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
@@ -658,6 +707,12 @@ export async function illustrateReviewedAudition(args: {
   reuseSheets?: Partial<Record<'entities' | 'locations', SavedSheet>>;
   /** Diagnostic comparison only: at most this many attempts per page (1 to the policy's own number). Absent: the policy's number. */
   pageAttempts?: number;
+  /**
+   * Opt-in (spend grant only) stage-recovery/v1 for pages, inside the unchanged attempt ceiling: after two consecutive held attempts of a page
+   * the next attempt carries the diagnosis of both (auditionRecoveryDiagnosis) instead of only the last one's findings, and the saved page
+   * records it. Sheets and the child keep their own ceilings (two attempts: no further attempt to inform). Absent: every prompt as before.
+   */
+  recovery?: true;
 }) {
   const policy = reviewedAuditionPolicy(args.scaleLineup), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   const prefix = args.resume?.stepPrefix ?? '', suffix = args.scaleLineup ? AUDITION_SCALE_LINEUP_PAGE_SUFFIX : AUDITION_PAGE_SUFFIX;
@@ -682,6 +737,13 @@ export async function illustrateReviewedAudition(args: {
       (a.candidate && a.assessment && !a.assessment.safetyBlocked && !a.assessment.invalidCitations && !identityUsable(a.identity)));
     if (unknownIdentity || prior.contextSha !== contextSha || canonicalJson(prior.requirementIds) !== canonicalJson(requirementIds) || !again ||
       canonicalJson(again) !== canonicalJson(prior.chosen) || attemptStatus(phase, again) !== prior.status) fail('audition_resume_binding');
+    // A page's recovery record is exactly what its re-derived attempts produce under this run's rule (absent when the rule is off or unused).
+    if (phase === 'page') {
+      const rederived = attempts.map(a => a.candidate && a.assessment && a.status !== 'identity_unusable' ? { ...a, status: attemptStatus('page', a) } : a);
+      const diagnoses = args.recovery ? pageRecoveryDiagnoses(rederived) : [];
+      const expected = diagnoses.length ? { version: STAGE_RECOVERY_VERSION, diagnoses } : undefined;
+      if (canonicalJson((prior as SavedPage).recovery ?? null) !== canonicalJson(expected ?? null)) fail('audition_resume_binding');
+    }
     return prior;
   };
   // A comparison's reused sheets bind before anything is saved or drawn, so a refusal precedes any call: the saved record's complete context
@@ -777,14 +839,19 @@ export async function illustrateReviewedAudition(args: {
     const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks);
     if (prior) { pages.push(prior); continue; }
     const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`;
+    const diagnoses: NonNullable<SavedPage['recovery']>['diagnoses'] = [];
     for (let attempt = 0; attempt < pageAttempts; attempt++) {
-      const result = await attemptOnce('page', String(pageNumber), attempt, base + auditionCorrections(attempts[attempts.length - 1], 'page'), canonical,
-        'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+      // Opt-in: after two consecutive held attempts the diagnosis of both replaces the last attempt's findings (same ceiling, same loop).
+      const diagnosis = args.recovery ? auditionRecoveryDiagnosis(attempts) : null;
+      if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });
+      const result = await attemptOnce('page', String(pageNumber), attempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(attempts[attempts.length - 1], 'page')),
+        canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
       attempts.push(result); report('page', String(pageNumber), result);
       if (finish('page', String(pageNumber), attempts)) break;
     }
     const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${pageNumber}_unavailable`);
-    pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen) });
+    pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen),
+      ...(diagnoses.length ? { recovery: { version: STAGE_RECOVERY_VERSION, diagnoses } } : {}) });
     args.save(`page_${pageNumber}`, pages[pages.length - 1]);
   }
   args.check();
@@ -795,6 +862,7 @@ export async function illustrateReviewedAudition(args: {
   const presented = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
     ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}), ...(args.scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}),
+    ...(args.recovery ? { recovery: STAGE_RECOVERY_VERSION } : {}),
     scope: { frames: heldSample ? presented.map(p => p.pageNumber) : frames, complete,
       ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}),
       ...(args.pageAttempts !== undefined ? { pageAttempts } : {}), ...(reusedRoles.length ? { reusedSheets: reusedRoles } : {}) },

@@ -25,13 +25,18 @@ import { CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_ANCHOR_INSPECTION_VERSION, childAn
 import { auditionReviewRule, AuditionMeter, verifyMeterRecords } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
 import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
-import { FRESH_BOOK_CYCLE, FRESH_BOOK_RECOVERY, FRESH_BOOK_STORYBOARD_REPAIR, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
+import { FRESH_BOOK_CYCLE, FRESH_BOOK_RECOVERY, FRESH_BOOK_STORYBOARD_REPAIR, FRESH_BOOK_STORYBOARD_CONTINUATION, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
 import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTextRecovery, runFreshBookChild, runFreshBookBook, freshBookConfig, realFreshBookEnv,
   planFreshBookStoryboardRepair, previewFreshBookStoryboardRepair, runFreshBookStoryboardRepair, flooredReviewRule, assertReviewFloorFits,
+  planFreshBookStoryboardContinuation, previewFreshBookStoryboardContinuation, runFreshBookStoryboardContinuation,
   STORYBOARD_REPAIR_RULES, REVIEW_RESERVE_FLOOR_MICRO_USD, type FreshBookConfig, type FreshTextTransports } from '../../../scripts/personal-fresh-book-driver';
 import { stageRules } from '../../../scripts/personal-new-book-experiment';
 import { VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from '../storyboard-visible-moment';
 import { REPAIR_STORYBOARD_ADDENDUM } from '../storyboard-repair';
+import { SELF_CHECK_STORYBOARD_ADDENDUM } from '../storyboard-self-check';
+import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from '../storyboard-review-impact';
+import { fullSelfCheck } from './storyboard-self-check-fixture';
+const plainJson = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -647,6 +652,216 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
       expect(existsSync(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName))).toBe(false);
       expect(readFileSync(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.successorName)).equals(record)).toBe(false);
     });
+
+    describe('the ONE diagnosed continuation (after the repair\'s held storyboard: the stage\'s second consecutive held candidate)', () => {
+      const CONT = FRESH_BOOK_STORYBOARD_CONTINUATION;
+      const contDir = (s: { config: FreshBookConfig }) => path.join(s.config.bookDir, CONT.folder);
+      /** The repair's own review holds too: book check 1 in other words, and page 4 (page 7, held before, is resolved). */
+      const heldRepairReview = (r: any) => {
+        r.bookChecks[1] = { ...r.bookChecks[1], verdict: 'uncertain', observation: 'a finished process is still carried forward, now on another page' };
+        r.frames[4].checks[2] = { ...r.frames[4].checks[2], verdict: 'contradiction', observation: 'page 4: the pause the text names is not shown' };
+        return r;
+      };
+      /** The typed review of the continuation: every check lists its issues (none when supported); `change` adds the reviewer's typed issues. */
+      const typedReview = (change: (r: any) => void = () => {}) => (r: any) => {
+        for (const c of [...r.bookChecks, ...r.frames.flatMap((x: any) => x.checks)]) c.issues = [];
+        change(r);
+        return r;
+      };
+      const minorNote = (r: any) => { r.frames[5].checks[1] = { ...r.frames[5].checks[1], verdict: 'uncertain', observation: 'the hut roof is a shade darker than planned',
+        issues: [{ impact: 'detail', ref: 'p5', note: 'roof shade', whyNotMaterial: 'the reader understands the same return and the picture shows the same hut' }] }; };
+      /**
+       * The continuation's planner: it reads its own request (the held repair draft, the diagnosis), changes the diagnosed pages (book findings:
+       * an unprotected page), and returns the whole storyboard with a full self-check whose resolutions name exactly the changed sections.
+       */
+      const cliReply = (output: unknown, usd: number) => { const termination = { code: 0, signal: null }, usage = { inputTokens: 100, outputTokens: 100 };
+        return { output, usage, estimatedMicroUsd: Math.ceil(usd * 1e6), metadata: { kind: 'cli_reported_estimate_not_invoice', reportedModels: ['claude-opus-5-5'], termination },
+          raw: { termination, killConfirmed: true, stopped: false, stdout: JSON.stringify({ type: 'result', subtype: 'success', is_error: false, total_cost_usd: usd,
+            modelUsage: { 'claude-opus-5-5': usage }, structured_output: output }) } } as any; };
+      const continuationPlanner = () => vi.fn(async (_w: any, call: any) => {
+        const input = JSON.parse(call.input), prior = input.priorReviewedStoryboard, diagnosis = prior.diagnosis;
+        const draft = structuredClone(prior.storyboard);
+        const pages = new Set<number>(diagnosis.findings.map((f: any) => f.key.startsWith('page:') ? Number(f.key.split(':')[1])
+          : [1, 2, 3, 4, 5, 6, 7, 8].find(n => !diagnosis.protectedPages.includes(n))!));
+        for (const n of pages) draft.plan.pages[n].composition += ' (re-planned after the diagnosis)';
+        const texts = [input.story.title, ...input.story.pages.map((p: any) => p.text)];
+        const selfCheck = fullSelfCheck(draft, texts, { diagnosis, parentDraft: prior.storyboard });
+        const strip = ({ pageNumber: _n, ...row }: any) => row;
+        const wire = { plan: { ...draft.plan, pages: draft.plan.pages.map(strip), continuity: { ...draft.plan.continuity, pages: draft.plan.continuity.pages.map(strip) } },
+          sequence: { ...draft.sequence, pages: draft.sequence.pages.map(strip) }, moments: draft.moments, selfCheck };
+        return cliReply(decodePersonalBookProviderOutput(call, wire), .43);
+      });
+      /** The held repair book, then a NEW reviewed head for the continuation (its grant pins its own head; the consumed repair grant is never re-pinned). */
+      async function heldRepairBook() {
+        const s = await heldBook(), repair = s.repairGrant();
+        expect((await runFreshBookStoryboardRepair({ ...repair, transports: textTransports({ review: heldRepairReview }) })).status).toBe('held_uncertain');
+        expect(json(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName))).toMatchObject({ status: 'held_storyboard_repair', textStatus: 'held_uncertain' });
+        s.setHead('c'.repeat(40));
+        const continuationGrant = (name = 'continuation-grant.json') => { const g = planFreshBookStoryboardContinuation(s.config, s.env, repair.grantFile).grantDraft;
+          const file = path.join(s.root, name); writeFileSync(file, JSON.stringify(g)); return { ...s.original, grantFile: file, grantSha: sha(readFileSync(file)) }; };
+        const frozenLine = () => ({ ...s.frozenAll(), repair: tree(repairDir(s)), repairGrant: sha(readFileSync(repair.grantFile)),
+          repairClaim: sha(readFileSync(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.claimName))),
+          repairOutcome: sha(readFileSync(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName))) });
+        return { ...s, repair, continuationGrant, frozenLine };
+      }
+      const transports = (review: (r: any) => any) => ({ ...textTransports({ review }), planner: continuationPlanner() });
+
+      it('positive: two historical held candidates force the diagnosis; ONE planner consumes it, ONE typed review admits with notes; successor; child and book on its line', async () => {
+        const s = await heldRepairBook(), before = s.frozenLine(), g = s.continuationGrant(), t = transports(typedReview(minorNote));
+        const planned = planFreshBookStoryboardContinuation(s.config, s.env, s.repair.grantFile);
+        expect(planned.grantDraft.recovery).toMatchObject({ attempts: 2, maxAttempts: 3, consecutiveFailures: 2, mode: 'diagnose_and_change_strategy' });
+        expect(planned.recoveryRecord.attempts.map(a => [a.line, a.disposition, a.findings.length])).toEqual([['text-recovery', 'held_uncertain', 2],
+          ['storyboard-repair', 'held_uncertain', 2]]);
+        expect(planned.recoveryRecord.attempts.map(a => a.costs)).toEqual([{ plannerClaudeMaxMicroUsd: 410000, reviewApiMicroUsd: expect.any(Number) },
+          { plannerClaudeMaxMicroUsd: 410000, reviewApiMicroUsd: expect.any(Number) }]);
+        const diagnosis = planned.diagnosisRecord.diagnosis;
+        expect(diagnosis.findings.map(f => [f.key.split(':')[0], f.trajectory])).toEqual([['book', 'repeated_check_new_detail'], ['page', 'new']]);
+        expect(diagnosis.resolved.map(f => f.key.split(':').slice(0, 2).join(':'))).toEqual(['page:7']);
+        expect([diagnosis.protectedPages, diagnosis.allowance]).toEqual([[7], { nextAttempt: 3, maxAttempts: 3, remainingAfterNext: 0 }]);
+        expect([planned.plan.providerCalls, planned.plan.keyRead, planned.state.claimExists, planned.state.folderExists]).toEqual([0, false, false, false]);
+        // Deterministic: the same saved evidence plans the same grant (a restart or repeat cannot derive another strategy or reset the count).
+        expect(planFreshBookStoryboardContinuation(s.config, s.env, s.repair.grantFile).grantDraft).toEqual(planned.grantDraft);
+        const out = await runFreshBookStoryboardContinuation({ ...g, transports: t });
+        expect(out.status).toBe('review_supported_with_notes');
+        expect([t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0, 1, 1]);
+        const dir = contDir(s);
+        expect([claims(path.join(dir, 'paid-stages')), claims(path.join(dir, 'claude-max-stages'))]).toEqual([['storyboard_review'], ['storyboard']]);
+        expect(json(path.join(dir, 'paid-stages', 'storyboard_review.claim.json')).maximumMicroUsd).toBeGreaterThanOrEqual(600000);
+        // The planner request: the diagnosis it consumes, the self-check and repair instructions, the larger self-check cap.
+        const plannerCall = vi.mocked(t.planner).mock.calls[0][1] as any, input = JSON.parse(plannerCall.input);
+        expect(input.priorReviewedStoryboard.diagnosis).toEqual(diagnosis);
+        expect(input.priorReviewedStoryboard.storyboard).toEqual(json(path.join(repairDir(s), 'owned_storyboard_draft.json')));
+        expect(plannerCall.instructions.endsWith(`\n${VISIBLE_MOMENT_STORYBOARD_ADDENDUM}\n${SELF_CHECK_STORYBOARD_ADDENDUM}\n${REPAIR_STORYBOARD_ADDENDUM}`)).toBe(true);
+        expect([plannerCall.maxOutputTokens, plannerCall.context.selfCheckContract]).toEqual([50000, true]);
+        const reviewPayload = vi.mocked(t.responses).mock.calls[0][0] as any;
+        expect(reviewPayload.instructions).toContain(STORYBOARD_REVIEW_IMPACT_ADDENDUM);
+        expect(JSON.parse(reviewPayload.input)).toMatchObject({ selfCheck: { version: 'storyboard-self-check/v1' }, reviewImpact: { version: 'storyboard-review-impact/v1' } });
+        // The durable records: the input (held draft + raw review + the repair input as ancestry), the recovery state, the diagnosis, the final state.
+        const held = json(path.join(repairDir(s), 'simple-book-result.json'));
+        expect(json(path.join(dir, 'storyboard_repair_input.json'))).toEqual({ parentStoryboardDigest: held.storyboard.storyboardDigest,
+          draft: json(path.join(repairDir(s), 'owned_storyboard_draft.json')), review: held.storyboard.rawReview,
+          parentRepair: json(path.join(repairDir(s), 'storyboard_repair_input.json')), addedContracts: ['selfCheckContract', 'reviewImpactPolicy'] });
+        expect(json(path.join(dir, 'recovery-state.json'))).toEqual(plainJson(planned.recoveryRecord));
+        expect(json(path.join(dir, 'diagnosis.json'))).toEqual(plainJson(planned.diagnosisRecord));
+        expect(json(path.join(dir, 'recovery-final.json'))).toMatchObject({ mode: 'admitted', terminal: 'admitted', consecutiveFailures: 0,
+          attempt: { attempt: 3, outcome: 'admitted', disposition: 'review_supported_with_notes', notes: [{ pageNumber: 5 }] } });
+        const admission = json(path.join(dir, 'continuation-admission.json'));
+        expect(admission.preview.wireDigest).toBe(json(path.join(dir, 'claude-max-stages', 'storyboard.claim.json')).wireDigest);
+        expect(admission.preview).toEqual(await previewFreshBookStoryboardContinuation(s.config, json(path.join(dir, 'storyboard_repair_input.json'))));
+        expect(json(path.join(dir, 'sealed.json'))).toEqual({ status: 'review_supported_with_notes', continued: { parentStoryboardDigest: held.storyboard.storyboardDigest,
+          addedContracts: ['selfCheckContract', 'reviewImpactPolicy'] }, replayed: REPLAYED, runtimeEligible: false });
+        const result = json(path.join(dir, 'simple-book-result.json'));
+        expect(result.storyboard.storyboard).toMatchObject({ selfCheck: { version: 'storyboard-self-check/v1' }, reviewImpact: 'storyboard-review-impact/v1',
+          repair: { parentStoryboardDigest: held.storyboard.storyboardDigest } });
+        expect(result.source.manuscript).toEqual(held.source.manuscript);
+        expect(json(path.join(s.authority, CONT.successorName))).toMatchObject({ grantSha256: g.grantSha, disposition: 'review_supported_with_notes', notes: 1,
+          parentStoryboardDigest: held.storyboard.storyboardDigest, recoveryStateSha256: planned.grantDraft.recovery.stateSha256 });
+        expect(out.ledger.stages.map(x => [x.name, x.calls])).toEqual([['text', 2], ['text-recovery', 2], ['storyboard-repair', 1], ['storyboard-continuation', 1],
+          ['child', 0], ['audition', 0]]);
+        expect(s.frozenLine()).toEqual(before);
+        // Once only; the earlier lines stay closed; downstream runs only on this line.
+        await expect(runFreshBookStoryboardContinuation({ ...g, transports: transports(typedReview()) })).rejects.toThrow(/fresh_book_storyboard_continuation_(used|grant)|fresh_book_roots_changed/);
+        await expect(runFreshBookStoryboardContinuation({ ...s.continuationGrant('relabelled.json'), transports: transports(typedReview()) }))
+          .rejects.toThrow('fresh_book_storyboard_continuation_used');
+        providers();
+        await expect(runFreshBookChild({ ...g, storyboardRepair: true })).rejects.toThrow('fresh_book_storyboard_repair_grant');
+        expect(existsSync(path.join(s.config.bookDir, 'child'))).toBe(false);
+        expect(await runFreshBookChild({ ...g, storyboardContinuation: true })).toMatchObject({ status: 'child_reference_passed' });
+        expect(json(path.join(s.config.bookDir, 'book-layout.json')).storyboardDir).toBe(CONT.folder);
+        const book = await runFreshBookBook({ ...g, storyboardContinuation: true });
+        expect(book.status).toBe('complete');
+        expect(book.ledger.stages.map(x => x.name)).toEqual(['text', 'text-recovery', 'storyboard-repair', 'storyboard-continuation', 'child', 'audition']);
+        // The audition grant carries the engine's page recovery rule; every page packet carries the review's bound notes.
+        const auditionGrant = json(path.join(s.config.bookDir, 'audition.grant.json'));
+        expect([auditionGrant.scope.recovery, auditionGrant.experiment.claimSha256]).toEqual(['stage-recovery/v1', sha(readFileSync(path.join(s.authority, CONT.claimName)))]);
+        expect(json(path.join(s.config.bookDir, 'audition', 'admission.json')).recovery).toBe('stage-recovery/v1');
+        expect(json(path.join(s.authority, CONT.outcomeName)).status).toBe('complete');
+        expect(s.frozenLine()).toEqual(before);
+      });
+
+      it('held again: the stage ceiling is reached (stop_allowance_exhausted); no further planner or review; no child', async () => {
+        const s = await heldRepairBook(), before = s.frozenLine(), g = s.continuationGrant();
+        const story = typedReview(r => { r.frames[4].checks[0] = { ...r.frames[4].checks[0], verdict: 'contradiction', observation: 'the causal action is omitted',
+          issues: [{ impact: 'story', ref: 'p4', note: 'the causal action is omitted', whyNotMaterial: '' }] }; });
+        const t = transports(story);
+        expect((await runFreshBookStoryboardContinuation({ ...g, transports: t })).status).toBe('held_contradiction');
+        expect([t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([1, 1]);
+        expect(json(path.join(s.authority, CONT.outcomeName))).toMatchObject({ status: 'held_storyboard_continuation', textStatus: 'held_contradiction',
+          recovery: 'stop_allowance_exhausted' });
+        expect(json(path.join(contDir(s), 'recovery-final.json'))).toMatchObject({ mode: 'stop_allowance_exhausted', remaining: 0, consecutiveFailures: 3,
+          terminal: 'stop_allowance_exhausted', attempt: { attempt: 3, outcome: 'held' } });
+        expect(existsSync(path.join(s.authority, CONT.successorName))).toBe(false);
+        const t2 = transports(typedReview());
+        await expect(runFreshBookStoryboardContinuation({ ...s.continuationGrant('again.json'), transports: t2 })).rejects.toThrow('fresh_book_storyboard_continuation_used');
+        expect([t2.planner, t2.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0]);
+        providers();
+        await expect(runFreshBookChild({ ...g, storyboardContinuation: true })).rejects.toThrow('fresh_book_stage_not_passed');
+        expect(existsSync(path.join(s.config.bookDir, 'child'))).toBe(false);
+        expect(s.frozenLine()).toEqual(before);
+      });
+
+      it('immutable lineage: a changed held repair draft/review/outcome, a repair successor, an unknown cost, a head, grant or ancestor byte refuse BEFORE the claim or any call', async () => {
+        const edit = (file: string, change: (x: any) => void) => { const x = json(file); change(x); writeFileSync(file, JSON.stringify(x)); };
+        type H = Awaited<ReturnType<typeof heldRepairBook>>;
+        const cases: Record<string, (s: H) => { grant?: ReturnType<H['continuationGrant']>; expect: RegExp }> = {
+          'held repair draft changed': s => { const g = s.continuationGrant(); edit(path.join(repairDir(s), 'owned_storyboard_draft.json'), d => { d.plan.pages[2].composition += ' x'; });
+            return { grant: g, expect: /fresh_book_storyboard_continuation_(repair|grant)/ }; },
+          'paid repair review answer changed': s => { const g = s.continuationGrant();
+            edit(path.join(repairDir(s), 'paid-stages', 'storyboard_review.receipt.json'), r => { const a = JSON.parse(r.raw.output_text);
+              const k = Object.keys(a.frames[4])[2]; a.frames[4][k].observation += ' (reworded)'; r.raw.output_text = JSON.stringify(a); });
+            return { grant: g, expect: /fresh_book_storyboard_continuation_(repair|grant)/ }; },
+          'repair outcome not held': s => { const g = s.continuationGrant(); edit(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName), o => { o.status = 'complete'; });
+            return { grant: g, expect: /fresh_book_storyboard_continuation_repair/ }; },
+          'a repair successor appeared': s => { const g = s.continuationGrant(); writeFileSync(path.join(s.authority, FRESH_BOOK_STORYBOARD_REPAIR.successorName), '{}');
+            return { grant: g, expect: /fresh_book_storyboard_continuation_repair/ }; },
+          'repair input changed': s => { const g = s.continuationGrant(); edit(path.join(repairDir(s), 'storyboard_repair_input.json'), r => { r.review.frames[7].checks[0].observation += ' x'; });
+            return { grant: g, expect: /fresh_book_storyboard_continuation_(repair|grant)/ }; },
+          'unknown cost in the repair planner record': s => { const g = s.continuationGrant();
+            edit(path.join(repairDir(s), 'claude-max-stages', 'storyboard.result.json'), r => { r.estimatedMicroUsd = null; });
+            return { grant: g, expect: /fresh_book_storyboard_continuation_unknown_cost/ }; },
+          'head moved after the grant': s => { const g = s.continuationGrant(); s.setHead('b'.repeat(40)); return { grant: g, expect: /fresh_book_storyboard_continuation_grant|fresh_book_source_changed/ }; },
+          'dirty tree': s => { const g = s.continuationGrant(); s.setClean(false); return { grant: g, expect: /fresh_book_source_changed/ }; },
+          'grant recovery digest edited': s => { const g = s.continuationGrant(); edit(g.grantFile, x => { x.recovery.diagnosisDigest = 'e'.repeat(64); });
+            return { grant: { ...g, grantSha: sha(readFileSync(g.grantFile)) }, expect: /fresh_book_storyboard_continuation_grant/ }; },
+          'grant drops a contract': s => { const g = s.continuationGrant(); edit(g.grantFile, x => { x.addedContracts = ['selfCheckContract']; });
+            return { grant: { ...g, grantSha: sha(readFileSync(g.grantFile)) }, expect: /fresh_book_storyboard_continuation_grant/ }; },
+          'consumed repair grant bytes changed': s => { const g = s.continuationGrant(); writeFileSync(s.repair.grantFile, readFileSync(s.repair.grantFile, 'utf8') + ' ');
+            return { grant: g, expect: /fresh_book_storyboard_continuation_(repair|grant)/ }; },
+          'consumed recovery grant bytes changed': s => { const g = s.continuationGrant(); writeFileSync(s.recovery.grantFile, readFileSync(s.recovery.grantFile, 'utf8') + ' ');
+            return { grant: g, expect: /fresh_book_storyboard_repair_recovery|fresh_book_storyboard_continuation_repair/ }; },
+          'original grant byte appended': s => { const g = s.continuationGrant(); writeFileSync(s.original.grantFile, Buffer.concat([readFileSync(s.original.grantFile), Buffer.from(' ')]));
+            return { grant: g, expect: /fresh_book_recovery_original/ }; },
+        };
+        for (const [name, mutate] of Object.entries(cases)) {
+          const s = await heldRepairBook(), t = transports(typedReview());
+          let c: ReturnType<typeof mutate>;
+          try { c = mutate(s); } catch (e) { throw new Error(`${name}: ${e}`); }
+          await expect(runFreshBookStoryboardContinuation({ ...c.grant!, transports: t }), name).rejects.toThrow(c.expect);
+          expect([name, existsSync(path.join(s.authority, CONT.claimName)), existsSync(contDir(s)),
+            ...[t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)]).toEqual([name, false, false, 0, 0, 0, 0]);
+        }
+        // The balance must cover the review's floor before the claim (the same F6 rule, its own code).
+        expect(() => assertReviewFloorFits({ bookKnownMicroUsd: 6_400_001, nextCapMicroUsd: 7_000_000 }, 'fresh_book_storyboard_continuation_budget'))
+          .toThrow('fresh_book_storyboard_continuation_budget');
+      });
+
+      it('a changed continuation successor (planner output, recovery record, diagnosis) refuses the child BEFORE its folder, key or render', async () => {
+        for (const kind of ['planner_output', 'recovery_state', 'diagnosis', 'recovery_final']) {
+          const s = await heldRepairBook(), g = s.continuationGrant();
+          await runFreshBookStoryboardContinuation({ ...g, transports: transports(typedReview()) });
+          const dir = contDir(s), write = (file: string, change: (x: any) => void) => { const x = json(file); change(x); writeFileSync(file, JSON.stringify(x)); };
+          if (kind === 'planner_output') write(path.join(dir, 'claude-max-stages', 'storyboard.receipt.json'), r => { r.output.plan.pages[2].composition += ' changed'; });
+          else if (kind === 'recovery_state') write(path.join(dir, 'recovery-state.json'), r => { r.consecutiveFailures = 0; });
+          else if (kind === 'diagnosis') write(path.join(dir, 'diagnosis.json'), r => { r.diagnosis.findings.pop(); });
+          else write(path.join(dir, 'recovery-final.json'), r => { r.terminal = 'stop_allowance_exhausted'; });
+          providers();
+          await expect(runFreshBookChild({ ...g, storyboardContinuation: true }), kind).rejects.toThrow('fresh_book_storyboard_continuation_successor');
+          expect([kind, vi.mocked(images.generateGPTImage).mock.calls.length, sdk.create.mock.calls.length, existsSync(path.join(s.config.bookDir, 'child'))])
+            .toEqual([kind, 0, 0, false]);
+          vi.restoreAllMocks();
+        }
+      });
+    });
   });
 });
 
@@ -689,5 +904,45 @@ describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_RECOVERY_GRANT))('t
     const config = freshBookConfig(REAL_CONFIG), env = realFreshBookEnv(), { state } = planFreshBookStoryboardRepair(config, env, REAL_RECOVERY_GRANT);
     expect([state.claimExists, state.outcomeExists, state.successorExists, state.folderExists]).toEqual([false, false, false, false]);
     expect(state.reviewFloor).toEqual({ remainingMicroUsd: 6898412, reviewFloorMicroUsd: 600000 });
+  });
+});
+
+const REAL_REPAIR_GRANT = 'C:/GNart/Work/Small_Heroes/_review/new-book-autonomous-closure-20261018/f7-original-lineage/fresh-book-storyboard-repair-grant-STAGED-9cda8e37.json';
+describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_REPAIR_GRANT))('the actual held repair: diagnosed continuation dry plan and preview (read only, no key, no provider, no write)', () => {
+  const authority = () => Object.fromEntries(readdirSync(FRESH_BOOK_CYCLE.authorityRoot).filter(n => n.includes('fresh-book-usd7'))
+    .map(n => [n, sha(readFileSync(path.join(FRESH_BOOK_CYCLE.authorityRoot, n)))]));
+  it('imports the two historical held candidates, derives the diagnosis from the saved evidence, and the ONE planner request fits every limit', async () => {
+    const config = freshBookConfig(REAL_CONFIG), env = realFreshBookEnv(), book = tree(config.bookDir), records = authority();
+    const { plan, grantDraft, continuation, recoveryRecord, diagnosisRecord } = planFreshBookStoryboardContinuation(config, env, REAL_REPAIR_GRANT);
+    // The consumed repair authority and its held candidate, exactly as the owner amendment records them.
+    expect(grantDraft.repair).toMatchObject({ grantSha256: '999accd51d1057215c890df402577ae501f04614e0e730bd6fafcc2a4ed564ef',
+      reviewReceiptSha256: 'c5a62c0fa38b753592d8f7fffbdc3310d892eadcb835f8b4beea6e15ff009046',
+      originalClaimSha256: '96ef1b42631c32f9c5158f7b2a771f09a3080b2371e2c2bf030dd6d07d1a245b' });
+    expect(grantDraft.held).toMatchObject({ sourceDigest: '455259ad42ffd0ce8c7a8bbb7009d254dddc195832243f2e45223109aa2aa6ce',
+      storyboardDigest: '4f3d55d9bc700940dd6dadefd21e55480745a5ea843948794707998483526a1c', disposition: 'held_uncertain', findings: 6 });
+    expect(grantDraft.ledger).toEqual({ diagnosticSettledMicroUsd: 128930, bookKnownMicroUsd: 155406, calls: 5 });
+    expect([plan.providerCalls, plan.keyRead, grantDraft.allowance]).toEqual([0, false, { plannerCalls: 1, apiCalls: 1, reviewReserveFloorMicroUsd: 600000 }]);
+    // The engine's recovery state: two consecutive held candidates (their own contexts and costs), diagnosis required, one attempt left.
+    expect(recoveryRecord).toMatchObject({ mode: 'diagnose_and_change_strategy', consecutiveFailures: 2, remaining: 1, maxAttempts: 3 });
+    expect(recoveryRecord.attempts.map(a => [a.line, a.storyboardDigest.slice(0, 8), a.findings.length, a.costs])).toEqual([
+      ['text-recovery', 'ffd56099', 6, { plannerClaudeMaxMicroUsd: 623664, reviewApiMicroUsd: 60226 }],
+      ['storyboard-repair', '4f3d55d9', 6, { plannerClaudeMaxMicroUsd: 501261, reviewApiMicroUsd: 53818 }]]);
+    expect(recoveryRecord.attempts[0].contextDigest).not.toBe(recoveryRecord.attempts[1].contextDigest);
+    const d = diagnosisRecord.diagnosis;
+    expect(d.findings.map(f => [f.key, f.trajectory])).toEqual([['book:manuscript_fidelity', 'repeated_check_new_detail'], ['book:continuity', 'repeated_check_new_detail'],
+      ['page:4:physical_state', 'repeated_check_new_detail'], ['page:6:physical_state', 'new'], ['page:8:moment', 'new'], ['page:8:identity_and_set', 'new']]);
+    expect(d.resolved.map(f => f.key)).toEqual(['page:3:physical_state', 'page:7:moment', 'page:7:physical_state']);
+    expect([d.protectedPages, d.allowance]).toEqual([[3, 7], { nextAttempt: 3, maxAttempts: 3, remainingAfterNext: 0 }]);
+    // A finding on a section the repair did not change is visible as such (never assumed to be reviewer randomness).
+    expect(d.findings.find(f => f.key === 'page:6:physical_state')!.changedInLatestAttempt).toEqual([]);
+    const preview = await previewFreshBookStoryboardContinuation(config, continuation);
+    expect(preview).toMatchObject({ findings: 6, resolutionsRequired: 6, protectedPages: [3, 7], outputCap: 50000, diagnosisDigest: grantDraft.recovery.diagnosisDigest });
+    expect([preview.contentBytes <= preview.contentByteLimit, preview.wireBytes <= preview.wireByteLimit, preview.argvChars <= preview.argvLimit,
+      preview.reservedMicroUsd <= preview.sessionGuardMicroUsd]).toEqual([true, true, true, true]);
+    // Legacy on real data: the consumed repair's own planner request, rebuilt by this code, is byte-identical to the one it was admitted with.
+    const repairDir = path.join(config.bookDir, FRESH_BOOK_STORYBOARD_REPAIR.folder);
+    expect(await previewFreshBookStoryboardRepair(config, JSON.parse(readFileSync(path.join(repairDir, 'storyboard_repair_input.json'), 'utf8'))))
+      .toEqual(JSON.parse(readFileSync(path.join(repairDir, 'repair-admission.json'), 'utf8')).preview);
+    expect([tree(config.bookDir), authority()]).toEqual([book, records]);
   });
 });

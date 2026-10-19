@@ -3,9 +3,10 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
-import { personalStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
+import { personalStoryboardReviewSchema, impactStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 import { momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, storyboardMomentsSchema, drawnInstantWholeBookDraftSchema,
   ownedDrawnInstantWholeBookDraftSchema, drawnInstantMomentsSchema } from './storyboard-moments';
+import { selfCheckWireSchema } from './storyboard-self-check';
 import { createPersonalStoryProvider } from './story-openai';
 import { createStoryEditorProvider } from './story-editor-openai';
 import { generationTimeoutMs, type StoryModel } from './story-config';
@@ -25,13 +26,21 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   // The drawn-instant contract extends the moments contract's frames (actorStates), so it needs that contract.
   if (call.context.drawnInstantContract !== undefined && (call.context.drawnInstantContract !== true || call.context.momentContract !== true))
     throw new BookProviderError('book_provider_context');
+  // The planner self-check binds the moments contract's frames, so it needs that contract; the typed review policy stands alone.
+  if (call.context.selfCheckContract !== undefined && (call.context.selfCheckContract !== true || call.context.momentContract !== true))
+    throw new BookProviderError('book_provider_context');
+  if (call.context.reviewImpactPolicy !== undefined && call.context.reviewImpactPolicy !== true) throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');
+  // Opt-in self-check: one self-check frame per page (cover first), beside the moments, on its bound-free wire shape (the engine compiler
+  // validates the decoded selfCheck with its bounded schema). Statically the draft shape: the decoder keeps every field it parsed.
+  const withSelfCheck = <T extends z.AnyZodObject>(schema: T): T => (call.context.selfCheckContract
+    ? schema.extend({ selfCheck: selfCheckWireSchema(count + 1) }) : schema) as T;
   if (call.stage === 'storyboard' && call.context.momentContract && call.context.drawnInstantContract) {
     // Opt-in drawn-instant contract: exactly the moments shape below, with actorStates in every depicted instant.
     const draft = call.context.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema;
-    return draft.extend({
+    return withSelfCheck(draft.extend({
       plan: draft.shape.plan.extend({
         pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
         continuity: draft.shape.plan.shape.continuity.extend({
@@ -42,12 +51,12 @@ export function personalBookProviderSchema(call: BookVisualCall) {
         pages: z.array(draft.shape.sequence.shape.pages.element.omit({ pageNumber: true })).length(count),
       }),
       moments: drawnInstantMomentsSchema.extend({ frames: z.array(drawnInstantMomentsSchema.shape.frames.element).length(count + 1) }),
-    });
+    }));
   }
   if (call.stage === 'storyboard' && call.context.momentContract) {
     // Opt-in moments contract: same page-order metadata removal, plus one moments frame per page (cover first).
     const draft = call.context.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema;
-    return draft.extend({
+    return withSelfCheck(draft.extend({
       plan: draft.shape.plan.extend({
         pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
         continuity: draft.shape.plan.shape.continuity.extend({
@@ -58,7 +67,7 @@ export function personalBookProviderSchema(call: BookVisualCall) {
         pages: z.array(draft.shape.sequence.shape.pages.element.omit({ pageNumber: true })).length(count),
       }),
       moments: storyboardMomentsSchema.extend({ frames: z.array(storyboardMomentsSchema.shape.frames.element).length(count + 1) }),
-    });
+    }));
   }
   if (call.stage === 'storyboard') {
     const draft = call.context.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema;
@@ -74,7 +83,9 @@ export function personalBookProviderSchema(call: BookVisualCall) {
       }),
     });
   }
-  const item = personalStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true });
+  // Under the typed review policy every check item also carries its issues; otherwise the exact existing item.
+  const item = call.context.reviewImpactPolicy ? impactStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true })
+    : personalStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true });
   const group = (names: readonly string[]) => z.object(Object.fromEntries(names.map(name => [name, item]))).strict();
   return z.object({ bookChecks: group(STORYBOARD_BOOK_CHECKS),
     frames: z.array(group(STORYBOARD_FRAME_CHECKS)).length(count + 1) }).strict();
@@ -100,7 +111,7 @@ export function decodePersonalBookProviderOutput(call: BookVisualCall, raw: unkn
 /** Exact existing SDK wire, shared with the explicit local receipt-recording caller. */
 export function personalBookProviderPayload(call: BookVisualCall, model: StoryModel) {
     const schema = personalBookProviderSchema(call);
-    const limits = personalBookOutputLimits(call.context.narrativeSpreads);
+    const limits = personalBookOutputLimits(call.context.narrativeSpreads, call.context.selfCheckContract ? { selfCheck: true } : undefined);
     const expectedTokens = call.stage === 'storyboard' ? limits.storyboardOutputTokens : limits.reviewOutputTokens;
     if (call.maxOutputTokens !== expectedTokens) throw new BookProviderError('book_provider_context');
     const payload = { model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },

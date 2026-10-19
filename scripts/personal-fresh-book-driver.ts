@@ -20,6 +20,12 @@
  *   ... --config <abs json> storyboard-repair-preview --recovery-grant <abs consumed recovery grant.json> (dry: the planner request, measured)
  *   ... --config <abs json> storyboard-repair --execute --grant <abs repair grant> --grant-sha <sha256>
  *   ... --config <abs json> <child|book> --storyboard-repair --execute --grant <abs repair grant> --grant-sha <sha256> [--resume]
+ * The ONE diagnosed storyboard continuation (owner amendment 2026-10-19), after the repair's held_storyboard_repair record (the stage's second
+ * consecutive held candidate: the engine's recovery state requires its diagnosis and a changed strategy):
+ *   ... --config <abs json> storyboard-continuation-plan --repair-grant <abs consumed repair grant.json>     (dry: plan + continuation grant draft)
+ *   ... --config <abs json> storyboard-continuation-preview --repair-grant <abs consumed repair grant.json>  (dry: recovery state, diagnosis, the measured request)
+ *   ... --config <abs json> storyboard-continuation --execute --grant <abs continuation grant> --grant-sha <sha256>
+ *   ... --config <abs json> <child|book> --storyboard-continuation --execute --grant <abs continuation grant> --grant-sha <sha256> [--resume]
  */
 import path from 'node:path';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, writeFileSync } from 'node:fs';
@@ -58,10 +64,16 @@ import { FRESH_BOOK_CYCLE, FreshBookError, freshBookProfileSchema, freshBookProf
   freshBookCycleLedger, claimFreshBook, assertFreshBookPaid, freshBookReadingOrder, type FreshBookEnv, type FreshBookProfile, type FreshBookGrant, type FreshBookStage,
   type PageGate, FRESH_BOOK_RECOVERY, freshBookRecoveryGrantSchema, claimFreshBookRecovery, assertFreshBookRecoveryPaid, type FreshBookRecoveryGrant,
   FRESH_BOOK_STORYBOARD_REPAIR, freshBookStoryboardRepairGrantSchema, claimFreshBookStoryboardRepair, assertFreshBookStoryboardRepairPaid,
-  type FreshBookStoryboardRepairGrant } from './personal-fresh-book-authority';
+  type FreshBookStoryboardRepairGrant, FRESH_BOOK_STORYBOARD_CONTINUATION, freshBookStoryboardContinuationGrantSchema, claimFreshBookStoryboardContinuation,
+  assertFreshBookStoryboardContinuationPaid, type FreshBookStoryboardContinuationGrant } from './personal-fresh-book-authority';
 import { prepareSourceCitationCorrection, applySourceCitationCorrection, restoreSourceCitationReview } from '../lib/personal-wizard/story-source-citations';
-import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, personalStoryboardReviewInput } from '../lib/personal-wizard/storyboard';
+import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, personalStoryboardReviewInput,
+  storyboardRecovery } from '../lib/personal-wizard/storyboard';
 import { storyboardRepairFindings, type StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
+import { recoveryState, STAGE_RECOVERY_VERSION } from '../lib/personal-wizard/stage-recovery';
+import { chainAttempts, diagnosisDigest, STORYBOARD_MAX_ATTEMPTS, STORYBOARD_DIAGNOSIS_VERSION } from '../lib/personal-wizard/storyboard-diagnosis';
+import { STORYBOARD_SELF_CHECK_VERSION } from '../lib/personal-wizard/storyboard-self-check';
+import { STORYBOARD_REVIEW_IMPACT_VERSION } from '../lib/personal-wizard/storyboard-review-impact';
 import { STORYBOARD_REPAIR_INPUT_FILE } from './personal-simple-book-reviewed-audition';
 import type { CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
 
@@ -120,14 +132,21 @@ export const flooredReviewRule = (rule: NonNullable<ReturnType<MeterRules>>): No
   reserve: wire => { const derived = rule.reserve(wire); return derived === null ? null : Math.max(REVIEW_RESERVE_FLOOR_MICRO_USD, derived); } });
 /** The storyboard repair's API meter: its one Sol storyboard review, under the floored rule. Anything else is refused by the meter. */
 export const STORYBOARD_REPAIR_RULES: MeterRules = step => step === 'storyboard_review' ? flooredReviewRule(TEXT_RULES(step)!) : undefined;
-/** Which ledger a line keeps: the original stages, the recovery's (after the failed text), or the storyboard repair's (after the held recovery). */
-type LedgerLine = false | true | 'storyboard_repair';
+/** The diagnosed continuation's API meter: its one Sol storyboard review, under the same floored rule (claim, journal and replay alike). */
+export const STORYBOARD_CONTINUATION_RULES: MeterRules = STORYBOARD_REPAIR_RULES;
+/**
+ * Which ledger a line keeps: the original stages, the recovery's (after the failed text), the storyboard repair's (after the held recovery), or
+ * the diagnosed continuation's (after the held repair).
+ */
+type LedgerLine = false | true | 'storyboard_repair' | 'storyboard_continuation';
 /** The book's stages in ledger order (each folder re-derived under its own rules); each later line adds its own folder after the earlier ones. */
 const bookStages = (bookDir: string, recovery: LedgerLine = false): FreshBookStage[] => [
   { name: 'text', dir: path.join(bookDir, 'text'), rules: TEXT_RULES, maxCalls: TEXT_API_CALLS },
   ...(recovery ? [{ name: FRESH_BOOK_RECOVERY.folder, dir: path.join(bookDir, FRESH_BOOK_RECOVERY.folder), rules: RECOVERY_RULES, maxCalls: FRESH_BOOK_RECOVERY.apiCalls }] : []),
-  ...(recovery === 'storyboard_repair' ? [{ name: FRESH_BOOK_STORYBOARD_REPAIR.folder, dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_REPAIR.folder),
-    rules: STORYBOARD_REPAIR_RULES, maxCalls: FRESH_BOOK_STORYBOARD_REPAIR.apiCalls }] : []),
+  ...(recovery === 'storyboard_repair' || recovery === 'storyboard_continuation' ? [{ name: FRESH_BOOK_STORYBOARD_REPAIR.folder,
+    dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_REPAIR.folder), rules: STORYBOARD_REPAIR_RULES, maxCalls: FRESH_BOOK_STORYBOARD_REPAIR.apiCalls }] : []),
+  ...(recovery === 'storyboard_continuation' ? [{ name: FRESH_BOOK_STORYBOARD_CONTINUATION.folder, dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_CONTINUATION.folder),
+    rules: STORYBOARD_CONTINUATION_RULES, maxCalls: FRESH_BOOK_STORYBOARD_CONTINUATION.apiCalls }] : []),
   { name: 'child', dir: path.join(bookDir, 'child'), rules: CHILD_RULES, maxCalls: CHILD_API_CALLS },
   { name: 'audition', dir: path.join(bookDir, 'audition'), rules: auditionMeterRules, maxCalls: AUDITION_WORST_CASE_CALLS }];
 
@@ -146,6 +165,10 @@ export const FRESH_BOOK_RECOVERY_PINNED = Object.freeze([...FRESH_BOOK_PINNED, '
 /** Storyboard-repair-line grants also pin the repair and visible-moment contracts, the storyboard diagnostic and the provider decoder. */
 export const FRESH_BOOK_STORYBOARD_REPAIR_PINNED = Object.freeze([...FRESH_BOOK_RECOVERY_PINNED, 'lib/personal-wizard/storyboard-repair.ts',
   'lib/personal-wizard/storyboard-visible-moment.ts', 'lib/personal-wizard/simple-storyboard-diagnostic.ts', 'lib/personal-wizard/book-openai.ts']);
+/** Continuation-line grants also pin the reusable recovery reducer, the diagnosis, the self-check, the typed materiality and the output caps. */
+export const FRESH_BOOK_STORYBOARD_CONTINUATION_PINNED = Object.freeze([...FRESH_BOOK_STORYBOARD_REPAIR_PINNED, 'lib/personal-wizard/stage-recovery.ts',
+  'lib/personal-wizard/storyboard-diagnosis.ts', 'lib/personal-wizard/storyboard-self-check.ts', 'lib/personal-wizard/storyboard-review-impact.ts',
+  'lib/personal-wizard/review-impact.ts', 'lib/personal-wizard/storyboard-moments.ts', 'lib/personal-wizard/book-config.ts']);
 
 export const realFreshBookEnv = (): FreshBookEnv => {
   const git = (...a: string[]) => execFileSync('git', ['-C', workspace(), ...a], { encoding: 'utf8' }).trim();
@@ -215,7 +238,8 @@ function rootsOf(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewC
   for (const name of [...names, FRESH_BOOK_CYCLE.claimName, FRESH_BOOK_CYCLE.outcomeName, path.basename(auditionStartFile(env)),
     FRESH_BOOK_RECOVERY.claimName, FRESH_BOOK_RECOVERY.outcomeName, FRESH_BOOK_RECOVERY.auditionStartName, FRESH_BOOK_RECOVERY.successorName,
     FRESH_BOOK_STORYBOARD_REPAIR.claimName, FRESH_BOOK_STORYBOARD_REPAIR.outcomeName, FRESH_BOOK_STORYBOARD_REPAIR.auditionStartName,
-    FRESH_BOOK_STORYBOARD_REPAIR.successorName]) {
+    FRESH_BOOK_STORYBOARD_REPAIR.successorName, FRESH_BOOK_STORYBOARD_CONTINUATION.claimName, FRESH_BOOK_STORYBOARD_CONTINUATION.outcomeName,
+    FRESH_BOOK_STORYBOARD_CONTINUATION.auditionStartName, FRESH_BOOK_STORYBOARD_CONTINUATION.successorName]) {
     const file = path.join(env.authorityRoot, name); out[`authority/${name}`] = existsSync(file) ? previewSha(fileBytes(file)) : 'absent';
   }
   for (const [rel, d] of Object.entries(folderBaseline(rereview.diagnosticOutput))) out[`diagnostic/${rel}`] = d;
@@ -428,11 +452,12 @@ function verifyRecoverySuccessor(a: { config: FreshBookConfig; env: FreshBookEnv
 }
 
 /**
- * Which authority a downstream stage runs under: the original line; the recovery line (its successor text, its own claim and outcome); or
- * the storyboard-repair line (its repaired storyboard of the recovery's held one, its own claim and outcome).
+ * Which authority a downstream stage runs under: the original line; the recovery line (its successor text, its own claim and outcome); the
+ * storyboard-repair line (its repaired storyboard of the recovery's held one, its own claim and outcome); or the diagnosed continuation line
+ * (its storyboard continuing the repair's held one, its own claim and outcome).
  */
-type Line = { kind: 'original' | 'recovery' | 'storyboard_repair'; recovery: boolean; ledger: LedgerLine; storyboardDir: string; claimName: string;
-  outcomeName: string; auditionStart: (env: FreshBookEnv) => string };
+type Line = { kind: 'original' | 'recovery' | 'storyboard_repair' | 'storyboard_continuation'; recovery: boolean; ledger: LedgerLine; storyboardDir: string;
+  claimName: string; outcomeName: string; auditionStart: (env: FreshBookEnv) => string };
 const ORIGINAL_LINE: Line = { kind: 'original', recovery: false, ledger: false, storyboardDir: 'text', claimName: FRESH_BOOK_CYCLE.claimName,
   outcomeName: FRESH_BOOK_CYCLE.outcomeName, auditionStart: env => auditionStartFile(env) };
 const RECOVERY_LINE: Line = { kind: 'recovery', recovery: true, ledger: true, storyboardDir: FRESH_BOOK_RECOVERY.folder, claimName: FRESH_BOOK_RECOVERY.claimName,
@@ -440,9 +465,15 @@ const RECOVERY_LINE: Line = { kind: 'recovery', recovery: true, ledger: true, st
 const STORYBOARD_REPAIR_LINE: Line = { kind: 'storyboard_repair', recovery: true, ledger: 'storyboard_repair', storyboardDir: FRESH_BOOK_STORYBOARD_REPAIR.folder,
   claimName: FRESH_BOOK_STORYBOARD_REPAIR.claimName, outcomeName: FRESH_BOOK_STORYBOARD_REPAIR.outcomeName,
   auditionStart: env => path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_REPAIR.auditionStartName) };
-const lineOf = (recovery?: true, storyboardRepair?: true) => storyboardRepair ? STORYBOARD_REPAIR_LINE : recovery ? RECOVERY_LINE : ORIGINAL_LINE;
+const STORYBOARD_CONTINUATION_LINE: Line = { kind: 'storyboard_continuation', recovery: true, ledger: 'storyboard_continuation',
+  storyboardDir: FRESH_BOOK_STORYBOARD_CONTINUATION.folder, claimName: FRESH_BOOK_STORYBOARD_CONTINUATION.claimName,
+  outcomeName: FRESH_BOOK_STORYBOARD_CONTINUATION.outcomeName, auditionStart: env => path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_CONTINUATION.auditionStartName) };
+const lineOf = (recovery?: true, storyboardRepair?: true, storyboardContinuation?: true) => storyboardContinuation ? STORYBOARD_CONTINUATION_LINE
+  : storyboardRepair ? STORYBOARD_REPAIR_LINE : recovery ? RECOVERY_LINE : ORIGINAL_LINE;
 const admitLine = (args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal }, line: Line, earlier: string[]) =>
-  line.kind === 'storyboard_repair' ? admitStoryboardRepair({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder] })
+  line.kind === 'storyboard_continuation' ? admitStoryboardContinuation({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder,
+    FRESH_BOOK_STORYBOARD_CONTINUATION.folder] })
+    : line.kind === 'storyboard_repair' ? admitStoryboardRepair({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder] })
     : line.recovery ? admitRecovery({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder] }) : admitStage({ ...args, earlier });
 /**
  * The text a downstream stage may stand on: the original line's supported text with no terminal outcome; or, on the recovery line, the
@@ -455,6 +486,15 @@ async function linePassed(a: { config: FreshBookConfig; env: FreshBookEnv; grant
   admitted: Awaited<ReturnType<typeof admitLine>>) {
   const { config, env } = a, text = path.join(config.bookDir, 'text');
   if (line.kind === 'original') return sealedStatus(text) === 'review_supported' && !existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName));
+  if (line.kind === 'storyboard_continuation') {
+    const at = (name: string) => existsSync(path.join(env.authorityRoot, name));
+    if (sealedStatus(text) !== 'failed' || !at(FRESH_BOOK_RECOVERY.outcomeName) || at(FRESH_BOOK_RECOVERY.successorName) ||
+        !at(FRESH_BOOK_STORYBOARD_REPAIR.outcomeName) || at(FRESH_BOOK_STORYBOARD_REPAIR.successorName) ||
+        !at(FRESH_BOOK_STORYBOARD_CONTINUATION.claimName) || at(FRESH_BOOK_STORYBOARD_CONTINUATION.outcomeName)) return false;
+    if (!('continuation' in admitted)) return fail('fresh_book_storyboard_continuation_grant');
+    await verifyStoryboardContinuationSuccessor({ config, env, grantSha: a.grantSha, admitted });
+    return true;
+  }
   if (line.kind === 'storyboard_repair') {
     if (sealedStatus(text) !== 'failed' || !existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName)) ||
         existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.successorName)) ||
@@ -466,7 +506,7 @@ async function linePassed(a: { config: FreshBookConfig; env: FreshBookEnv; grant
   }
   if (sealedStatus(text) !== 'failed' || !existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName)) ||
       existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName))) return false;
-  if (!('grant' in admitted) || 'repair' in admitted) return fail('fresh_book_recovery_grant');
+  if (!('grant' in admitted) || 'repair' in admitted || 'continuation' in admitted) return fail('fresh_book_recovery_grant');
   verifyRecoverySuccessor({ config, env, grant: admitted.grant as FreshBookRecoveryGrant, grantSha: a.grantSha, requestId: admitted.planned.prepared.accepted.requestId,
     rereviewOutcome: admitted.outcome });
   return true;
@@ -746,9 +786,16 @@ const sortedSame = (x: readonly string[], y: readonly string[]) => sameJson([...
 /** The saved calls the repair's paid run consumes: the failed text's author, editor and readings, and the recovery's one citation correction. */
 const REPAIR_REPLAYED = Object.freeze(['text/claude-max-stages/author', 'text/claude-max-stages/editor', 'text/paid-stages/final_review',
   'text/paid-stages/comparison', `${FRESH_BOOK_RECOVERY.folder}/paid-stages/citation_correction`]);
-/** A re-derivation also consumes the repair's own two calls: its planner session and its review. */
-const REPAIR_OWN_CALLS = Object.freeze([`${FRESH_BOOK_STORYBOARD_REPAIR.folder}/claude-max-stages/storyboard`,
-  `${FRESH_BOOK_STORYBOARD_REPAIR.folder}/paid-stages/storyboard_review`]);
+/**
+ * One storyboard re-plan line's own shape on the shared flow: its folder, the contracts it adds over the repair's (the repair: none) and its
+ * review meter rule. A re-derivation also consumes the line's own two calls: its planner session and its review.
+ */
+type ReplanSpec = { folder: string; contracts: { selfCheckContract?: true; reviewImpactPolicy?: true }; rules: MeterRules };
+const REPAIR_SPEC: ReplanSpec = Object.freeze({ folder: FRESH_BOOK_STORYBOARD_REPAIR.folder, contracts: {}, rules: STORYBOARD_REPAIR_RULES });
+const CONTINUATION_SPEC: ReplanSpec = Object.freeze({ folder: FRESH_BOOK_STORYBOARD_CONTINUATION.folder,
+  contracts: { selfCheckContract: true as const, reviewImpactPolicy: true as const }, rules: STORYBOARD_CONTINUATION_RULES });
+const ownCalls = (spec: ReplanSpec) => Object.freeze([`${spec.folder}/claude-max-stages/storyboard`, `${spec.folder}/paid-stages/storyboard_review`]);
+const REPAIR_OWN_CALLS = ownCalls(REPAIR_SPEC);
 
 /**
  * The consumed recovery and the held storyboard the repair stands on, re-read exactly: the recovery grant its claim names, that claim (naming
@@ -827,8 +874,8 @@ function recoveryHeld(config: FreshBookConfig, env: FreshBookEnv, rereview: Rere
  * F6 at the repair's admission: the cumulative ledger must leave at least the review's floor (the least its max(floor, bound) reservation can
  * be) before the one claim is written; the meter then refuses the derived maximum itself before the key or provider is touched.
  */
-export function assertReviewFloorFits(ledger: { bookKnownMicroUsd: number; nextCapMicroUsd: number }) {
-  if (ledger.bookKnownMicroUsd + REVIEW_RESERVE_FLOOR_MICRO_USD > ledger.nextCapMicroUsd) fail('fresh_book_storyboard_repair_budget');
+export function assertReviewFloorFits(ledger: { bookKnownMicroUsd: number; nextCapMicroUsd: number }, code = 'fresh_book_storyboard_repair_budget') {
+  if (ledger.bookKnownMicroUsd + REVIEW_RESERVE_FLOOR_MICRO_USD > ledger.nextCapMicroUsd) fail(code);
   return { remainingMicroUsd: ledger.nextCapMicroUsd - ledger.bookKnownMicroUsd, reviewFloorMicroUsd: REVIEW_RESERVE_FLOOR_MICRO_USD };
 }
 
@@ -926,11 +973,11 @@ type RepairLive = { dir: string; api: AuditionMeter; claudeMax: SimpleBookBudget
  * Every saved call is consumed exactly once, in `seen`'s order.
  */
 async function storyboardRepairFlow(a: { config: FreshBookConfig; repair: StoryboardRepair; signal: AbortSignal; log: (line: string) => void; seen: string[];
-  live?: RepairLive; replayDir?: string; preview?: (wire: PlannerWire, call: SimpleStoryboardDiagnosticCall) => never }) {
+  live?: RepairLive; replayDir?: string; preview?: (wire: PlannerWire, call: SimpleStoryboardDiagnosticCall) => never; spec?: ReplanSpec }) {
   if ([a.live, a.replayDir, a.preview].filter(m => m !== undefined).length !== 1) fail('fresh_book_storyboard_repair_replay');
-  const { config, seen } = a, { prepared, options, profile } = loadProfile(config);
+  const { config, seen } = a, { prepared, options, profile } = loadProfile(config), spec = a.spec ?? REPAIR_SPEC;
   const textDir = path.join(config.bookDir, 'text'), recoveryDir = path.join(config.bookDir, FRESH_BOOK_RECOVERY.folder);
-  const repairDir = a.live?.dir ?? a.replayDir ?? path.join(config.bookDir, FRESH_BOOK_STORYBOARD_REPAIR.folder);
+  const repairDir = a.live?.dir ?? a.replayDir ?? path.join(config.bookDir, spec.folder);
   const original: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256, workspace: path.join(textDir, 'cli-workspace'),
     maxWireBytes: 104000, rates: { opus: RATES.opus, astra: RATES.sol }, openAIReviewModel: SOL };
   const recoveryPolicy: WirePolicy = { ...original, workspace: path.join(recoveryDir, 'cli-workspace') };
@@ -953,7 +1000,7 @@ async function storyboardRepairFlow(a: { config: FreshBookConfig; repair: Storyb
   let corrections = 0;
   const visual = a.live
     ? storyboardVisual({ textDir: a.live.dir, policy: repairPolicy, claudeMax: a.live.claudeMax, api: a.live.api, responses: a.live.responses, planner: a.live.planner,
-      reviewRule: STORYBOARD_REPAIR_RULES('storyboard_review')!, guard: a.live.guard, record: a.live.record, draft: a.live.draft })
+      reviewRule: spec.rules('storyboard_review')!, guard: a.live.guard, record: a.live.record, draft: a.live.draft })
     : async (call: SimpleStoryboardDiagnosticCall) => {
       if (call.stage === 'storyboard') {
         const instructionFile = path.join(repairDir, 'storyboard-instructions.txt');
@@ -967,7 +1014,7 @@ async function storyboardRepairFlow(a: { config: FreshBookConfig; repair: Storyb
       return decodePersonalBookProviderOutput(call, JSON.parse(receipt.raw.output_text));
     };
   const result = await runSimpleWizardBook({ request: prepared.accepted.canonical, options, seed: profile.seed, signal: a.signal, reservedWritingUsd: 4,
-    ...FRESH_BOOK_CONTRACTS, visibleMomentContract: true, storyboardRepair: a.repair, publish: view => a.log(`phase ${view.phase}`),
+    ...FRESH_BOOK_CONTRACTS, visibleMomentContract: true, ...spec.contracts, storyboardRepair: a.repair, publish: view => a.log(`phase ${view.phase}`),
     opus: async call => guarded(() => {
       // The saved instruction file is the request's own: its bytes must be this call's instructions (it is never rewritten).
       const instructionFile = path.join(textDir, `${call.stage}-instructions.txt`);
@@ -996,7 +1043,7 @@ async function storyboardRepairFlow(a: { config: FreshBookConfig; repair: Storyb
       return applied.corrected;
     }),
     visual });
-  if (!sortedSame(seen, [...REPAIR_REPLAYED, ...(a.live ? [] : REPAIR_OWN_CALLS)])) refuse();
+  if (!sortedSame(seen, [...REPAIR_REPLAYED, ...(a.live ? [] : ownCalls(spec))])) refuse();
   return result;
 }
 
@@ -1145,6 +1192,423 @@ async function verifyStoryboardRepairSuccessor(a: { config: FreshBookConfig; env
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// The ONE diagnosed storyboard continuation (owner 2026-10-19): the first repair's held storyboard (the stage's second consecutive held
+// candidate) continued as a bound successor, with the engine's own recovery state and diagnosis, under the self-check and typed review policy.
+// ---------------------------------------------------------------------------------------------------------------
+const CONT = FRESH_BOOK_STORYBOARD_CONTINUATION;
+/** The continuation folder's durable recovery records (both re-derived by every later entry, never trusted as written). */
+export const CONTINUATION_RECOVERY_STATE_FILE = 'recovery-state.json';
+export const CONTINUATION_DIAGNOSIS_FILE = 'diagnosis.json';
+export const CONTINUATION_RECOVERY_FINAL_FILE = 'recovery-final.json';
+const admittedContinuation = (status: unknown) => (CONT.admittedStatuses as readonly unknown[]).includes(status);
+
+/**
+ * The consumed first repair and the held storyboard the continuation stands on, re-read exactly: the repair grant its claim names (naming the
+ * recovery and original claims, at the repair grant's own head); the WHOLE recovery and original authority that grant consumed, re-derived by
+ * the repair line's own verifier (recoveryHeld) and equal to what it recorded; its terminal held_storyboard_repair record; its folder sealed
+ * held (the repaired parent, the five replays) with no successor; its admission and its saved repair input (exactly the re-derived one); its
+ * meters (one floored review, one planner session); and its held storyboard re-derived: the saved draft recompiled under the repair's own
+ * contracts from its own saved source and repair input to its saved book, its raw review re-judged to that held disposition, both its own
+ * PAID answers. The ledger it stands on is the stages before it. The continuation input is that draft and raw review with the repair's own
+ * input as parentRepair ancestry, adding the planner self-check and the typed review materiality contracts.
+ */
+function repairHeld(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, loaded: ReturnType<typeof loadProfile>, repairGrantFile: string) {
+  const { profile, prepared, options } = loaded, refuse = (): never => fail('fresh_book_storyboard_continuation_repair');
+  if (!path.isAbsolute(repairGrantFile)) refuse();
+  const at = (name: string) => path.join(env.authorityRoot, name), dir = path.join(config.bookDir, FRESH_BOOK_STORYBOARD_REPAIR.folder);
+  const files = { grant: repairGrantFile, claim: at(FRESH_BOOK_STORYBOARD_REPAIR.claimName), outcome: at(FRESH_BOOK_STORYBOARD_REPAIR.outcomeName),
+    seal: path.join(dir, 'sealed.json'), recoveryClaim: at(FRESH_BOOK_RECOVERY.claimName), originalClaim: at(FRESH_BOOK_CYCLE.claimName),
+    reviewReceipt: path.join(dir, 'paid-stages', 'storyboard_review.receipt.json') };
+  if (Object.values(files).some(f => !existsSync(f)) || existsSync(at(FRESH_BOOK_STORYBOARD_REPAIR.successorName))) refuse();
+  const digest = Object.fromEntries(Object.entries(files).map(([k, f]) => [k, previewSha(fileBytes(f))])) as Record<keyof typeof files, string>;
+  const parsed = freshBookStoryboardRepairGrantSchema.safeParse(json(files.grant));
+  if (!parsed.success) return refuse();
+  const grant = parsed.data, claim = json(files.claim), outcome = json(files.outcome), seal = json(files.seal);
+  const sameDir = (p: unknown) => typeof p === 'string' && path.resolve(p).toLowerCase() === path.resolve(config.bookDir).toLowerCase();
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.storyboardRepair !== FRESH_BOOK_STORYBOARD_REPAIR.version || claim.grantSha256 !== digest.grant ||
+      claim.recoveryClaimSha256 !== digest.recoveryClaim || grant.recovery.claimSha256 !== digest.recoveryClaim ||
+      claim.originalClaimSha256 !== digest.originalClaim || grant.recovery.originalClaimSha256 !== digest.originalClaim || claim.engineHead !== grant.engine.head ||
+      !sameDir(claim.bookDir) || !sameDir(grant.bookDir) || grant.profileSha256 !== freshBookProfileSha(profile) || claim.profileSha256 !== grant.profileSha256) refuse();
+  // The whole earlier authority the repair consumed, re-derived by the repair line's own verifier, must be exactly what its grant recorded.
+  let lineage: ReturnType<typeof recoveryHeld>;
+  try { lineage = recoveryHeld(config, env, rereview, loaded, grant.recovery.grantFile); }
+  catch (error) { if (error instanceof FreshBookError) throw error; return refuse(); }
+  if (!sameJson(lineage.recovery, grant.recovery) || !sameJson(lineage.held, grant.held) || !sameJson(lineage.ledger, grant.ledger)) refuse();
+  if (outcome.cycle !== FRESH_BOOK_CYCLE.id || outcome.status !== CONT.heldOutcome || !(CONT.heldStatuses as readonly string[]).includes(outcome.textStatus)) refuse();
+  if (!sameJson(Object.keys(seal).sort(), ['repaired', 'replayed', 'runtimeEligible', 'status']) || seal.status !== outcome.textStatus || seal.runtimeEligible !== false ||
+      !sameJson(seal.repaired, { parentStoryboardDigest: grant.held.storyboardDigest, addedContracts: [...FRESH_BOOK_STORYBOARD_REPAIR.addedContracts] }) ||
+      !Array.isArray(seal.replayed) || !sortedSame(seal.replayed, REPAIR_REPLAYED)) refuse();
+  const admission = json(path.join(dir, 'repair-admission.json'));
+  if (!sameJson(Object.keys(admission).sort(), ['grantSha256', 'held', 'ledger', 'preview', 'recovery', 'rereviewOutcome', 'version']) ||
+      admission.version !== FRESH_BOOK_STORYBOARD_REPAIR.version || admission.grantSha256 !== digest.grant || !sameJson(admission.recovery, grant.recovery) ||
+      !sameJson(admission.held, grant.held)) refuse();
+  const repairInput = json(path.join(dir, STORYBOARD_REPAIR_INPUT_FILE)) as StoryboardRepair;
+  if (!sameJson(repairInput, plainJson(lineage.repair))) refuse();
+  const result = json(path.join(dir, 'simple-book-result.json')), draft = json(path.join(dir, 'owned_storyboard_draft.json'));
+  if (!sameJson(json(path.join(dir, 'visual_simple_book_result.json')), result) || result.status !== outcome.textStatus || result.storyboard?.status !== result.status) refuse();
+  let book: ReturnType<typeof compilePersonalStoryboard>, decision: ReturnType<typeof storyboardReviewDisposition>;
+  try {
+    const c = FRESH_BOOK_CONTRACTS;
+    book = compilePersonalStoryboard(prepareCurrentPersonalStoryboard(prepared.accepted.canonical, result.source, options, c.actorOwnedAppearance, c.momentContract,
+      c.landmarkKindContract, undefined, c.sceneLocationContract, c.compilerRulesContract, repairInput, c.drawnInstantContract, true), structuredClone(draft));
+    decision = storyboardReviewDisposition(book, result.storyboard.rawReview);
+  } catch { return refuse(); }
+  if (book.storyboardDigest !== result.storyboard.storyboardDigest || !sameJson(plainJson(book), result.storyboard.storyboard) || decision.disposition !== result.status) refuse();
+  // The held draft and raw review are the repair's own PAID answers: its planner session's settled output, and its review's settled answer
+  // decoded for this held book, whose paid request was exactly this book's review input.
+  const settled = (folder: 'claude-max-stages' | 'paid-stages', step: string) => {
+    const file = (k: string) => path.join(dir, folder, `${step}.${k}.json`);
+    if (!['claim', 'wire', 'result', 'receipt'].every(k => existsSync(file(k)))) return refuse();
+    const c = json(file('claim')), wire = json(file('wire')), done = json(file('result'));
+    if (c.step !== step || previewSha(canonicalJson(wire)) !== c.wireDigest || done.wireDigest !== c.wireDigest || done.completed !== true) refuse();
+    return { wire, receipt: json(file('receipt')) };
+  };
+  const planner = settled('claude-max-stages', 'storyboard'), reviewed = settled('paid-stages', 'storyboard_review');
+  const reviewCall = { stage: 'review', instructions: '', input: '', maxOutputTokens: 0, context: { narrativeSpreads: book.narrativeSpreads,
+    sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest, actorOwnedAppearance: true, landmarkKindContract: true } } as unknown as SimpleStoryboardDiagnosticCall;
+  let paidReview: unknown;
+  try { paidReview = decodePersonalBookProviderOutput(reviewCall, JSON.parse(reviewed.receipt.raw.output_text)); } catch { return refuse(); }
+  if (!sameJson(draft, planner.receipt.output) || reviewed.wire.input !== canonicalJson(personalStoryboardReviewInput(book)) ||
+      !sameJson(paidReview, result.storyboard.rawReview)) refuse();
+  // Its meters' own records: exactly the one floored review and the one planner session.
+  const meter = verifyMeterRecords(path.join(dir, 'paid-stages'), STORYBOARD_REPAIR_RULES);
+  if (meter.length !== 1 || meter[0].claim.step !== 'storyboard_review' || meter[0].result?.completed !== true ||
+      !sameJson(readdirSync(path.join(dir, 'claude-max-stages')).filter(n => n.endsWith('.claim.json')), ['storyboard.claim.json'])) refuse();
+  const before = freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir, 'storyboard_repair').slice(0, 3) });
+  const continuation: StoryboardRepair = { parentStoryboardDigest: book.storyboardDigest, draft, review: result.storyboard.rawReview, parentRepair: repairInput,
+    addedContracts: [...CONT.addedContracts] };
+  return { repair: { grantFile: path.resolve(repairGrantFile), grantSha256: digest.grant, claimSha256: digest.claim, outcomeSha256: digest.outcome,
+      sealSha256: digest.seal, folderSha256: previewSha(canonicalJson(folderBaseline(dir))), recoveryClaimSha256: digest.recoveryClaim,
+      originalClaimSha256: digest.originalClaim, reviewReceiptSha256: digest.reviewReceipt },
+    held: { sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest, reviewDigest: decision.reviewDigest,
+      disposition: decision.disposition as (typeof CONT.heldStatuses)[number], draftSha256: previewSha(canonicalJson(draft)),
+      findings: storyboardRepairFindings(decision.review).length },
+    ledger: { diagnosticSettledMicroUsd: before.diagnosticSettledMicroUsd, bookKnownMicroUsd: before.bookKnownMicroUsd,
+      calls: before.stages.reduce((n, s) => n + s.calls, 0) },
+    earlier: lineage.held, source: result.source, continuation };
+}
+
+/**
+ * The stage's durable recovery records at admission, derived by the ENGINE from the continuation source (its chain of held candidates, their
+ * contexts and findings, this attempt's context and the diagnosis it carries) and checked against this line's own records: the chain is
+ * exactly the recovery's and the repair's held storyboards with their findings, and the reducer's state is two consecutive failures with one
+ * attempt left. Each attempt's settled costs come from its own meter records (an unknown one refuses: it is never zero). Deterministic: the
+ * same saved evidence yields the same bytes at the plan, the run and every later re-derivation.
+ */
+function continuationRecovery(config: FreshBookConfig, loaded: ReturnType<typeof loadProfile>, held: ReturnType<typeof repairHeld>) {
+  const refuse = (): never => fail('fresh_book_storyboard_continuation_recovery'), c = FRESH_BOOK_CONTRACTS;
+  let rec: ReturnType<typeof storyboardRecovery>;
+  try {
+    rec = storyboardRecovery(prepareCurrentPersonalStoryboard(loaded.prepared.accepted.canonical, held.source, loaded.options, c.actorOwnedAppearance, c.momentContract,
+      c.landmarkKindContract, undefined, c.sceneLocationContract, c.compilerRulesContract, held.continuation, c.drawnInstantContract, true, true, true));
+  } catch { return refuse(); }
+  const lines = [{ folder: FRESH_BOOK_RECOVERY.folder, ...held.earlier }, { folder: FRESH_BOOK_STORYBOARD_REPAIR.folder, ...held.held }];
+  const diagnosis = rec.diagnosis ?? refuse(), diagnosed = rec.diagnosisDigest ?? refuse();
+  if (rec.chain.length !== lines.length || rec.chain.some((a, i) => a.storyboardDigest !== lines[i].storyboardDigest || a.findings.length !== lines[i].findings) ||
+      diagnosisDigest(diagnosis) !== diagnosed) refuse();
+  const state = recoveryState(chainAttempts(rec.chain), { maxAttempts: STORYBOARD_MAX_ATTEMPTS });
+  if (state.mode !== 'diagnose_and_change_strategy' || state.consecutiveFailures !== CONT.priorAttempts || state.maxAttempts !== CONT.maxAttempts ||
+      state.remaining !== 1) refuse();
+  const settledCost = (folder: string, store: 'claude-max-stages' | 'paid-stages', step: string) => {
+    const done = json(path.join(config.bookDir, folder, store, `${step}.result.json`));
+    return done.completed === true && Number.isSafeInteger(done.estimatedMicroUsd) && done.estimatedMicroUsd >= 0 ? done.estimatedMicroUsd as number
+      : fail('fresh_book_storyboard_continuation_unknown_cost');
+  };
+  const record = { version: STAGE_RECOVERY_VERSION, stage: 'storyboard', diagnosisVersion: STORYBOARD_DIAGNOSIS_VERSION, maxAttempts: state.maxAttempts,
+    attempts: rec.chain.map((a, i) => ({ attempt: i + 1, line: lines[i].folder, sourceDigest: lines[i].sourceDigest, storyboardDigest: a.storyboardDigest,
+      reviewDigest: lines[i].reviewDigest, contextDigest: a.contextDigest, contracts: a.contracts, outcome: 'held' as const, disposition: lines[i].disposition,
+      findings: chainAttempts([a])[0].findings,
+      costs: { plannerClaudeMaxMicroUsd: settledCost(lines[i].folder, 'claude-max-stages', 'storyboard'),
+        reviewApiMicroUsd: settledCost(lines[i].folder, 'paid-stages', 'storyboard_review') } })),
+    consecutiveFailures: state.consecutiveFailures, mode: state.mode, remaining: state.remaining, trajectory: state.trajectory,
+    next: { attempt: state.attempts + 1, line: CONT.folder, contracts: rec.contracts, contextDigest: rec.context, diagnosisDigest: diagnosed,
+      addedContracts: [...CONT.addedContracts], reviewPolicy: STORYBOARD_REVIEW_IMPACT_VERSION, selfCheck: STORYBOARD_SELF_CHECK_VERSION,
+      strategy: 'diagnose_and_change_strategy: the planner consumes the engine diagnosis (priorReviewedStoryboard.diagnosis) and answers every diagnosed finding in its self-check resolutions (cause class, confirmed facts vs hypothesis, impact, remedy, the sections it changed, verified against the parent, and the success check), protecting resolved pages; the review types each issue\'s impact (only bound, positively justified detail is a non-blocking note)' },
+    terminal: null };
+  const diagnosisRecord = { version: STORYBOARD_DIAGNOSIS_VERSION, diagnosisDigest: diagnosed, diagnosis,
+    /** The latest held review's own words, which the diagnosis references by key (copied here for the record, never edited). */
+    latestReviewFindings: rec.chain[rec.chain.length - 1].findings,
+    allowance: { attempts: diagnosis.allowance, money: { bookKnownMicroUsd: held.ledger.bookKnownMicroUsd, bookSubcapMicroUsd: FRESH_BOOK_CYCLE.bookSubcapMicroUsd,
+      reviewReserveFloorMicroUsd: CONT.reviewReserveFloorMicroUsd, plannerRoute: 'Claude Max: separate resource, not an API invoice, not $0' } } };
+  return { record, stateSha256: previewSha(canonicalJson(record)), diagnosisRecord, contextDigest: rec.context, diagnosisDigest: diagnosed };
+}
+
+/** Provider-free plan and the continuation grant this exact state needs (no key, no provider, no write). */
+export function planFreshBookStoryboardContinuation(config: FreshBookConfig, env: FreshBookEnv, repairGrantFile: string) {
+  const base = planFreshBook(config, env), loaded = loadProfile(config);
+  const held = repairHeld(config, env, base.rereview, loaded, repairGrantFile), derived = continuationRecovery(config, loaded, held);
+  const at = (name: string) => path.join(env.authorityRoot, name);
+  const plan = { version: CONT.version, cycle: FRESH_BOOK_CYCLE.id, amendment: CONT.amendment, basePlanSha256: base.grantDraft.nativePlanSha256,
+    bookDir: path.resolve(config.bookDir), folder: CONT.folder, storyboardDir: CONT.folder,
+    replay: { calls: [...REPAIR_REPLAYED], from: 'the failed text and the recovery (saved wires and receipts, byte-exact; no provider or model callback)' },
+    continuation: { contract: 'storyboard-repair/v1', parent: held.held, ancestry: [held.earlier.storyboardDigest, held.held.storyboardDigest],
+      addedContracts: [...CONT.addedContracts],
+      input: 'the held repair draft and its exact raw review, with the repair\'s own input as parentRepair: the engine re-binds every ancestor and derives every finding (none chosen, edited or dropped)' },
+    recovery: { reducer: STAGE_RECOVERY_VERSION, diagnosis: STORYBOARD_DIAGNOSIS_VERSION, selfCheck: STORYBOARD_SELF_CHECK_VERSION,
+      reviewImpact: STORYBOARD_REVIEW_IMPACT_VERSION, attempts: derived.record.attempts.length, maxAttempts: derived.record.maxAttempts,
+      mode: derived.record.mode, stateSha256: derived.stateSha256, diagnosisDigest: derived.diagnosisDigest, contextDigest: derived.contextDigest,
+      last: 'this is the stage\'s last attempt: held again ends the line (stop_allowance_exhausted)' },
+    calls: { planner: `storyboard: Opus 5.5 on Claude Max (${OPUS_PLANNER.model}), ${CONT.plannerCalls}`, review: `storyboard_review: Sol 6.1 (${SOL}), ${CONT.apiCalls}`,
+      reviewReserve: `max(${REVIEW_RESERVE_FLOOR_MICRO_USD}, the bound its request derives); admission refuses before the claim below the floor, the meter before the key or provider below that maximum; journal and replay derive it under the same rule` },
+    downstream: ['child --storyboard-continuation', 'book --storyboard-continuation [--resume]'],
+    caps: { ...base.plan.caps, storyboardContinuationApiCalls: CONT.apiCalls },
+    claim: at(CONT.claimName), outcome: at(CONT.outcomeName), successor: at(CONT.successorName),
+    successorAdmission: 'downstream replays the whole chain (text, correction, planner, review) from the saved evidence and re-derives the recovery records against its one durable record',
+    providerCalls: 0, keyRead: false };
+  const engine = env.head();
+  const pins = Object.fromEntries(FRESH_BOOK_STORYBOARD_CONTINUATION_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
+  const grantDraft: FreshBookStoryboardContinuationGrant = freshBookStoryboardContinuationGrantSchema.parse({ version: 'fresh-book-storyboard-continuation-grant/v1',
+    cycle: FRESH_BOOK_CYCLE.id, approval: FRESH_BOOK_CYCLE.approval, amendment: CONT.amendment, profileSha256: base.plan.profileSha256,
+    bookDir: path.resolve(config.bookDir), repair: held.repair, held: held.held,
+    recovery: { version: STAGE_RECOVERY_VERSION, attempts: derived.record.attempts.length, maxAttempts: derived.record.maxAttempts,
+      consecutiveFailures: derived.record.consecutiveFailures, mode: derived.record.mode, stateSha256: derived.stateSha256, diagnosisDigest: derived.diagnosisDigest,
+      contextDigest: derived.contextDigest },
+    ledger: held.ledger, allowance: { plannerCalls: CONT.plannerCalls, apiCalls: CONT.apiCalls, reviewReserveFloorMicroUsd: CONT.reviewReserveFloorMicroUsd },
+    addedContracts: [...CONT.addedContracts], engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
+  const probe = (f: () => unknown) => { try { return f(); } catch (e) { return { refused: e && typeof e === 'object' && 'code' in e ? e.code : String(e) }; } };
+  const state = { claimExists: existsSync(plan.claim), outcomeExists: existsSync(plan.outcome), successorExists: existsSync(plan.successor),
+    folderExists: existsSync(path.join(config.bookDir, CONT.folder)),
+    ledger: probe(() => freshBookLedger(config, env, base.rereview, 'storyboard_continuation')),
+    reviewFloor: probe(() => assertReviewFloorFits(freshBookLedger(config, env, base.rereview, 'storyboard_continuation'))),
+    executablePinned: probe(() => assertFreshBookExecutable(config)), engine };
+  return { plan, grantDraft, state, profile: base.profile, prepared: loaded.prepared, options: loaded.options, rereview: base.rereview,
+    continuation: held.continuation, recoveryRecord: derived.record, diagnosisRecord: derived.diagnosisRecord };
+}
+
+/**
+ * A continuation-line stage's admission, as admitStoryboardRepair: the baseline pinned FIRST and held across every await: the continuation
+ * grant bytes, the consumed repair grant's bytes, the recovery grant's bytes it names and the original grant's bytes that one names (each at
+ * its recorded digest, never re-pinned to this head), configuration, profile, lineage, every line's authority records and the earlier stage
+ * entries (the failed text, the held recovery and the held repair). The grant is exactly the draft this state rebuilds, at the clean reviewed
+ * head. Its guard adds the continuation claim and the repair, recovery and original claims it names.
+ */
+async function admitStoryboardContinuation(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal; earlier: string[] }) {
+  const bytes = fileBytes(a.grantFile);
+  if (previewSha(bytes) !== a.grantSha) fail('fresh_book_storyboard_continuation_grant');
+  const parsed = freshBookStoryboardContinuationGrantSchema.safeParse(JSON.parse(bytes.toString('utf8')));
+  if (!parsed.success) return fail('fresh_book_storyboard_continuation_grant');
+  const repairFile = parsed.data.repair.grantFile, repairBytes = fileBytes(repairFile);
+  if (previewSha(repairBytes) !== parsed.data.repair.grantSha256) fail('fresh_book_storyboard_continuation_repair');
+  let named: FreshBookStoryboardRepairGrant, recoveryGrant: FreshBookRecoveryGrant;
+  try { named = freshBookStoryboardRepairGrantSchema.parse(JSON.parse(repairBytes.toString('utf8'))); } catch { return fail('fresh_book_storyboard_continuation_repair'); }
+  const recoveryFile = named.recovery.grantFile, recoveryBytes = fileBytes(recoveryFile);
+  if (previewSha(recoveryBytes) !== named.recovery.grantSha256) fail('fresh_book_storyboard_repair_recovery');
+  try { recoveryGrant = freshBookRecoveryGrantSchema.parse(JSON.parse(recoveryBytes.toString('utf8'))); } catch { return fail('fresh_book_storyboard_repair_recovery'); }
+  const originalFile = recoveryGrant.original.grantFile, originalBytes = fileBytes(originalFile);
+  if (previewSha(originalBytes) !== recoveryGrant.original.grantSha256) fail('fresh_book_recovery_original');
+  const rereview = loadRereview(a.config);
+  let roots = rootsOf(a.config, a.env, rereview, a.earlier);
+  const planned = planFreshBookStoryboardContinuation(a.config, a.env, repairFile);
+  const outcome = await assertFreshBookAdmission(planned.rereview, a.env);
+  const engine = a.env.head();
+  if (canonicalJson(parsed.data) !== canonicalJson(planned.grantDraft)) fail('fresh_book_storyboard_continuation_grant');
+  if (!engine.clean || engine.head !== planned.grantDraft.engine.head || engine.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
+  const same = () => {
+    if (a.signal.aborted) fail('fresh_book_cancelled');
+    if (!fileBytes(a.grantFile).equals(bytes)) fail('fresh_book_storyboard_continuation_grant');
+    if (!fileBytes(repairFile).equals(repairBytes)) fail('fresh_book_storyboard_continuation_repair');
+    if (!fileBytes(recoveryFile).equals(recoveryBytes)) fail('fresh_book_storyboard_repair_recovery');
+    if (!fileBytes(originalFile).equals(originalBytes)) fail('fresh_book_recovery_original');
+    if (canonicalJson(rootsOf(a.config, a.env, rereview, a.earlier)) !== canonicalJson(roots)) fail('fresh_book_roots_changed');
+    const e = a.env.head();
+    if (!e.clean || e.head !== planned.grantDraft.engine.head || e.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
+    for (const [rel, digest] of Object.entries(planned.grantDraft.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('fresh_book_source_changed');
+  };
+  const guard = () => { same(); assertFreshBookStoryboardContinuationPaid({ env: a.env, grantFile: a.grantFile, grantSha: a.grantSha, profile: planned.profile, workspace: workspace() }); };
+  const recapture = (added: string[]) => {
+    const next = rootsOf(a.config, a.env, rereview, a.earlier), changed = Object.keys(next).filter(k => next[k] !== roots[k]);
+    if (canonicalJson(Object.keys(next).sort()) !== canonicalJson(Object.keys(roots).sort()) || canonicalJson(changed.sort()) !== canonicalJson([...added].sort()) ||
+        added.some(k => roots[k] !== 'absent' || next[k] === 'absent')) fail('fresh_book_roots_changed');
+    roots = next; same();
+  };
+  same();
+  return { planned, outcome, same, guard, recapture, grant: planned.grantDraft, continuation: planned.continuation };
+}
+
+type ContinuationPreview = RepairPreview & { outputCap: number; argvChars: number; argvLimit: number; diagnosisDigest: string; resolutionsRequired: number;
+  protectedPages: number[] };
+/**
+ * Provider-free preview of the continuation's ONE planner request, on the paid run's own code path (the repair's flow under the continuation's
+ * spec): the text and the correction replayed, the continuation source prepared (both ancestors re-bound, every finding and the diagnosis
+ * derived by the engine), then the planner's request and CLI wire built and measured (content, wire and argv limits, output cap, session
+ * guard) and stopped before any session. The paid stage runs it before its claim; its wire digest binds the paid one.
+ */
+export async function previewFreshBookStoryboardContinuation(config: FreshBookConfig, continuation: StoryboardRepair): Promise<ContinuationPreview> {
+  const out: { preview?: ContinuationPreview } = {};
+  try {
+    await storyboardRepairFlow({ config, repair: continuation, signal: new AbortController().signal, log: () => {}, seen: [], spec: CONTINUATION_SPEC, preview: (wire, call) => {
+      const input = JSON.parse(call.input), diagnosis = input?.priorReviewedStoryboard?.diagnosis;
+      if (!diagnosis) return fail('fresh_book_storyboard_continuation_preview');
+      out.preview = { contentBytes: Buffer.byteLength(call.instructions, 'utf8') + Buffer.byteLength(call.input, 'utf8'), contentByteLimit: SIMPLE_STORYBOARD_INPUT_LIMIT,
+        wireBytes: wire.bytes, wireByteLimit: 104000, reservedMicroUsd: wire.reservedMicroUsd, sessionGuardMicroUsd: OPUS_PLANNER.sessionGuardMicroUsd,
+        findings: Array.isArray(input?.priorReviewedStoryboard?.reviewFindings) ? input.priorReviewedStoryboard.reviewFindings.length : 0,
+        instructionsSha256: previewSha(call.instructions), inputSha256: previewSha(call.input), wireDigest: previewSha(canonicalJson(wire)),
+        outputCap: wire.outputCap, argvChars: wire.args.map(x => JSON.stringify(x)).join(' ').length + String(wire.payload.executable).length, argvLimit: 31000,
+        diagnosisDigest: previewSha(canonicalJson(diagnosis)), resolutionsRequired: diagnosis.findings.length, protectedPages: diagnosis.protectedPages };
+      return fail('fresh_book_storyboard_continuation_preview_complete');
+    } });
+  } catch (error) { if (!out.preview) throw error; }
+  return out.preview ?? fail('fresh_book_storyboard_continuation_preview');
+}
+
+/** The stage's terminal recovery record after the continuation's review: its own candidate appended, then the reducer's state (never a reset). */
+function continuationRecoveryFinal(record: ReturnType<typeof continuationRecovery>['record'], board: { storyboardDigest: string; status: string;
+  review: { reviewDigest: string; impact?: { blocking: { scope: 'book' | 'page'; pageNumber?: number; category: string; verdict: string; observation: string }[];
+    notes: unknown[] } } }) {
+  const admitted = admittedContinuation(board.status), impact = board.review.impact ?? fail('fresh_book_storyboard_continuation_policy');
+  const own = { attempt: record.attempts.length + 1, candidateDigest: board.storyboardDigest, contextDigest: record.next.contextDigest,
+    outcome: admitted ? 'admitted' as const : 'held' as const,
+    findings: admitted ? [] : chainAttempts([{ storyboardDigest: board.storyboardDigest, contextDigest: record.next.contextDigest, findings: impact.blocking.map(f =>
+      f.scope === 'book' ? { scope: 'book' as const, category: f.category, verdict: f.verdict as 'contradiction', observation: f.observation }
+        : { scope: 'page' as const, pageNumber: f.pageNumber!, category: f.category, verdict: f.verdict as 'contradiction', observation: f.observation }) }])[0].findings };
+  const state = recoveryState([...record.attempts.map(a => ({ attempt: a.attempt, candidateDigest: a.storyboardDigest, contextDigest: a.contextDigest,
+    outcome: a.outcome, findings: a.findings })), own], { maxAttempts: record.maxAttempts });
+  return { version: STAGE_RECOVERY_VERSION, stage: 'storyboard', stateSha256AtAdmission: previewSha(canonicalJson(record)),
+    attempt: { ...own, line: CONT.folder, disposition: board.status, reviewDigest: board.review.reviewDigest, notes: impact.notes },
+    consecutiveFailures: state.consecutiveFailures, mode: state.mode, remaining: state.remaining,
+    terminal: admitted ? 'admitted' as const : state.mode === 'stop_allowance_exhausted' ? 'stop_allowance_exhausted' as const : fail('fresh_book_storyboard_continuation_recovery') };
+}
+
+/**
+ * The ONE diagnosed continuation of the same book: admission re-derives the held repair and its whole lineage exactly, the engine's recovery
+ * state and diagnosis, the balance must cover the review's floor, the planner request must be sendable; then one claim and its own folder with
+ * its admission, its input, the recovery state and the diagnosis; the text and the correction are replayed, and the Opus Max planner and the
+ * Sol review run once each on the native call sites (the review reserves max(600000, its bound)). Admitted (supported, or supported with bound
+ * detail notes): its successor is re-derived by replaying the whole chain and recorded once. Held: its terminal outcome (the stage's attempt
+ * ceiling is reached). Failed: its terminal outcome. Nothing earlier is written.
+ */
+export async function runFreshBookStoryboardContinuation(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
+  log: (line: string) => void; transports?: Pick<FreshTextTransports, 'responses' | 'planner'> }) {
+  const { config, env, signal } = args, transports = args.transports ?? {};
+  const admitted = await admitStoryboardContinuation({ ...args, earlier: ['request.json', 'admission.json', 'text', FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder] });
+  assertFreshBookExecutable(config);
+  const ledger = freshBookLedger(config, env, admitted.planned.rereview, 'storyboard_continuation'), dir = path.join(config.bookDir, CONT.folder);
+  if (existsSync(dir)) fail('fresh_book_storyboard_continuation_used');
+  assertReviewFloorFits(ledger, 'fresh_book_storyboard_continuation_budget');
+  // Before the claim: the exact planner request must be sendable, carry every finding of the held review and the diagnosis the grant names.
+  const preview = await previewFreshBookStoryboardContinuation(config, admitted.continuation);
+  if (preview.findings !== admitted.grant.held.findings || preview.diagnosisDigest !== admitted.grant.recovery.diagnosisDigest ||
+      preview.argvChars > preview.argvLimit || preview.wireBytes > preview.wireByteLimit) fail('fresh_book_storyboard_continuation_findings');
+  // No await from the last check to the one continuation claim and its folder.
+  admitted.same();
+  claimFreshBookStoryboardContinuation(env, admitted.grant, args.grantSha);
+  admitted.recapture([`authority/${CONT.claimName}`]);
+  try { mkdirSync(dir); } catch { fail('fresh_book_storyboard_continuation_used'); }
+  mkdirSync(path.join(dir, 'cli-workspace'));
+  exclusiveJson(path.join(dir, 'continuation-admission.json'), { version: CONT.version, grantSha256: args.grantSha, repair: admitted.grant.repair, held: admitted.grant.held,
+    recovery: admitted.grant.recovery, ledger, preview, rereviewOutcome: admitted.outcome });
+  exclusiveJson(path.join(dir, STORYBOARD_REPAIR_INPUT_FILE), admitted.continuation);
+  exclusiveJson(path.join(dir, CONTINUATION_RECOVERY_STATE_FILE), admitted.planned.recoveryRecord);
+  exclusiveJson(path.join(dir, CONTINUATION_DIAGNOSIS_FILE), admitted.planned.diagnosisRecord);
+  const api = new AuditionMeter(path.join(dir, 'paid-stages'), ledger.nextCapMicroUsd, CONT.apiCalls, ledger.bookKnownMicroUsd, 0, STORYBOARD_CONTINUATION_RULES);
+  const claudeMax = new SimpleBookBudget(path.join(dir, 'claude-max-stages'), 0);
+  const key = keyReader(config.keyEnvFile);
+  const responses = transports.responses ?? openAIResponses(key);
+  let storyboardDraft: unknown = null, failed: string | null = null;
+  const seen: string[] = [];
+  const record = (error: unknown): never => { failed ??= codeOf(error, 'fresh_book_provider_transport'); throw error; };
+  const guard = () => { try { admitted.guard(); } catch (error) { record(error); } };
+  const continued = { parentStoryboardDigest: admitted.grant.held.storyboardDigest, addedContracts: [...CONT.addedContracts] };
+  const seal = (status: string, extra: Record<string, unknown> = {}) => {
+    exclusiveJson(path.join(dir, 'spend.json'), api.snapshot());
+    exclusiveJson(path.join(dir, 'claude-max-spend.json'), { ...claudeMax.snapshot(), note: 'Claude Max usage is separate: not an API invoice' });
+    exclusiveJson(path.join(dir, 'sealed.json'), { status, ...extra, continued, replayed: [...seen], runtimeEligible: false });
+  };
+  try {
+    const result = await storyboardRepairFlow({ config, repair: admitted.continuation, signal, log: args.log, seen, spec: CONTINUATION_SPEC,
+      live: { dir, api, claudeMax, responses, planner: transports.planner, guard, record, draft: d => { storyboardDraft = d; } } });
+    guard();
+    exclusiveJson(path.join(dir, 'simple-book-result.json'), result);
+    exclusiveText(path.join(dir, 'story.md'), `# ${result.source.manuscript.title}\n\n` +
+      result.source.manuscript.pages.map(p => `## עמוד ${p.pageNumber}\n\n${p.text}`).join('\n\n') + '\n');
+    if (result.storyboard) {
+      exclusiveJson(path.join(dir, 'visual_simple_book_result.json'), result);
+      exclusiveJson(path.join(dir, 'owned_storyboard_draft.json'), storyboardDraft ?? fail('fresh_book_draft_missing'));
+    }
+    seal(result.status);
+    const board = result.storyboard ?? fail('fresh_book_storyboard_continuation_policy');
+    const final = continuationRecoveryFinal(admitted.planned.recoveryRecord, { storyboardDigest: board.storyboardDigest, status: result.status, review: board.review });
+    exclusiveJson(path.join(dir, CONTINUATION_RECOVERY_FINAL_FILE), final);
+    if (!admittedContinuation(result.status)) finish(env, CONT.ownHeldOutcome, { textStatus: result.status, recovery: final.terminal }, CONT.outcomeName);
+    else {
+      // The successor's ONE durable provenance: its whole chain replayed from the saved evidence, then recorded once under a fresh guard.
+      const successor = await deriveStoryboardContinuationSuccessor({ config, env, grantSha: args.grantSha, admitted });
+      guard();
+      exclusiveJson(path.join(env.authorityRoot, CONT.successorName), successor);
+      admitted.recapture([`authority/${CONT.successorName}`]);
+    }
+    return { status: result.status, recovery: final, api: api.snapshot(), claudeMax: claudeMax.snapshot(),
+      ledger: freshBookLedger(config, env, admitted.planned.rereview, 'storyboard_continuation') };
+  } catch (error) {
+    const code = failed ?? codeOf(error, 'fresh_book_storyboard_continuation_failed');
+    if (!existsSync(path.join(dir, 'sealed.json'))) seal('failed', { code });
+    if (!existsSync(path.join(env.authorityRoot, CONT.outcomeName))) finish(env, 'failed_storyboard_continuation', { code }, CONT.outcomeName);
+    throw error;
+  }
+}
+
+type ContinuationAdmitted = { grant: FreshBookStoryboardContinuationGrant; continuation: StoryboardRepair; outcome: unknown;
+  planned: Pick<ReturnType<typeof planFreshBookStoryboardContinuation>, 'recoveryRecord' | 'diagnosisRecord'> };
+/**
+ * The continuation's successor, re-derived from its saved evidence (never its own seal, summary or a re-captured folder): its seal and
+ * admission are this grant's; its input is exactly the held repair's draft and raw review with the repair input as ancestry; its recovery
+ * state and diagnosis are exactly the ones the engine derives now; its meters hold exactly the one floored review and the one planner session;
+ * replaying the WHOLE chain (text, correction, planner, review) on the paid run's own code path reproduces the saved admitted result exactly;
+ * its terminal recovery record is the reducer's state after that result. Returns the ONE durable record (the folder by digest, bound to the
+ * grant, every claim and the recovery records).
+ */
+async function deriveStoryboardContinuationSuccessor(a: { config: FreshBookConfig; env: FreshBookEnv; grantSha: string; admitted: ContinuationAdmitted }) {
+  const { config, env } = a, grant = a.admitted.grant, dir = path.join(config.bookDir, CONT.folder);
+  const refuse = (): never => fail('fresh_book_storyboard_continuation_successor');
+  try {
+    const seal = json(path.join(dir, 'sealed.json'));
+    if (!sameJson(Object.keys(seal).sort(), ['continued', 'replayed', 'runtimeEligible', 'status']) || !admittedContinuation(seal.status) || seal.runtimeEligible !== false ||
+        !sameJson(seal.continued, { parentStoryboardDigest: grant.held.storyboardDigest, addedContracts: [...CONT.addedContracts] }) ||
+        !Array.isArray(seal.replayed) || !sortedSame(seal.replayed, REPAIR_REPLAYED)) refuse();
+    const admission = json(path.join(dir, 'continuation-admission.json'));
+    if (!sameJson(Object.keys(admission).sort(), ['grantSha256', 'held', 'ledger', 'preview', 'recovery', 'repair', 'rereviewOutcome', 'version']) ||
+        admission.version !== CONT.version || admission.grantSha256 !== a.grantSha || !sameJson(admission.repair, grant.repair) || !sameJson(admission.held, grant.held) ||
+        !sameJson(admission.recovery, grant.recovery) || !sameJson(admission.rereviewOutcome, a.admitted.outcome) ||
+        admission.ledger?.diagnosticSettledMicroUsd !== grant.ledger.diagnosticSettledMicroUsd || admission.ledger?.bookKnownMicroUsd !== grant.ledger.bookKnownMicroUsd) refuse();
+    if (!sameJson(json(path.join(dir, STORYBOARD_REPAIR_INPUT_FILE)), a.admitted.continuation) ||
+        !sameJson(json(path.join(dir, CONTINUATION_RECOVERY_STATE_FILE)), a.admitted.planned.recoveryRecord) ||
+        !sameJson(json(path.join(dir, CONTINUATION_DIAGNOSIS_FILE)), a.admitted.planned.diagnosisRecord) ||
+        previewSha(canonicalJson(json(path.join(dir, CONTINUATION_RECOVERY_STATE_FILE)))) !== grant.recovery.stateSha256) refuse();
+    // The admitted preview is this continuation's own planner request: re-derived now, and the paid planner session claimed exactly that wire.
+    const preview = await previewFreshBookStoryboardContinuation(config, a.admitted.continuation);
+    if (!sameJson(admission.preview, preview) || preview.findings !== grant.held.findings || preview.diagnosisDigest !== grant.recovery.diagnosisDigest ||
+        json(path.join(dir, 'claude-max-stages', 'storyboard.claim.json')).wireDigest !== preview.wireDigest) refuse();
+    const reviewed = verifyMeterRecords(path.join(dir, 'paid-stages'), STORYBOARD_CONTINUATION_RULES);
+    if (reviewed.length !== 1 || reviewed[0].claim.step !== 'storyboard_review' || reviewed[0].result?.completed !== true ||
+        !(reviewed[0].claim.maximumMicroUsd >= REVIEW_RESERVE_FLOOR_MICRO_USD)) refuse();
+    if (!sameJson(readdirSync(path.join(dir, 'claude-max-stages')).filter(n => n.endsWith('.claim.json')), ['storyboard.claim.json'])) refuse();
+    const seen: string[] = [];
+    const replayed = await storyboardRepairFlow({ config, repair: a.admitted.continuation, signal: new AbortController().signal, log: () => {}, seen,
+      spec: CONTINUATION_SPEC, replayDir: dir });
+    const saved = json(path.join(dir, 'simple-book-result.json')), board = replayed.storyboard;
+    if (!board) return refuse();
+    if (!sameJson(seal.replayed, seen.filter(k => !ownCalls(CONTINUATION_SPEC).includes(k))) || !admittedContinuation(replayed.status) || replayed.status !== seal.status ||
+        !sameJson(plainJson(replayed), saved) || !sameJson(json(path.join(dir, 'visual_simple_book_result.json')), saved) ||
+        !sameJson(json(path.join(dir, 'owned_storyboard_draft.json')), json(path.join(dir, 'claude-max-stages', 'storyboard.receipt.json')).output)) refuse();
+    const final = continuationRecoveryFinal(a.admitted.planned.recoveryRecord, { storyboardDigest: board.storyboardDigest, status: replayed.status, review: board.review });
+    if (!sameJson(json(path.join(dir, CONTINUATION_RECOVERY_FINAL_FILE)), plainJson(final))) refuse();
+    return { cycle: FRESH_BOOK_CYCLE.id, storyboardContinuation: CONT.version, grantSha256: a.grantSha,
+      originalClaimSha256: grant.repair.originalClaimSha256, recoveryClaimSha256: grant.repair.recoveryClaimSha256, repairClaimSha256: grant.repair.claimSha256,
+      continuationClaimSha256: previewSha(fileBytes(path.join(env.authorityRoot, CONT.claimName))),
+      parentStoryboardDigest: grant.held.storyboardDigest, storyboardDigest: board.storyboardDigest, reviewDigest: board.review.reviewDigest,
+      disposition: replayed.status, notes: board.review.impact?.notes.length ?? 0, reviewReserveMicroUsd: reviewed[0].claim.maximumMicroUsd as number,
+      recoveryStateSha256: grant.recovery.stateSha256, diagnosisDigest: grant.recovery.diagnosisDigest,
+      recoveryFinalSha256: previewSha(canonicalJson(final)), successorSha256: previewSha(canonicalJson(folderBaseline(dir))) };
+  } catch { return refuse(); }
+}
+/** At every downstream entry: the continuation's successor re-derived now must equal its one durable record. */
+async function verifyStoryboardContinuationSuccessor(a: { config: FreshBookConfig; env: FreshBookEnv; grantSha: string; admitted: ContinuationAdmitted }) {
+  const record = await deriveStoryboardContinuationSuccessor(a), file = path.join(a.env.authorityRoot, CONT.successorName);
+  if (!existsSync(file) || !sameJson(json(file), record)) fail('fresh_book_storyboard_continuation_successor');
+  return record;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Stage 2: the inspected child anchor.
 // ---------------------------------------------------------------------------------------------------------------
 type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'style' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
@@ -1157,8 +1621,8 @@ function anchorAuthority(profile: FreshBookProfile, wardrobe: string) {
 }
 
 export async function runFreshBookChild(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
-  log: (line: string) => void; recovery?: true; storyboardRepair?: true }) {
-  const { config, env, signal } = args, line = lineOf(args.recovery, args.storyboardRepair);
+  log: (line: string) => void; recovery?: true; storyboardRepair?: true; storyboardContinuation?: true }) {
+  const { config, env, signal } = args, line = lineOf(args.recovery, args.storyboardRepair, args.storyboardContinuation);
   const admitted = await admitLine(args, line, ['request.json', 'admission.json', 'text']);
   admitted.guard();
   if (!(await linePassed(args, line, admitted))) fail('fresh_book_stage_not_passed');
@@ -1319,14 +1783,16 @@ async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, re
     ledger: { priorKnownApiMicroUsd: ledger.bookKnownMicroUsd, evidence,
       note: `Fresh-book ledger under the one USD 7 book subcap (cycle ${FRESH_BOOK_CYCLE.id}): the text and child stages above, each re-derived; the diagnostic subcap (${ledger.diagnosticSettledMicroUsd} microUSD settled) is separate; old books and their carry are untouched.` },
     capMicroUsd: ledger.nextCapMicroUsd, maxCalls: AUDITION_WORST_CASE_CALLS,
-    scope: { mode: 'render', pages: [0, 1, 2, 3, 4, 5, 6, 7, 8], sample: earliestSameScenePair(loaded.book) },
+    // The continuation line carries the engine's page recovery rule (diagnosis after two held attempts, same three-attempt ceiling).
+    scope: { mode: 'render', pages: [0, 1, 2, 3, 4, 5, 6, 7, 8], sample: earliestSameScenePair(loaded.book),
+      ...(line.kind === 'storyboard_continuation' ? { recovery: STAGE_RECOVERY_VERSION } : {}) },
     claudeMax: 'Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger',
     experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256 } });
 }
 
 export async function runFreshBookBook(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
-  log: (line: string) => void; resume?: true; recovery?: true; storyboardRepair?: true }) {
-  const { config, env } = args, line = lineOf(args.recovery, args.storyboardRepair);
+  log: (line: string) => void; resume?: true; recovery?: true; storyboardRepair?: true; storyboardContinuation?: true }) {
+  const { config, env } = args, line = lineOf(args.recovery, args.storyboardRepair, args.storyboardContinuation);
   // The audition grant is pinned too (absent on a start, its bytes on a resume); the start record is part of the authority roots.
   const earlier = ['request.json', 'admission.json', 'text', 'child', 'book-layout.json', 'audition.grant.json'];
   const admitted = await admitLine(args, line, earlier);
@@ -1368,16 +1834,26 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const config = freshBookConfig(argValue('--config') ?? fail('fresh_book_arguments')), env = realFreshBookEnv();
-  const stage = ['storyboard-repair-preview', 'storyboard-repair-plan', 'storyboard-repair', 'recovery-plan', 'recover', 'plan', 'text', 'child', 'book']
-    .find(s => process.argv.includes(s)) ?? 'plan';
+  const stage = ['storyboard-continuation-preview', 'storyboard-continuation-plan', 'storyboard-continuation', 'storyboard-repair-preview',
+    'storyboard-repair-plan', 'storyboard-repair', 'recovery-plan', 'recover', 'plan', 'text', 'child', 'book'].find(s => process.argv.includes(s)) ?? 'plan';
   const execute = process.argv.includes('--execute');
-  // A downstream stage runs under exactly one line: both line flags at once are refused (never a silent preference).
-  if (process.argv.includes('--recovery') && process.argv.includes('--storyboard-repair')) fail('fresh_book_arguments');
-  const line = process.argv.includes('--storyboard-repair') ? { storyboardRepair: true as const } : process.argv.includes('--recovery') ? { recovery: true as const } : {};
+  // A downstream stage runs under exactly one line: two line flags at once are refused (never a silent preference).
+  if (['--recovery', '--storyboard-repair', '--storyboard-continuation'].filter(f => process.argv.includes(f)).length > 1) fail('fresh_book_arguments');
+  const line = process.argv.includes('--storyboard-continuation') ? { storyboardContinuation: true as const }
+    : process.argv.includes('--storyboard-repair') ? { storyboardRepair: true as const } : process.argv.includes('--recovery') ? { recovery: true as const } : {};
   const done = (p: Promise<unknown>) => p.then(r => console.log(JSON.stringify(r, null, 2)))
     .catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
+  // The diagnosed continuation line (dry): the planner request it would send with the engine's recovery state and diagnosis, rebuilt offline
+  // and measured; and its plan and grant draft (--repair-grant: the consumed repair grant file). No key, provider, model, claim or write.
+  if (stage === 'storyboard-continuation-preview') done(Promise.resolve().then(async () => {
+    const { grantDraft, continuation, recoveryRecord, diagnosisRecord } = planFreshBookStoryboardContinuation(config, env, argValue('--repair-grant') ?? fail('fresh_book_arguments'));
+    return { held: grantDraft.held, recovery: grantDraft.recovery, recoveryRecord, diagnosisRecord,
+      preview: await previewFreshBookStoryboardContinuation(config, continuation) }; }));
+  else if (stage === 'storyboard-continuation-plan' || (stage === 'storyboard-continuation' && !execute)) done(Promise.resolve().then(() => {
+    const { plan, grantDraft, state } = planFreshBookStoryboardContinuation(config, env, argValue('--repair-grant') ?? fail('fresh_book_arguments'));
+    return { plan, grantDraft, state }; }));
   // The storyboard-repair line (dry): the planner request it would send, rebuilt offline and measured (no key, provider, model, claim or write).
-  if (stage === 'storyboard-repair-preview') done(Promise.resolve().then(async () => {
+  else if (stage === 'storyboard-repair-preview') done(Promise.resolve().then(async () => {
     const { grantDraft, repair } = planFreshBookStoryboardRepair(config, env, argValue('--recovery-grant') ?? fail('fresh_book_arguments'));
     return { held: grantDraft.held, preview: await previewFreshBookStoryboardRepair(config, repair) }; }));
   // The storyboard-repair line (dry): the plan and grant draft for the held recovery (--recovery-grant: the consumed recovery grant file).
@@ -1392,7 +1868,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const common = { config, env, grantFile: argValue('--grant') ?? fail('fresh_book_arguments'), grantSha: argValue('--grant-sha') ?? fail('fresh_book_arguments'),
       signal: controller.signal, log: (line: string) => console.log(line) };
-    done(stage === 'storyboard-repair' ? runFreshBookStoryboardRepair(common) : stage === 'recover' ? runFreshBookTextRecovery(common)
+    done(stage === 'storyboard-continuation' ? runFreshBookStoryboardContinuation(common)
+      : stage === 'storyboard-repair' ? runFreshBookStoryboardRepair(common) : stage === 'recover' ? runFreshBookTextRecovery(common)
       : stage === 'text' ? runFreshBookText(common) : stage === 'child' ? runFreshBookChild({ ...common, ...line })
       : runFreshBookBook({ ...common, ...line, ...(process.argv.includes('--resume') ? { resume: true as const } : {}) }));
   }

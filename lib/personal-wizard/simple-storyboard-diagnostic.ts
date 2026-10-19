@@ -1,11 +1,13 @@
 import 'server-only';
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
-import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput,
+import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema,
   personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions, storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
 import { DRAWN_INSTANT_REVIEW_ADDENDUM } from './storyboard-drawn-instant';
+import { SELF_CHECK_REVIEW_ADDENDUM } from './storyboard-self-check';
+import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from './storyboard-review-impact';
 import type { StoryboardPreservation } from './storyboard-preservation';
 import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
@@ -14,8 +16,13 @@ import { personalBookOutputLimits } from './book-config';
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
 export const SIMPLE_STORYBOARD_INPUT_LIMIT = 104_000;
 export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
-  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema;
+  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema | typeof impactStoryboardReviewSchema;
 };
+/** The review call's instructions for a storyboard under these contracts (shared by every caller that reviews a storyboard). */
+export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
+  selfCheckContract?: true; reviewImpactPolicy?: true }) => PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
+  + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
+  + (contracts.selfCheckContract ? '\n' + SELF_CHECK_REVIEW_ADDENDUM : '') + (contracts.reviewImpactPolicy ? '\n' + STORYBOARD_REVIEW_IMPACT_ADDENDUM : '');
 export class SimpleStoryboardDiagnosticError extends Error {
   constructor(readonly code: string) { super(`simple_storyboard_diagnostic_${code}`); }
 }
@@ -46,6 +53,10 @@ export async function runSimpleStoryboardDiagnostic(args: {
   drawnInstantContract?: true;
   /** Opt-in visible-moment instruction contract (needs the moments contract; the review is unchanged); absent keeps the exact existing calls. */
   visibleMomentContract?: true;
+  /** Opt-in planner self-check (needs the moments contract; the review reads it); absent keeps the exact existing calls. */
+  selfCheckContract?: true;
+  /** Opt-in typed review materiality (the review's schema, instruction and disposition); absent keeps the exact existing calls. */
+  reviewImpactPolicy?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
@@ -53,16 +64,17 @@ export async function runSimpleStoryboardDiagnostic(args: {
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-    args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract);
+    args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
+    args.selfCheckContract, args.reviewImpactPolicy);
   const instructions = storyboardInstructions(source);
-  const caps = personalBookOutputLimits(source.story.pages.length);
+  const caps = personalBookOutputLimits(source.story.pages.length, args.selfCheckContract ? { selfCheck: true } : undefined);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
   const assertCurrent = () => {
     if (args.signal.aborted) fail('cancelled');
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-        args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract)
-        .sourceDigest !== source.sourceDigest) fail('source_changed');
+        args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
+        args.selfCheckContract, args.reviewImpactPolicy).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');
@@ -93,19 +105,21 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
       ...(args.momentContract ? { momentContract: true as const } : {}),
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
-      ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}) } }), args.signal);
+      ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
+      ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}) } }), args.signal);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
-  const rawReview = await dispatch({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION + (args.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
-      + (args.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (args.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : ''),
-    input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: personalStoryboardReviewSchema,
+  const rawReview = await dispatch({ stage: 'review', instructions: storyboardReviewInstructions(args),
+    input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: args.reviewImpactPolicy ? impactStoryboardReviewSchema : personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,
       ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
-      ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}) } });
+      ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
+      ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();
-  const framePackets = review.disposition === 'review_supported'
+  // Supported, or (typed policy only) supported with bound detail notes, which the packets then carry.
+  const framePackets = review.disposition === 'review_supported' || review.disposition === 'review_supported_with_notes'
     ? Array.from({ length: storyboard.narrativeSpreads + 1 }, (_, pageNumber) => currentPersonalStoryboardFrame(storyboard, rawReview, pageNumber,
       { request: args.request, writerResult: args.writerResult, options: args.options })) : [];
   assertCurrent();

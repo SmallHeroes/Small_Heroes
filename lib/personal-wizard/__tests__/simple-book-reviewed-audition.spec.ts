@@ -1576,3 +1576,63 @@ describe('opt-in scale lineup (audition-scale-lineup/v1): one common scale on th
       expect(() => readAuditionGrant(write({ ...grant, scope: { ...rejudge, ...extra } }), book), JSON.stringify(extra)).toThrow();
   });
 });
+
+describe('stage-recovery/v1 on page attempts (opt-in, inside the unchanged three-attempt ceiling)', () => {
+  const held1 = { scene: { issues: [issue('story', 'scene_plan', 'the key action is missing')] },
+    environment: { issues: [issue('continuity', 'entity:old_tree', 'the trunk is not forked')] } } as Spec;
+  const held2 = { scene: { issues: [issue('story', 'scene_plan', 'the key action is still missing, the pose changed')] },
+    props: { issues: [issue('continuity', 'entity:paper_boat', 'the boat is flat')] } } as Spec;
+  const judge = (step: string): Spec => step.startsWith('page_1_0') ? held1 : step.startsWith('page_1_1') ? held2 : {};
+  it('after two consecutive held attempts the third carries the diagnosis of both (persistent, new, resolved); off, the last findings as before', async () => {
+    const on = harness({ judge, pages: [1] });
+    await illustrateReviewedAudition({ ...on.args, recovery: true });
+    const third = on.prompts.get('page_1_2')!;
+    expect(third).toContain('DIAGNOSIS AFTER TWO HELD ATTEMPTS (stage-recovery/v1)');
+    expect(third).toContain('PERSISTENT (held in both attempts):\n- [story] scene_plan: the key action is still missing, the pose changed (earlier: the key action is missing)');
+    expect(third).toContain('NEW in the last attempt:\n- [continuity] entity:paper_boat: the boat is flat');
+    expect(third).toContain('RESOLVED by the last attempt (keep it exactly as it now is):\n- [continuity] entity:old_tree');
+    expect(third).not.toContain('REVIEWED FINDINGS FROM THE PREVIOUS ATTEMPT');
+    // The second attempt is the ordinary targeted correction (one failure only); the ceiling is unchanged: three page renders.
+    expect(on.prompts.get('page_1_1')).toContain('REVIEWED FINDINGS FROM THE PREVIOUS ATTEMPT');
+    expect(on.prompts.get('page_1_1')).not.toContain('DIAGNOSIS');
+    expect([...on.prompts.keys()].filter(k => k.startsWith('page_1_'))).toEqual(['page_1_0', 'page_1_1', 'page_1_2']);
+    const page = on.saved.get('page_1') as any;
+    expect(page.recovery).toMatchObject({ version: 'stage-recovery/v1', diagnoses: [{ beforeAttempt: 2, diagnosis: { afterAttempts: [0, 1],
+      trajectory: [{ key: 'continuity:entity:paper_boat', trajectory: 'new' }, { key: 'story:scene_plan', trajectory: 'repeated_check_new_detail' },
+        { key: 'continuity:entity:old_tree', trajectory: 'resolved' }] } }] });
+    expect((on.saved.get('reviewed_audition_manifest') as any).recovery).toBe('stage-recovery/v1');
+    const off = harness({ judge, pages: [1] });
+    await illustrateReviewedAudition(off.args);
+    expect(off.prompts.get('page_1_2')).toContain('REVIEWED FINDINGS FROM THE PREVIOUS ATTEMPT');
+    expect(off.prompts.get('page_1_2')).not.toContain('DIAGNOSIS');
+    expect([(off.saved.get('page_1') as any).recovery, (off.saved.get('reviewed_audition_manifest') as any).recovery]).toEqual([undefined, undefined]);
+  });
+  it('only held attempts count: a render error is not a failure to diagnose; detail notes never regenerate; a low child measurement is one', async () => {
+    // A provider glitch, then one held attempt: a targeted correction, not a diagnosis.
+    const glitch = harness({ judge: step => step.startsWith('page_1_1') ? held2 : {}, renderFail: step => step === 'page_1_0' ? new Error('glitch') : null, pages: [1] });
+    await illustrateReviewedAudition({ ...glitch.args, recovery: true });
+    expect(glitch.prompts.get('page_1_2')).toContain('REVIEWED FINDINGS FROM THE PREVIOUS ATTEMPT');
+    expect(glitch.prompts.get('page_1_2')).not.toContain('DIAGNOSIS');
+    // Detail only: supported on the first attempt, no further render.
+    const minor = harness({ judge: () => ({ framing: { issues: [issue('detail', 'framing', 'slightly off-centre')] } }), pages: [1] });
+    await illustrateReviewedAudition({ ...minor.args, recovery: true });
+    expect([...minor.prompts.keys()].filter(k => k.startsWith('page_1_'))).toEqual(['page_1_0']);
+    // Identity below 0.70 twice: a persistent identity finding drives the diagnosis (from the measurement, never from a name).
+    const face = harness({ score: () => .5, pages: [1] });
+    await illustrateReviewedAudition({ ...face.args, recovery: true });
+    expect(face.prompts.get('page_1_2')).toContain('PERSISTENT (held in both attempts):\n- [identity] cast:child: the measured child resemblance was below 0.70 or missing');
+  });
+  it('resume: a saved page whose recovery record its re-derived attempts do not reproduce is refused; the grant is its only source', async () => {
+    const on = harness({ judge, pages: [1] });
+    await illustrateReviewedAudition({ ...on.args, recovery: true });
+    const designs = on.saved.get('audition_sheet_designs'), sheets = { entities: on.saved.get('sheet_entities') as any, locations: on.saved.get('sheet_locations') as any };
+    const page = on.saved.get('page_1') as any;
+    const resume = (p: any, recovery?: true) => { const h = harness({ judge, pages: [1] });
+      return illustrateReviewedAudition({ ...h.args, ...(recovery ? { recovery } : {}), resume: { designs, sheets, pages: { 1: p }, stepPrefix: 'r1_' } }); };
+    await expect(resume(page, true)).resolves.toBeTruthy();
+    await expect(resume(page)).rejects.toThrow('audition_resume_binding');
+    await expect(resume({ ...page, recovery: undefined }, true)).rejects.toThrow('audition_resume_binding');
+    const edited = structuredClone(page); edited.recovery.diagnoses[0].diagnosis.prompt += ' (edited)';
+    await expect(resume(edited, true)).rejects.toThrow('audition_resume_binding');
+  });
+});

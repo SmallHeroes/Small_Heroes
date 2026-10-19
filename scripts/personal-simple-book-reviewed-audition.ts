@@ -31,6 +31,9 @@ import { SCENE_LOCATION_CONTRACT_VERSION } from '../lib/personal-wizard/storyboa
 import { COMPILER_RULES_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-compiler-rules';
 import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { VISIBLE_MOMENT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-visible-moment';
+import { STORYBOARD_SELF_CHECK_VERSION } from '../lib/personal-wizard/storyboard-self-check';
+import { STORYBOARD_REVIEW_IMPACT_VERSION } from '../lib/personal-wizard/storyboard-review-impact';
+import { STAGE_RECOVERY_VERSION } from '../lib/personal-wizard/stage-recovery';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
@@ -119,6 +122,22 @@ export function savedVisibleMomentContract(savedBook: { visibleMoment?: unknown 
   if (marker === undefined) return undefined;
   return marker === VISIBLE_MOMENT_CONTRACT_VERSION ? true : fail('audition_board_binding');
 }
+
+/** The self-check contract flag comes only from the saved, digest-bound book (its self-check names its version); an unknown version is refused. */
+export function savedSelfCheckContract(savedBook: { selfCheck?: { version?: unknown } } | undefined): true | undefined {
+  if (savedBook?.selfCheck === undefined) return undefined;
+  return savedBook.selfCheck?.version === STORYBOARD_SELF_CHECK_VERSION ? true : fail('audition_board_binding');
+}
+
+/** The typed review policy comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
+export function savedReviewImpactPolicy(savedBook: { reviewImpact?: unknown } | undefined): true | undefined {
+  const marker = savedBook?.reviewImpact;
+  if (marker === undefined) return undefined;
+  return marker === STORYBOARD_REVIEW_IMPACT_VERSION ? true : fail('audition_board_binding');
+}
+
+/** A reviewed storyboard's admitted status: supported, or supported with bound detail notes (typed policy; the recomputed disposition decides). */
+const admittedStatus = (status: unknown) => status === 'review_supported' || status === 'review_supported_with_notes';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Optional re-plan folder: the SAME saved source with a new kind-enabled storyboard, bound to the reviewed parent. Never written
@@ -232,7 +251,7 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   const acceptanceFile = path.join(visual, STORYBOARD_OWNER_ACCEPTANCE_FILE);
   const ownerAcceptance: unknown = existsSync(acceptanceFile) ? read(acceptanceFile) : undefined;
   const held = (status: unknown) => status === 'held_uncertain' || status === 'held_contradiction';
-  if ((ownerAcceptance === undefined ? result.status !== 'review_supported' || result.storyboard?.status !== 'review_supported'
+  if ((ownerAcceptance === undefined ? !admittedStatus(result.status) || result.storyboard?.status !== result.status
     : !held(result.status) || result.storyboard?.status !== result.status) || result.runtimeEligible !== false) fail('audition_result_status');
   // The story was written under this book's seed (it picked the story shape): another layout seed is another book.
   if (result.source?.simpleSource?.evidence?.seed !== prepared.seed) fail('audition_request_binding');
@@ -245,13 +264,13 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   if (existsSync(repairFile) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
-    savedDrawnInstantContract(saved), savedVisibleMomentContract(saved));
+    savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
   // The book binds first: a changed book refuses here before its saved review is read (the review names the saved book's digests).
   const rawReview = result.storyboard.rawReview, disposition = () => storyboardReviewDisposition(book, rawReview).disposition;
   if (canonicalJson(book) !== canonicalJson(result.storyboard.storyboard) || !book.plan.actorAppearance ||
-      (ownerAcceptance === undefined ? disposition() !== 'review_supported' || result.storyboard.framePackets.length !== 9
+      (ownerAcceptance === undefined ? disposition() !== result.status || result.storyboard.framePackets.length !== 9
         : disposition() !== result.status || result.storyboard.framePackets.length !== 0)) fail('audition_board_binding');
   const current = { request: queued.request, writerResult: result.source, options };
   if (ownerAcceptance === undefined) {
@@ -329,7 +348,9 @@ export const auditionGrantSchema = z.object({
       /** Optional diagnostic comparison: these saved sheets of an earlier run of the same book are reused as judged there. Absent on every legacy grant. */
       reuseSheets: z.object({ sourceRun: z.string().min(1), roles: z.array(z.enum(['entities', 'locations'])).min(1).max(2) }).strict().optional(),
       /** Optional diagnostic comparison: at most this many attempts per page. Absent on every legacy grant. */
-      pageAttempts: z.number().int().min(1).max(REVIEWED_AUDITION_POLICY.pageAttempts).optional() }).strict(),
+      pageAttempts: z.number().int().min(1).max(REVIEWED_AUDITION_POLICY.pageAttempts).optional(),
+      /** Optional stage-recovery/v1 page rule (diagnosis after two held attempts, same ceiling); the only source of that flag. Absent on every legacy grant. */
+      recovery: z.literal(STAGE_RECOVERY_VERSION).optional() }).strict(),
     z.object({ mode: z.literal('rejudge'), sourceDirectory: z.string().min(1),
       references: z.object({ entities: referenceSchema, locations: referenceSchema }).strict(),
       frames: z.array(z.object({ label: z.string().min(1).max(80), pageNumber: z.number().int().min(0).max(8), image,
@@ -750,6 +771,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   // A diagnostic comparison (render grants only): the earlier run's saved sheets it reuses (verified, against the contexts this run derives,
   // before anything is created here) and its bound on page attempts, both named by the admission.
   const renderScope = grant.scope.mode === 'render' ? grant.scope : null;
+  // The page recovery rule comes only from the grant too; the admission names it, so a resume under another rule is refused.
+  const recovery = renderScope?.recovery === STAGE_RECOVERY_VERSION ? true as const : undefined;
   const reused = renderScope?.reuseSheets ? readReusedSheets(renderScope.reuseSheets, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest,
     child: { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) },
     companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out,
@@ -772,7 +795,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
       pairPages: loaded.replan.pairPages } } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
     ...(scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}), ...(reused ? { reuseSheets: reused.binding } : {}),
-    ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}) }));
+    ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}),
+    ...(recovery ? { recovery: STAGE_RECOVERY_VERSION } : {}) }));
   let child: AuditionImage, companion: AuditionImage;
   let resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
   if (args.resume) {
@@ -825,7 +849,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
     ...(grant.scope.sample ? { sample: grant.scope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
     ...(scaleLineup ? { scaleLineup } : {}), ...(reused ? { reuseSheets: reused.sheets } : {}),
-    ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}),
+    ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}), ...(recovery ? { recovery } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();

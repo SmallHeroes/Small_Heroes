@@ -286,6 +286,91 @@ export function assertFreshBookStoryboardRepairPaid(args: { env: FreshBookEnv; g
   return grant;
 }
 
+/**
+ * The ONE diagnosed storyboard continuation of the SAME book (Guy 2026-10-19 OWNER-GENERAL-STORYBOARD-RECOVERY-AMENDMENT): after the first
+ * storyboard repair's terminal held record (the stage's SECOND consecutive held candidate), a bound successor of that held repair, never a
+ * reopening: the held repair's draft and exact raw review, with the repair's own input as its parentRepair ancestry, are the continuation
+ * input (storyboard-repair/v1). The engine derives the stage-recovery state of both held candidates (stage-recovery/v1, ceiling
+ * STORYBOARD_MAX_ATTEMPTS), their diagnosis (storyboard-diagnosis/v1), which the planner consumes, and the changed strategy: the planner
+ * self-check and the typed review materiality contracts are added. ONE Opus 5.5 Claude Max planner and ONE Sol 6.1 review are new (at least the
+ * normal 600000 reservation); it is the stage's last attempt. Fixed in code like every earlier line: its own claim/outcome/audition
+ * start/successor and folder; every earlier grant, claim, outcome, seal, answer and cost stays byte-identical and is pinned by digest.
+ */
+export const FRESH_BOOK_STORYBOARD_CONTINUATION = Object.freeze({
+  version: 'fresh-book-storyboard-continuation/v1',
+  amendment: 'Guy 2026-10-19 OWNER-GENERAL-STORYBOARD-RECOVERY-AMENDMENT-20261019.txt: ONE diagnosed storyboard continuation of the SAME book after its held first storyboard repair (the second consecutive held storyboard candidate); engine retries, diagnosis of both held candidates and a changed strategy, typed impact materiality (minor positive-evidence notes only are non-blocking; major, unknown or unbound issues hold); ONE new Opus 5.5 Claude Max planner and ONE new Sol 6.1 storyboard review (at least the normal 600000 microUSD reservation); then child, references, two representative samples, the rest and the cover on their gates; same cumulative USD 7 book / USD 8 cycle caps; no separate paid diagnostic; story, citations and every earlier record unchanged; no owner waiver, reset or second book.',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-continuation.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-continuation.outcome.json',
+  auditionStartName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-continuation.audition.json',
+  /** The verified successor's one durable provenance record (written once, at completion, only after its whole chain replays). */
+  successorName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-continuation.successor.json',
+  folder: 'storyboard-continuation',
+  /** The terminal record it stands on: the first storyboard repair held by its own review (either held disposition). */
+  heldOutcome: 'held_storyboard_repair', heldStatuses: Object.freeze(['held_uncertain', 'held_contradiction'] as const),
+  /** Its own terminal record when its review holds it too: the stage's attempt ceiling is then reached. */
+  ownHeldOutcome: 'held_storyboard_continuation',
+  /** Admitted by its review: supported, or (typed policy) supported with bound detail notes. */
+  admittedStatuses: Object.freeze(['review_supported', 'review_supported_with_notes'] as const),
+  plannerCalls: 1, apiCalls: 1, reviewReserveFloorMicroUsd: 600_000,
+  /** The two earlier held candidates of the stage (the recovery's and the first repair's) and the stage ceiling this attempt reaches. */
+  priorAttempts: 2, maxAttempts: 3,
+  addedContracts: Object.freeze(['selfCheckContract', 'reviewImpactPolicy'] as const),
+});
+export const freshBookStoryboardContinuationGrantSchema = z.object({ version: z.literal('fresh-book-storyboard-continuation-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_STORYBOARD_CONTINUATION.amendment),
+  profileSha256: hash, bookDir: z.string().refine(p => path.isAbsolute(p)),
+  /** The consumed repair authority and its held evidence, by digest (the repair grant's pins bind ITS head, never this one's). */
+  repair: z.object({ grantFile: z.string().refine(p => path.isAbsolute(p)), grantSha256: hash, claimSha256: hash, outcomeSha256: hash, sealSha256: hash,
+    folderSha256: hash, recoveryClaimSha256: hash, originalClaimSha256: hash, reviewReceiptSha256: hash }).strict(),
+  /** The held repair storyboard it continues, re-derived from the repair's own saved source, draft and raw review. */
+  held: z.object({ sourceDigest: hash, storyboardDigest: hash, reviewDigest: hash, disposition: z.enum(FRESH_BOOK_STORYBOARD_CONTINUATION.heldStatuses),
+    draftSha256: hash, findings: z.number().int().positive() }).strict(),
+  /** The stage's recovery state at admission, derived by the engine from both held candidates, and the diagnosis this attempt consumes. */
+  recovery: z.object({ version: z.literal('stage-recovery/v1'), attempts: z.literal(FRESH_BOOK_STORYBOARD_CONTINUATION.priorAttempts),
+    maxAttempts: z.literal(FRESH_BOOK_STORYBOARD_CONTINUATION.maxAttempts), consecutiveFailures: z.literal(2), mode: z.literal('diagnose_and_change_strategy'),
+    stateSha256: hash, diagnosisDigest: hash, contextDigest: hash }).strict(),
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, bookKnownMicroUsd: micro, calls: micro }).strict(),
+  allowance: z.object({ plannerCalls: z.literal(FRESH_BOOK_STORYBOARD_CONTINUATION.plannerCalls), apiCalls: z.literal(FRESH_BOOK_STORYBOARD_CONTINUATION.apiCalls),
+    reviewReserveFloorMicroUsd: z.literal(FRESH_BOOK_STORYBOARD_CONTINUATION.reviewReserveFloorMicroUsd) }).strict(),
+  addedContracts: z.tuple([z.literal('selfCheckContract'), z.literal('reviewImpactPolicy')]),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookStoryboardContinuationGrant = z.infer<typeof freshBookStoryboardContinuationGrantSchema>;
+
+/** The continuation's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookStoryboardContinuation(env: FreshBookEnv, grant: FreshBookStoryboardContinuationGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_CONTINUATION.outcomeName))) fail('fresh_book_storyboard_continuation_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_CONTINUATION.claimName), 'wx'); } catch { return fail('fresh_book_storyboard_continuation_used'); }
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, storyboardContinuation: FRESH_BOOK_STORYBOARD_CONTINUATION.version, grantSha256: grantSha,
+    repairClaimSha256: grant.repair.claimSha256, recoveryClaimSha256: grant.repair.recoveryClaimSha256, originalClaimSha256: grant.repair.originalClaimSha256,
+    profileSha256: grant.profileSha256, bookDir: path.resolve(grant.bookDir), engineHead: grant.engine.head, claimedAt: new Date().toISOString() }) + '\n'); fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/**
+ * Synchronous, before EVERY paid call of a continuation-line stage: the continuation grant bytes, its profile, the claim it wrote, the repair,
+ * recovery and original claims it names, the clean source at its head and every pinned file.
+ */
+export function assertFreshBookStoryboardContinuationPaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_storyboard_continuation_grant');
+  const grant = freshBookStoryboardContinuationGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  const at = (name: string) => path.join(args.env.authorityRoot, name), claimFile = at(FRESH_BOOK_STORYBOARD_CONTINUATION.claimName);
+  const named = [[FRESH_BOOK_STORYBOARD_REPAIR.claimName, grant.repair.claimSha256], [FRESH_BOOK_RECOVERY.claimName, grant.repair.recoveryClaimSha256],
+    [FRESH_BOOK_CYCLE.claimName, grant.repair.originalClaimSha256]] as const;
+  if (!existsSync(claimFile) || named.some(([name, digest]) => !existsSync(at(name)) || previewSha(fileBytes(at(name))) !== digest)) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.storyboardContinuation !== FRESH_BOOK_STORYBOARD_CONTINUATION.version || claim.grantSha256 !== args.grantSha ||
+      claim.repairClaimSha256 !== grant.repair.claimSha256 || claim.recoveryClaimSha256 !== grant.repair.recoveryClaimSha256 ||
+      claim.originalClaimSha256 !== grant.repair.originalClaimSha256 || claim.profileSha256 !== grant.profileSha256 ||
+      path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() || claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
 /** The sample gate: the remaining pages and the cover are claimable only after BOTH representative samples passed their gates. */
 export type PageGate = { page: number; disposition: 'passed' | 'held_uncertain' | 'repair' | 'failed' | 'pending' };
 export function assertLaterPagesAllowed(samples: readonly PageGate[]) {

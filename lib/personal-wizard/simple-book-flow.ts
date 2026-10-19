@@ -28,6 +28,8 @@ export async function runSimpleWizardBook(args: {
   momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true; drawnInstantContract?: true;
   /** Opt-in visible-moment instruction contract (needs the moments contract); absent keeps the exact existing calls. */
   visibleMomentContract?: true;
+  /** Opt-in planner self-check (needs the moments contract) and typed review materiality; absent keeps the exact existing calls. */
+  selfCheckContract?: true; reviewImpactPolicy?: true;
   /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
   storyboardRepair?: StoryboardRepair;
   /**
@@ -107,12 +109,15 @@ export async function runSimpleWizardBook(args: {
     ...(args.compilerRulesContract ? { compilerRulesContract: true as const } : {}),
     ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
     ...(args.visibleMomentContract ? { visibleMomentContract: true as const } : {}),
+    ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
+    ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
     ...(args.storyboardRepair ? { repair: args.storyboardRepair } : {}),
     generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');
       const raw = await args.visual(call, signal); check(); return raw;
     } });
   check();
-  publish(storyboard.status === 'review_supported' ? 'references_required' : 'held');
+  // A storyboard supported with bound detail notes (typed policy only) proceeds like a supported one; its packets carry the notes.
+  publish(storyboard.status === 'review_supported' || storyboard.status === 'review_supported_with_notes' ? 'references_required' : 'held');
   return { status: storyboard.status, source, generated, readings, storyboard, runtimeEligible: false as const };
 }

@@ -24,6 +24,10 @@ import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } f
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from './storyboard-compiler-rules';
 import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, assertStoryboardRepair, storyboardRepairFindings, type StoryboardRepair } from './storyboard-repair';
 import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
+import { STORYBOARD_SELF_CHECK_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck, type StoryboardSelfCheck } from './storyboard-self-check';
+import { STORYBOARD_REVIEW_IMPACT_VERSION, storyboardReviewIssueSchema, storyboardReviewRefs, storyboardImpactDisposition } from './storyboard-review-impact';
+import { storyboardDiagnosis, diagnosisDigest, chainAttempts, STORYBOARD_MAX_ATTEMPTS, type ChainAttempt, type StoryboardDiagnosis } from './storyboard-diagnosis';
+import { recoveryState, assertNextAttempt, StageRecoveryError } from './stage-recovery';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -51,18 +55,41 @@ type BookData = {
   drawnInstant?: typeof DRAWN_INSTANT_CONTRACT_VERSION;
   /** Present only for opt-in visible-moment storyboards; absent keeps every older digest/packet unchanged. */
   visibleMoment?: typeof VISIBLE_MOMENT_CONTRACT_VERSION;
+  /** Present only for opt-in self-check storyboards: the planner's validated self-check (it carries its own version). */
+  selfCheck?: StoryboardSelfCheck;
+  /** Present only under the opt-in typed review materiality policy; absent keeps the all-or-nothing disposition. */
+  reviewImpact?: typeof STORYBOARD_REVIEW_IMPACT_VERSION;
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
 // A serialised/cloned object is not authority. Restore by revalidating original inputs.
 const sources = new WeakMap<Source, string>();
 const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Source }>();
+/**
+ * Each prepared source's stage-recovery facts, derived with it: the held candidates before it (its repair chain), its own diagnosis (null
+ * unless required) and its context (the sorted contract versions plus the diagnosis digest), which the stage-recovery rule compares.
+ */
+const recoveryOf = new WeakMap<object, { chain: ChainAttempt[]; diagnosis: StoryboardDiagnosis | null; contracts: string[]; context: string }>();
+type ContractFlags = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true;
+  drawnInstantContract?: true; visibleMomentContract?: true; selfCheckContract?: true; reviewImpactPolicy?: true; preservation?: unknown };
+const contractVersions = (f: ContractFlags) => [f.actorOwnedAppearance && 'actor-owned-appearance', f.momentContract && STORYBOARD_MOMENTS_VERSION,
+  f.landmarkKindContract && LANDMARK_KIND_CONTRACT_VERSION, f.sceneLocationContract && SCENE_LOCATION_CONTRACT_VERSION,
+  f.compilerRulesContract && COMPILER_RULES_CONTRACT_VERSION, f.drawnInstantContract && DRAWN_INSTANT_CONTRACT_VERSION,
+  f.visibleMomentContract && VISIBLE_MOMENT_CONTRACT_VERSION, f.selfCheckContract && STORYBOARD_SELF_CHECK_VERSION,
+  f.reviewImpactPolicy && STORYBOARD_REVIEW_IMPACT_VERSION, f.preservation !== undefined && STORYBOARD_PRESERVATION_VERSION]
+  .filter((v): v is string => typeof v === 'string').sort();
+/** An attempt's context: its contracts, the held candidate and review it corrects (none for a first plan) and the diagnosis it consumes. */
+const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: string; review: unknown } | undefined, diagnosis: string | null) =>
+  digest({ contracts, target: target ? { parentStoryboardDigest: target.parentStoryboardDigest, review: digest(target.review) } : null, diagnosis });
 
 /** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true,
   landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true, repair?: StoryboardRepair,
-  drawnInstantContract?: true, visibleMomentContract?: true) {
+  drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true) {
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
+  // The self-check binds the moments contract's requirements and drawn instants, so it needs that contract; the review policy stands alone.
+  if (selfCheckContract !== undefined && (selfCheckContract !== true || momentContract !== true)) fail('self_check_policy');
+  if (reviewImpactPolicy !== undefined && reviewImpactPolicy !== true) fail('review_impact_policy');
   if (momentContract !== undefined && momentContract !== true) fail('moment_policy');
   if (landmarkKindContract !== undefined && landmarkKindContract !== true) fail('landmark_kind_policy');
   if (sceneLocationContract !== undefined && sceneLocationContract !== true) fail('scene_location_policy');
@@ -125,15 +152,21 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   // it is itself a repaired storyboard, with its own repair input (its draft recompiles to its digest); the review its own, holding it. The
   // findings are that review's own unsupported checks, and for a contract this repair adds, the compiler's own findings on the parent: derived
   // here, never supplied.
+  const contracts = contractVersions({ actorOwnedAppearance, momentContract, landmarkKindContract, sceneLocationContract, compilerRulesContract,
+    drawnInstantContract, visibleMomentContract, selfCheckContract, reviewImpactPolicy, preservation });
   const held = repair === undefined ? undefined : (() => {
     const added = new Set(repair.addedContracts ?? []);
     if (added.has('drawnInstantContract') && drawnInstantContract !== true) fail('repair_policy');
     if (added.has('visibleMomentContract') && visibleMomentContract !== true) fail('repair_policy');
-    let parent: PersonalStoryboard;
+    if (added.has('selfCheckContract') && selfCheckContract !== true) fail('repair_policy');
+    if (added.has('reviewImpactPolicy') && reviewImpactPolicy !== true) fail('repair_policy');
+    let parent: PersonalStoryboard, parentSource: Source;
     try {
-      parent = compilePersonalStoryboard(preparePersonalStoryboard(request, writerResult, options, actorOwnedAppearance, momentContract, landmarkKindContract,
+      parentSource = preparePersonalStoryboard(request, writerResult, options, actorOwnedAppearance, momentContract, landmarkKindContract,
         undefined, sceneLocationContract, compilerRulesContract, repair.parentRepair, added.has('drawnInstantContract') ? undefined : drawnInstantContract,
-        added.has('visibleMomentContract') ? undefined : visibleMomentContract), structuredClone(repair.draft));
+        added.has('visibleMomentContract') ? undefined : visibleMomentContract, added.has('selfCheckContract') ? undefined : selfCheckContract,
+        added.has('reviewImpactPolicy') ? undefined : reviewImpactPolicy);
+      parent = compilePersonalStoryboard(parentSource, structuredClone(repair.draft));
     } catch (error) {
       // A nested repair's own refusal keeps its code; a draft that does not compile under the parent's contracts is not that parent.
       if (error instanceof Error && error.message.startsWith('personal_storyboard_repair_')) throw error;
@@ -141,11 +174,36 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     }
     if (parent.storyboardDigest !== repair.parentStoryboardDigest) fail('repair_binding');
     const decision = storyboardReviewDisposition(parent, repair.review);
-    if (decision.disposition === 'review_supported') fail('repair_not_held');
+    if (decision.disposition === 'review_supported' || decision.disposition === 'review_supported_with_notes') fail('repair_not_held');
+    // Under the typed policy only its blocking checks are findings (its notes stay listed in that review); otherwise every unsupported check.
+    const findings = decision.impact ? decision.impact.blocking.map(f => f.scope === 'book'
+      ? { scope: 'book' as const, category: f.category, verdict: f.verdict, observation: f.observation }
+      : { scope: 'page' as const, pageNumber: f.pageNumber!, category: f.category, verdict: f.verdict, observation: f.observation })
+      : storyboardRepairFindings(decision.review);
     const contractFindings = added.has('drawnInstantContract')
       ? drawnInstantGaps(parent.moments!, parent.plan, parent.sequence, previewStoryEvidence(story).texts).map(drawnInstantFinding) : undefined;
+    // The stage's attempt chain: the parent's own chain, then the parent itself (a held candidate under its own context).
+    const parentRecovery = recoveryOf.get(parentSource) ?? fail('repair_binding');
+    const chain: ChainAttempt[] = [...parentRecovery.chain, { storyboardDigest: parent.storyboardDigest, contextDigest: parentRecovery.context,
+      contracts: parentRecovery.contracts, draft: structuredClone(repair.draft), findings }];
+    // Under the self-check contract the stage-recovery rule applies within the stage's attempt ceiling: two consecutive held candidates
+    // require the engine diagnosis, and this attempt's context (contracts and diagnosis) may repeat no failed one. Absent, exactly the
+    // existing repair.
+    let diagnosis: StoryboardDiagnosis | null = null;
+    if (selfCheckContract) {
+      try {
+        const state = recoveryState(chainAttempts(chain), { maxAttempts: STORYBOARD_MAX_ATTEMPTS });
+        if (state.mode === 'stop_allowance_exhausted') fail('repair_allowance_exhausted');
+        diagnosis = state.mode === 'diagnose_and_change_strategy' ? storyboardDiagnosis(chain) : null;
+        const diagnosed = diagnosis ? diagnosisDigest(diagnosis) : null;
+        assertNextAttempt(state, { contextDigest: contextDigestOf(contracts, repair, diagnosed), diagnosisDigest: diagnosed });
+      } catch (error) {
+        if (error instanceof StageRecoveryError) fail(error.code === 'unchanged_strategy' ? 'repair_strategy_unchanged' : `repair_recovery_${error.code}`);
+        throw error;
+      }
+    }
     return { parentStoryboardDigest: repair.parentStoryboardDigest, draft: structuredClone(repair.draft), review: structuredClone(repair.review),
-      findings: storyboardRepairFindings(decision.review),
+      findings, chain, diagnosis,
       ...(repair.parentRepair ? { parentRepair: structuredClone(repair.parentRepair) } : {}),
       ...(repair.addedContracts ? { addedContracts: [...repair.addedContracts] } : {}), ...(contractFindings ? { contractFindings } : {}) };
   })();
@@ -159,10 +217,12 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(compilerRulesContract ? { compilerRulesContract: COMPILER_RULES_CONTRACT_VERSION } : {}),
     ...(drawnInstantContract ? { drawnInstantContract: DRAWN_INSTANT_CONTRACT_VERSION } : {}),
     ...(visibleMomentContract ? { visibleMomentContract: VISIBLE_MOMENT_CONTRACT_VERSION } : {}),
+    ...(selfCheckContract ? { selfCheckContract: STORYBOARD_SELF_CHECK_VERSION } : {}),
+    ...(reviewImpactPolicy ? { reviewImpactPolicy: STORYBOARD_REVIEW_IMPACT_VERSION } : {}),
     ...(prior ? { storyboardPreservation: { version: STORYBOARD_PRESERVATION_VERSION, parentStoryboardDigest: prior.parentStoryboardDigest, draft: digest(prior.draft) } } : {}),
     ...(held ? { storyboardRepair: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, draft: digest(held.draft),
       review: digest(held.review), ...(held.parentRepair ? { parentRepair: digest(held.parentRepair) } : {}),
-      ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}) } } : {}),
+      ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}), ...(held.diagnosis ? { diagnosis: diagnosisDigest(held.diagnosis) } : {}) } } : {}),
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}),
     ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
@@ -174,6 +234,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(compilerRulesContract ? { compilerRulesContract: true as const } : {}),
     ...(drawnInstantContract ? { drawnInstantContract: true as const } : {}),
     ...(visibleMomentContract ? { visibleMomentContract: true as const } : {}),
+    ...(selfCheckContract ? { selfCheckContract: true as const } : {}),
+    ...(reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
     ...(prior ? { preservation: prior } : {}),
     ...(held ? { repair: { parentStoryboardDigest: held.parentStoryboardDigest, draft: held.draft, review: held.review,
       ...(held.parentRepair ? { parentRepair: held.parentRepair } : {}), ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}) } } : {}),
@@ -190,10 +252,14 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       length: { narrativeSpreads: story.pages.length, displayPages: result.displayPages },
       ...(prior ? { priorApprovedStoryboard: { version: STORYBOARD_PRESERVATION_VERSION, parentStoryboardDigest: prior.parentStoryboardDigest, storyboard: prior.draft } } : {}),
       ...(held ? { priorReviewedStoryboard: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, storyboard: held.draft,
-        reviewFindings: held.findings, ...(held.contractFindings ? { contractFindings: held.contractFindings } : {}) } } : {}),
+        reviewFindings: held.findings, ...(held.contractFindings ? { contractFindings: held.contractFindings } : {}),
+        ...(held.diagnosis ? { diagnosis: held.diagnosis } : {}) } } : {}),
     },
   };
   sources.set(source, canonicalJson(source));
+  const ownDiagnosis = held?.diagnosis ?? null;
+  recoveryOf.set(source, { chain: held?.chain ?? [], diagnosis: ownDiagnosis, contracts,
+    context: contextDigestOf(contracts, repair, ownDiagnosis ? diagnosisDigest(ownDiagnosis) : null) });
   return source;
 }
 
@@ -205,14 +271,27 @@ function parentStoryboardDigest(request: unknown, writerResult: unknown, options
 /** New/current operation: an archive or stripped receipt is never current evidence. */
 export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true,
   momentContract?: true, landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true,
-  repair?: StoryboardRepair, drawnInstantContract?: true, visibleMomentContract?: true) {
+  repair?: StoryboardRepair, drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true) {
   return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract,
-    landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract, visibleMomentContract);
+    landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract, visibleMomentContract,
+    selfCheckContract, reviewImpactPolicy);
 }
 
 function assertSource(source: Source) {
   if (!sources.has(source) || sources.get(source) !== canonicalJson(source)) fail('unvalidated_or_changed_source');
   previewStoryEvidence(source.story);
+}
+
+/**
+ * The stage-recovery facts the engine derived with a prepared source: its held candidates (oldest first, each with its digest, context,
+ * contracts and its own review's findings; drafts omitted), this attempt's contracts and context, and the diagnosis it carries (null unless
+ * required). A copy for a driver to persist and compare with its own records; never authority and never fed back into the engine.
+ */
+export function storyboardRecovery(source: Source) {
+  assertSource(source);
+  const r = recoveryOf.get(source) ?? fail('unvalidated_or_changed_source');
+  return structuredClone({ chain: r.chain.map(({ draft: _draft, ...attempt }) => attempt), contracts: r.contracts, context: r.context, diagnosis: r.diagnosis,
+    diagnosisDigest: r.diagnosis ? diagnosisDigest(r.diagnosis) : null });
 }
 
 export const PERSONAL_STORYBOARD_INSTRUCTION = `${WHOLE_BOOK_PLANNING_INSTRUCTION}
@@ -240,11 +319,20 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown): Pe
   const object = rawDraft && typeof rawDraft === 'object' ? rawDraft as Record<string, unknown> : null;
   if (!source.momentContract && object && 'moments' in object) fail('moments_not_enabled');
   if (source.momentContract && !(object && 'moments' in object)) fail('moments_required');
-  // Moments are split off before the unchanged plan/sequence compiler, then validated against its output.
+  if (source.selfCheckContract && !('selfCheck' in object!)) fail('self_check_required');
+  // Moments (and, opt-in, the planner's self-check) are split off before the unchanged plan/sequence compiler, then validated against its output.
   const { moments: rawMoments, ...draft } = source.momentContract ? object! : { moments: undefined };
+  const rawSelfCheck = source.selfCheckContract ? (draft as Record<string, unknown>).selfCheck : undefined;
+  if (source.selfCheckContract) delete (draft as Record<string, unknown>).selfCheck;
   const compiled = compileWholeBookDraft(source.momentContract ? draft : rawDraft, source.story, source.actorOwnedAppearance === true);
   const moments = source.momentContract
     ? validateStoryboardMoments(rawMoments, compiled.plan, compiled.sequence, previewStoryEvidence(source.story).texts, source.drawnInstantContract) : undefined;
+  // Self-check: bound to this plan, these page texts and (for a diagnosed repair) the diagnosis and what this draft changed from its parent.
+  const selfCheck = source.selfCheckContract ? validateStoryboardSelfCheck(rawSelfCheck, { plan: compiled.plan, sequence: compiled.sequence, moments: moments! },
+    previewStoryEvidence(source.story).texts, source.repair
+      ? { diagnosis: recoveryOf.get(source)?.diagnosis ?? null, parentDraft: source.repair.draft, candidateDraft: rawDraft } : undefined) : undefined;
+  // Typed review materiality: a policy marker only (the disposition reads it); the review schema and input follow it.
+  const reviewImpact = source.reviewImpactPolicy ? STORYBOARD_REVIEW_IMPACT_VERSION : undefined;
   // Landmark kinds: syntax checked here; their meaning is the semantic review's (KIND_REVIEW_ADDENDUM).
   if (source.landmarkKindContract) landmarkKinds(compiled.plan.continuity!, compiled.sequence.mutableAttributes);
   const landmarkKind = source.landmarkKindContract ? LANDMARK_KIND_CONTRACT_VERSION : undefined;
@@ -260,13 +348,14 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown): Pe
   const visibleMoment = source.visibleMomentContract ? VISIBLE_MOMENT_CONTRACT_VERSION : undefined;
   const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled, ...(moments ? { moments } : {}),
     ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}), ...(compilerRules ? { compilerRules } : {}),
-    ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}) });
+    ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}),
+    ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
     ...compiled, ...(moments ? { moments } : {}), ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}),
     ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}),
-    ...(visibleMoment ? { visibleMoment } : {}) } as PersonalStoryboard;
+    ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -296,12 +385,30 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
     companionVisualAuthority: source.companionVisualAuthority,
     ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
     narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}),
-    ...(book.landmarkKind ? { landmarkKindContract: { version: book.landmarkKind, landmarks: landmarkKinds(book.plan.continuity!, book.sequence.mutableAttributes) } } : {}) };
+    ...(book.landmarkKind ? { landmarkKindContract: { version: book.landmarkKind, landmarks: landmarkKinds(book.plan.continuity!, book.sequence.mutableAttributes) } } : {}),
+    ...(book.selfCheck ? { selfCheck: book.selfCheck } : {}),
+    ...(book.reviewImpact ? { reviewImpact: { version: book.reviewImpact, reviewRefs: storyboardReviewRefs(book) } } : {}) };
 }
 
-export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unknown) {
+/** Under the typed review materiality policy only: every check also lists its issues (none when supported). */
+const impactCheck = check.extend({ issues: z.array(storyboardReviewIssueSchema).max(4) });
+export const impactStoryboardReviewSchema = z.object({
+  sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), storyboardDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  bookChecks: z.array(impactCheck.extend({ category: z.enum(STORYBOARD_BOOK_CHECKS) })).length(STORYBOARD_BOOK_CHECKS.length),
+  frames: z.array(z.object({ pageNumber: z.number().int().min(0).max(16),
+    checks: z.array(impactCheck.extend({ category: z.enum(STORYBOARD_FRAME_CHECKS) })).length(STORYBOARD_FRAME_CHECKS.length),
+  }).strict()).min(9).max(17),
+}).strict();
+type StoryboardReviewDecision = {
+  disposition: 'review_supported' | 'review_supported_with_notes' | 'held_uncertain' | 'held_contradiction';
+  review: z.infer<typeof personalStoryboardReviewSchema> | z.infer<typeof impactStoryboardReviewSchema>; reviewDigest: string; runtimeEligible: false;
+  /** Present only under the typed policy: its blocking findings and its non-blocking notes. */
+  impact?: ReturnType<typeof storyboardImpactDisposition>;
+};
+
+export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unknown): StoryboardReviewDecision {
   assertBook(book);
-  const review = personalStoryboardReviewSchema.parse(raw);
+  const review = book.reviewImpact ? impactStoryboardReviewSchema.parse(raw) : personalStoryboardReviewSchema.parse(raw);
   if (review.sourceDigest !== book.sourceDigest || review.storyboardDigest !== book.storyboardDigest) fail('review_binding');
   const categories = (checks: { category: string }[], expected: readonly string[]) => {
     if (checks.length !== expected.length || new Set(checks.map(item => item.category)).size !== expected.length ||
@@ -310,12 +417,23 @@ export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unkno
   categories(review.bookChecks, STORYBOARD_BOOK_CHECKS);
   if (review.frames.length !== book.narrativeSpreads + 1 || review.frames.some((frame, index) => frame.pageNumber !== index)) fail('review_coverage');
   review.frames.forEach(frame => categories(frame.checks, STORYBOARD_FRAME_CHECKS));
+  if (book.reviewImpact) {
+    // The typed policy: the reviewer's own impacts, bound to the book's reference vocabulary; the engine never assigns or lowers one.
+    const typed = review as z.infer<typeof impactStoryboardReviewSchema>;
+    const impact = storyboardImpactDisposition([
+      ...typed.bookChecks.map(check => ({ scope: 'book' as const, check })),
+      ...typed.frames.flatMap(frame => frame.checks.map(check => ({ scope: 'page' as const, pageNumber: frame.pageNumber, check }))),
+    ], storyboardReviewRefs(book));
+    return { disposition: impact.disposition, review, reviewDigest: digest(review), runtimeEligible: false as const, impact };
+  }
   const checks = [...review.bookChecks, ...review.frames.flatMap(frame => frame.checks)];
   const disposition = checks.some(item => item.verdict === 'uncertain') ? 'held_uncertain' as const
     : checks.some(item => item.verdict === 'contradiction') ? 'held_contradiction' as const : 'review_supported' as const;
   // A self-consistent report is not an attestation of model accuracy or independent QA.
   return { disposition, review, reviewDigest: digest(review), runtimeEligible: false as const };
 }
+/** Admitted for framing: supported, or (typed policy only) supported with bound, positively justified detail notes. */
+const reviewAdmits = (decision: StoryboardReviewDecision) => decision.disposition === 'review_supported' || decision.disposition === 'review_supported_with_notes';
 
 /**
  * The owner's acceptance of a held storyboard, bound: exactly this book, this review (by digest) and every check the review did not support,
@@ -325,9 +443,9 @@ export function storyboardOwnerAcceptance(book: PersonalStoryboard, rawReview: u
   return bindOwnerAcceptance(book, storyboardReviewDisposition(book, rawReview), acceptance);
 }
 /** The binding itself, against a decision this module derived from the book and its raw review (never a caller's). */
-function bindOwnerAcceptance(book: PersonalStoryboard, decision: ReturnType<typeof storyboardReviewDisposition>, acceptance: unknown) {
+function bindOwnerAcceptance(book: PersonalStoryboard, decision: StoryboardReviewDecision, acceptance: unknown) {
   assertStoryboardOwnerAcceptance(acceptance);
-  if (decision.disposition === 'review_supported') fail('owner_acceptance_not_needed');
+  if (reviewAdmits(decision)) fail('owner_acceptance_not_needed');
   if (acceptance.storyboardDigest !== book.storyboardDigest || acceptance.reviewDigest !== decision.reviewDigest ||
       canonicalJson(acceptance.acceptedFindings) !== canonicalJson(storyboardRepairFindings(decision.review))) fail('owner_acceptance_binding');
   return { version: STORYBOARD_OWNER_ACCEPTANCE_VERSION, acceptanceDigest: digest(acceptance) };
@@ -343,11 +461,11 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   if (!current) return fail('current_source_required');
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
-    source.visibleMomentContract);
+    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   const accepted = ownerAcceptance === undefined ? null : bindOwnerAcceptance(book, decision, ownerAcceptance);
-  if (decision.disposition !== 'review_supported' && !accepted) fail(decision.disposition);
+  if (!reviewAdmits(decision) && !accepted) fail(decision.disposition);
   if (!Number.isInteger(pageNumber) || pageNumber < 0 || pageNumber > book.narrativeSpreads) fail('unknown_frame');
   const text = pageNumber === 0 ? source.story.title : source.story.pages[pageNumber - 1].text;
   const ledger = pageNumber === 0 ? null : sequencePageState(book.sequence, book.plan, pageNumber);
@@ -361,7 +479,9 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     companion: { id: source.request.companion.id, description: source.companionDescription },
     visual: selectedDraftQaContext(plan, pageNumber), sequence,
     ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
-    ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}) };
+    ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
+    // Typed policy: the bound non-blocking notes travel with every frame (the judge sees what the review accepted as detail).
+    ...(decision.impact ? { reviewImpact: { version: decision.impact.version, disposition: decision.disposition, notes: decision.impact.notes } } : {}) };
   const packetDigest = digest(context);
   const base = previewPagePrompt(plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
   // No prior pixels are being claimed reviewed or attached by this offline bridge.
@@ -380,7 +500,7 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   admitCurrentStoryboardStory(source.request, source.result, current.options);
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
-    source.visibleMomentContract);
+    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return ownerAcceptance === undefined ? personalStoryboardFrame(book, rawReview, pageNumber, current)
     : personalStoryboardFrame(book, rawReview, pageNumber, current, ownerAcceptance);
@@ -388,21 +508,25 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
 
 /** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */
 export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; preservation?: unknown;
-  sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true }) =>
+  sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true;
+  selfCheckContract?: true }) =>
   (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '')
   + (source.landmarkKindContract ? '\n' + KIND_STORYBOARD_ADDENDUM : '') + (source.preservation ? '\n' + PRESERVATION_STORYBOARD_ADDENDUM : '')
   + (source.sceneLocationContract ? '\n' + SCENE_LOCATION_STORYBOARD_ADDENDUM : '')
   + (source.compilerRulesContract ? '\n' + COMPILER_RULES_STORYBOARD_ADDENDUM : '')
   + (source.drawnInstantContract ? '\n' + DRAWN_INSTANT_STORYBOARD_ADDENDUM : '')
   + (source.visibleMomentContract ? '\n' + VISIBLE_MOMENT_STORYBOARD_ADDENDUM : '')
+  + (source.selfCheckContract ? '\n' + SELF_CHECK_STORYBOARD_ADDENDUM : '')
   + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM : '');
 // The landmark-kind contract adds no schema: its kind is an ordinary invariant, given meaning only by the bound book marker. The drawn-instant
-// contract adds actorStates to every depicted instant.
-export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true }) =>
-  source.momentContract && source.drawnInstantContract
-    ? (source.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema)
-    : source.momentContract
-      ? (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema)
+// contract adds actorStates to every depicted instant; the self-check contract adds the top-level selfCheck.
+const momentDraftSchema = (source: { actorOwnedAppearance?: true; drawnInstantContract?: true }) => source.drawnInstantContract
+  ? (source.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema)
+  : (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema);
+export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
+  selfCheckContract?: true }) =>
+  source.momentContract && source.selfCheckContract ? (momentDraftSchema(source) as typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: selfCheckSchema })
+    : source.momentContract ? momentDraftSchema(source)
       : (source.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema);
 
 function drawnSequenceState(book: PersonalStoryboard, pageNumber: number, ledger: ReturnType<typeof sequencePageState>,

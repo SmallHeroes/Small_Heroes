@@ -8,11 +8,14 @@ export const BOOK_SPREAD_COUNTS = [8, 12, 16] as const;
 /** Initial headroom, NOT live adequacy proof. Caps include reasoning, not only JSON.
  * Keep reservation, runner and SDK on this one policy; never shrink it to fit money.
  */
-export function personalBookOutputLimits(narrativeSpreads: number) {
+export function personalBookOutputLimits(narrativeSpreads: number, contracts?: { selfCheck?: true }) {
   if (!(BOOK_SPREAD_COUNTS as readonly number[]).includes(narrativeSpreads)) throw Error('book_length_invalid');
+  if (contracts !== undefined && (typeof contracts !== 'object' || contracts === null || Object.keys(contracts).some(k => k !== 'selfCheck') ||
+      (contracts.selfCheck !== undefined && contracts.selfCheck !== true))) throw Error('book_limits_contract_invalid');
   const frames = narrativeSpreads + 1;
   const checks = STORYBOARD_BOOK_CHECKS.length + STORYBOARD_FRAME_CHECKS.length * frames;
-  return { storyboardOutputTokens: Math.max(32_000, 3_000 * frames),
+  // The opt-in planner self-check (storyboard-self-check/v1) is extra required output: its claims, events, designs and resolutions per frame.
+  return { storyboardOutputTokens: Math.max(32_000, 3_000 * frames) + (contracts?.selfCheck ? 2_000 * frames : 0),
     reviewOutputTokens: Math.ceil(Math.max(32_000, 16_000 + 512 * checks) / 1_000) * 1_000 };
 }
 export type PersonalBookSettings = { model: StoryModel; budgetUsd: number; maxJobs: number; operators: Set<string> };
