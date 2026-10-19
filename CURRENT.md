@@ -1,5 +1,88 @@
 # SmallHeroes — Current Technical State
 
+## Engine recovery (e02f9712): diagnosis after two held candidates, typed materiality, planner self-check, ONE diagnosed continuation, offline, for Codex QA; the book is NOT done (2026-10-19)
+
+**Before this round.** Codex passed F7, and the ONE storyboard repair ran under grant 999accd5…: native exit 0, but its own Sol
+review held it (`held_uncertain`, 6 findings). The outcome is `held_storyboard_repair`, with no successor. API spend: book
+155406 of 7000000, diagnostic 128930, cycle 284336 of 8000000. Max for the book is 1551583 (separate). Guy's 2026-10-19
+amendment (`OWNER-GENERAL-STORYBOARD-RECOVERY-AMENDMENT-20261019.txt`) chose a GENERAL engine fix: retries, diagnosis after two
+consecutive failures and a major/minor distinction, inside the engine. It rules out an owner waiver and any manual story edit.
+
+**What the engine now does.** Everything is opt-in and versioned; every legacy contract, digest, instruction, schema and
+packet is byte-identical (pinned by the existing specs).
+- `stage-recovery/v1` (reusable reducer, `lib/personal-wizard/stage-recovery.ts`):
+  - one held candidate routes to a targeted correction;
+  - two CONSECUTIVE held candidates require a bound diagnosis and a changed strategy before the next generation;
+  - an unknown outcome or the ceiling stops new spending;
+  - no context of a failed attempt may repeat (no identical-wire retry);
+  - the count is derived from the attempts themselves, so a folder, grant or restart cannot reset it; only an admitted
+    candidate resets it.
+- `storyboard-diagnosis/v1` is derived ONLY from the bound repair chain, never supplied. It records:
+  - every blocking finding by stable key: repeated with a new detail (with the earlier review's words), new, or resolved;
+  - the sections the last candidate changed;
+  - the protected (resolved) pages;
+  - the cause classes;
+  - the remaining allowance (`STORYBOARD_MAX_ATTEMPTS` 3).
+  The next planner request consumes it, and the source digest binds it. No paid diagnostic call exists.
+- `storyboard-review-impact/v1` gives typed per-issue materiality on ONE shared order (`review-impact.ts`: the reviewed
+  audition's safety > story > identity > continuity > detail, plus the storyboard's required-evidence gate):
+  - only a DETAIL issue with a known reference and a positive reason it is not material is a non-blocking note
+    (`review_supported_with_notes`; the raw verdict stays in the review, and every frame packet carries the notes);
+  - any material impact, unknown materiality (no issues listed), an unbound reference, an unjustified detail or issues on a
+    supported check holds;
+  - the engine never assigns or lowers an impact.
+- `storyboard-self-check/v1` (the planner's structured self-check, validated by the compiler):
+  - each claim is split into parts, each with its own same-page quote;
+  - the page's events and the key event the picture draws (an aftermath never silently replaces a consequential action; a
+    quiet ending, reveal or joke stays valid);
+  - every object with both a continuity design and a prop design lists each invariant with the prop's own phrase and
+    agreement;
+  - every place, route or viewpoint the plan states is quoted, or declared unstated;
+  - for a diagnosed repair, one resolution per diagnosed finding: cause class, confirmed facts vs hypothesis, impact,
+    remedy, the sections changed (verified against the parent) and the success check. Resolved pages stay unchanged unless
+    a resolution names them.
+  - The provider wire shape is bound-free (the planner's schema travels on its command line); the engine validates the
+    bounded schema. The planner cap gains 2000 tokens per frame (8 spreads: 50000; the pinned CLI's Opus 5.5 upper limit is
+    128000).
+- `fresh-book-storyboard-continuation/v1` (driver and authority) binds:
+  - the consumed repair grant, its claim, held outcome, seal, admission and input, its paid draft and raw review;
+  - the whole recovery and original lineage, re-derived;
+  - its own claim, outcome, audition start, successor and folder.
+  It persists `recovery-state.json`, `diagnosis.json` and `recovery-final.json`, and makes ONE Opus 5.5 Max planner call and
+  ONE Sol 6.1 review that reserves at least 600000. Its successor is replayed at every child, book and resume entry.
+- Reviewed audition: opt-in diagnosis after two held page attempts, inside the unchanged three-attempt ceiling. The audition
+  grant's `scope.recovery` is its only switch, and the continuation line sets it. Sheets and the child keep their two
+  attempts.
+
+**Real book, read only.** The engine imports the recovery's and the repair's held storyboards as two consecutive failures,
+with their own contexts and costs. The diagnosis:
+- repeated with a new detail: book fidelity, book continuity, page 4;
+- new: page 6 (on a section the repair did not change), page 8 moment and set;
+- resolved and protected: pages 3 and 7.
+
+The continuation's planner request fits every limit:
+
+| Limit | Measured | Ceiling |
+|---|---|---|
+| content | 65821 | 104000 |
+| wire | 99845 | 104000 |
+| argv | 29846 | 31000 |
+| Max reservation | 1539319 | 2000000 |
+
+The consumed repair's own planner request, rebuilt by this code, is byte-identical to the preview it was admitted with.
+
+**Tests.**
+- 22 new tests pass: engine 10, reducer 4, audition 3, driver 5 (including the real-data dry plan and preview).
+- The 37 affected specs plus the new reducer spec, run serially per file: 38 files, 1647 passed, 4 failed, 1 skipped.
+  - Known REDs: `fresh-book-driver.spec.ts:152` and `simple-book-flow.spec.ts:184`.
+  - Two environmental timeouts fail identically at the base 9cda8e37 under the machine's current load (stash controls,
+    hash-verified restore): `simple-book-flow.spec.ts:1211` (its own 180 s) and child-anchor-inspection "materiality round 2"
+    (5 s default).
+- nonincremental tsc 0. The full check stays RED.
+
+**Next.** Codex's independent QA of the range and the unused continuation grant. After a PASS: the ONE diagnosed continuation,
+then child, references, two samples, the rest and the cover, the viewer and the reports.
+
 ## F7 round 1 (7e53b542): the storyboard repair binds the whole original authority, offline, for Codex re-gate; the book is NOT done (2026-10-19)
 
 **Finding (Codex F7, P2, at 0f018abe).** The repair's admission checked the consumed recovery grant and the original CLAIM,

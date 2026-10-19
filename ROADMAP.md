@@ -1,5 +1,24 @@
 # SmallHeroes — Roadmap
 
+## Engine recovery built offline (e02f9712); next: independent Codex QA, then the ONE diagnosed continuation and the book (2026-10-19)
+
+- The ONE storyboard repair ran and its review held it (6 findings). Guy chose a general engine fix: retries, diagnosis
+  after two consecutive failures and a major/minor distinction, inside the engine; no owner waiver.
+- Built (opt-in, versioned; legacy byte-identical):
+  - `stage-recovery/v1`, a reusable bounded reducer;
+  - `storyboard-diagnosis/v1`, derived from the bound chain, consumed by the next request, three-attempt ceiling;
+  - `storyboard-review-impact/v1`: only bound, justified detail notes are non-blocking; unknown holds;
+  - `storyboard-self-check/v1`: per-part quotes, the drawn event vs an epilogue, design agreement, grounding, verified
+    resolutions;
+  - the `fresh-book-storyboard-continuation/v1` line: ONE Opus Max planner and ONE floored Sol review;
+  - opt-in page diagnosis after two held attempts (same three-attempt ceiling).
+- Real book (read only): the two held storyboards count as two consecutive failures. 3 findings repeated, 3 new, pages 3 and
+  7 resolved and protected. The planner request fits: wire 99845/104000, argv 29846/31000.
+- Tests: 22 new pass. Affected 38 files serially: 1647 passed, 4 failed (stale `:152` and `:184`; two timeouts that fail
+  identically at base 9cda8e37 under current load). tsc 0. The full check stays RED.
+- Next: Codex QA of the range and the unused continuation grant. Then: continuation → child → samples → rest + cover →
+  viewer → QA report → consolidated engine report.
+
 ## F7 round 1 (7e53b542): repair admission binds the whole original authority; next: Codex re-gate, then ONE repair and the book (2026-10-19)
 
 - Codex F7 at 0f018abe: a changed original grant byte or outcome code still allowed a (mocked) repair. The rest of
