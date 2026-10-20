@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Codex RRP-1 HOLD on e97fc6e5 corrected (7def732d): a repeated relation slot compares structured content; next: Codex re-gate, then attempt 6 and the book (2026-10-20)
+
+- **What happened.** Codex's QA passed the presence mechanism and held one P2: the repeated-relation rule refused any relation in the slot,
+  even a genuinely changed one the text states (integrated reproduction: inside hut → on hut → at garden).
+- **Fixed (round 1 of 2, offline):** the slot carries the relation values it was held with; only an identical one (any quote or cause), a
+  staged one or a hidden entity is refused; a changed relation goes to the unchanged review.
+- **Real book (read only):** the same held attempt 5, its slot now with the held values (beside gray_ball, at spiral_trail); the planner request fits (wire 97386/104000).
+- **Tests:** presence spec 7/7 (Codex's reproduction as a regression); 9 engine specs 132/132; presence driver 5/5; Codex's probe re-run passes; tsc 0; no 53-file rerun (per the brief); the full check stays RED.
+- **Next:** Codex re-gate → attempt 6 → child → samples → rest + cover → viewer → QA report → consolidated engine report.
+
 ## Attempt 5 held on one reference; the presence contract + attempt-6 line built offline (d0448a9e); next: Codex QA, then attempt 6 and the book (2026-10-20)
 
 - **What happened.** The ONE attempt 5 (Opus Max planner 1104180, Sol review 91286 microUSD) was held on one reference: the child's place

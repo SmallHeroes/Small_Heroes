@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Codex held e97fc6e5 on RRP-1; the repeated-relation rule now compares structured content (7def732d), for Codex re-gate; the book is NOT done (2026-10-20)
+
+**What happened since e97fc6e5.** Codex's independent source-read-only QA (`CODEX-PRESENCE-QA-HOLD-e97fc6e5-20261020.txt`) passed the
+presence mechanism, severity, authority and preservation controls (68/68), and held ONE verified P2, RRP-1
+(`CODEX-FINDING-PRESENCE-REPEATED-REF-20261020.txt`):
+- `validateRepeatedReferences` refused ANY relation in a repeated slot `p{n}:relation:{id}`. The slot names no relation, target or meaning, so
+  a genuinely changed relation the text states was refused too.
+- Codex's integrated reproduction: page 5 states the garden; two held drafts put both actors inside the hut, then on the hut; a corrected
+  draft at the garden (the same quote, cause `state_design`) compiled without the contract and was refused with it.
+- The unused grant b5de35a1… stays history; it was never executed.
+
+**The correction (round 1 of at most 2; one focused offline round).**
+- Each repeated relation reference now carries `heldValues`: the relation and target the two held drafts themselves gave that slot (the
+  latest first).
+- The compiler refuses the slot again only when the candidate's relation equals one of those values (whatever its quote or cause label), is
+  staged, or has no recorded value; a hidden entity stays refused, and so does the cause `evidence_binding`.
+- A relation the page states with a different relation or target compiles and goes to the unchanged review. Nothing turns unsupported into
+  supported; no finding is removed or reinterpreted.
+- The planner instruction, the recovery record's strategy and the line's description say the same.
+
+**Real book, read only (dry plan and planner preview).**
+- The same held attempt 5 (candidate 1e27782d…, review 6459a5f8…, 2 findings in 1 group) and its repeated slot `p8:relation:child`, now with
+  its held values from the two held drafts: attempt 5 `beside gray_ball`, attempt 4 `at spiral_trail`.
+- Recovery: 5 held candidates, ceiling 6, one attempt left; diagnosis 68d27a78… and context 466e54a6… unchanged; the state (ebc96695…)
+  changes only by the held values and the corrected strategy wording.
+- The planner request: content 67174 of 104000; wire 97386 of 104000; argv 26005 of 31000; reserve 1528499 of 2000000.
+- API: book 428234 / 8 calls, cycle 557164; the floor fits (6571766 left). Max for the book: 4711396 (separate, never 0).
+
+**Tests (focused, as the fix brief directs).**
+- `storyboard-presence.spec.ts` 7/7. New: Codex's reproduction as an integrated regression through two held repairs and the compiler (the
+  changed relation compiles and reaches the review; either held value, staged, hidden or `evidence_binding` refused; absent, unchanged), and
+  the held values on the real attempts 4 and 5.
+- The 9 quick engine specs that import the changed engine: 132/132. The presence driver tests: 5/5, including the real-data dry plan.
+- Codex's probe re-run against this source: the changed relation compiles under the contract; the same failed relation is still refused.
+- nonincremental tsc 0. Not re-run, per the fix brief: the 53-file serial run, `simple-book-flow:1211` and the mutation campaign (their
+  e97fc6e5 history stands: 2316/3/2; `:465` timed out once and passed alone). The full check stays RED.
+
+**Next.** Codex's re-gate of the correction and the new unused pin of the SAME attempt 6. After a PASS and a fresh preflight: the ONE
+attempt 6; if admitted, child, references, two samples, the rest and the cover (gpt-image-2 LOW), the viewer and the reports. Held: an
+honest stop, no attempt 7.
+
 ## Attempt 5's review held; the presence contract and the attempt-6 line built offline (d0448a9e), for Codex QA; the book is NOT done (2026-10-20)
 
 **What happened since 40927765.**
