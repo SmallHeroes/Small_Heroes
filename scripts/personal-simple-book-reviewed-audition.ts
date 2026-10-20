@@ -32,7 +32,7 @@ import { COMPILER_RULES_CONTRACT_VERSION } from '../lib/personal-wizard/storyboa
 import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { VISIBLE_MOMENT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-visible-moment';
 import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION } from '../lib/personal-wizard/storyboard-self-check';
-import { CLAIM_BASIS_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-claim-basis';
+import { CLAIM_BASIS_CONTRACT_VERSION, CLAIM_BASIS_STAGING_FIELDS_VERSION } from '../lib/personal-wizard/storyboard-claim-basis';
 import { STORYBOARD_REVIEW_IMPACT_VERSION } from '../lib/personal-wizard/storyboard-review-impact';
 import { STAGE_RECOVERY_VERSION } from '../lib/personal-wizard/stage-recovery';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
@@ -148,6 +148,13 @@ export function savedSelfCheckNames(savedBook: { selfCheckNames?: unknown } | un
 export function savedClaimBasisContract(savedBook: { claimBasis?: { version?: unknown } } | undefined): true | undefined {
   if (savedBook?.claimBasis === undefined) return undefined;
   return savedBook.claimBasis?.version === CLAIM_BASIS_CONTRACT_VERSION ? true : fail('audition_board_binding');
+}
+
+/** The compile-level staging-fields correction comes only from the saved, digest-bound book (its marker); an unknown marker is refused. */
+export function savedStagingFields(savedBook: { stagingFields?: unknown } | undefined): { stagingFields: true } | undefined {
+  const marker = savedBook?.stagingFields;
+  if (marker === undefined) return undefined;
+  return marker === CLAIM_BASIS_STAGING_FIELDS_VERSION ? { stagingFields: true } : fail('audition_board_binding');
 }
 
 /** A reviewed storyboard's admitted status: supported, or supported with bound detail notes (typed policy; the recomputed disposition decides). */
@@ -281,8 +288,8 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
     savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
     savedClaimBasisContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
-  const names = savedSelfCheckNames(saved);
-  const book = names ? compilePersonalStoryboard(source, parentDraft, names) : compilePersonalStoryboard(source, parentDraft);
+  const names = savedSelfCheckNames(saved), fields = savedStagingFields(saved);
+  const book = names || fields ? compilePersonalStoryboard(source, parentDraft, { ...names, ...fields }) : compilePersonalStoryboard(source, parentDraft);
   // The book binds first: a changed book refuses here before its saved review is read (the review names the saved book's digests).
   const rawReview = result.storyboard.rawReview, disposition = () => storyboardReviewDisposition(book, rawReview).disposition;
   if (canonicalJson(book) !== canonicalJson(result.storyboard.storyboard) || !book.plan.actorAppearance ||

@@ -8,7 +8,7 @@ import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
 import { DRAWN_INSTANT_REVIEW_ADDENDUM } from './storyboard-drawn-instant';
 import { SELF_CHECK_REVIEW_ADDENDUM } from './storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from './storyboard-review-impact';
-import { CLAIM_BASIS_REVIEW_ADDENDUM, CLAIM_BASIS_SELF_CHECK_REVIEW_RULE } from './storyboard-claim-basis';
+import { CLAIM_BASIS_REVIEW_ADDENDUM, CLAIM_BASIS_SELF_CHECK_REVIEW_RULE, CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE } from './storyboard-claim-basis';
 import type { StoryboardPreservation } from './storyboard-preservation';
 import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
@@ -22,10 +22,11 @@ export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
 };
 /** The review call's instructions for a storyboard under these contracts (shared by every caller that reviews a storyboard). */
 export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true }) => PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
+  selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true }) => PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
   + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
   + (contracts.selfCheckContract ? '\n' + (contracts.claimBasisContract ? claimBasisSelfCheckReviewAddendum() : SELF_CHECK_REVIEW_ADDENDUM) : '')
-  + (contracts.reviewImpactPolicy ? '\n' + STORYBOARD_REVIEW_IMPACT_ADDENDUM : '') + (contracts.claimBasisContract ? '\n' + CLAIM_BASIS_REVIEW_ADDENDUM : '');
+  + (contracts.reviewImpactPolicy ? '\n' + STORYBOARD_REVIEW_IMPACT_ADDENDUM : '') + (contracts.claimBasisContract ? '\n' + CLAIM_BASIS_REVIEW_ADDENDUM : '')
+  + (contracts.claimBasisContract && contracts.stagingFields ? '\n' + CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE : '');
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
   const lines = SELF_CHECK_REVIEW_ADDENDUM.split('\n'), at = lines.findIndex(l => l.startsWith('- claims:'));
@@ -70,7 +71,10 @@ export async function runSimpleStoryboardDiagnostic(args: {
   selfCheckNames?: true;
   /** Opt-in claim basis (storyboard-claim-basis/v1: needs the moments, drawn-instant, self-check and typed-review contracts); absent keeps the exact existing calls. */
   claimBasisContract?: true;
+  /** Opt-in compile-level claim-basis staging fields (storyboard-claim-basis-staging-fields/v1; the review reads it); absent keeps the exact compile and review. */
+  stagingFields?: true;
 }) {
+  if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
@@ -120,7 +124,9 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
       ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
       ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
-      ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}) } }), args.signal, args.selfCheckNames ? { selfCheckNames: true } : undefined);
+      ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}) } }), args.signal,
+    args.selfCheckNames || args.stagingFields ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}) }
+      : undefined);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
   const rawReview = await dispatch({ stage: 'review', instructions: storyboardReviewInstructions(args),

@@ -70,12 +70,16 @@ export function storyboardFrameClaims(book: Storyboardish, n: number): Storyboar
   return claims.map(c => { const k = (seen.get(c.ref) ?? 0) + 1; seen.set(c.ref, k); return k === 1 ? c : { ...c, ref: `${c.ref}#${k}` }; });
 }
 
-/** Every reference a review issue may cite: the book, its cast, entities, props and locations, each frame, its composition and every claim. */
-export function storyboardReviewRefs(book: Storyboardish): string[] {
+/**
+ * Every reference a review issue may cite: the book, its cast, entities, props and locations, each frame, its composition and every claim.
+ * `planFields` (storyboard-claim-basis-staging-fields/v1 only): each frame's stageable plan direction fields too; absent, exactly as before.
+ */
+export function storyboardReviewRefs(book: Storyboardish, planFields?: readonly string[]): string[] {
   const refs = ['book', 'cast:child', 'cast:companion',
     ...(book.plan.continuity?.entities ?? []).map(e => `entity:${e.id}`), ...book.plan.recurringProps.map(p => `prop:${p.id}`),
     ...book.plan.locations.map(l => `location:${l.id}`)];
-  book.plan.pages.forEach((_, n) => refs.push(`p${n}`, `p${n}:composition`, ...storyboardFrameClaims(book, n).map(c => c.ref)));
+  book.plan.pages.forEach((_, n) => refs.push(`p${n}`, `p${n}:composition`, ...(planFields ?? []).map(f => `p${n}:${f}`),
+    ...storyboardFrameClaims(book, n).map(c => c.ref)));
   return [...new Set(refs)];
 }
 

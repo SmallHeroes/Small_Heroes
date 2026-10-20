@@ -49,6 +49,21 @@ export const claimBasisMomentsPolicy: MomentsPolicy = { schema: claimBasisMoment
 /** The review issue under the contract: the typed issue plus its citation (a source span id, or empty). */
 export const claimBasisIssueSchema = storyboardReviewIssueSchema.extend({ citation: z.string().trim().max(24).regex(/^(p\d{1,2}:s\d{1,3})?$/) }).strict();
 
+/**
+ * Opt-in compile-level correction storyboard-claim-basis-staging-fields/v1. The contract's own instruction names gesture, gaze, expression,
+ * posture and arrangement as visual direction, and in the draft those choices live in a page's plan direction fields, which carry no claim
+ * ref; under this option a frame's staging may also name that frame's own direction fields as `p{n}:<field>`. A staged field is reviewed as
+ * direction (contradiction, identity, age, style, safety), never as a stated fact. `scene` is not stageable: `p{n}:scene` is the scene-cut
+ * claim, which is never staged. The source and the planner request are unchanged (a paid answer stays replayable); absent, exactly the
+ * existing validation.
+ */
+export const CLAIM_BASIS_STAGING_FIELDS_VERSION = 'storyboard-claim-basis-staging-fields/v1' as const;
+export const STAGEABLE_PLAN_FIELDS = Object.freeze(['composition', 'childAction', 'childExpression', 'childGaze', 'companionAction'] as const);
+const planFieldRefs = (n: number) => new Set(STAGEABLE_PLAN_FIELDS.map(f => `p${n}:${f}`));
+/** The staging entries that name a plan direction field (frame order), for a record of what the correction admitted. */
+export const stagedPlanFields = (moments: { frames: readonly object[] }) => moments.frames.flatMap((frame, n) =>
+  ((frame as { staging?: readonly { ref: string }[] }).staging ?? []).filter(s => planFieldRefs(n).has(s.ref)).map(s => ({ page: n, ref: s.ref })));
+
 const fail = (code: string): never => { throw Error(`storyboard_claim_basis_${code}`); };
 
 /** A frame's visible ids: the one structured authority on what its picture shows (the cover has no sequence page: its continuity ids only). */
@@ -113,10 +128,12 @@ export const droppedRefs = (dropped: readonly HiddenOverride[]) => {
  * Validates the contract's own fields against the compiled plan, sequence and page texts (structure only; the review judges meaning):
  * show/avoid requirements keep entityId and revealPage null; a withhold requirement names a declared entity or a cast member that this frame
  * and every frame up to its reveal page do not show, whose reveal page is the FIRST later frame that shows it, with its evidence an exact
- * quote of that page; a staging entry names an existing claim of its own frame, never the drawn instant, a scene cut or a withhold, once.
+ * quote of that page; a staging entry names an existing claim of its own frame (under `stagingFields`, or one of its own plan direction
+ * fields), never the drawn instant, a scene cut or a withhold, once.
  */
 export function validateClaimBasis(frames: readonly { requirements: ClaimBasisRequirement[]; staging: z.infer<typeof stagingSchema>[] }[], plan: PreviewPlan,
-  sequence: Sequence, texts: readonly string[], frameClaimRefs: (n: number) => readonly string[]) {
+  sequence: Sequence, texts: readonly string[], frameClaimRefs: (n: number) => readonly string[], options?: { stagingFields?: true }) {
+  if (options !== undefined && (Object.keys(options).some(k => k !== 'stagingFields') || options.stagingFields !== true)) fail('options');
   const entities = new Set([...Object.values(BOOK_SEQUENCE_ROLES), ...(plan.continuity?.entities ?? []).map(e => e.id)]);
   frames.forEach((frame, n) => {
     for (const r of frame.requirements) {
@@ -127,8 +144,10 @@ export function validateClaimBasis(frames: readonly { requirements: ClaimBasisRe
       if (first !== r.revealPage || !texts[r.revealPage!].includes(r.evidence)) fail('withhold_reveal');
     }
     const claims = new Set(frameClaimRefs(n)), withheld = new Set(frame.requirements.flatMap((r, i) => r.kind === 'withhold' ? [`p${n}:requirement:${i}`] : []));
+    const fields = options?.stagingFields ? planFieldRefs(n) : null;
     if (new Set(frame.staging.map(s => s.ref)).size !== frame.staging.length) fail('staging_duplicate');
-    for (const s of frame.staging) if (!claims.has(s.ref) || withheld.has(s.ref) || /^p\d+:(instant|scene)(#\d+)?$/.test(s.ref)) fail('staging_ref');
+    for (const s of frame.staging) if (!(claims.has(s.ref) || fields?.has(s.ref)) || withheld.has(s.ref) || /^p\d+:(instant|scene)(#\d+)?$/.test(s.ref))
+      fail('staging_ref');
   });
 }
 
@@ -177,6 +196,9 @@ export const CLAIM_BASIS_REVIEW_ADDENDUM = `CLAIM BASIS (storyboard-claim-basis/
 - A requirement of kind withhold keeps its entity out of the picture until revealPage: judge whether its evidence on that page is the entity's visual reveal, not an earlier mention.
 - Citation: claimBasis.sourceSpans lists every page's sentences with ids. When a stated claim's own quote does not establish it but ONE span of the claim's own page (the cover: the title or page 1; a withhold requirement: its reveal page) states the WHOLE claim, give that issue impact evidence, citation = that span id and whyNotMaterial = why that span states the whole claim; the claim then stands with that citation. When support is partial, ambiguous, on another page or contradicted, citation stays empty. Every issue gives citation, empty when there is none.
 - A frame's picture shows only its visible entities; an entity that is not visible is not part of it.`;
+
+/** Under storyboard-claim-basis-staging-fields/v1 only: the review reads a staged plan direction field as direction (appended to its addendum). */
+export const CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE = `- Staging may also name a frame's own plan direction fields (storyboard-claim-basis-staging-fields/v1): p{n}:composition, p{n}:childAction, p{n}:childExpression, p{n}:childGaze and p{n}:companionAction, each also a reviewRefs id. Judge a staged field exactly as a staged claim: visual direction, judged only for contradiction with the text, the drawn instant, the ledger or canon and for identity, age, style and safety; never a stated fact, never proof.`;
 
 /** Under the contract the self-check review rule for parts admits a cited span (it replaces that addendum's claims rule). */
 export const CLAIM_BASIS_SELF_CHECK_REVIEW_RULE = `- claims: under this contract a stated claim's evidence is its parts' quotes. Judge every part against its own quote: a part its quote does not establish is unsupported unless one span of its page states it (then give that citation). For a claim listed in its frame's staging, the parts' quotes are the sentences it interprets, not proof.`;

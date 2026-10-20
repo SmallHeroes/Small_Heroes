@@ -7,13 +7,14 @@ import { preparePersonalStoryboard, prepareCurrentPersonalStoryboard, compilePer
   storyboardInstructions, storyboardReviewDisposition, claimBasisStoryboardReviewSchema } from '../storyboard';
 import { STORYBOARD_MOMENTS_VERSION, momentRenderSection } from '../storyboard-moments';
 import { CLAIM_BASIS_CONTRACT_VERSION, CLAIM_BASIS_STORYBOARD_ADDENDUM, CLAIM_BASIS_DRAWN_INSTANT_RULE, CLAIM_BASIS_REVIEW_ADDENDUM,
-  CLAIM_BASIS_SELF_CHECK_REVIEW_RULE, claimBasisSectionsView, sourceSpans, citationBinds } from '../storyboard-claim-basis';
+  CLAIM_BASIS_SELF_CHECK_REVIEW_RULE, claimBasisSectionsView, sourceSpans, citationBinds, CLAIM_BASIS_STAGING_FIELDS_VERSION, CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE,
+  stagedPlanFields } from '../storyboard-claim-basis';
 import { storyboardReviewRefs } from '../storyboard-review-impact';
 import { STORYBOARD_ATTEMPT_EXTENSION_VERSION } from '../storyboard-repair';
 import { personalBookProviderSchema } from '../book-openai';
 import { previewStoryEvidence } from '../../local-story-preview';
 import { runSimpleStoryboardDiagnostic, storyboardReviewInstructions, type SimpleStoryboardDiagnosticCall } from '../simple-storyboard-diagnostic';
-import { savedClaimBasisContract } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { savedClaimBasisContract, savedStagingFields } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const options = resolvePersonalWizardOptions();
 type Fixture = Awaited<ReturnType<typeof personalStoryboardFixture>>;
@@ -286,6 +287,54 @@ describe('storyboard-claim-basis/v1 (opt-in): stated claims, visual direction, w
     expect(() => compilePersonalStoryboard(s4, withCheck(d4, s4, undefined, repair4), { selfCheckNames: true })).not.toThrow();
     // A resolution may also name a section that only adopted the contract's shape (its raw bytes changed).
     expect(() => compilePersonalStoryboard(s4, withCheck(d4, s4, s => { s.resolutions[0].changed.push('p2:moment'); }, repair4), { selfCheckNames: true })).not.toThrow();
+  });
+
+  it('staging fields (storyboard-claim-basis-staging-fields/v1, compile-level): a frame\'s own plan direction fields may be staged; strict v1 still refuses; marker, review refs and rule follow', async () => {
+    const f = await personalStoryboardFixture(), source = prep(f, { basis: true });
+    const reason = 'the pose and the arrangement are visual direction that fits the text';
+    const staged = (change: (d: any) => void) => basisDraft(f, change);
+    const both = staged(d => { d.moments.frames[2].staging = [{ ref: 'p2:composition', reason }]; d.moments.frames[3].staging = [{ ref: 'p3:childAction', reason }]; });
+    // Strict v1: a plan field is not a claim, so it is refused exactly as before.
+    expect(() => compilePersonalStoryboard(source, withCheck(both, source))).toThrow('storyboard_claim_basis_staging_ref');
+    expect(() => compilePersonalStoryboard(source, withCheck(both, source), { selfCheckNames: true })).toThrow('storyboard_claim_basis_staging_ref');
+    // Under the option: admitted, marked, listed; the source (and so the planner request) is unchanged.
+    const book = compilePersonalStoryboard(source, withCheck(both, source), { stagingFields: true });
+    expect([book.stagingFields, 'stagingFields' in compilePersonalStoryboard(source, withCheck(basisDraft(f), source))]).toEqual([CLAIM_BASIS_STAGING_FIELDS_VERSION, false]);
+    expect(stagedPlanFields(book.moments!)).toEqual([{ page: 2, ref: 'p2:composition' }, { page: 3, ref: 'p3:childAction' }]);
+    expect(compilePersonalStoryboard(source, withCheck(both, source), { selfCheckNames: true, stagingFields: true }).selfCheckNames).toBe('storyboard-self-check-names/v1');
+    // Still refused under the option: the scene cut (and the scene field), another frame's field, a non-direction field, the instant, a withhold, a duplicate.
+    const refused = (staging: unknown[], n = 3) => () => compilePersonalStoryboard(source, withCheck(staged(d => { d.moments.frames[n].staging = staging; }), source), { stagingFields: true });
+    for (const ref of ['p3:scene', 'p4:childAction', 'p3:locationId', 'p3:props', 'p3:shot', 'p3:instant', 'p3:childaction'])
+      expect(refused([{ ref, reason }]), ref).toThrow('storyboard_claim_basis_staging_ref');
+    expect(refused([{ ref: 'p3:childGaze', reason }, { ref: 'p3:childGaze', reason }])).toThrow('storyboard_claim_basis_staging_duplicate');
+    for (const ref of ['p3:childExpression', 'p3:childGaze', 'p3:companionAction', 'p3:composition']) expect(refused([{ ref, reason }]), ref).not.toThrow();
+    expect(() => compilePersonalStoryboard(source, withCheck(basisDraft(f, d => { d.moments.frames[2].requirements = [{ kind: 'withhold', subject: 'it stays hidden',
+      evidence: 'They leave the hut for the garden, carrying the ribbon.', entityId: 'ribbon', revealPage: 3 }]; d.moments.frames[2].staging = [{ ref: 'p2:requirement:0', reason }]; }),
+      source), { stagingFields: true })).toThrow('storyboard_claim_basis_staging_ref');
+    // The policy: claim-basis sources only, exactly true; an empty or unknown option refuses as before.
+    const plainSource = prep(f, { selfCheck: true, impact: true }), plainDraft = drawnDraft(f);
+    expect(() => compilePersonalStoryboard(plainSource, { ...plainDraft, selfCheck: fullSelfCheck(plainDraft, textsOf(plainSource)) }, { stagingFields: true }))
+      .toThrow('personal_storyboard_staging_fields_policy');
+    expect(() => compilePersonalStoryboard(source, withCheck(both, source), { stagingFields: 'yes' } as never)).toThrow('personal_storyboard_staging_fields_policy');
+    for (const options of [{}, { other: true }, { selfCheckNames: 'yes' }])
+      expect(() => compilePersonalStoryboard(source, withCheck(both, source), options as never)).toThrow('personal_storyboard_self_check_names_policy');
+    // The review: the stageable fields join the reference vocabulary only under the marker, and the review reads the rule.
+    expect(personalStoryboardReviewInput(book)).toMatchObject({ reviewImpact: { reviewRefs: expect.arrayContaining(['p3:childAction', 'p0:childGaze']) } });
+    const strictBook = compilePersonalStoryboard(source, withCheck(basisDraft(f), source));
+    expect((personalStoryboardReviewInput(strictBook) as any).reviewImpact.reviewRefs.includes('p3:childAction')).toBe(false);
+    expect(storyboardReviewRefs(strictBook)).toEqual(storyboardReviewRefs(strictBook, undefined));
+    const decide = (b: typeof book, issues: unknown[]) => storyboardReviewDisposition(b, reviewOf(f, b, r => set(r.frames[3].checks[0], 'uncertain', 'the pose is not stated', issues))).disposition;
+    expect(decide(book, [issue('detail', 'p3:childAction', '', 'a crouch fits the comic moment and changes nothing the reader understands')])).toBe('review_supported_with_notes');
+    expect(decide(book, [issue('evidence', 'p3:childAction')])).toBe('held_uncertain');
+    expect(decide(strictBook, [issue('detail', 'p3:childAction', '', 'a reason')])).toBe('held_uncertain');
+    const contracts = { momentContract: true, drawnInstantContract: true, selfCheckContract: true, reviewImpactPolicy: true, claimBasisContract: true } as const;
+    expect([storyboardReviewInstructions({ ...contracts, stagingFields: true }).endsWith(`\n${CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE}`),
+      storyboardReviewInstructions(contracts).includes('storyboard-claim-basis-staging-fields/v1'),
+      storyboardReviewInstructions({ ...contracts, claimBasisContract: undefined, stagingFields: true }).includes(CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE)]).toEqual([true, false, false]);
+    // The loader takes the correction only from the saved, digest-bound book's marker.
+    expect([savedStagingFields(undefined), savedStagingFields({}), savedStagingFields({ stagingFields: CLAIM_BASIS_STAGING_FIELDS_VERSION })])
+      .toEqual([undefined, undefined, { stagingFields: true }]);
+    expect(() => savedStagingFields({ stagingFields: 'storyboard-claim-basis-staging-fields/v2' })).toThrow('audition_board_binding');
   });
 
   it('call path: the diagnostic sends the contract\'s instruction and shapes; the review input carries the spans; a citation note admits with notes and every packet', async () => {
