@@ -1,5 +1,71 @@
 # SmallHeroes — Current Technical State
 
+## Attempt 4's review held; corrected B approved; the calibration contract and the attempt-5 line built offline (5f17de4d), for Codex QA; the book is NOT done (2026-10-20)
+
+**What happened since 99f97904.**
+- Codex passed 99f97904 and the review-only grant d9ed6fcc…. The ONE extension-revalidation review ran once (06:08:26Z..06:09:53Z;
+  native exit 0; no planner call; Sol 6.1, 24896/3956 tokens, 89352 microUSD).
+- It HELD attempt 4: `held_uncertain` → outcome `held_storyboard_extension_revalidation`, `stop_allowance_exhausted` (4 of 4); no successor,
+  child or book. 9 blocking checks, 12 issues (10 evidence, 2 continuity), 0 notes.
+- Codex's outcome QA (48/48) verified the hold and the costs, and corrected the engine diagnosis:
+  - The engine's own typed-impact instruction defined `evidence` to include "a place, route or viewpoint the text does not ground", so every
+    unstated setting detail blocked by definition. The review standard itself was miscalibrated for a picture book.
+  - The 12 entries are 7 refs; the 8 geography entries are 3 groups.
+- Guy approved the corrected B in chat ("מסכים, תמשיך!"; `OWNER-APPROVAL-CORRECTED-B-ATTEMPT5-20261020.txt`): the product rule below, then
+  ONE attempt 5 of 5.
+
+**The general contract: `storyboard-calibration/v1`** (opt-in, versioned; needs the claim basis; absent = byte-identical). Four components:
+- `storyboard-review-severity/v1` (the owner's rule, shared by planner and review; `VISUAL_COMPLETION_RULE`): "A reasonable visual completion
+  is allowed when it does not contradict the text or canon and changes no event, identity, age, safety or material relation (who can reach,
+  see or affect whom). A meaningful contradiction still blocks, and strong evidence stays required for causal actions, reveals,
+  consequential topology and state changes."
+  - Every review issue carries the reviewer's `basis`: contradiction | unsupported | inference | setting.
+  - safety, story and identity always block; a contradiction blocks; an unsupported element blocks unless a verified citation supports it.
+  - inference and setting are notes, only with the reviewer's positive reason. The engine reads the basis; it never infers or lowers one.
+- `storyboard-claim-basis-multispan/v1`: a citation may name one to three spans of ONE of the claim's own pages, in text order.
+- `storyboard-relation-lifetime/v1`: the compiler refuses a ledger relation beside, on or held by an actor who changes place while the entity
+  is never visible again (a contact of one picture belongs in the drawn instant). No exit sentence, no new state machine.
+- `storyboard-state-source/v1`: the planner lists each state change of the visual language with the change refs that carry it; the compiler
+  verifies the phrase and that each ref is a change of a mutable attribute; the review judges agreement.
+- A repair under it also groups the parent review's issues by reference (one group is one cause).
+
+**Plumbing.**
+- `storyboard-attempt-extension/v2`: chained owner extensions, each exactly +1, naming the previous one, only once it is spent.
+- A parent's compile options may include the staging-fields correction.
+- Planner schema compaction (`definition-names/v1`, opt-in, transport only): the same schema structure under short definition names. It cuts
+  the planner command line by ~6000 characters, so the request fits without raising any limit.
+
+**The line: `fresh-book-storyboard-calibration/v1`** (ONE Opus Max planner, ONE floored Sol review; attempt 5 of 5).
+- It stands on the held extension revalidation, re-derived exactly with its whole lineage, and on the owner's second record.
+- Its input: attempt 4's held draft and raw review, the extension's input as ancestry, the calibration, both parent compile options, the
+  v2 extension.
+- Held ends the line: no attempt 6. Own claim, outcome, audition start, successor and folder.
+- Downstream: `child|book --storyboard-calibration`.
+
+**Real book, read only (dry plan and planner preview).**
+- Held candidate ce4c5025…, review e44871ee…: 9 findings in 7 groups. Recovery: 4 held candidates, ceiling 5, one attempt left.
+- The planner request: content 69933 of 104000; wire 99792 of 104000; argv 25360 of 31000; reserve 1539085 of 2000000.
+- The review request is measured only after the planner: about 93600 of 104000 at attempt 4's candidate size.
+- API: book 336948 / 7 calls, cycle 465878. Max for the book: 3607216 (separate, never 0).
+
+**Tests.**
+- 13 new, all pass. Engine 7 (`storyboard-calibration.spec.ts`): absent byte-identical, with the policy, the replaced instruction entries,
+  provider shapes, the marker and the review input; severity; multi-span citations; relation lifetime; one source for state; the chained
+  v2 extension and the finding groups; the real attempt 4 (read only). Transport 1: the compaction. Driver 5 (`fresh-book-recovery.spec.ts`):
+  positive (ONE calibrated planner on the compacted wire, ONE floored review admits with a setting note, successor, child and book on the
+  line); held at attempt 5 of 5; 13 pre-claim refusals; successor tamper; the real-data dry plan and planner preview.
+- Focused mutation controls: 36 mutants, 34 killed. The 2 survivors are equivalent: the v2 policy's previous binding and chain length are
+  implied by the shape check and the parent's own preparation.
+- The relevant 41 spec files, serially: 1749 passed, 4 failed, 1 skipped (1754).
+  - The stale `fresh-book-driver.spec.ts:152` and `simple-book-flow.spec.ts:184`, as before.
+  - `storyboard-visible-moment.spec.ts:86` pinned the addable-contract list; updated in the code commit, 4/4 alone.
+  - `simple-book-flow.spec.ts:1211` hit its own 180 s timeout (185 s; alone 181 s and 191 s). The BASE 99f97904 sources time out the same
+    way (191 s) under the same load, and it timed out on 10/19 before this milestone too; not caused by it.
+- nonincremental tsc 0. The full check stays RED.
+
+**Next.** Codex's code QA of the range and the unused calibration grant. After a PASS: the ONE attempt 5; if admitted, child, references, two
+samples, the rest and the cover, the viewer and the reports. Held: an honest stop, no attempt 6.
+
 ## The extension's paid answer refused at compile; staging-fields correction + bound extension revalidation (5dfcd2d9), offline, for a narrow Codex re-gate; the book is NOT done (2026-10-20)
 
 **What happened.** Codex passed 42fafd71 and the extension grant 8e700b5c… (`CODEX-REFINED-B-QA-PASS-42fafd71-20261020.txt`). The writer

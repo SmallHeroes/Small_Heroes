@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Attempt 4 held; corrected B approved: the calibration contract + attempt-5 line built offline (5f17de4d); next: Codex QA, then attempt 5 and the book (2026-10-20)
+
+- **What happened.** The ONE extension-revalidation review (89352 microUSD, no planner) held attempt 4 (`stop_allowance_exhausted`, 4 of 4).
+  Codex's outcome QA verified it and found the review standard itself blocking every unstated setting detail. Guy approved the corrected B
+  ("מסכים, תמשיך!").
+- **Built (opt-in, versioned; absent byte-identical):**
+  - `storyboard-calibration/v1`: the owner's visual-completion rule shared by planner and review (the reviewer types each issue's basis),
+    same-page multi-span citations, relation lifetime, one source for changing state, root-cause finding groups;
+  - `storyboard-attempt-extension/v2`; the planner schema compaction (`definition-names/v1`);
+  - the `fresh-book-storyboard-calibration/v1` line: ONE Opus planner and ONE Sol review, attempt 5 of 5, held ends the line.
+- **Real book (read only):** 9 findings in 7 groups; the planner request fits (wire 99792/104000, argv 25360/31000).
+- **Tests:** 13 new pass; mutants 34/36 (2 equivalent); 41 files serially 1749/1754 (stale :152/:184; the visible-moment pin, updated; simple-book-flow:1211 timeout, identical on the base sources); tsc 0; the full check stays RED.
+- **Next:** Codex code QA → attempt 5 → child → samples → rest + cover → viewer → QA report → consolidated engine report.
+
 ## Extension refused at compile (plan-field staging); staging-fields correction + bound extension revalidation built offline (5dfcd2d9); next: Codex re-gate, then the ONE review and the book (2026-10-20)
 
 - **What happened.** Codex passed 42fafd71, and the ONE extension (attempt 4 of 4) ran. Its Opus Max answer (1053404 Max microUSD) was
