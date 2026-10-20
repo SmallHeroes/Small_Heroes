@@ -72,7 +72,7 @@ this page. A requirement that bans something the data requires, or demands somet
  * once the compiler dropped the overrides of entities its frame does not show). Absent, exactly the existing validation.
  */
 export type MomentsPolicy = { schema: z.ZodTypeAny; requirementPages: (requirement: { kind: string; revealPage?: number | null }, n: number) => number[];
-  visibleOnly: true };
+  visibleOnly: true; presence?: true };
 /**
  * Deterministic validation against the compiled plan/sequence and the exact page texts. With the opt-in drawn-instant contract, every depicted
  * instant also lists actorStates (a temporary look of a visible child or companion, quoted on its page), an instant may consist of those alone,
@@ -110,7 +110,8 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
       if (!ledger.has(o.entityId)) fail('unknown_entity');
       if (equal(ledger.get(o.entityId), o.value)) fail('depicted_noop');
     }
-    const drawn = drawnStates(page.states, d);
+    // Under a presence policy (storyboard-presence/v1) a present actor is drawn at the frame's own location.
+    const drawn = drawnStates(page.states, d, policy?.presence ? plan.pages[n].locationId : undefined);
     const visible = new Set([...plan.continuity!.pages[n].visibleEntityIds, ...page.visibleCastIds]);
     const at = new Map(drawn.map(s => [s.entityId, s.value]));
     for (const { entityId, value: v } of drawn) {
@@ -134,10 +135,18 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
   return m;
 }
 
-export function drawnStates(states: readonly State[], depicted: StoryboardMoments['frames'][number]['depicted']): State[] {
+/**
+ * The relations at a frame's drawn instant: the end-of-page states with the instant's overrides. `presenceAt` (storyboard-presence/v1 only):
+ * the frame's location, where an actor the instant lists in depicted.presence is drawn (at the scene's place, related to no entity); absent,
+ * exactly the existing derivation.
+ */
+export function drawnStates(states: readonly State[], depicted: StoryboardMoments['frames'][number]['depicted'], presenceAt?: string): State[] {
   if (!depicted) return states.map(s => structuredClone(s));
   const overrides = new Map(depicted.relations.map(o => [o.entityId, o.value]));
-  return states.map(s => ({ entityId: s.entityId, value: structuredClone(overrides.get(s.entityId) ?? s.value) }));
+  const present = presenceAt !== undefined && 'presence' in depicted
+    ? new Set((depicted as { presence: { actorId: string }[] }).presence.map(p => p.actorId)) : null;
+  return states.map(s => ({ entityId: s.entityId, value: structuredClone(present?.has(s.entityId) ? { relation: 'at' as const, targetId: presenceAt! }
+    : overrides.get(s.entityId) ?? s.value) }));
 }
 
 /**
@@ -171,6 +180,11 @@ export function momentRenderSection(moments: StoryboardMoments, pageNumber: numb
   const looks = frame.depicted && 'actorStates' in frame.depicted ? (frame.depicted as z.infer<typeof drawnInstantDepictedSchema>).actorStates : [];
   if (looks.length) lines.push('AT THIS INSTANT ONLY (temporary look, not the end of the page):', ...looks.map(a => `- ${a.actorId}: ${a.state} (text: "${
     cited(`p${pageNumber}:actor:${a.actorId}`, a.evidence)}")${basis?.staged.has(`p${pageNumber}:actor:${a.actorId}`) ? ' [visual direction]' : ''}`));
+  // Presence contract only (storyboard-presence/v1): actors present in the drawn scene without a placement (absent field, absent line).
+  const present = frame.depicted && 'presence' in frame.depicted ? (frame.depicted as { presence: { actorId: string; evidence: string }[] }).presence : [];
+  if (present.length) lines.push('IN THE SCENE, NOT PLACED (the text has them in this scene but does not say where they are):', ...present.map(p =>
+    `- ${p.actorId}: part of this scene at its place; not touching, holding, pushing, carrying or acting on anything (text: "${
+      cited(`p${pageNumber}:presence:${p.actorId}`, p.evidence)}")`));
   if (!basis) {
     if (frame.requirements.length) lines.push('PAGE MEANING (source-quoted, story-critical):', ...frame.requirements.map(r =>
       `- ${r.kind === 'show' ? 'MUST SHOW' : 'MUST AVOID'}: ${r.subject} (text: "${r.evidence}")`));

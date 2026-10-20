@@ -37,6 +37,9 @@ import { CLAIM_BASIS_CONTRACT_VERSION, CLAIM_BASIS_STORYBOARD_ADDENDUM, CLAIM_BA
 import { STORYBOARD_CALIBRATION_VERSION, CALIBRATION_COMPONENTS, CALIBRATION_STORYBOARD_ADDENDUM, calibrationIssueSchema, calibrationSelfCheckSchema,
   calibrationSelfCheckStoryboardAddendum, severityMaterial, multispanCitationBinds, citationText, relationLifetimeViolations, validateVisualStates,
   findingGroups, type CalibrationIssue, type VisualStates } from './storyboard-calibration';
+import { STORYBOARD_PRESENCE_VERSION, PRESENCE_COMPONENTS, PRESENCE_STORYBOARD_ADDENDUM, presenceMomentsSchema, presenceMomentsPolicy,
+  presenceWholeBookDraftSchema, ownedPresenceWholeBookDraftSchema, validatePresence, repeatedReferences, typedFindingsOf, validateRepeatedReferences,
+  draftFrameVisible, presenceSelfCheckStoryboardAddendum, type RepeatedReference } from './storyboard-presence';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -80,6 +83,8 @@ type BookData = {
   stagingFields?: typeof CLAIM_BASIS_STAGING_FIELDS_VERSION;
   /** Present only under the opt-in calibration contract: its marker, its components and the planner's validated visual-state map. */
   calibration?: { version: typeof STORYBOARD_CALIBRATION_VERSION; components: string[]; visualStates: VisualStates };
+  /** Present only under the opt-in presence contract: its marker and its components. */
+  presence?: { version: typeof STORYBOARD_PRESENCE_VERSION; components: string[] };
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -91,15 +96,21 @@ const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Sour
  * unless required) and its context (the sorted contract versions plus the diagnosis digest), which the stage-recovery rule compares.
  */
 const recoveryOf = new WeakMap<object, { chain: ChainAttempt[]; diagnosis: StoryboardDiagnosis | null; contracts: string[]; context: string }>();
+/**
+ * Each prepared repair input's typed findings of the held review it repairs (claim basis; null otherwise), keyed by that input object: a
+ * repair's own preparation first prepares its parent with its parentRepair, so the review before the latest one is read from there.
+ */
+const priorTypedOf = new WeakMap<object, unknown>();
 type ContractFlags = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true;
   drawnInstantContract?: true; visibleMomentContract?: true; selfCheckContract?: true; reviewImpactPolicy?: true; preservation?: unknown; claimBasisContract?: true;
-  calibrationContract?: true };
+  calibrationContract?: true; presenceContract?: true };
 const contractVersions = (f: ContractFlags) => [f.actorOwnedAppearance && 'actor-owned-appearance', f.momentContract && STORYBOARD_MOMENTS_VERSION,
   f.landmarkKindContract && LANDMARK_KIND_CONTRACT_VERSION, f.sceneLocationContract && SCENE_LOCATION_CONTRACT_VERSION,
   f.compilerRulesContract && COMPILER_RULES_CONTRACT_VERSION, f.drawnInstantContract && DRAWN_INSTANT_CONTRACT_VERSION,
   f.visibleMomentContract && VISIBLE_MOMENT_CONTRACT_VERSION, f.selfCheckContract && STORYBOARD_SELF_CHECK_VERSION,
   f.reviewImpactPolicy && STORYBOARD_REVIEW_IMPACT_VERSION, f.preservation !== undefined && STORYBOARD_PRESERVATION_VERSION,
-  f.claimBasisContract && CLAIM_BASIS_CONTRACT_VERSION, f.calibrationContract && STORYBOARD_CALIBRATION_VERSION]
+  f.claimBasisContract && CLAIM_BASIS_CONTRACT_VERSION, f.calibrationContract && STORYBOARD_CALIBRATION_VERSION,
+  f.presenceContract && STORYBOARD_PRESENCE_VERSION]
   .filter((v): v is string => typeof v === 'string').sort();
 /** An attempt's context: its contracts, the held candidate and review it corrects (none for a first plan) and the diagnosis it consumes. */
 const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: string; review: unknown } | undefined, diagnosis: string | null) =>
@@ -109,7 +120,7 @@ const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: 
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true,
   landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true, repair?: StoryboardRepair,
   drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true, claimBasisContract?: true,
-  calibrationContract?: true) {
+  calibrationContract?: true, presenceContract?: true) {
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
   // The self-check binds the moments contract's requirements and drawn instants, so it needs that contract; the review policy stands alone.
   if (selfCheckContract !== undefined && (selfCheckContract !== true || momentContract !== true)) fail('self_check_policy');
@@ -119,6 +130,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       selfCheckContract !== true || reviewImpactPolicy !== true)) fail('claim_basis_policy');
   // The calibration refines the claim basis on both sides (its review severity, citations, relations and state source), so it needs it.
   if (calibrationContract !== undefined && (calibrationContract !== true || claimBasisContract !== true)) fail('calibration_policy');
+  // Presence refines the calibrated drawn instant and its repairs (an unplaced actor; repeated references), so it needs the calibration.
+  if (presenceContract !== undefined && (presenceContract !== true || calibrationContract !== true)) fail('presence_policy');
   if (momentContract !== undefined && momentContract !== true) fail('moment_policy');
   if (landmarkKindContract !== undefined && landmarkKindContract !== true) fail('landmark_kind_policy');
   if (sceneLocationContract !== undefined && sceneLocationContract !== true) fail('scene_location_policy');
@@ -182,7 +195,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   // findings are that review's own unsupported checks, and for a contract this repair adds, the compiler's own findings on the parent: derived
   // here, never supplied.
   const contracts = contractVersions({ actorOwnedAppearance, momentContract, landmarkKindContract, sceneLocationContract, compilerRulesContract,
-    drawnInstantContract, visibleMomentContract, selfCheckContract, reviewImpactPolicy, preservation, claimBasisContract, calibrationContract });
+    drawnInstantContract, visibleMomentContract, selfCheckContract, reviewImpactPolicy, preservation, claimBasisContract, calibrationContract, presenceContract });
   const held = repair === undefined ? undefined : (() => {
     const added = new Set(repair.addedContracts ?? []);
     if (added.has('drawnInstantContract') && drawnInstantContract !== true) fail('repair_policy');
@@ -191,13 +204,14 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     if (added.has('reviewImpactPolicy') && reviewImpactPolicy !== true) fail('repair_policy');
     if (added.has('claimBasisContract') && claimBasisContract !== true) fail('repair_policy');
     if (added.has('calibrationContract') && calibrationContract !== true) fail('repair_policy');
+    if (added.has('presenceContract') && presenceContract !== true) fail('repair_policy');
     let parent: PersonalStoryboard, parentSource: Source;
     try {
       parentSource = preparePersonalStoryboard(request, writerResult, options, actorOwnedAppearance, momentContract, landmarkKindContract,
         undefined, sceneLocationContract, compilerRulesContract, repair.parentRepair, added.has('drawnInstantContract') ? undefined : drawnInstantContract,
         added.has('visibleMomentContract') ? undefined : visibleMomentContract, added.has('selfCheckContract') ? undefined : selfCheckContract,
         added.has('reviewImpactPolicy') ? undefined : reviewImpactPolicy, added.has('claimBasisContract') ? undefined : claimBasisContract,
-        added.has('calibrationContract') ? undefined : calibrationContract);
+        added.has('calibrationContract') ? undefined : calibrationContract, added.has('presenceContract') ? undefined : presenceContract);
       // A parent compiled under an opt-in compile option (its own bound marker) recompiles under it; absent, exactly the existing compile.
       parent = repair.parentCompile ? compilePersonalStoryboard(parentSource, structuredClone(repair.draft), repair.parentCompile)
         : compilePersonalStoryboard(parentSource, structuredClone(repair.draft));
@@ -253,8 +267,15 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       : undefined;
     // Under the calibration those issues are also grouped by the reference they concern (one group is one cause).
     const groups = calibrationContract && typedFindings ? findingGroups(typedFindings) : undefined;
+    // Under presence they are also compared with the review before it (the parent's own held parent, whose typed findings the parent's
+    // preparation just derived for its own repair input): every reference both held for the same impact is listed
+    // (storyboard-repeated-reference/v1); untyped earlier findings list none.
+    priorTypedOf.set(repair, typedFindings ?? null);
+    const previousTyped = presenceContract && typedFindings && repair.parentRepair ? typedFindingsOf(priorTypedOf.get(repair.parentRepair)) : null;
+    const repeated: RepeatedReference[] | undefined = presenceContract && typedFindings ? (previousTyped ? repeatedReferences(typedFindings, previousTyped) : [])
+      : undefined;
     return { parentStoryboardDigest: repair.parentStoryboardDigest, draft: structuredClone(repair.draft), review: structuredClone(repair.review),
-      findings, chain, diagnosis, ...(groups ? { groups } : {}),
+      findings, chain, diagnosis, ...(groups ? { groups } : {}), ...(repeated ? { repeated } : {}),
       ...(repair.parentRepair ? { parentRepair: structuredClone(repair.parentRepair) } : {}),
       ...(repair.addedContracts ? { addedContracts: [...repair.addedContracts] } : {}), ...(contractFindings ? { contractFindings } : {}),
       ...(repair.parentCompile ? { parentCompile: { ...repair.parentCompile } } : {}), ...(extension ? { extension: { ...extension } } : {}),
@@ -274,6 +295,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(reviewImpactPolicy ? { reviewImpactPolicy: STORYBOARD_REVIEW_IMPACT_VERSION } : {}),
     ...(claimBasisContract ? { claimBasisContract: CLAIM_BASIS_CONTRACT_VERSION } : {}),
     ...(calibrationContract ? { calibrationContract: STORYBOARD_CALIBRATION_VERSION } : {}),
+    ...(presenceContract ? { presenceContract: STORYBOARD_PRESENCE_VERSION } : {}),
     ...(prior ? { storyboardPreservation: { version: STORYBOARD_PRESERVATION_VERSION, parentStoryboardDigest: prior.parentStoryboardDigest, draft: digest(prior.draft) } } : {}),
     ...(held ? { storyboardRepair: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, draft: digest(held.draft),
       review: digest(held.review), ...(held.parentRepair ? { parentRepair: digest(held.parentRepair) } : {}),
@@ -294,6 +316,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
     ...(claimBasisContract ? { claimBasisContract: true as const } : {}),
     ...(calibrationContract ? { calibrationContract: true as const } : {}),
+    ...(presenceContract ? { presenceContract: true as const } : {}),
     ...(prior ? { preservation: prior } : {}),
     ...(held ? { repair: { parentStoryboardDigest: held.parentStoryboardDigest, draft: held.draft, review: held.review,
       ...(held.parentRepair ? { parentRepair: held.parentRepair } : {}), ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}),
@@ -318,6 +341,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       ...(held ? { priorReviewedStoryboard: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest,
         storyboard: claimBasisContract ? withoutSelfCheck(held.draft) : held.draft,
         reviewFindings: held.typedFindings ?? held.findings, ...(held.groups ? { findingGroups: held.groups } : {}),
+        ...(held.repeated ? { repeatedReferences: held.repeated } : {}),
         ...(held.contractFindings ? { contractFindings: held.contractFindings } : {}),
         ...(held.diagnosis ? { diagnosis: held.diagnosis } : {}) } } : {}),
     },
@@ -338,10 +362,10 @@ function parentStoryboardDigest(request: unknown, writerResult: unknown, options
 export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true,
   momentContract?: true, landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true,
   repair?: StoryboardRepair, drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true,
-  claimBasisContract?: true, calibrationContract?: true) {
+  claimBasisContract?: true, calibrationContract?: true, presenceContract?: true) {
   return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract,
     landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract, visibleMomentContract,
-    selfCheckContract, reviewImpactPolicy, claimBasisContract, calibrationContract);
+    selfCheckContract, reviewImpactPolicy, claimBasisContract, calibrationContract, presenceContract);
 }
 
 function assertSource(source: Source) {
@@ -411,14 +435,17 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   const texts = previewStoryEvidence(source.story).texts;
   // Claim basis: an override of an entity its frame does not show is dropped first (recorded; it cannot change the picture), then the contract's
   // moments are validated with visible-only completeness and its requirement pages, then its own fields (staging, withhold) structurally.
+  // Presence: the contract's frames also list depicted.presence, validated after the claim basis's own fields.
   const basis = source.claimBasisContract
-    ? dropHiddenOverrides(claimBasisMomentsSchema.parse(rawMoments) as unknown as StoryboardMoments, compiled.plan, compiled.sequence) : null;
+    ? dropHiddenOverrides((source.presenceContract ? presenceMomentsSchema : claimBasisMomentsSchema).parse(rawMoments) as unknown as StoryboardMoments,
+      compiled.plan, compiled.sequence) : null;
   const moments = source.momentContract
     ? validateStoryboardMoments(basis ? basis.moments : rawMoments, compiled.plan, compiled.sequence, texts, source.drawnInstantContract,
-      basis ? claimBasisMomentsPolicy : undefined) : undefined;
+      basis ? (source.presenceContract ? presenceMomentsPolicy : claimBasisMomentsPolicy) : undefined) : undefined;
   if (basis) validateClaimBasis(moments!.frames as unknown as { requirements: ClaimBasisRequirement[]; staging: { ref: string; reason: string }[] }[],
     compiled.plan, compiled.sequence, texts, n => storyboardFrameClaims({ plan: compiled.plan, sequence: compiled.sequence, moments: moments! }, n).map(c => c.ref),
     options?.stagingFields ? { stagingFields: true } : undefined);
+  if (source.presenceContract) validatePresence(moments!.frames as unknown as Parameters<typeof validatePresence>[0], compiled.plan, compiled.sequence, texts);
   // Self-check: bound to this plan, these page texts and (for a diagnosed repair) the diagnosis and what this draft changed from its parent.
   const checkOptions = options?.selfCheckNames || basis
     ? { ...(options?.selfCheckNames ? { sectionNames: true as const } : {}), ...(basis ? { ignoredRefs: droppedRefs(basis.dropped),
@@ -430,6 +457,14 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
       ? { diagnosis: recoveryOf.get(source)?.diagnosis ?? null, parentDraft: basis ? claimBasisSectionsView(source.repair.draft) : source.repair.draft,
         candidateDraft: basis ? claimBasisSectionsView(rawDraft) : rawDraft } : undefined,
     checkOptions) : undefined;
+  // Presence: a reference held for the same impact in each of the last two reviews is not re-bound by another quote, re-declared or hidden
+  // (storyboard-repeated-reference/v1; structure only).
+  const repeatedRefs = source.presenceContract ? ((source.planningInput as { priorReviewedStoryboard?: { repeatedReferences?: RepeatedReference[] } })
+    .priorReviewedStoryboard?.repeatedReferences ?? []) : [];
+  if (repeatedRefs.length) validateRepeatedReferences(repeatedRefs, selfCheck!.resolutions,
+    n => storyboardFrameClaims({ plan: compiled.plan, sequence: compiled.sequence, moments: moments! }, n).map(c => c.ref),
+    n => draftFrameVisible(source.repair!.draft, n), n => draftFrameVisible({ plan: compiled.plan, sequence: compiled.sequence }, n));
+  const presence = source.presenceContract ? { version: STORYBOARD_PRESENCE_VERSION, components: [...PRESENCE_COMPONENTS] } : undefined;
   const selfCheckNames = options?.selfCheckNames ? STORYBOARD_SELF_CHECK_NAMES_VERSION : undefined;
   const stagingFields = options?.stagingFields ? CLAIM_BASIS_STAGING_FIELDS_VERSION : undefined;
   // Calibration: a ledger relation carried unseen with a moving actor refuses (storyboard-relation-lifetime/v1), and the planner's visual-state
@@ -459,7 +494,8 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}), ...(compilerRules ? { compilerRules } : {}),
     ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}),
     ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}), ...(selfCheckNames ? { selfCheckNames } : {}),
-    ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}), ...(calibration ? { calibration } : {}) });
+    ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}), ...(calibration ? { calibration } : {}),
+    ...(presence ? { presence } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
@@ -467,7 +503,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}),
     ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}),
     ...(selfCheckNames ? { selfCheckNames } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}),
-    ...(calibration ? { calibration } : {}) } as PersonalStoryboard;
+    ...(calibration ? { calibration } : {}), ...(presence ? { presence } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -621,7 +657,8 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   if (!current) return fail('current_source_required');
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
-    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract);
+    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract,
+    source.presenceContract);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   const accepted = ownerAcceptance === undefined ? null : bindOwnerAcceptance(book, decision, ownerAcceptance);
@@ -666,7 +703,8 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   admitCurrentStoryboardStory(source.request, source.result, current.options);
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
-    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract);
+    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract,
+    source.presenceContract);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return ownerAcceptance === undefined ? personalStoryboardFrame(book, rawReview, pageNumber, current)
     : personalStoryboardFrame(book, rawReview, pageNumber, current, ownerAcceptance);
@@ -675,16 +713,18 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
 /** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */
 export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; preservation?: unknown;
   sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true;
-  selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true }) =>
+  selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true; presenceContract?: true }) =>
   (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '')
   + (source.landmarkKindContract ? '\n' + KIND_STORYBOARD_ADDENDUM : '') + (source.preservation ? '\n' + PRESERVATION_STORYBOARD_ADDENDUM : '')
   + (source.sceneLocationContract ? '\n' + SCENE_LOCATION_STORYBOARD_ADDENDUM : '')
   + (source.compilerRulesContract ? '\n' + COMPILER_RULES_STORYBOARD_ADDENDUM : '')
   + (source.drawnInstantContract ? '\n' + (source.claimBasisContract ? claimBasisDrawnInstantAddendum() : DRAWN_INSTANT_STORYBOARD_ADDENDUM) : '')
   + (source.visibleMomentContract ? '\n' + VISIBLE_MOMENT_STORYBOARD_ADDENDUM : '')
-  + (source.selfCheckContract ? '\n' + (source.calibrationContract ? calibrationSelfCheckStoryboardAddendum() : SELF_CHECK_STORYBOARD_ADDENDUM) : '')
+  + (source.selfCheckContract ? '\n' + (source.presenceContract ? presenceSelfCheckStoryboardAddendum()
+    : source.calibrationContract ? calibrationSelfCheckStoryboardAddendum() : SELF_CHECK_STORYBOARD_ADDENDUM) : '')
   + (source.claimBasisContract ? '\n' + CLAIM_BASIS_STORYBOARD_ADDENDUM : '')
   + (source.calibrationContract ? '\n' + CALIBRATION_STORYBOARD_ADDENDUM : '')
+  + (source.presenceContract ? '\n' + PRESENCE_STORYBOARD_ADDENDUM : '')
   + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM : '');
 /** The drawn-instant addendum under the claim basis: its completeness rule stated for visible entities (replaced, never contradicted). */
 function claimBasisDrawnInstantAddendum() {
@@ -698,8 +738,9 @@ const momentDraftSchema = (source: { actorOwnedAppearance?: true; drawnInstantCo
   ? (source.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema)
   : (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema);
 export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true }) =>
-  source.claimBasisContract ? ((source.actorOwnedAppearance ? ownedClaimBasisWholeBookDraftSchema : claimBasisWholeBookDraftSchema) as unknown as
+  selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true; presenceContract?: true }) =>
+  source.claimBasisContract ? ((source.presenceContract ? (source.actorOwnedAppearance ? ownedPresenceWholeBookDraftSchema : presenceWholeBookDraftSchema)
+    : source.actorOwnedAppearance ? ownedClaimBasisWholeBookDraftSchema : claimBasisWholeBookDraftSchema) as unknown as
     typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: (source.calibrationContract ? calibrationSelfCheckSchema : selfCheckSchema) as typeof selfCheckSchema })
   : source.momentContract && source.selfCheckContract ? (momentDraftSchema(source) as typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: selfCheckSchema })
     : source.momentContract ? momentDraftSchema(source)
@@ -709,11 +750,15 @@ function drawnSequenceState(book: PersonalStoryboard, pageNumber: number, ledger
   depicted: NonNullable<StoryboardMoments['frames'][number]['depicted']>) {
   const page = book.sequence.pages[pageNumber - 1];
   const visible = new Set([...page.visibleCastIds, ...book.plan.continuity!.pages[pageNumber].visibleEntityIds]);
-  const overridden = new Set(depicted.relations.map(o => o.entityId));
+  // Presence (storyboard-presence/v1 only): an actor present without a placement is drawn at the frame's own location, and the instant
+  // carries the list to the renderer and the judge (absent contract, absent key and exactly the existing relations).
+  const presenceAt = book.presence ? book.plan.pages[pageNumber].locationId : undefined;
+  const present = presenceAt !== undefined && 'presence' in depicted ? (depicted as { presence: { actorId: string; evidence: string }[] }).presence : null;
+  const overridden = new Set([...depicted.relations.map(o => o.entityId), ...(present ?? []).map(p => p.actorId)]);
   // The drawn-instant contract's temporary looks reach the renderer and the judge with the instant (absent field, absent key).
   const looks = 'actorStates' in depicted ? { actorStates: (depicted as { actorStates: unknown }).actorStates } : {};
-  return { ...ledger, relations: drawnStates(page.states, depicted).filter(s => visible.has(s.entityId)),
-    drawnInstant: { evidence: depicted.evidence, overrides: depicted.relations, attributes: depicted.attributes, ...looks },
+  return { ...ledger, relations: drawnStates(page.states, depicted, presenceAt).filter(s => visible.has(s.entityId)),
+    drawnInstant: { evidence: depicted.evidence, overrides: depicted.relations, attributes: depicted.attributes, ...looks, ...(present ? { presence: present } : {}) },
     endOfPageLedger: page.states.filter(s => overridden.has(s.entityId)) };
 }
 

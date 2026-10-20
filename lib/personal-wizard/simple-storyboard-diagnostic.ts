@@ -11,6 +11,7 @@ import { SELF_CHECK_REVIEW_ADDENDUM } from './storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from './storyboard-review-impact';
 import { CLAIM_BASIS_REVIEW_ADDENDUM, CLAIM_BASIS_SELF_CHECK_REVIEW_RULE, CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE } from './storyboard-claim-basis';
 import { CALIBRATION_REVIEW_IMPACT_ADDENDUM, CALIBRATION_REVIEW_ADDENDUM, calibrationClaimBasisReviewAddendum, calibrationSelfCheckReviewAddendum } from './storyboard-calibration';
+import { PRESENCE_REVIEW_ADDENDUM } from './storyboard-presence';
 import type { StoryboardPreservation } from './storyboard-preservation';
 import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
@@ -25,10 +26,10 @@ export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
 /**
  * The review call's instructions for a storyboard under these contracts (shared by every caller that reviews a storyboard). Under the
  * calibration (which needs the claim basis) the self-check, typed-impact and claim-basis entries it refines are replaced, never contradicted,
- * and its own addendum closes the instruction.
+ * and its own addendum closes the instruction; the presence contract (which needs the calibration) appends its rule after it.
  */
 export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true }) => {
+  selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true; presenceContract?: true }) => {
   const calibrated = contracts.calibrationContract && contracts.claimBasisContract;
   return PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
     + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
@@ -37,7 +38,8 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (contracts.reviewImpactPolicy ? '\n' + (calibrated ? CALIBRATION_REVIEW_IMPACT_ADDENDUM : STORYBOARD_REVIEW_IMPACT_ADDENDUM) : '')
     + (contracts.claimBasisContract ? '\n' + (calibrated ? calibrationClaimBasisReviewAddendum() : CLAIM_BASIS_REVIEW_ADDENDUM) : '')
     + (contracts.claimBasisContract && contracts.stagingFields ? '\n' + CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE : '')
-    + (calibrated ? '\n' + CALIBRATION_REVIEW_ADDENDUM : '');
+    + (calibrated ? '\n' + CALIBRATION_REVIEW_ADDENDUM : '')
+    + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '');
 };
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
@@ -87,9 +89,12 @@ export async function runSimpleStoryboardDiagnostic(args: {
   stagingFields?: true;
   /** Opt-in calibration (storyboard-calibration/v1: needs the claim basis; the planner's and the review's instructions, schemas and compile); absent keeps the exact existing calls. */
   calibrationContract?: true;
+  /** Opt-in presence (storyboard-presence/v1: needs the calibration; the planner's instructions, schema and compile, and the review's rule); absent keeps the exact existing calls. */
+  presenceContract?: true;
 }) {
   if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
   if (args.calibrationContract !== undefined && (args.calibrationContract !== true || args.claimBasisContract !== true)) fail('calibration_policy');
+  if (args.presenceContract !== undefined && (args.presenceContract !== true || args.calibrationContract !== true)) fail('presence_policy');
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
@@ -97,7 +102,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
     args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
-    args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract);
+    args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length, args.selfCheckContract ? { selfCheck: true } : undefined);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -106,7 +111,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
         args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
-        args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract).sourceDigest !== source.sourceDigest) fail('source_changed');
+        args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract).sourceDigest !== source.sourceDigest)
+        fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');
@@ -140,7 +146,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
       ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
       ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
-      ...(args.calibrationContract ? { calibrationContract: true as const } : {}) } }), args.signal,
+      ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
+      ...(args.presenceContract ? { presenceContract: true as const } : {}) } }), args.signal,
     args.selfCheckNames || args.stagingFields ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}) }
       : undefined);
   assertCurrent();

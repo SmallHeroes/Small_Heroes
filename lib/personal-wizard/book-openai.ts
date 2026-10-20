@@ -10,6 +10,7 @@ import { momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, storyboard
   ownedDrawnInstantWholeBookDraftSchema, drawnInstantMomentsSchema } from './storyboard-moments';
 import { selfCheckWireSchema } from './storyboard-self-check';
 import { claimBasisMomentsSchema, claimBasisFrameSchema } from './storyboard-claim-basis';
+import { presenceMomentsSchema, presenceFrameSchema } from './storyboard-presence';
 import { createPersonalStoryProvider } from './story-openai';
 import { createStoryEditorProvider } from './story-editor-openai';
 import { generationTimeoutMs, type StoryModel } from './story-config';
@@ -40,6 +41,9 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   // The calibration refines the claim basis on both sides (the planner's self-check map, the review's basis and citations), so it needs it.
   if (call.context.calibrationContract !== undefined && (call.context.calibrationContract !== true || call.context.claimBasisContract !== true))
     throw new BookProviderError('book_provider_context');
+  // Presence refines the calibrated drawn instant (its frames list depicted.presence), so it needs the calibration.
+  if (call.context.presenceContract !== undefined && (call.context.presenceContract !== true || call.context.calibrationContract !== true))
+    throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');
@@ -60,8 +64,10 @@ export function personalBookProviderSchema(call: BookVisualCall) {
       sequence: draft.shape.sequence.extend({
         pages: z.array(draft.shape.sequence.shape.pages.element.omit({ pageNumber: true })).length(count),
       }),
-      // Opt-in claim basis: its frames (staging and the flat requirement) instead; otherwise the exact drawn-instant frames.
-      moments: call.context.claimBasisContract ? claimBasisMomentsSchema.extend({ frames: z.array(claimBasisFrameSchema).length(count + 1) })
+      // Opt-in claim basis: its frames (staging and the flat requirement) instead, with presence under that contract; otherwise the exact
+      // drawn-instant frames.
+      moments: call.context.presenceContract ? presenceMomentsSchema.extend({ frames: z.array(presenceFrameSchema).length(count + 1) })
+        : call.context.claimBasisContract ? claimBasisMomentsSchema.extend({ frames: z.array(claimBasisFrameSchema).length(count + 1) })
         : drawnInstantMomentsSchema.extend({ frames: z.array(drawnInstantMomentsSchema.shape.frames.element).length(count + 1) }),
     }));
   }

@@ -26,7 +26,8 @@ import { auditionReviewRule, AuditionMeter, verifyMeterRecords, savedSelfCheckNa
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
 import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
 import { FRESH_BOOK_CYCLE, FRESH_BOOK_RECOVERY, FRESH_BOOK_STORYBOARD_REPAIR, FRESH_BOOK_STORYBOARD_CONTINUATION, FRESH_BOOK_STORYBOARD_REVALIDATION,
-  FRESH_BOOK_STORYBOARD_EXTENSION, FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION, FRESH_BOOK_STORYBOARD_CALIBRATION, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
+  FRESH_BOOK_STORYBOARD_EXTENSION, FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION, FRESH_BOOK_STORYBOARD_CALIBRATION, FRESH_BOOK_STORYBOARD_PRESENCE,
+  freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
 import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTextRecovery, runFreshBookChild, runFreshBookBook, freshBookConfig, realFreshBookEnv,
   planFreshBookStoryboardRepair, previewFreshBookStoryboardRepair, runFreshBookStoryboardRepair, flooredReviewRule, assertReviewFloorFits,
   planFreshBookStoryboardContinuation, previewFreshBookStoryboardContinuation, runFreshBookStoryboardContinuation,
@@ -34,9 +35,10 @@ import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTex
   planFreshBookStoryboardExtension, previewFreshBookStoryboardExtension, runFreshBookStoryboardExtension, EXTENSION_ADMISSION_FILE,
   planFreshBookStoryboardExtensionRevalidation, previewFreshBookStoryboardExtensionRevalidation, runFreshBookStoryboardExtensionRevalidation,
   EXTENSION_REVALIDATION_ADMISSION_FILE, planFreshBookStoryboardCalibration, previewFreshBookStoryboardCalibration, runFreshBookStoryboardCalibration,
-  CALIBRATION_ADMISSION_FILE,
+  CALIBRATION_ADMISSION_FILE, planFreshBookStoryboardPresence, previewFreshBookStoryboardPresence, runFreshBookStoryboardPresence, PRESENCE_ADMISSION_FILE,
   STORYBOARD_REPAIR_RULES, REVIEW_RESERVE_FLOOR_MICRO_USD, type FreshBookConfig, type FreshTextTransports } from '../../../scripts/personal-fresh-book-driver';
 import { CALIBRATION_STORYBOARD_ADDENDUM, CALIBRATION_REVIEW_IMPACT_ADDENDUM, STORYBOARD_CALIBRATION_VERSION } from '../storyboard-calibration';
+import { PRESENCE_STORYBOARD_ADDENDUM, PRESENCE_REVIEW_ADDENDUM, STORYBOARD_PRESENCE_VERSION } from '../storyboard-presence';
 import { stageRules } from '../../../scripts/personal-new-book-experiment';
 import { VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from '../storyboard-visible-moment';
 import { REPAIR_STORYBOARD_ADDENDUM } from '../storyboard-repair';
@@ -1682,6 +1684,215 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
                   vi.restoreAllMocks();
                 }
               }, 900_000);
+
+              describe('the ONE owner-directed presence attempt (historically attempt 6 under storyboard-presence/v1, after the calibration\'s own review held it)', () => {
+                const PRL = FRESH_BOOK_STORYBOARD_PRESENCE;
+                const prsDir = (s: { config: FreshBookConfig }) => path.join(s.config.bookDir, PRL.folder);
+                /** The calibration's own review holds attempt 5 on the same page-4 action for the same impact as attempt 4's: a repeated reference. */
+                const heldCal = calReview(r => { r.frames[4].checks[0] = { ...r.frames[4].checks[0], verdict: 'contradiction',
+                  observation: 'the causal action is still omitted', issues: [{ impact: 'story', ref: 'p4', note: 'the causal action is still omitted', whyNotMaterial: '',
+                    basis: 'contradiction' }] }; });
+                /**
+                 * The presence planner: as the calibration's, on the presence contract's frames (every depicted lists presence), re-planning the diagnosed
+                 * pages with a changed strategy (never the cause evidence_binding for the repeated reference).
+                 */
+                const prsPlanner = () => vi.fn(async (_w: any, call: any) => {
+                  const input = JSON.parse(call.input), prior = input.priorReviewedStoryboard, diagnosis = prior.diagnosis;
+                  const draft = structuredClone(prior.storyboard);
+                  for (const fr of draft.moments.frames) if (fr.depicted) fr.depicted.presence ??= [];
+                  const bookPage = [1, 2, 3, 4, 5, 6, 7, 8].find(n => !diagnosis.protectedPages.includes(n))!;
+                  for (const n of new Set<number>(diagnosis.findings.map((x: any) => x.key.startsWith('page:') ? Number(x.key.split(':')[1]) : bookPage)))
+                    draft.plan.pages[n].composition += ' (re-planned under presence)';
+                  const texts = [input.story.title, ...input.story.pages.map((p: any) => p.text)];
+                  const selfCheck = { ...fullSelfCheck(claimBasisSectionsView(draft), texts, { diagnosis, parentDraft: claimBasisSectionsView(prior.storyboard) },
+                    sc => { sc.resolutions.forEach((r: any) => { r.cause = 'state_design'; }); }), visualStates: [] };
+                  const strip = ({ pageNumber: _n, ...row }: any) => row;
+                  const wire = { plan: { ...draft.plan, pages: draft.plan.pages.map(strip), continuity: { ...draft.plan.continuity, pages: draft.plan.continuity.pages.map(strip) } },
+                    sequence: { ...draft.sequence, pages: draft.sequence.pages.map(strip) }, moments: draft.moments, selfCheck };
+                  return cliReply(decodePersonalBookProviderOutput(call, wire), .45, wire);
+                });
+                /** The extension revalidation held at 4, the calibration attempt 5 held by its own review, then a NEW reviewed head and the owner's continuation record. */
+                async function heldCalibrationBook() {
+                  const s = await heldExtensionRevalidationBook(), cal = await s.calibrationGrant();
+                  expect((await runFreshBookStoryboardCalibration({ ...cal, transports: calTransports(heldCal) })).status).toBe('held_contradiction');
+                  expect(json(path.join(s.authority, CALL.outcomeName))).toMatchObject({ status: 'held_storyboard_calibration', recovery: 'stop_allowance_exhausted' });
+                  s.setHead('7'.repeat(40));
+                  const approval6 = path.join(s.root, 'OWNER-CONTINUATION-6.txt');
+                  writeFileSync(approval6, `Synthetic owner continuation record (test only).\n${PRL.approvalLine}\n`);
+                  const presenceGrant = async (name = 'presence-grant.json') => {
+                    const gr = (await planFreshBookStoryboardPresence(s.config, s.env, cal.grantFile, approval6)).grantDraft, file = path.join(s.root, name);
+                    writeFileSync(file, JSON.stringify(gr)); return { ...s.original, grantFile: file, grantSha: sha(readFileSync(file)) }; };
+                  const frozenCalHeld = () => ({ ...s.frozenXHeld(), cal: tree(calDir(s)), calGrant: sha(readFileSync(cal.grantFile)),
+                    calClaim: sha(readFileSync(path.join(s.authority, CALL.claimName))), calOutcome: sha(readFileSync(path.join(s.authority, CALL.outcomeName))),
+                    approval6: sha(readFileSync(approval6)) });
+                  return { ...s, cal, approval6, presenceGrant, frozenCalHeld };
+                }
+                type HeldC = Awaited<ReturnType<typeof heldCalibrationBook>>;
+                const prsTransports = (review: (r: any) => any) => ({ ...textTransports({ review }), planner: prsPlanner() });
+
+                it('positive: ONE presence planner (compacted wire) and ONE floored review (a setting note) admit attempt 6; the repeated reference listed; successor; child and book on its line', async () => {
+                  const s = await heldCalibrationBook(), before = s.frozenCalHeld(), g = await s.presenceGrant(), t = prsTransports(calReview(settingNote));
+                  const planned = await planFreshBookStoryboardPresence(s.config, s.env, s.cal.grantFile, s.approval6);
+                  expect(planned.grantDraft.ownerApproval).toEqual({ file: path.resolve(s.approval6), sha256: sha(readFileSync(s.approval6)) });
+                  expect(planned.grantDraft.recovery).toMatchObject({ attempts: 5, maxAttempts: 6, consecutiveFailures: 5, mode: 'diagnose_and_change_strategy' });
+                  expect([planned.grantDraft.allowance, planned.grantDraft.addedContracts, planned.grantDraft.compile, planned.grantDraft.plannerSchema,
+                    planned.grantDraft.held.findings, planned.grantDraft.held.findingGroups, planned.grantDraft.held.repeatedReferences]).toEqual([
+                    { plannerCalls: 1, apiCalls: 1, reviewReserveFloorMicroUsd: 600000 }, ['presenceContract'],
+                    ['storyboard-self-check-names/v1', 'storyboard-claim-basis-staging-fields/v1'], 'definition-names/v1', 1, 1, 1]);
+                  expect(planned.recoveryRecord.attempts.map(a => [a.line, a.disposition])).toEqual([['text-recovery', 'held_uncertain'], ['storyboard-repair', 'held_uncertain'],
+                    [REVAL.folder, 'held_contradiction'], [XRV.folder, 'held_contradiction'], [CALL.folder, 'held_contradiction']]);
+                  expect(planned.diagnosisRecord.diagnosis.allowance).toEqual({ nextAttempt: 6, maxAttempts: 6, remainingAfterNext: 0 });
+                  expect(planned.input).toMatchObject({ addedContracts: ['presenceContract'], parentCompile: { selfCheckNames: true, stagingFields: true },
+                    extension: { version: 'storyboard-attempt-extension/v2', maxAttempts: 6, approvalSha256: sha(readFileSync(s.approval6)),
+                      previous: { version: 'storyboard-attempt-extension/v2', maxAttempts: 5, approvalSha256: sha(readFileSync(s.approval5)),
+                        previous: { version: 'storyboard-attempt-extension/v1', maxAttempts: 4, approvalSha256: sha(readFileSync(s.approvalFile)) } } } });
+                  expect([planned.plan.providerCalls, planned.plan.keyRead, planned.state.claimExists, planned.state.folderExists]).toEqual([0, false, false, false]);
+                  expect((await planFreshBookStoryboardPresence(s.config, s.env, s.cal.grantFile, s.approval6)).grantDraft).toEqual(planned.grantDraft);
+                  const out = await runFreshBookStoryboardPresence({ ...g, transports: t });
+                  expect(out.status).toBe('review_supported_with_notes');
+                  // Replay only for the text and the correction: exactly one planner session and one review.
+                  expect([t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0, 1, 1]);
+                  const dir = prsDir(s);
+                  expect([claims(path.join(dir, 'paid-stages')), claims(path.join(dir, 'claude-max-stages'))]).toEqual([['storyboard_review'], ['storyboard']]);
+                  expect(json(path.join(dir, 'paid-stages', 'storyboard_review.claim.json')).maximumMicroUsd).toBeGreaterThanOrEqual(600000);
+                  expect(json(path.join(dir, 'claude-max-stages', 'storyboard.wire.json')).payload.schemaCompaction).toBe('definition-names/v1');
+                  // The planner's request: presence's instruction, the repeated reference and the diagnosis under the owner's ceiling 6.
+                  const plannerCall = vi.mocked(t.planner).mock.calls[0][1] as any, input = JSON.parse(plannerCall.input);
+                  expect(plannerCall.instructions).toContain(`${CALIBRATION_STORYBOARD_ADDENDUM}\n${PRESENCE_STORYBOARD_ADDENDUM}`);
+                  expect(plannerCall.context).toMatchObject({ presenceContract: true, calibrationContract: true, claimBasisContract: true });
+                  expect([input.priorReviewedStoryboard.repeatedReferences, input.priorReviewedStoryboard.diagnosis.allowance]).toEqual([
+                    [{ ref: 'p4', impact: 'story', checks: ['page:4:moment'], previousChecks: ['page:4:moment'] }], { nextAttempt: 6, maxAttempts: 6, remainingAfterNext: 0 }]);
+                  // The review's instruction under presence.
+                  expect((vi.mocked(t.responses).mock.calls[0][0] as any).instructions).toContain(PRESENCE_REVIEW_ADDENDUM);
+                  // The durable records.
+                  expect(json(path.join(dir, 'storyboard_repair_input.json'))).toEqual(plainJson(planned.input));
+                  expect(json(path.join(dir, 'recovery-state.json'))).toEqual(plainJson(planned.recoveryRecord));
+                  expect(json(path.join(dir, 'diagnosis.json'))).toEqual(plainJson(planned.diagnosisRecord));
+                  expect(json(path.join(dir, 'recovery-final.json'))).toMatchObject({ terminal: 'admitted', attempt: { attempt: 6, line: PRL.folder, outcome: 'admitted',
+                    disposition: 'review_supported_with_notes', notes: [{ pageNumber: 5 }] } });
+                  const admission = json(path.join(dir, PRESENCE_ADMISSION_FILE));
+                  expect(admission.preview).toEqual(await previewFreshBookStoryboardPresence(s.config, json(path.join(dir, 'storyboard_repair_input.json'))));
+                  expect([admission.preview.wireDigest, admission.preview.schemaCompaction, admission.preview.repeatedReferences])
+                    .toEqual([json(path.join(dir, 'claude-max-stages', 'storyboard.claim.json')).wireDigest, 'definition-names/v1', 1]);
+                  expect(json(path.join(dir, 'sealed.json'))).toEqual({ status: 'review_supported_with_notes', presence: { parentStoryboardDigest: planned.grantDraft.held.storyboardDigest,
+                    addedContracts: ['presenceContract'], attempt: 6, components: ['storyboard-unplaced-presence/v1', 'storyboard-repeated-reference/v1'],
+                    plannerSchema: 'definition-names/v1' }, replayed: REPLAYED, runtimeEligible: false });
+                  expect(json(path.join(dir, 'simple-book-result.json')).storyboard.storyboard).toMatchObject({ presence: { version: STORYBOARD_PRESENCE_VERSION },
+                    calibration: { version: STORYBOARD_CALIBRATION_VERSION }, repair: { parentStoryboardDigest: planned.grantDraft.held.storyboardDigest } });
+                  expect(json(path.join(s.authority, PRL.successorName))).toMatchObject({ grantSha256: g.grantSha, ownerApprovalSha256: sha(readFileSync(s.approval6)),
+                    disposition: 'review_supported_with_notes', notes: 1, parentStoryboardDigest: planned.grantDraft.held.storyboardDigest,
+                    calibrationClaimSha256: sha(readFileSync(path.join(s.authority, CALL.claimName))) });
+                  expect(out.ledger.stages.map(x => [x.name, x.calls])).toEqual([['text', 2], ['text-recovery', 2], ['storyboard-repair', 1], ['storyboard-continuation', 0],
+                    ['storyboard-revalidation', 1], [EXTL.folder, 0], [XRV.folder, 1], [CALL.folder, 1], [PRL.folder, 1], ['child', 0], ['audition', 0]]);
+                  expect(s.frozenCalHeld()).toEqual(before);
+                  // Once only; the held calibration's line stays closed; downstream runs only on this line.
+                  await expect(runFreshBookStoryboardPresence({ ...g, transports: prsTransports(calReview()) })).rejects.toThrow(/fresh_book_storyboard_presence_(used|grant)|fresh_book_roots_changed/);
+                  await expect(runFreshBookStoryboardPresence({ ...(await s.presenceGrant('relabelled.json')), transports: prsTransports(calReview()) }))
+                    .rejects.toThrow('fresh_book_storyboard_presence_used');
+                  providers();
+                  await expect(runFreshBookChild({ ...s.cal, storyboardCalibration: true })).rejects.toThrow(/fresh_book_stage_not_passed|fresh_book_storyboard_calibration_grant|fresh_book_source_changed/);
+                  await expect(runFreshBookChild({ ...g, storyboardCalibration: true })).rejects.toThrow('fresh_book_storyboard_calibration_grant');
+                  expect(existsSync(path.join(s.config.bookDir, 'child'))).toBe(false);
+                  expect(await runFreshBookChild({ ...g, storyboardPresence: true })).toMatchObject({ status: 'child_reference_passed' });
+                  expect(json(path.join(s.config.bookDir, 'book-layout.json')).storyboardDir).toBe(PRL.folder);
+                  const book = await runFreshBookBook({ ...g, storyboardPresence: true });
+                  expect(book.status).toBe('complete');
+                  expect(book.ledger.stages.map(x => x.name)).toEqual(['text', 'text-recovery', 'storyboard-repair', 'storyboard-continuation', 'storyboard-revalidation',
+                    EXTL.folder, XRV.folder, CALL.folder, PRL.folder, 'child', 'audition']);
+                  const auditionGrant = json(path.join(s.config.bookDir, 'audition.grant.json'));
+                  expect([auditionGrant.scope.recovery, auditionGrant.experiment.claimSha256]).toEqual(['stage-recovery/v1', sha(readFileSync(path.join(s.authority, PRL.claimName)))]);
+                  expect(json(path.join(s.authority, PRL.outcomeName)).status).toBe('complete');
+                  expect(s.frozenCalHeld()).toEqual(before);
+                }, 1_200_000);
+
+                it('held by its review: attempt 6 ends the line (stop_allowance_exhausted); no attempt 7; no child', async () => {
+                  const s = await heldCalibrationBook(), before = s.frozenCalHeld(), g = await s.presenceGrant(), t = prsTransports(heldCal);
+                  expect((await runFreshBookStoryboardPresence({ ...g, transports: t })).status).toBe('held_contradiction');
+                  expect([t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([1, 1]);
+                  expect(json(path.join(s.authority, PRL.outcomeName))).toMatchObject({ status: 'held_storyboard_presence', textStatus: 'held_contradiction',
+                    recovery: 'stop_allowance_exhausted' });
+                  expect(json(path.join(prsDir(s), 'recovery-final.json'))).toMatchObject({ terminal: 'stop_allowance_exhausted', remaining: 0, consecutiveFailures: 6,
+                    attempt: { attempt: 6, outcome: 'held' } });
+                  expect(existsSync(path.join(s.authority, PRL.successorName))).toBe(false);
+                  const t2 = prsTransports(calReview());
+                  await expect(runFreshBookStoryboardPresence({ ...(await s.presenceGrant('again.json')), transports: t2 })).rejects.toThrow('fresh_book_storyboard_presence_used');
+                  expect([t2.planner, t2.responses].map(m => vi.mocked(m).mock.calls.length)).toEqual([0, 0]);
+                  providers();
+                  await expect(runFreshBookChild({ ...g, storyboardPresence: true })).rejects.toThrow('fresh_book_stage_not_passed');
+                  expect(existsSync(path.join(s.config.bookDir, 'child'))).toBe(false);
+                  expect(s.frozenCalHeld()).toEqual(before);
+                }, 1_200_000);
+
+                it('immutable inputs: the owner\'s continuation record, the held calibration and its lineage, the grant\'s ceiling, contract, compaction or approval, the head or the tree refuse BEFORE the claim or any call', async () => {
+                  const cd = (s: HeldC, ...p: string[]) => path.join(calDir(s), ...p);
+                  const regrant = <G extends { grantFile: string }>(gr: G) => ({ ...gr, grantSha: sha(readFileSync(gr.grantFile)) });
+                  const cases: Record<string, (s: HeldC) => Promise<{ grant: Awaited<ReturnType<HeldC['presenceGrant']>>; expect: RegExp }>> = {
+                    'owner record changed': async s => { const gr = await s.presenceGrant(); writeFileSync(s.approval6, readFileSync(s.approval6, 'utf8') + ' ');
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_approval/ }; },
+                    'calibration outcome no longer at the ceiling': async s => { const gr = await s.presenceGrant();
+                      edit(path.join(s.authority, CALL.outcomeName), o => { o.recovery = 'diagnose_and_change_strategy'; });
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_calibration/ }; },
+                    'its review answer changed': async s => { const gr = await s.presenceGrant();
+                      edit(cd(s, 'paid-stages', 'storyboard_review.receipt.json'), r => { const a = JSON.parse(r.raw.output_text), k = Object.keys(a.frames[4])[0];
+                        a.frames[4][k].observation += ' (reworded)'; r.raw.output_text = JSON.stringify(a); });
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_calibration|fresh_book_ledger/ }; },
+                    'its planner answer changed': async s => { const gr = await s.presenceGrant();
+                      edit(cd(s, 'claude-max-stages', 'storyboard.receipt.json'), r => { r.output.plan.pages[2].composition += ' changed'; });
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_calibration/ }; },
+                    'its terminal record changed': async s => { const gr = await s.presenceGrant(); edit(cd(s, 'recovery-final.json'), r => { r.remaining = 1; });
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_calibration/ }; },
+                    'a calibration successor appeared': async s => { const gr = await s.presenceGrant(); writeFileSync(path.join(s.authority, CALL.successorName), '{}');
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_calibration/ }; },
+                    'consumed calibration grant bytes changed': async s => { const gr = await s.presenceGrant();
+                      writeFileSync(s.cal.grantFile, readFileSync(s.cal.grantFile, 'utf8') + ' ');
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_calibration/ }; },
+                    'consumed extension revalidation grant bytes changed': async s => { const gr = await s.presenceGrant();
+                      writeFileSync(s.xreval.grantFile, readFileSync(s.xreval.grantFile, 'utf8') + ' ');
+                      return { grant: gr, expect: /fresh_book_storyboard_(presence_calibration|calibration_extension_revalidation)/ }; },
+                    'unknown cost in its review record': async s => { const gr = await s.presenceGrant();
+                      edit(cd(s, 'paid-stages', 'storyboard_review.result.json'), r => { r.estimatedMicroUsd = null; });
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_(unknown_cost|calibration|recovery)|fresh_book_ledger|audition_meter_cost/ }; },
+                    'grant raises the ceiling': async s => { const gr = await s.presenceGrant(); edit(gr.grantFile, x => { x.recovery.maxAttempts = 7; });
+                      return { grant: regrant(gr), expect: /fresh_book_storyboard_presence_grant/ }; },
+                    'grant drops presence': async s => { const gr = await s.presenceGrant(); edit(gr.grantFile, x => { x.addedContracts = []; });
+                      return { grant: regrant(gr), expect: /fresh_book_storyboard_presence_grant/ }; },
+                    'grant without the compaction': async s => { const gr = await s.presenceGrant(); edit(gr.grantFile, x => { delete x.plannerSchema; });
+                      return { grant: regrant(gr), expect: /fresh_book_storyboard_presence_grant/ }; },
+                    'head moved after the grant': async s => { const gr = await s.presenceGrant(); s.setHead('6'.repeat(40));
+                      return { grant: gr, expect: /fresh_book_storyboard_presence_grant|fresh_book_source_changed/ }; },
+                    'dirty tree': async s => { const gr = await s.presenceGrant(); s.setClean(false); return { grant: gr, expect: /fresh_book_source_changed/ }; },
+                  };
+                  for (const [name, mutate] of Object.entries(cases)) {
+                    const s = await heldCalibrationBook(), t = prsTransports(calReview());
+                    let c: Awaited<ReturnType<typeof mutate>>;
+                    try { c = await mutate(s); } catch (e) { throw new Error(`${name}: ${e}`); }
+                    await expect(runFreshBookStoryboardPresence({ ...c.grant, transports: t }), name).rejects.toThrow(c.expect);
+                    expect([name, existsSync(path.join(s.authority, PRL.claimName)), existsSync(prsDir(s)),
+                      ...[t.opus, t.reader, t.planner, t.responses].map(m => vi.mocked(m).mock.calls.length)]).toEqual([name, false, false, 0, 0, 0, 0]);
+                  }
+                  // The plan needs the owner's continuation record by absolute path, with its verbatim line (the calibration's record is not this one).
+                  const s = await heldCalibrationBook();
+                  await expect(planFreshBookStoryboardPresence(s.config, s.env, s.cal.grantFile, s.approval5)).rejects.toThrow('fresh_book_storyboard_presence_approval');
+                  await expect(planFreshBookStoryboardPresence(s.config, s.env, s.cal.grantFile, 'OWNER-CONTINUATION-6.txt')).rejects.toThrow('fresh_book_storyboard_presence_approval');
+                  expect(() => assertReviewFloorFits({ bookKnownMicroUsd: 6_400_001, nextCapMicroUsd: 7_000_000 }, 'fresh_book_storyboard_presence_budget'))
+                    .toThrow('fresh_book_storyboard_presence_budget');
+                }, 3_600_000);  // fifteen whole held chains (text through the calibration), each built from scratch
+
+                it('a changed presence successor (its draft, its terminal record, its planner output) refuses the child BEFORE its folder, key or render', async () => {
+                  for (const kind of ['draft', 'recovery_final', 'planner_output']) {
+                    const s = await heldCalibrationBook(), g = await s.presenceGrant();
+                    expect((await runFreshBookStoryboardPresence({ ...g, transports: prsTransports(calReview()) })).status).toBe('review_supported');
+                    if (kind === 'draft') edit(path.join(prsDir(s), 'owned_storyboard_draft.json'), d => { d.plan.pages[2].composition += ' changed'; });
+                    else if (kind === 'recovery_final') edit(path.join(prsDir(s), 'recovery-final.json'), r => { r.terminal = 'stop_allowance_exhausted'; });
+                    else edit(path.join(prsDir(s), 'claude-max-stages', 'storyboard.receipt.json'), r => { r.output.plan.pages[2].composition += ' changed'; });
+                    providers();
+                    await expect(runFreshBookChild({ ...g, storyboardPresence: true }), kind).rejects.toThrow(/fresh_book_storyboard_presence_(successor|grant)/);
+                    expect([kind, vi.mocked(images.generateGPTImage).mock.calls.length, sdk.create.mock.calls.length, existsSync(path.join(s.config.bookDir, 'child'))])
+                      .toEqual([kind, 0, 0, false]);
+                    vi.restoreAllMocks();
+                  }
+                }, 1_200_000);
+              });
             });
           });
 
@@ -1926,4 +2137,58 @@ describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_EXTENSION_REVALIDAT
       preview.reservedMicroUsd <= preview.sessionGuardMicroUsd]).toEqual([true, true, true, true]);
     expect([tree(config.bookDir), authority()]).toEqual([book, records]);
   }, 300_000);  // re-derives the whole saved lineage (text, recovery, repair, continuation, revalidation, extension, extension revalidation)
+});
+
+const REAL_CALIBRATION_GRANT = 'C:/GNart/Work/Small_Heroes/_review/new-book-autonomous-closure-20261018/engine-calibration-20261020/fresh-book-storyboard-calibration-grant-STAGED-40927765.json';
+const REAL_OWNER_CONTINUATION = 'C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/OWNER-SAME-BOOK-CONTINUATION-AFTER-ATTEMPT5-20261020.txt';
+describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_CALIBRATION_GRANT) || !existsSync(REAL_OWNER_CONTINUATION) ||
+  !existsSync(path.join(FRESH_BOOK_CYCLE.authorityRoot, FRESH_BOOK_STORYBOARD_CALIBRATION.outcomeName)))('the actual held calibration: the owner-directed presence dry plan and planner preview (read only, no key, no provider, no write)', () => {
+  const authority = () => Object.fromEntries(readdirSync(FRESH_BOOK_CYCLE.authorityRoot).filter(n => n.includes('fresh-book-usd7'))
+    .map(n => [n, sha(readFileSync(path.join(FRESH_BOOK_CYCLE.authorityRoot, n)))]));
+  it('binds the held attempt 5 (2 findings, 1 group, the repeated p8:relation:child) and the owner\'s continuation record, derives attempt 6 of 6, and the ONE compacted planner request fits every limit', async () => {
+    const config = freshBookConfig(REAL_CONFIG), env = realFreshBookEnv(), book = tree(config.bookDir), records = authority();
+    const { plan, grantDraft, input, recoveryRecord, diagnosisRecord, state } = await planFreshBookStoryboardPresence(config, env, REAL_CALIBRATION_GRANT,
+      REAL_OWNER_CONTINUATION);
+    // The consumed calibration (its grant 7af5fa76..., its review held attempt 5 at the owner's ceiling 5), exactly as it ran on 2026-10-20.
+    expect(grantDraft.calibration).toMatchObject({ grantSha256: '7af5fa76bfdd2d642182bb37b3d8b78602d3291b27dbae4c67c1ca88f23360a3',
+      claimSha256: '717263f76108655e8d4431708dc6a9f6930d41278a9960b42b77357ae0f47794', outcomeSha256: '08b8a779bae7e8bb38b78f92f48b17bbe105f440dd543cc77c08a83fa91de8e3',
+      extensionRevalidationClaimSha256: '66d3283e98240c237b3d89fa4d269a825d980cade0e050a17c8d4ed69484c093',
+      repairClaimSha256: '127cab961bbaa076cc9e298ba1be8a8d74ef760b3c0ea18550e70200d150b4a6', originalClaimSha256: '96ef1b42631c32f9c5158f7b2a771f09a3080b2371e2c2bf030dd6d07d1a245b' });
+    expect(grantDraft.ownerApproval).toEqual({ file: path.resolve(REAL_OWNER_CONTINUATION), sha256: '1c6df39d1343fef95ab9b43fcca85eae706d352bed3d25cffba97f5289cf6f1e' });
+    expect(grantDraft.held).toEqual({ sourceDigest: '37d453afcb93b7b7c99bc9daa2fc4d3e5dd6d0e346e6770f303e8bfc803d51fc',
+      storyboardDigest: '1e27782dc841aa77b2ddcf6cc59eb3cbc932b20fd8bcb07268db2786a045750b', reviewDigest: '6459a5f8cbbab7bef5039e4dd2602945f35a0f906d841ddd36e104d3bf873af5',
+      disposition: 'held_uncertain', draftSha256: '256608664f68a53597cb25bde2d56e6680d7c236b7364d2d595c813737940bea', findings: 2, findingGroups: 1, repeatedReferences: 1 });
+    // The API ledger through the calibration; the planner sessions are Claude Max, reported separately.
+    expect(grantDraft.ledger).toEqual({ diagnosticSettledMicroUsd: 128930, bookKnownMicroUsd: 428234, calls: 8 });
+    expect([plan.providerCalls, plan.keyRead, grantDraft.allowance, grantDraft.addedContracts, grantDraft.compile, grantDraft.plannerSchema]).toEqual([0, false,
+      { plannerCalls: 1, apiCalls: 1, reviewReserveFloorMicroUsd: 600000 }, ['presenceContract'],
+      ['storyboard-self-check-names/v1', 'storyboard-claim-basis-staging-fields/v1'], 'definition-names/v1']);
+    // The engine's recovery state under the owner's ceiling 6: five consecutive held candidates (their own contexts and costs), one attempt left.
+    expect(grantDraft.recovery).toEqual({ version: 'stage-recovery/v1', attempts: 5, maxAttempts: 6, consecutiveFailures: 5, mode: 'diagnose_and_change_strategy',
+      stateSha256: '3dc2406d778031db0302fc335510dcba41f1d1b226c08f342dc73f329aaba3d9', diagnosisDigest: '68d27a78d111e4773f51de04e3ff1b280eeb7619105d9722c3e786a36189e79b',
+      contextDigest: '466e54a60ed56a37b1cd80f0e6e7560775ffaf784f6d3c7fe96d00217e3ea015' });
+    expect(recoveryRecord.attempts.map(a => [a.line, a.storyboardDigest.slice(0, 8), a.findings.length, a.costs])).toEqual([
+      ['text-recovery', 'ffd56099', 6, { plannerClaudeMaxMicroUsd: 623664, reviewApiMicroUsd: 60226 }],
+      ['storyboard-repair', '4f3d55d9', 6, { plannerClaudeMaxMicroUsd: 501261, reviewApiMicroUsd: 53818 }],
+      ['storyboard-revalidation', 'db61a2dd', 10, { plannerClaudeMaxMicroUsd: 1002229, reviewApiMicroUsd: 92190 }],
+      ['storyboard-extension-revalidation', 'ce4c5025', 9, { plannerClaudeMaxMicroUsd: 1053404, reviewApiMicroUsd: 89352 }],
+      ['storyboard-calibration', '1e27782d', 2, { plannerClaudeMaxMicroUsd: 1104180, reviewApiMicroUsd: 91286 }]]);
+    // The one reference both last reviews held for the same impact: the child's page-8 relation (attempt 4 and attempt 5).
+    expect(recoveryRecord.next.repeatedReferences).toEqual([{ ref: 'p8:relation:child', impact: 'evidence', checks: ['book:continuity', 'page:8:physical_state'],
+      previousChecks: ['page:8:physical_state'] }]);
+    expect(diagnosisRecord.diagnosis.allowance).toEqual({ nextAttempt: 6, maxAttempts: 6, remainingAfterNext: 0 });
+    expect(input).toMatchObject({ addedContracts: ['presenceContract'], parentCompile: { selfCheckNames: true, stagingFields: true },
+      extension: { version: 'storyboard-attempt-extension/v2', maxAttempts: 6, approvalSha256: grantDraft.ownerApproval.sha256,
+        previous: { version: 'storyboard-attempt-extension/v2', maxAttempts: 5, approvalSha256: '9e584f7aa9117173a1cffa2aa95ea5ee6216b95df319d0319eaac0f0359baf13',
+          previous: { version: 'storyboard-attempt-extension/v1', maxAttempts: 4, approvalSha256: 'b2b3a33eb439aee95a7f4960507307ae4652c7e138acf758e6637bca07a0c5ac' } } } });
+    // Before its one run: nothing claimed, and the balance covers the review's floor.
+    expect([state.claimExists, state.outcomeExists, state.successorExists, state.folderExists, (state.reviewFloor as { refused?: unknown } | undefined)?.refused])
+      .toEqual([false, false, false, false, undefined]);
+    const preview = await previewFreshBookStoryboardPresence(config, input);
+    expect(preview).toMatchObject({ findings: 2, findingGroups: 1, repeatedReferences: 1, resolutionsRequired: 2, outputCap: 50000, schemaCompaction: 'definition-names/v1',
+      diagnosisDigest: grantDraft.recovery.diagnosisDigest, protectedPages: [2, 3, 4, 5, 6, 7] });
+    expect([preview.contentBytes <= preview.contentByteLimit, preview.wireBytes <= preview.wireByteLimit, preview.argvChars <= preview.argvLimit,
+      preview.reservedMicroUsd <= preview.sessionGuardMicroUsd]).toEqual([true, true, true, true]);
+    expect([tree(config.bookDir), authority()]).toEqual([book, records]);
+  }, 300_000);  // re-derives the whole saved lineage (text, recovery, repair, continuation, revalidation, extension, extension revalidation, calibration)
 });

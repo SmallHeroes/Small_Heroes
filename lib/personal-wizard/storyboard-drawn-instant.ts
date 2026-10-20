@@ -42,7 +42,9 @@ export function drawnInstantGaps(moments: StoryboardMoments, plan: PreviewPlan, 
     const text = texts[n], end = text.indexOf(d.evidence) + d.evidence.length, later = (quote: string) => text.indexOf(quote) >= end;
     const page = sequence.pages[n - 1];
     const shown = new Set([...page.visibleCastIds, ...plan.continuity!.pages[n].visibleEntityIds]), drawn = (entityId: string) => !visibleOnly || shown.has(entityId);
-    const relations = new Set(d.relations.map(o => o.entityId)), attributes = new Set(d.attributes.map(a => `${a.entityId}:${a.attribute}`));
+    // An actor the instant lists in depicted.presence (storyboard-presence/v1 only; absent field, nothing added) declares its state then.
+    const present = 'presence' in d ? (d as { presence: { actorId: string }[] }).presence.map(p => p.actorId) : [];
+    const relations = new Set([...d.relations.map(o => o.entityId), ...present]), attributes = new Set(d.attributes.map(a => `${a.entityId}:${a.attribute}`));
     for (const t of page.transitions) if (later(t.evidence) && !relations.has(t.entityId) && drawn(t.entityId))
       gaps.push({ pageNumber: n, drawnEvidence: d.evidence, changeEvidence: t.evidence, kind: 'relation', entityId: t.entityId, to: t.to });
     for (const c of plan.continuity!.pages[n].changes) if (later(c.storyEvidence) && !attributes.has(`${c.entityId}:${c.attribute}`) && drawn(c.entityId))

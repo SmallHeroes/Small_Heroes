@@ -724,6 +724,106 @@ export function assertFreshBookStoryboardCalibrationPaid(args: { env: FreshBookE
   return grant;
 }
 
+/**
+ * The owner-directed PRESENCE attempt (Guy's direct same-book continuation 2026-10-20, after the calibration attempt 5 of 5 held on one
+ * reference): ONE more storyboard attempt of the SAME book (historically attempt 6) under the general presence contract (storyboard-presence/v1:
+ * an unplaced presence at an early drawn instant, and no re-quoting of a reference held for the same impact twice) with ONE new Opus 5.5 Max
+ * planner and ONE Sol 6.1 review. Every earlier grant, claim, outcome, seal, answer and cost stays byte-identical; its own claim/outcome/
+ * audition start/successor and folder are fixed in code; held ends the line (no attempt 7).
+ */
+export const FRESH_BOOK_STORYBOARD_PRESENCE = Object.freeze({
+  version: 'fresh-book-storyboard-presence/v1',
+  amendment: 'Guy 2026-10-20 OWNER-SAME-BOOK-CONTINUATION-AFTER-ATTEMPT5-20261020.txt (direct, in chat: "בכל מקרה אנחנו נמשיך כרגע בביצוע כדי לראות ספר"; model changes after a working book): after the calibration attempt 5 of 5 was held by its review on one reference (the child\'s place at page 8\'s early drawn instant, held for the same evidence reason in attempts 4 and 5), a minimal general engine remedy (storyboard-presence/v1: a visible cast member present in the drawn scene without a placement claim, and a repeated reference not re-quoted, re-declared or hidden), then ONE additional, explicitly bounded storyboard attempt of the SAME book (historically attempt 6): ONE Opus 5.5 Claude Max planner repairing attempt 5\'s held candidate with its raw review, the grouped diagnosis and the repeated references, and ONE Sol 6.1 review (at least the normal 600000 microUSD reservation); every historical attempt, refusal and record retained; no text/author/editor rerun, new book, model change, old-grant repin, reset, re-review of attempt 5\'s answer or retroactive pass; then child, references, two samples, the rest and the cover on their gates; same cumulative USD 7 book / USD 8 cycle caps; held again ends the line with an honest report (no attempt 7).',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-presence.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-presence.outcome.json',
+  auditionStartName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-presence.audition.json',
+  /** The verified successor's one durable provenance record (written once, at completion, only after its whole chain replays). */
+  successorName: 'owner-cycle-20261017-fresh-book-usd7.storyboard-presence.successor.json',
+  folder: 'storyboard-presence',
+  /** The terminal record it stands on: the calibration held by its review at the owner's ceiling 5. */
+  heldOutcome: 'held_storyboard_calibration', heldStatuses: Object.freeze(['held_uncertain', 'held_contradiction'] as const),
+  heldRecovery: 'stop_allowance_exhausted', ownHeldOutcome: 'held_storyboard_presence',
+  admittedStatuses: Object.freeze(['review_supported', 'review_supported_with_notes'] as const),
+  plannerCalls: 1, apiCalls: 1, reviewReserveFloorMicroUsd: 600_000,
+  /** The five earlier held candidates and the owner's new ceiling: this is attempt 6 of 6. */
+  priorAttempts: 5, maxAttempts: 6,
+  addedContracts: Object.freeze(['presenceContract'] as const),
+  /** The planner request's schema compaction, as on the calibration line. */
+  plannerSchema: 'definition-names/v1',
+  /** The owner's record: Guy's verbatim continuation line must be in it (its bytes are bound by digest). */
+  approvalLine: 'בכל מקרה אנחנו נמשיך כרגע בביצוע כדי לראות ספר',
+});
+export const freshBookStoryboardPresenceGrantSchema = z.object({ version: z.literal('fresh-book-storyboard-presence-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.amendment),
+  ownerApproval: z.object({ file: z.string().refine(p => path.isAbsolute(p)), sha256: hash }).strict(),
+  profileSha256: hash, bookDir: z.string().refine(p => path.isAbsolute(p)),
+  /** The consumed calibration authority, its held review and every claim it names, by digest (its pins bind ITS head, never this one's). */
+  calibration: z.object({ grantFile: z.string().refine(p => path.isAbsolute(p)), grantSha256: hash, claimSha256: hash, outcomeSha256: hash, sealSha256: hash,
+    folderSha256: hash, reviewReceiptSha256: hash, plannerReceiptSha256: hash, recoveryFinalSha256: hash, extensionRevalidationClaimSha256: hash,
+    extensionClaimSha256: hash, revalidationClaimSha256: hash, continuationClaimSha256: hash, repairClaimSha256: hash, recoveryClaimSha256: hash,
+    originalClaimSha256: hash }).strict(),
+  /** The held candidate it re-plans (attempt 5), re-derived from the calibration's own saved planner answer and raw review. */
+  held: z.object({ sourceDigest: hash, storyboardDigest: hash, reviewDigest: hash, disposition: z.enum(FRESH_BOOK_STORYBOARD_PRESENCE.heldStatuses),
+    draftSha256: hash, findings: z.number().int().positive(), findingGroups: z.number().int().positive(), repeatedReferences: z.number().int().min(0) }).strict(),
+  /** The stage's recovery state at admission (five consecutive held candidates, the owner's ceiling 6) and the diagnosis this attempt consumes. */
+  recovery: z.object({ version: z.literal('stage-recovery/v1'), attempts: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.priorAttempts),
+    maxAttempts: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.maxAttempts), consecutiveFailures: z.literal(5), mode: z.literal('diagnose_and_change_strategy'),
+    stateSha256: hash, diagnosisDigest: hash, contextDigest: hash }).strict(),
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, bookKnownMicroUsd: micro, calls: micro }).strict(),
+  allowance: z.object({ plannerCalls: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.plannerCalls), apiCalls: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.apiCalls),
+    reviewReserveFloorMicroUsd: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.reviewReserveFloorMicroUsd) }).strict(),
+  addedContracts: z.tuple([z.literal('presenceContract')]),
+  compile: z.tuple([z.literal('storyboard-self-check-names/v1'), z.literal('storyboard-claim-basis-staging-fields/v1')]),
+  plannerSchema: z.literal(FRESH_BOOK_STORYBOARD_PRESENCE.plannerSchema),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookStoryboardPresenceGrant = z.infer<typeof freshBookStoryboardPresenceGrantSchema>;
+
+/** The presence attempt's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookStoryboardPresence(env: FreshBookEnv, grant: FreshBookStoryboardPresenceGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_PRESENCE.outcomeName))) fail('fresh_book_storyboard_presence_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_PRESENCE.claimName), 'wx'); } catch { return fail('fresh_book_storyboard_presence_used'); }
+  const c = grant.calibration;
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, storyboardPresence: FRESH_BOOK_STORYBOARD_PRESENCE.version, grantSha256: grantSha,
+    ownerApprovalSha256: grant.ownerApproval.sha256, calibrationClaimSha256: c.claimSha256, extensionRevalidationClaimSha256: c.extensionRevalidationClaimSha256,
+    extensionClaimSha256: c.extensionClaimSha256, revalidationClaimSha256: c.revalidationClaimSha256, continuationClaimSha256: c.continuationClaimSha256,
+    repairClaimSha256: c.repairClaimSha256, recoveryClaimSha256: c.recoveryClaimSha256, originalClaimSha256: c.originalClaimSha256,
+    profileSha256: grant.profileSha256, bookDir: path.resolve(grant.bookDir), engineHead: grant.engine.head, claimedAt: new Date().toISOString() }) + '\n');
+    fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/**
+ * Synchronous, before EVERY paid call of a presence-line stage: its grant bytes, the owner's record bytes, its profile, the claim it wrote, the
+ * calibration, extension-revalidation, extension, revalidation, continuation, repair, recovery and original claims it names, the clean source
+ * at its head, every pinned file.
+ */
+export function assertFreshBookStoryboardPresencePaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_storyboard_presence_grant');
+  const grant = freshBookStoryboardPresenceGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  if (previewSha(fileBytes(grant.ownerApproval.file)) !== grant.ownerApproval.sha256) fail('fresh_book_storyboard_presence_approval');
+  const at = (name: string) => path.join(args.env.authorityRoot, name), claimFile = at(FRESH_BOOK_STORYBOARD_PRESENCE.claimName), c = grant.calibration;
+  const named = [[FRESH_BOOK_STORYBOARD_CALIBRATION.claimName, c.claimSha256], [FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.claimName, c.extensionRevalidationClaimSha256],
+    [FRESH_BOOK_STORYBOARD_EXTENSION.claimName, c.extensionClaimSha256], [FRESH_BOOK_STORYBOARD_REVALIDATION.claimName, c.revalidationClaimSha256],
+    [FRESH_BOOK_STORYBOARD_CONTINUATION.claimName, c.continuationClaimSha256], [FRESH_BOOK_STORYBOARD_REPAIR.claimName, c.repairClaimSha256],
+    [FRESH_BOOK_RECOVERY.claimName, c.recoveryClaimSha256], [FRESH_BOOK_CYCLE.claimName, c.originalClaimSha256]] as const;
+  if (!existsSync(claimFile) || named.some(([name, digest]) => !existsSync(at(name)) || previewSha(fileBytes(at(name))) !== digest)) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.storyboardPresence !== FRESH_BOOK_STORYBOARD_PRESENCE.version || claim.grantSha256 !== args.grantSha ||
+      claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || claim.calibrationClaimSha256 !== c.claimSha256 ||
+      claim.extensionRevalidationClaimSha256 !== c.extensionRevalidationClaimSha256 || claim.extensionClaimSha256 !== c.extensionClaimSha256 ||
+      claim.revalidationClaimSha256 !== c.revalidationClaimSha256 || claim.continuationClaimSha256 !== c.continuationClaimSha256 ||
+      claim.repairClaimSha256 !== c.repairClaimSha256 || claim.recoveryClaimSha256 !== c.recoveryClaimSha256 || claim.originalClaimSha256 !== c.originalClaimSha256 ||
+      claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
+      claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
 /** The sample gate: the remaining pages and the cover are claimable only after BOTH representative samples passed their gates. */
 export type PageGate = { page: number; disposition: 'passed' | 'held_uncertain' | 'repair' | 'failed' | 'pending' };
 export function assertLaterPagesAllowed(samples: readonly PageGate[]) {

@@ -100,8 +100,10 @@ export function claimBasisSectionsView(raw: unknown) {
     if (Array.isArray(frame.staging) && !frame.staging.length) delete frame.staging;
     if (Array.isArray(frame.requirements)) for (const r of frame.requirements as Record<string, unknown>[])
       if (r.entityId === null && r.revealPage === null) { delete r.entityId; delete r.revealPage; }
-    const depicted = frame.depicted as { relations?: { entityId: string }[]; attributes?: { entityId: string }[] } | null | undefined;
+    const depicted = frame.depicted as { relations?: { entityId: string }[]; attributes?: { entityId: string }[]; presence?: unknown[] } | null | undefined;
     if (n === 0 || !depicted) return;
+    // storyboard-presence/v1: an empty presence list is that contract's neutral value (absent field, nothing removed).
+    if (Array.isArray(depicted.presence) && !depicted.presence.length) delete depicted.presence;
     const shown = new Set([...(d.sequence?.pages?.[n - 1]?.visibleCastIds ?? []), ...(d.plan?.continuity?.pages?.[n]?.visibleEntityIds ?? [])]);
     if (Array.isArray(depicted.relations)) depicted.relations = depicted.relations.filter(o => shown.has(o.entityId));
     if (Array.isArray(depicted.attributes)) depicted.attributes = depicted.attributes.filter(a => shown.has(a.entityId));

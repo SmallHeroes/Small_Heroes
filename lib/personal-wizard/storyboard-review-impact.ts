@@ -59,6 +59,9 @@ export function storyboardFrameClaims(book: Storyboardish, n: number): Storyboar
     d.attributes.forEach(a => claims.push({ ref: `p${n}:attribute:${a.entityId}:${a.attribute}`, evidence: a.evidence }));
     const looks = 'actorStates' in d ? (d as { actorStates: { actorId: string; evidence: string }[] }).actorStates : [];
     looks.forEach(a => claims.push({ ref: `p${n}:actor:${a.actorId}`, evidence: a.evidence }));
+    // storyboard-presence/v1 only (absent field, no claim): an actor present in the drawn scene without a placement.
+    const present = 'presence' in d ? (d as { presence: { actorId: string; evidence: string }[] }).presence : [];
+    present.forEach(p => claims.push({ ref: `p${n}:presence:${p.actorId}`, evidence: p.evidence }));
   }
   (book.plan.continuity?.pages[n]?.changes ?? []).forEach(c => claims.push({ ref: `p${n}:change:${c.entityId}:${c.attribute}`, evidence: c.storyEvidence }));
   if (n >= 1) {
