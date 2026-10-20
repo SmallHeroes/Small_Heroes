@@ -93,12 +93,13 @@ export type ImpactFinding = { scope: 'book' | 'page'; pageNumber?: number; categ
  * a blocking check is uncertain or the review does not bind (unknown materiality, unbound reference, issues on a supported check),
  * contradiction otherwise; supported with notes when only notes remain. `citation` (claim-basis contract only): an evidence issue the
  * reviewer bound to one verified source span of its claim's page is that reviewer's own binding note (its impact stays evidence; the claim
- * stands with the cited span), never an inferred or lowered impact.
+ * stands with the cited span), never an inferred or lowered impact. `severity` (storyboard-calibration/v1 only): whether an issue blocks, from
+ * the reviewer's own impact and basis and its verified citation; absent, exactly the rule above.
  */
 export function storyboardImpactDisposition(checks: { scope: 'book' | 'page'; pageNumber?: number; check: ImpactCheck }[], refs: readonly string[],
-  citation?: (issue: StoryboardReviewIssue) => boolean) {
+  citation?: (issue: StoryboardReviewIssue) => boolean, severity?: (issue: StoryboardReviewIssue, cited: boolean) => boolean) {
   const known = new Set(refs), blocking: ImpactFinding[] = [], notes: ImpactFinding[] = [];
-  const material = (i: StoryboardReviewIssue) => impactIsMaterial(i.impact) && !(citation?.(i) ?? false);
+  const material = (i: StoryboardReviewIssue) => severity ? severity(i, citation?.(i) ?? false) : impactIsMaterial(i.impact) && !(citation?.(i) ?? false);
   for (const { scope, pageNumber, check } of checks) {
     const base = { scope, ...(scope === 'page' ? { pageNumber } : {}), category: check.category, verdict: check.verdict, observation: check.observation, issues: check.issues };
     if (check.verdict === 'supported') { if (check.issues.length) blocking.push({ ...base, reason: 'issues_on_supported' }); continue; }

@@ -3,7 +3,9 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
-import { personalStoryboardReviewSchema, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
+import { personalStoryboardReviewSchema, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema, calibrationStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS,
+  STORYBOARD_FRAME_CHECKS } from './storyboard';
+import { calibrationSelfCheckWireSchema } from './storyboard-calibration';
 import { momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, storyboardMomentsSchema, drawnInstantWholeBookDraftSchema,
   ownedDrawnInstantWholeBookDraftSchema, drawnInstantMomentsSchema } from './storyboard-moments';
 import { selfCheckWireSchema } from './storyboard-self-check';
@@ -35,13 +37,16 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   if (call.context.claimBasisContract !== undefined && (call.context.claimBasisContract !== true || (call.stage === 'storyboard'
     ? call.context.momentContract !== true || call.context.drawnInstantContract !== true || call.context.selfCheckContract !== true
     : call.context.reviewImpactPolicy !== true))) throw new BookProviderError('book_provider_context');
+  // The calibration refines the claim basis on both sides (the planner's self-check map, the review's basis and citations), so it needs it.
+  if (call.context.calibrationContract !== undefined && (call.context.calibrationContract !== true || call.context.claimBasisContract !== true))
+    throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');
   // Opt-in self-check: one self-check frame per page (cover first), beside the moments, on its bound-free wire shape (the engine compiler
   // validates the decoded selfCheck with its bounded schema). Statically the draft shape: the decoder keeps every field it parsed.
   const withSelfCheck = <T extends z.AnyZodObject>(schema: T): T => (call.context.selfCheckContract
-    ? schema.extend({ selfCheck: selfCheckWireSchema(count + 1) }) : schema) as T;
+    ? schema.extend({ selfCheck: call.context.calibrationContract ? calibrationSelfCheckWireSchema(count + 1) : selfCheckWireSchema(count + 1) }) : schema) as T;
   if (call.stage === 'storyboard' && call.context.momentContract && call.context.drawnInstantContract) {
     // Opt-in drawn-instant contract: exactly the moments shape below, with actorStates in every depicted instant.
     const draft = call.context.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema;
@@ -92,7 +97,8 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   }
   // Under the typed review policy every check item also carries its issues (under the claim basis each with its citation); otherwise the exact
   // existing item.
-  const item = call.context.claimBasisContract ? claimBasisStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true })
+  const item = call.context.calibrationContract ? calibrationStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true })
+    : call.context.claimBasisContract ? claimBasisStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true })
     : call.context.reviewImpactPolicy ? impactStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true })
     : personalStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true });
   const group = (names: readonly string[]) => z.object(Object.fromEntries(names.map(name => [name, item]))).strict();

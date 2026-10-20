@@ -30,18 +30,42 @@ export function plannerRequest(call: SimpleStoryboardDiagnosticCall) {
   return { instructions: payload.instructions, input: payload.input, maxOutputTokens: payload.max_output_tokens, schema: payload.text.format.schema };
 }
 
+/**
+ * Opt-in planner schema compaction (`policy.plannerSchema` = 'definition-names/v1'): the generated JSON-schema definition names (long
+ * property-path names, repeated in every $ref) become d0, d1, ... in their own order, every $ref rewritten. The same schema structure: the same
+ * types, properties, enums, required lists and references, so the same answers validate and the same decoder reads them; only the command line
+ * and the wire are shorter. Absent, the exact existing schema.
+ */
+export const PLANNER_SCHEMA_COMPACTION = 'definition-names/v1' as const;
+export function compactSchemaDefinitions(schema: Record<string, unknown>): Record<string, unknown> {
+  const definitions = schema.definitions as Record<string, unknown> | undefined;
+  if (!definitions) return schema;
+  const short = new Map(Object.keys(definitions).map((name, i) => [name, `d${i}`]));
+  const rename = (v: unknown): unknown => Array.isArray(v) ? v.map(rename) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.entries(v).map(([k, x]) => {
+      if (k !== '$ref' || typeof x !== 'string') return [k, rename(x)];
+      const target = x.startsWith('#/definitions/') ? short.get(x.slice('#/definitions/'.length)) : undefined;
+      return target ? [k, `#/definitions/${target}`] : hostFail('wire_contract');
+    })) : v;
+  return Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, k === 'definitions'
+    ? Object.fromEntries(Object.entries(definitions).map(([name, d]) => [short.get(name)!, rename(d)])) : rename(v)]));
+}
+
 /** The exact CLI wire one storyboard call derives (the author/editor flags, with the planner's own schema, stdin and cap). */
 export function prepareOpusStoryboardWire(call: SimpleStoryboardDiagnosticCall, policy: WirePolicy, instructionFile: string): PlannerWire {
   if (!path.isAbsolute(instructionFile)) hostFail('instruction_file');
   if (!Number.isSafeInteger(policy.maxWireBytes) || policy.maxWireBytes < 1 || policy.maxWireBytes > 104_000) hostFail('wire_contract');
+  if (policy.plannerSchema !== undefined && policy.plannerSchema !== PLANNER_SCHEMA_COMPACTION) hostFail('wire_contract');
   const request = plannerRequest(call);
+  const schema = policy.plannerSchema ? compactSchemaDefinitions(request.schema as Record<string, unknown>) : request.schema;
   const args = ['-p', '--safe-mode', '--model', OPUS_PLANNER.model, '--effort', OPUS_PLANNER.effort, '--tools', '', '--no-session-persistence',
     '--output-format', 'json', '--max-budget-usd', String(OPUS_PLANNER.sessionGuardMicroUsd / 1e6), '--system-prompt-file', instructionFile,
-    '--json-schema', JSON.stringify(request.schema)];
+    '--json-schema', JSON.stringify(schema)];
   if (args.map(a => JSON.stringify(a)).join(' ').length + policy.executable.length > 31_000) hostFail('argv_limit');
   const payload = { executable: policy.executable, executableSha256: policy.executableSha256, args, stdin: request.input, instructionFile,
     instructions: request.instructions, environmentOverride: { CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(request.maxOutputTokens) },
-    freshProcess: true, managedPolicyMayRemain: true, tokenCapScope: 'configured_per_request_not_cli_aggregate' };
+    freshProcess: true, managedPolicyMayRemain: true, tokenCapScope: 'configured_per_request_not_cli_aggregate',
+    ...(policy.plannerSchema ? { schemaCompaction: policy.plannerSchema } : {}) };
   const json = JSON.stringify(payload), bytes = Buffer.byteLength(json, 'utf8');
   if (bytes > policy.maxWireBytes) hostFail('wire_limit');
   // UTF8 bytes upper-bound the visible input tokens; the CLI's own --max-budget-usd guard bounds the session.

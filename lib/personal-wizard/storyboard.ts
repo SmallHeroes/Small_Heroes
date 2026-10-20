@@ -22,7 +22,8 @@ import { LANDMARK_KIND_CONTRACT_VERSION, KIND_STORYBOARD_ADDENDUM, landmarkKinds
 import { STORYBOARD_PRESERVATION_VERSION, PRESERVATION_STORYBOARD_ADDENDUM, assertStoryboardPreservation, type StoryboardPreservation } from './storyboard-preservation';
 import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } from './storyboard-scene-location';
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from './storyboard-compiler-rules';
-import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, assertStoryboardRepair, storyboardRepairFindings, type StoryboardRepair } from './storyboard-repair';
+import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_ATTEMPT_EXTENSION_V2, assertStoryboardRepair, storyboardRepairFindings,
+  type StoryboardRepair } from './storyboard-repair';
 import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
 import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck,
   type StoryboardSelfCheck } from './storyboard-self-check';
@@ -33,6 +34,9 @@ import { CLAIM_BASIS_CONTRACT_VERSION, CLAIM_BASIS_STORYBOARD_ADDENDUM, CLAIM_BA
   claimBasisWholeBookDraftSchema, ownedClaimBasisWholeBookDraftSchema, claimBasisIssueSchema, dropHiddenOverrides, droppedRefs, validateClaimBasis,
   sourceSpans, citationBinds, claimBasisSectionsView, CLAIM_BASIS_STAGING_FIELDS_VERSION, STAGEABLE_PLAN_FIELDS, type HiddenOverride,
   type ClaimBasisRequirement } from './storyboard-claim-basis';
+import { STORYBOARD_CALIBRATION_VERSION, CALIBRATION_COMPONENTS, CALIBRATION_STORYBOARD_ADDENDUM, calibrationIssueSchema, calibrationSelfCheckSchema,
+  calibrationSelfCheckStoryboardAddendum, severityMaterial, multispanCitationBinds, citationText, relationLifetimeViolations, validateVisualStates,
+  findingGroups, type CalibrationIssue, type VisualStates } from './storyboard-calibration';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -74,6 +78,8 @@ type BookData = {
   claimBasis?: { version: typeof CLAIM_BASIS_CONTRACT_VERSION; hiddenOverridesDropped: HiddenOverride[] };
   /** Present only when compiled under the opt-in claim-basis staging-fields correction (storyboard-claim-basis-staging-fields/v1). */
   stagingFields?: typeof CLAIM_BASIS_STAGING_FIELDS_VERSION;
+  /** Present only under the opt-in calibration contract: its marker, its components and the planner's validated visual-state map. */
+  calibration?: { version: typeof STORYBOARD_CALIBRATION_VERSION; components: string[]; visualStates: VisualStates };
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -86,13 +92,14 @@ const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Sour
  */
 const recoveryOf = new WeakMap<object, { chain: ChainAttempt[]; diagnosis: StoryboardDiagnosis | null; contracts: string[]; context: string }>();
 type ContractFlags = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true;
-  drawnInstantContract?: true; visibleMomentContract?: true; selfCheckContract?: true; reviewImpactPolicy?: true; preservation?: unknown; claimBasisContract?: true };
+  drawnInstantContract?: true; visibleMomentContract?: true; selfCheckContract?: true; reviewImpactPolicy?: true; preservation?: unknown; claimBasisContract?: true;
+  calibrationContract?: true };
 const contractVersions = (f: ContractFlags) => [f.actorOwnedAppearance && 'actor-owned-appearance', f.momentContract && STORYBOARD_MOMENTS_VERSION,
   f.landmarkKindContract && LANDMARK_KIND_CONTRACT_VERSION, f.sceneLocationContract && SCENE_LOCATION_CONTRACT_VERSION,
   f.compilerRulesContract && COMPILER_RULES_CONTRACT_VERSION, f.drawnInstantContract && DRAWN_INSTANT_CONTRACT_VERSION,
   f.visibleMomentContract && VISIBLE_MOMENT_CONTRACT_VERSION, f.selfCheckContract && STORYBOARD_SELF_CHECK_VERSION,
   f.reviewImpactPolicy && STORYBOARD_REVIEW_IMPACT_VERSION, f.preservation !== undefined && STORYBOARD_PRESERVATION_VERSION,
-  f.claimBasisContract && CLAIM_BASIS_CONTRACT_VERSION]
+  f.claimBasisContract && CLAIM_BASIS_CONTRACT_VERSION, f.calibrationContract && STORYBOARD_CALIBRATION_VERSION]
   .filter((v): v is string => typeof v === 'string').sort();
 /** An attempt's context: its contracts, the held candidate and review it corrects (none for a first plan) and the diagnosis it consumes. */
 const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: string; review: unknown } | undefined, diagnosis: string | null) =>
@@ -101,7 +108,8 @@ const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: 
 /** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true,
   landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true, repair?: StoryboardRepair,
-  drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true, claimBasisContract?: true) {
+  drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true, claimBasisContract?: true,
+  calibrationContract?: true) {
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
   // The self-check binds the moments contract's requirements and drawn instants, so it needs that contract; the review policy stands alone.
   if (selfCheckContract !== undefined && (selfCheckContract !== true || momentContract !== true)) fail('self_check_policy');
@@ -109,6 +117,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   // The claim basis refines the drawn instant, the self-check and the typed review, so it needs all of them (and so the moments contract).
   if (claimBasisContract !== undefined && (claimBasisContract !== true || momentContract !== true || drawnInstantContract !== true ||
       selfCheckContract !== true || reviewImpactPolicy !== true)) fail('claim_basis_policy');
+  // The calibration refines the claim basis on both sides (its review severity, citations, relations and state source), so it needs it.
+  if (calibrationContract !== undefined && (calibrationContract !== true || claimBasisContract !== true)) fail('calibration_policy');
   if (momentContract !== undefined && momentContract !== true) fail('moment_policy');
   if (landmarkKindContract !== undefined && landmarkKindContract !== true) fail('landmark_kind_policy');
   if (sceneLocationContract !== undefined && sceneLocationContract !== true) fail('scene_location_policy');
@@ -172,7 +182,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   // findings are that review's own unsupported checks, and for a contract this repair adds, the compiler's own findings on the parent: derived
   // here, never supplied.
   const contracts = contractVersions({ actorOwnedAppearance, momentContract, landmarkKindContract, sceneLocationContract, compilerRulesContract,
-    drawnInstantContract, visibleMomentContract, selfCheckContract, reviewImpactPolicy, preservation, claimBasisContract });
+    drawnInstantContract, visibleMomentContract, selfCheckContract, reviewImpactPolicy, preservation, claimBasisContract, calibrationContract });
   const held = repair === undefined ? undefined : (() => {
     const added = new Set(repair.addedContracts ?? []);
     if (added.has('drawnInstantContract') && drawnInstantContract !== true) fail('repair_policy');
@@ -180,12 +190,14 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     if (added.has('selfCheckContract') && selfCheckContract !== true) fail('repair_policy');
     if (added.has('reviewImpactPolicy') && reviewImpactPolicy !== true) fail('repair_policy');
     if (added.has('claimBasisContract') && claimBasisContract !== true) fail('repair_policy');
+    if (added.has('calibrationContract') && calibrationContract !== true) fail('repair_policy');
     let parent: PersonalStoryboard, parentSource: Source;
     try {
       parentSource = preparePersonalStoryboard(request, writerResult, options, actorOwnedAppearance, momentContract, landmarkKindContract,
         undefined, sceneLocationContract, compilerRulesContract, repair.parentRepair, added.has('drawnInstantContract') ? undefined : drawnInstantContract,
         added.has('visibleMomentContract') ? undefined : visibleMomentContract, added.has('selfCheckContract') ? undefined : selfCheckContract,
-        added.has('reviewImpactPolicy') ? undefined : reviewImpactPolicy, added.has('claimBasisContract') ? undefined : claimBasisContract);
+        added.has('reviewImpactPolicy') ? undefined : reviewImpactPolicy, added.has('claimBasisContract') ? undefined : claimBasisContract,
+        added.has('calibrationContract') ? undefined : calibrationContract);
       // A parent compiled under an opt-in compile option (its own bound marker) recompiles under it; absent, exactly the existing compile.
       parent = repair.parentCompile ? compilePersonalStoryboard(parentSource, structuredClone(repair.draft), repair.parentCompile)
         : compilePersonalStoryboard(parentSource, structuredClone(repair.draft));
@@ -212,9 +224,12 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     // require the engine diagnosis, and this attempt's context (contracts and diagnosis) may repeat no failed one. Absent, exactly the
     // existing repair.
     // An owner's bounded extension (storyboard-attempt-extension/v1): exactly one attempt above the base ceiling, only once the base ceiling
-    // is spent (never earlier, never a reset), under the recovery rule; it is bound in the source digest and this attempt's context.
-    const extension = repair.extension;
-    if (extension && (!selfCheckContract || extension.maxAttempts !== STORYBOARD_MAX_ATTEMPTS + 1 || chain.length !== STORYBOARD_MAX_ATTEMPTS))
+    // is spent (never earlier, never a reset), under the recovery rule; it is bound in the source digest and this attempt's context. A further
+    // owner extension (v2) is exactly one attempt above the extension the parent attempt used, which it names, only once that one is spent.
+    const extension = repair.extension, ancestor = repair.parentRepair?.extension;
+    if (extension && (!selfCheckContract || (extension.version === STORYBOARD_ATTEMPT_EXTENSION_V2
+      ? !ancestor || canonicalJson(extension.previous) !== canonicalJson(ancestor) || chain.length !== ancestor.maxAttempts
+      : extension.maxAttempts !== STORYBOARD_MAX_ATTEMPTS + 1 || chain.length !== STORYBOARD_MAX_ATTEMPTS)))
       fail('repair_extension_policy');
     const maxAttempts = extension ? extension.maxAttempts : STORYBOARD_MAX_ATTEMPTS;
     let diagnosis: StoryboardDiagnosis | null = null;
@@ -236,8 +251,10 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       issues: f.issues.map(i => { const citation = (i as unknown as { citation?: string }).citation;
         return { impact: i.impact, ref: i.ref, note: i.note, ...(citation ? { citation } : {}) }; }) }))
       : undefined;
+    // Under the calibration those issues are also grouped by the reference they concern (one group is one cause).
+    const groups = calibrationContract && typedFindings ? findingGroups(typedFindings) : undefined;
     return { parentStoryboardDigest: repair.parentStoryboardDigest, draft: structuredClone(repair.draft), review: structuredClone(repair.review),
-      findings, chain, diagnosis,
+      findings, chain, diagnosis, ...(groups ? { groups } : {}),
       ...(repair.parentRepair ? { parentRepair: structuredClone(repair.parentRepair) } : {}),
       ...(repair.addedContracts ? { addedContracts: [...repair.addedContracts] } : {}), ...(contractFindings ? { contractFindings } : {}),
       ...(repair.parentCompile ? { parentCompile: { ...repair.parentCompile } } : {}), ...(extension ? { extension: { ...extension } } : {}),
@@ -256,6 +273,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(selfCheckContract ? { selfCheckContract: STORYBOARD_SELF_CHECK_VERSION } : {}),
     ...(reviewImpactPolicy ? { reviewImpactPolicy: STORYBOARD_REVIEW_IMPACT_VERSION } : {}),
     ...(claimBasisContract ? { claimBasisContract: CLAIM_BASIS_CONTRACT_VERSION } : {}),
+    ...(calibrationContract ? { calibrationContract: STORYBOARD_CALIBRATION_VERSION } : {}),
     ...(prior ? { storyboardPreservation: { version: STORYBOARD_PRESERVATION_VERSION, parentStoryboardDigest: prior.parentStoryboardDigest, draft: digest(prior.draft) } } : {}),
     ...(held ? { storyboardRepair: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, draft: digest(held.draft),
       review: digest(held.review), ...(held.parentRepair ? { parentRepair: digest(held.parentRepair) } : {}),
@@ -275,6 +293,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(selfCheckContract ? { selfCheckContract: true as const } : {}),
     ...(reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
     ...(claimBasisContract ? { claimBasisContract: true as const } : {}),
+    ...(calibrationContract ? { calibrationContract: true as const } : {}),
     ...(prior ? { preservation: prior } : {}),
     ...(held ? { repair: { parentStoryboardDigest: held.parentStoryboardDigest, draft: held.draft, review: held.review,
       ...(held.parentRepair ? { parentRepair: held.parentRepair } : {}), ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}),
@@ -298,7 +317,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       // typed findings and the diagnosis), and each finding carries its typed issues.
       ...(held ? { priorReviewedStoryboard: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest,
         storyboard: claimBasisContract ? withoutSelfCheck(held.draft) : held.draft,
-        reviewFindings: held.typedFindings ?? held.findings, ...(held.contractFindings ? { contractFindings: held.contractFindings } : {}),
+        reviewFindings: held.typedFindings ?? held.findings, ...(held.groups ? { findingGroups: held.groups } : {}),
+        ...(held.contractFindings ? { contractFindings: held.contractFindings } : {}),
         ...(held.diagnosis ? { diagnosis: held.diagnosis } : {}) } } : {}),
     },
   };
@@ -318,10 +338,10 @@ function parentStoryboardDigest(request: unknown, writerResult: unknown, options
 export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true,
   momentContract?: true, landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true,
   repair?: StoryboardRepair, drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true,
-  claimBasisContract?: true) {
+  claimBasisContract?: true, calibrationContract?: true) {
   return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract,
     landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract, visibleMomentContract,
-    selfCheckContract, reviewImpactPolicy, claimBasisContract);
+    selfCheckContract, reviewImpactPolicy, claimBasisContract, calibrationContract);
 }
 
 function assertSource(source: Source) {
@@ -381,8 +401,12 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   if (source.selfCheckContract && !('selfCheck' in object!)) fail('self_check_required');
   // Moments (and, opt-in, the planner's self-check) are split off before the unchanged plan/sequence compiler, then validated against its output.
   const { moments: rawMoments, ...draft } = source.momentContract ? object! : { moments: undefined };
-  const rawSelfCheck = source.selfCheckContract ? (draft as Record<string, unknown>).selfCheck : undefined;
+  const fullSelfCheck = source.selfCheckContract ? (draft as Record<string, unknown>).selfCheck : undefined;
   if (source.selfCheckContract) delete (draft as Record<string, unknown>).selfCheck;
+  // Calibration: the planner's visual-state map is split off the self-check (validated below); the v1 self-check validator sees the rest.
+  const { visualStates: rawVisualStates, ...calibratedSelfCheck } = source.calibrationContract && fullSelfCheck && typeof fullSelfCheck === 'object'
+    ? fullSelfCheck as Record<string, unknown> : { visualStates: undefined };
+  const rawSelfCheck = source.calibrationContract && fullSelfCheck && typeof fullSelfCheck === 'object' ? calibratedSelfCheck : fullSelfCheck;
   const compiled = compileWholeBookDraft(source.momentContract ? draft : rawDraft, source.story, source.actorOwnedAppearance === true);
   const texts = previewStoryEvidence(source.story).texts;
   // Claim basis: an override of an entity its frame does not show is dropped first (recorded; it cannot change the picture), then the contract's
@@ -408,6 +432,12 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     checkOptions) : undefined;
   const selfCheckNames = options?.selfCheckNames ? STORYBOARD_SELF_CHECK_NAMES_VERSION : undefined;
   const stagingFields = options?.stagingFields ? CLAIM_BASIS_STAGING_FIELDS_VERSION : undefined;
+  // Calibration: a ledger relation carried unseen with a moving actor refuses (storyboard-relation-lifetime/v1), and the planner's visual-state
+  // map binds to the visual language's own words and to changes of mutable attributes (storyboard-state-source/v1); both structural only.
+  if (source.calibrationContract && relationLifetimeViolations(compiled.plan, compiled.sequence).length) fail('calibration_relation_lifetime');
+  const calibration = source.calibrationContract ? { version: STORYBOARD_CALIBRATION_VERSION, components: [...CALIBRATION_COMPONENTS],
+    visualStates: validateVisualStates(rawVisualStates, compiled.plan, compiled.sequence, n => storyboardFrameClaims({ plan: compiled.plan,
+      sequence: compiled.sequence, moments: moments! }, n).map(c => c.ref).filter(ref => /^p\d+:change:/.test(ref))) } : undefined;
   // Claim basis: the marker and every dropped hidden-entity override, bound in the digest.
   const claimBasis = basis ? { version: CLAIM_BASIS_CONTRACT_VERSION, hiddenOverridesDropped: basis.dropped } : undefined;
   // Typed review materiality: a policy marker only (the disposition reads it); the review schema and input follow it.
@@ -429,14 +459,15 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}), ...(compilerRules ? { compilerRules } : {}),
     ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}),
     ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}), ...(selfCheckNames ? { selfCheckNames } : {}),
-    ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}) });
+    ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}), ...(calibration ? { calibration } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
     ...compiled, ...(moments ? { moments } : {}), ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}),
     ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}),
     ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}),
-    ...(selfCheckNames ? { selfCheckNames } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}) } as PersonalStoryboard;
+    ...(selfCheckNames ? { selfCheckNames } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}),
+    ...(calibration ? { calibration } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -473,20 +504,26 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
     ...(book.selfCheck ? { selfCheck: book.selfCheck } : {}),
     ...(book.reviewImpact ? { reviewImpact: { version: book.reviewImpact, reviewRefs: storyboardReviewRefs(book, reviewPlanFields(book)) } } : {}),
     // Claim basis: the stable source spans a citation names (the frozen page texts, split deterministically).
-    ...(book.claimBasis ? { claimBasis: { version: book.claimBasis.version, sourceSpans: sourceSpans(previewStoryEvidence(source.story).texts) } } : {}) };
+    ...(book.claimBasis ? { claimBasis: { version: book.claimBasis.version, sourceSpans: sourceSpans(previewStoryEvidence(source.story).texts) } } : {}),
+    // Calibration: its marker and the planner's visual-state map (the review judges agreement with the ledger).
+    ...(book.calibration ? { calibration: { version: book.calibration.version, visualStates: book.calibration.visualStates } } : {}) };
 }
 
 /**
  * Claim basis only: the verifier of a review issue's citation for this book (every claim's own evidence page(s); the cover: the title or page
  * 1; a withhold requirement: its reveal page) over the stable source spans of its frozen texts. Structure only: the reviewer asserts meaning.
+ * Under the calibration a citation may name one to three spans of one such page, in text order (storyboard-claim-basis-multispan/v1).
  */
 function citationVerifier(book: PersonalStoryboard, texts: readonly string[]) {
   const claims = new Map(book.plan.pages.flatMap((_, n) => storyboardFrameClaims(book, n).map(c =>
     [c.ref, { evidence: c.evidence, pages: c.page !== undefined ? [c.page] : n === 0 ? [0, 1] : [n] }] as const)));
-  const spans = sourceSpans(texts);
+  const spans = sourceSpans(texts), multispan = book.calibration !== undefined;
   return {
-    binds: (issue: { impact: string; ref: string; whyNotMaterial: string }) => citationBinds({ ...issue, citation: (issue as { citation?: string }).citation ?? '' }, claims, spans),
-    text: (id: string) => Object.values(spans).flat().find(s => s.id === id)?.text,
+    binds: (issue: { impact: string; ref: string; whyNotMaterial: string }) => {
+      const cited = { ...issue, citation: (issue as { citation?: string }).citation ?? '' };
+      return multispan ? multispanCitationBinds(cited, claims, spans) : citationBinds(cited, claims, spans);
+    },
+    text: (id: string) => multispan ? citationText(spans, id) : Object.values(spans).flat().find(s => s.id === id)?.text,
   };
 }
 
@@ -508,6 +545,15 @@ export const claimBasisStoryboardReviewSchema = z.object({
     checks: z.array(claimBasisCheck.extend({ category: z.enum(STORYBOARD_FRAME_CHECKS) })).length(STORYBOARD_FRAME_CHECKS.length),
   }).strict()).min(9).max(17),
 }).strict();
+/** Under the calibration contract only: every issue also gives the reviewer's basis, and its citation may name one to three spans. */
+const calibrationCheck = check.extend({ issues: z.array(calibrationIssueSchema).max(4) });
+export const calibrationStoryboardReviewSchema = z.object({
+  sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), storyboardDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  bookChecks: z.array(calibrationCheck.extend({ category: z.enum(STORYBOARD_BOOK_CHECKS) })).length(STORYBOARD_BOOK_CHECKS.length),
+  frames: z.array(z.object({ pageNumber: z.number().int().min(0).max(16),
+    checks: z.array(calibrationCheck.extend({ category: z.enum(STORYBOARD_FRAME_CHECKS) })).length(STORYBOARD_FRAME_CHECKS.length),
+  }).strict()).min(9).max(17),
+}).strict();
 type StoryboardReviewDecision = {
   disposition: 'review_supported' | 'review_supported_with_notes' | 'held_uncertain' | 'held_contradiction';
   review: z.infer<typeof personalStoryboardReviewSchema> | z.infer<typeof impactStoryboardReviewSchema>; reviewDigest: string; runtimeEligible: false;
@@ -517,8 +563,8 @@ type StoryboardReviewDecision = {
 
 export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unknown): StoryboardReviewDecision {
   const source = assertBook(book);
-  const review = book.claimBasis ? claimBasisStoryboardReviewSchema.parse(raw) : book.reviewImpact ? impactStoryboardReviewSchema.parse(raw)
-    : personalStoryboardReviewSchema.parse(raw);
+  const review = book.calibration ? calibrationStoryboardReviewSchema.parse(raw) : book.claimBasis ? claimBasisStoryboardReviewSchema.parse(raw)
+    : book.reviewImpact ? impactStoryboardReviewSchema.parse(raw) : personalStoryboardReviewSchema.parse(raw);
   if (review.sourceDigest !== book.sourceDigest || review.storyboardDigest !== book.storyboardDigest) fail('review_binding');
   const categories = (checks: { category: string }[], expected: readonly string[]) => {
     if (checks.length !== expected.length || new Set(checks.map(item => item.category)).size !== expected.length ||
@@ -532,10 +578,12 @@ export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unkno
     const typed = review as z.infer<typeof impactStoryboardReviewSchema>;
     // Claim basis: an evidence issue bound to one verified source span of its claim's page is the reviewer's binding note (structure verified only).
     const citation = book.claimBasis ? citationVerifier(book, previewStoryEvidence(source.story).texts).binds : undefined;
+    // Calibration: whether an issue blocks follows the reviewer's own impact and basis (storyboard-review-severity/v1).
+    const severity = book.calibration ? (i: unknown, cited: boolean) => severityMaterial(i as CalibrationIssue, cited) : undefined;
     const impact = storyboardImpactDisposition([
       ...typed.bookChecks.map(check => ({ scope: 'book' as const, check })),
       ...typed.frames.flatMap(frame => frame.checks.map(check => ({ scope: 'page' as const, pageNumber: frame.pageNumber, check }))),
-    ], storyboardReviewRefs(book, reviewPlanFields(book)), citation);
+    ], storyboardReviewRefs(book, reviewPlanFields(book)), citation, severity);
     return { disposition: impact.disposition, review, reviewDigest: digest(review), runtimeEligible: false as const, impact };
   }
   const checks = [...review.bookChecks, ...review.frames.flatMap(frame => frame.checks)];
@@ -573,7 +621,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   if (!current) return fail('current_source_required');
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
-    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract);
+    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   const accepted = ownerAcceptance === undefined ? null : bindOwnerAcceptance(book, decision, ownerAcceptance);
@@ -618,7 +666,7 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   admitCurrentStoryboardStory(source.request, source.result, current.options);
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
-    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract);
+    source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return ownerAcceptance === undefined ? personalStoryboardFrame(book, rawReview, pageNumber, current)
     : personalStoryboardFrame(book, rawReview, pageNumber, current, ownerAcceptance);
@@ -627,15 +675,16 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
 /** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */
 export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; preservation?: unknown;
   sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true;
-  selfCheckContract?: true; claimBasisContract?: true }) =>
+  selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true }) =>
   (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '')
   + (source.landmarkKindContract ? '\n' + KIND_STORYBOARD_ADDENDUM : '') + (source.preservation ? '\n' + PRESERVATION_STORYBOARD_ADDENDUM : '')
   + (source.sceneLocationContract ? '\n' + SCENE_LOCATION_STORYBOARD_ADDENDUM : '')
   + (source.compilerRulesContract ? '\n' + COMPILER_RULES_STORYBOARD_ADDENDUM : '')
   + (source.drawnInstantContract ? '\n' + (source.claimBasisContract ? claimBasisDrawnInstantAddendum() : DRAWN_INSTANT_STORYBOARD_ADDENDUM) : '')
   + (source.visibleMomentContract ? '\n' + VISIBLE_MOMENT_STORYBOARD_ADDENDUM : '')
-  + (source.selfCheckContract ? '\n' + SELF_CHECK_STORYBOARD_ADDENDUM : '')
+  + (source.selfCheckContract ? '\n' + (source.calibrationContract ? calibrationSelfCheckStoryboardAddendum() : SELF_CHECK_STORYBOARD_ADDENDUM) : '')
   + (source.claimBasisContract ? '\n' + CLAIM_BASIS_STORYBOARD_ADDENDUM : '')
+  + (source.calibrationContract ? '\n' + CALIBRATION_STORYBOARD_ADDENDUM : '')
   + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM : '');
 /** The drawn-instant addendum under the claim basis: its completeness rule stated for visible entities (replaced, never contradicted). */
 function claimBasisDrawnInstantAddendum() {
@@ -649,9 +698,9 @@ const momentDraftSchema = (source: { actorOwnedAppearance?: true; drawnInstantCo
   ? (source.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema)
   : (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema);
 export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; claimBasisContract?: true }) =>
+  selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true }) =>
   source.claimBasisContract ? ((source.actorOwnedAppearance ? ownedClaimBasisWholeBookDraftSchema : claimBasisWholeBookDraftSchema) as unknown as
-    typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: selfCheckSchema })
+    typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: (source.calibrationContract ? calibrationSelfCheckSchema : selfCheckSchema) as typeof selfCheckSchema })
   : source.momentContract && source.selfCheckContract ? (momentDraftSchema(source) as typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: selfCheckSchema })
     : source.momentContract ? momentDraftSchema(source)
       : (source.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema);

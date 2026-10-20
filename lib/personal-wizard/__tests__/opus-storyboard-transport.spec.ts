@@ -153,6 +153,34 @@ describe('the Opus storyboard planner transport (a faked CLI process; capture, t
     await expect(run(undefined, aborted.signal)).rejects.toMatchObject({ code: 'wire_contract' });
     expect(cli.spawn).not.toHaveBeenCalled();
   });
+  it('opt-in schema compaction (definition-names/v1): the same schema under short definition names, a shorter command line, marked; absent the exact wire', async () => {
+    const compactPolicy: WirePolicy = { ...policy, plannerSchema: 'definition-names/v1' };
+    const plain = prepareOpusStoryboardWire(call, policy, instructionFile), compact = prepareOpusStoryboardWire(call, compactPolicy, instructionFile);
+    const schemaOf = (w: typeof plain) => JSON.parse(w.args[w.args.length - 1]);
+    /** Every $ref replaced by its definition: the schema a validator actually applies. */
+    const deref = (schema: any) => {
+      const defs = schema.definitions ?? {};
+      const walk = (v: any): any => Array.isArray(v) ? v.map(walk) : v && typeof v === 'object'
+        ? (typeof v.$ref === 'string' ? walk(defs[v.$ref.slice('#/definitions/'.length)])
+          : Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'definitions').map(([k, x]) => [k, walk(x)]))) : v;
+      return walk(schema);
+    };
+    const names = Object.keys(schemaOf(plain).definitions ?? {});
+    expect(names.length).toBeGreaterThan(0);
+    expect(Object.keys(schemaOf(compact).definitions)).toEqual(names.map((_, i) => `d${i}`));
+    expect(deref(schemaOf(compact))).toEqual(deref(schemaOf(plain)));
+    expect(compact.args.slice(0, -1)).toEqual(plain.args.slice(0, -1));
+    expect([compact.payload.schemaCompaction, 'schemaCompaction' in plain.payload, compact.bytes < plain.bytes,
+      compact.args[compact.args.length - 1].length < plain.args[plain.args.length - 1].length]).toEqual(['definition-names/v1', false, true, true]);
+    expect(() => prepareOpusStoryboardWire(call, { ...policy, plannerSchema: 'other' as never }, instructionFile)).toThrow('wire_contract');
+    // The compacted session decodes the same structured answer; a compacted wire under a plain policy is not the wire this call derives.
+    answer({ stdout: cliResult(structured) });
+    const reply = await createOpusStoryboardTransport(compactPolicy)(compact, call, new AbortController().signal);
+    expect([cli.spawned[0].args, reply.output]).toEqual([compact.args, decodePersonalBookProviderOutput(call, structured)]);
+    await expect(createOpusStoryboardTransport(policy)(compact, call, new AbortController().signal)).rejects.toMatchObject({ code: 'wire_contract' });
+    await expect(createOpusStoryboardTransport(compactPolicy)(plain, call, new AbortController().signal)).rejects.toMatchObject({ code: 'wire_contract' });
+    expect(cli.spawn).toHaveBeenCalledTimes(1);
+  });
   it('the author/editor transport over the shared CLI runner is unchanged: same session, its own contract decoded', async () => {
     const schema = z.object({ title: z.string() }).strict();
     const dispatch = { role: 'opus' as const, stage: 'author' as const, conversationKey: 'regression', instructions: 'Write.', input: '{"brief":1}', schema, maxOutputTokens: 16000 };

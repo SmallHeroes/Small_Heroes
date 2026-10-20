@@ -33,6 +33,7 @@ import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboar
 import { VISIBLE_MOMENT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-visible-moment';
 import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION } from '../lib/personal-wizard/storyboard-self-check';
 import { CLAIM_BASIS_CONTRACT_VERSION, CLAIM_BASIS_STAGING_FIELDS_VERSION } from '../lib/personal-wizard/storyboard-claim-basis';
+import { STORYBOARD_CALIBRATION_VERSION } from '../lib/personal-wizard/storyboard-calibration';
 import { STORYBOARD_REVIEW_IMPACT_VERSION } from '../lib/personal-wizard/storyboard-review-impact';
 import { STAGE_RECOVERY_VERSION } from '../lib/personal-wizard/stage-recovery';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
@@ -155,6 +156,12 @@ export function savedStagingFields(savedBook: { stagingFields?: unknown } | unde
   const marker = savedBook?.stagingFields;
   if (marker === undefined) return undefined;
   return marker === CLAIM_BASIS_STAGING_FIELDS_VERSION ? { stagingFields: true } : fail('audition_board_binding');
+}
+
+/** The calibration contract comes only from the saved, digest-bound book (its marker names the version); an unknown version is refused. */
+export function savedCalibrationContract(savedBook: { calibration?: { version?: unknown } } | undefined): true | undefined {
+  if (savedBook?.calibration === undefined) return undefined;
+  return savedBook.calibration?.version === STORYBOARD_CALIBRATION_VERSION ? true : fail('audition_board_binding');
 }
 
 /** A reviewed storyboard's admitted status: supported, or supported with bound detail notes (typed policy; the recomputed disposition decides). */
@@ -286,7 +293,7 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
     savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
-    savedClaimBasisContract(saved));
+    savedClaimBasisContract(saved), savedCalibrationContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const names = savedSelfCheckNames(saved), fields = savedStagingFields(saved);
   const book = names || fields ? compilePersonalStoryboard(source, parentDraft, { ...names, ...fields }) : compilePersonalStoryboard(source, parentDraft);

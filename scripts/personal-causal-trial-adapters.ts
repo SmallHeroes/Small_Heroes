@@ -16,7 +16,9 @@ export const CAUSAL_MODELS = { opus: 'claude-opus-5-5', astra: 'gpt-6-astra' } a
 export type Role = keyof typeof CAUSAL_MODELS;
 export type Rates = { inputMicroUsdPerToken: number; outputMicroUsdPerToken: number };
 export type WirePolicy = { executable: string; executableSha256: string; workspace: string; maxWireBytes: number;
-  rates: Record<Role, Rates>; astraInlineReferences?: true; openAIReviewModel?: 'gpt-6.1-sol' };
+  rates: Record<Role, Rates>; astraInlineReferences?: true; openAIReviewModel?: 'gpt-6.1-sol';
+  /** Opt-in storyboard planner schema compaction (personal-opus-storyboard-transport.ts); absent, the exact existing wire. */
+  plannerSchema?: 'definition-names/v1' };
 export type CausalWire = { role: Role; stage: CausalDispatch['stage']; model: string; outputCap: number;
   json: string; bytes: number; digest: string; reservedMicroUsd: number;
   payload: Record<string, unknown>; stdin: string | null; args: string[] | null };

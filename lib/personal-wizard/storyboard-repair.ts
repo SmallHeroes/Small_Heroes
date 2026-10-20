@@ -1,4 +1,5 @@
 import 'server-only';
+import { canonicalJson } from './request-acceptance';
 
 /**
  * Opt-in REPAIR contract: one focused repair of a storyboard that its semantic review held, for the SAME final source and contracts.
@@ -11,21 +12,30 @@ import 'server-only';
  */
 export const STORYBOARD_REPAIR_VERSION = 'storyboard-repair/v1' as const;
 /** Opt-in contracts a repair may add on top of its parent's (the parent is then recompiled without them). */
-export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy', 'claimBasisContract'] as const;
+export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy', 'claimBasisContract',
+  'calibrationContract'] as const;
 /**
  * An owner's explicit, bounded extension of the storyboard stage's attempt ceiling (storyboard-attempt-extension/v1): exactly one attempt
  * above the base ceiling, only once the base ceiling is spent, bound to the owner's approval record by digest. Never a reset.
  */
 export const STORYBOARD_ATTEMPT_EXTENSION_VERSION = 'storyboard-attempt-extension/v1' as const;
-export type StoryboardAttemptExtension = { version: typeof STORYBOARD_ATTEMPT_EXTENSION_VERSION; maxAttempts: number; approvalSha256: string };
+/**
+ * A further owner extension (storyboard-attempt-extension/v2): exactly one attempt above the previous extension, only once that extension is
+ * spent, bound to its own owner record by digest and naming the previous extension exactly (the one the parent attempt used). A chain of
+ * owner decisions, each +1; never a reset, never implied by an earlier one.
+ */
+export const STORYBOARD_ATTEMPT_EXTENSION_V2 = 'storyboard-attempt-extension/v2' as const;
+export type StoryboardAttemptExtension = { version: typeof STORYBOARD_ATTEMPT_EXTENSION_VERSION; maxAttempts: number; approvalSha256: string }
+  | { version: typeof STORYBOARD_ATTEMPT_EXTENSION_V2; maxAttempts: number; approvalSha256: string; previous: StoryboardAttemptExtension };
 /**
  * A repair of a held parent. When the parent is itself a repaired storyboard, `parentRepair` is the parent's own repair input (recompiled
  * with it to the parent's digest); `addedContracts` names the opt-in contracts this repair adds; `parentCompile` the parent's own opt-in
- * compile options (a parent compiled under storyboard-self-check-names/v1 recompiles under it); `extension` an owner's bounded attempt
- * extension. All absent: exactly the original shape.
+ * compile options (a parent compiled under storyboard-self-check-names/v1, and also storyboard-claim-basis-staging-fields/v1, recompiles under
+ * them); `extension` an owner's bounded attempt extension. All absent: exactly the original shape.
  */
 export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown; review: unknown; parentRepair?: StoryboardRepair;
-  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][]; parentCompile?: { selfCheckNames: true }; extension?: StoryboardAttemptExtension };
+  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][]; parentCompile?: { selfCheckNames: true; stagingFields?: true };
+  extension?: StoryboardAttemptExtension };
 /** At most this many repairs above the first held storyboard. */
 const MAX_REPAIR_DEPTH = 3;
 
@@ -36,8 +46,22 @@ Change only what each finding needs so that it no longer applies, within the fin
 const HASH = /^[a-f0-9]{64}$/;
 const fail = (code: string): never => { throw Error(`personal_storyboard_${code}`); };
 
-/** Shape check only (nested repairs included); the storyboard engine binds the draft and the review to the parent digest. */
-export function assertStoryboardRepair(repair: unknown, depth = 0): asserts repair is StoryboardRepair {
+/** An extension's own shape: v1 exactly its three fields; v2 also the previous extension it names, exactly one attempt above it. */
+function extensionShape(value: unknown): value is StoryboardAttemptExtension {
+  const e = value as Partial<StoryboardAttemptExtension> & { previous?: unknown } | null | undefined;
+  if (!e || typeof e !== 'object' || Array.isArray(e) || !Number.isSafeInteger(e.maxAttempts) || typeof e.approvalSha256 !== 'string' ||
+      !HASH.test(e.approvalSha256)) return false;
+  const keys = Object.keys(e).sort().join(',');
+  if (e.version === STORYBOARD_ATTEMPT_EXTENSION_VERSION) return keys === 'approvalSha256,maxAttempts,version';
+  return e.version === STORYBOARD_ATTEMPT_EXTENSION_V2 && keys === 'approvalSha256,maxAttempts,previous,version' && extensionShape(e.previous) &&
+    e.maxAttempts === (e.previous as StoryboardAttemptExtension).maxAttempts + 1;
+}
+
+/**
+ * Shape check only (nested repairs included); the storyboard engine binds the draft and the review to the parent digest. `ancestorExtension`:
+ * the extension a v2 extension above names as its previous, which this ancestor must carry exactly (otherwise an ancestor carries none).
+ */
+export function assertStoryboardRepair(repair: unknown, depth = 0, ancestorExtension?: StoryboardAttemptExtension): asserts repair is StoryboardRepair {
   const r = repair as Partial<StoryboardRepair> | null;
   const keys = r && typeof r === 'object' && !Array.isArray(r) ? Object.keys(r).sort() : [];
   const optional: string[] = keys.filter(k => k === 'parentRepair' || k === 'addedContracts' || k === 'parentCompile' || k === 'extension');
@@ -47,15 +71,16 @@ export function assertStoryboardRepair(repair: unknown, depth = 0): asserts repa
       !r.draft || typeof r.draft !== 'object' || Array.isArray(r.draft) || !r.review || typeof r.review !== 'object' || Array.isArray(r.review)) fail('repair_policy');
   if ('addedContracts' in r! && (!Array.isArray(r!.addedContracts) || !r!.addedContracts.length ||
       new Set(r!.addedContracts).size !== r!.addedContracts.length || r!.addedContracts.some(c => !(REPAIR_ADDABLE_CONTRACTS as readonly string[]).includes(c)))) fail('repair_policy');
-  if ('parentCompile' in r! && JSON.stringify(r!.parentCompile) !== JSON.stringify({ selfCheckNames: true })) fail('repair_policy');
-  // The extension is the outermost repair's only (an ancestor never carries one) and has exactly its own three fields.
-  if ('extension' in r!) {
-    const e = r!.extension as Partial<StoryboardAttemptExtension> | undefined;
-    if (depth !== 0 || !e || typeof e !== 'object' || Object.keys(e).sort().join(',') !== 'approvalSha256,maxAttempts,version' ||
-        e.version !== STORYBOARD_ATTEMPT_EXTENSION_VERSION || !Number.isSafeInteger(e.maxAttempts) || typeof e.approvalSha256 !== 'string' ||
-        !HASH.test(e.approvalSha256)) fail('repair_policy');
-  }
-  if ('parentRepair' in r!) assertStoryboardRepair(r!.parentRepair, depth + 1);
+  if ('parentCompile' in r! && JSON.stringify(r!.parentCompile) !== JSON.stringify({ selfCheckNames: true }) &&
+      JSON.stringify(r!.parentCompile) !== JSON.stringify({ selfCheckNames: true, stagingFields: true })) fail('repair_policy');
+  // The extension is the outermost repair's; an ancestor carries one only as the previous extension a v2 extension above names (exactly that
+  // one), and a v2 extension's parent is itself a repair carrying it.
+  const extension = 'extension' in r! ? r!.extension : undefined;
+  if ('extension' in r! && !extensionShape(extension)) fail('repair_policy');
+  if (depth !== 0 && canonicalJson(extension ?? null) !== canonicalJson(ancestorExtension ?? null)) fail('repair_policy');
+  const named = extension?.version === STORYBOARD_ATTEMPT_EXTENSION_V2 ? extension.previous : undefined;
+  if ('parentRepair' in r!) assertStoryboardRepair(r!.parentRepair, depth + 1, named);
+  else if (named) fail('repair_policy');
 }
 
 type Check = { category: string; verdict: 'supported' | 'contradiction' | 'uncertain'; observation: string };
