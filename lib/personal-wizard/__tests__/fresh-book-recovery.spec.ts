@@ -2165,7 +2165,7 @@ describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_CALIBRATION_GRANT) 
       ['storyboard-self-check-names/v1', 'storyboard-claim-basis-staging-fields/v1'], 'definition-names/v1']);
     // The engine's recovery state under the owner's ceiling 6: five consecutive held candidates (their own contexts and costs), one attempt left.
     expect(grantDraft.recovery).toEqual({ version: 'stage-recovery/v1', attempts: 5, maxAttempts: 6, consecutiveFailures: 5, mode: 'diagnose_and_change_strategy',
-      stateSha256: '3dc2406d778031db0302fc335510dcba41f1d1b226c08f342dc73f329aaba3d9', diagnosisDigest: '68d27a78d111e4773f51de04e3ff1b280eeb7619105d9722c3e786a36189e79b',
+      stateSha256: 'ebc966957a4d66e8c83cc7def12f6d3dd14ea8593d29d6e2e64c3a39edc54488', diagnosisDigest: '68d27a78d111e4773f51de04e3ff1b280eeb7619105d9722c3e786a36189e79b',
       contextDigest: '466e54a60ed56a37b1cd80f0e6e7560775ffaf784f6d3c7fe96d00217e3ea015' });
     expect(recoveryRecord.attempts.map(a => [a.line, a.storyboardDigest.slice(0, 8), a.findings.length, a.costs])).toEqual([
       ['text-recovery', 'ffd56099', 6, { plannerClaudeMaxMicroUsd: 623664, reviewApiMicroUsd: 60226 }],
@@ -2173,9 +2173,10 @@ describe.skipIf(!existsSync(REAL_CONFIG) || !existsSync(REAL_CALIBRATION_GRANT) 
       ['storyboard-revalidation', 'db61a2dd', 10, { plannerClaudeMaxMicroUsd: 1002229, reviewApiMicroUsd: 92190 }],
       ['storyboard-extension-revalidation', 'ce4c5025', 9, { plannerClaudeMaxMicroUsd: 1053404, reviewApiMicroUsd: 89352 }],
       ['storyboard-calibration', '1e27782d', 2, { plannerClaudeMaxMicroUsd: 1104180, reviewApiMicroUsd: 91286 }]]);
-    // The one reference both last reviews held for the same impact: the child's page-8 relation (attempt 4 and attempt 5).
+    // The one reference both last reviews held for the same impact: the child's page-8 relation slot, with the values the two held drafts gave
+    // it (attempt 5 beside the ball, attempt 4 on the spiral trail).
     expect(recoveryRecord.next.repeatedReferences).toEqual([{ ref: 'p8:relation:child', impact: 'evidence', checks: ['book:continuity', 'page:8:physical_state'],
-      previousChecks: ['page:8:physical_state'] }]);
+      previousChecks: ['page:8:physical_state'], heldValues: [{ relation: 'beside', targetId: 'gray_ball' }, { relation: 'at', targetId: 'spiral_trail' }] }]);
     expect(diagnosisRecord.diagnosis.allowance).toEqual({ nextAttempt: 6, maxAttempts: 6, remainingAfterNext: 0 });
     expect(input).toMatchObject({ addedContracts: ['presenceContract'], parentCompile: { selfCheckNames: true, stagingFields: true },
       extension: { version: 'storyboard-attempt-extension/v2', maxAttempts: 6, approvalSha256: grantDraft.ownerApproval.sha256,

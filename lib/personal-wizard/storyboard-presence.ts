@@ -21,9 +21,11 @@ import { calibrationSelfCheckStoryboardAddendum } from './storyboard-calibration
  *   nothing, and the review judges whether the text puts them in that scene. It asserts no relation to any entity, so it cannot create
  *   access, custody, contact or distance: a material relation still needs a stated claim and its evidence, and an action its own look.
  * - storyboard-repeated-reference/v1: a repair's planner input lists every reference held for the same impact in each of the last two
- *   reviews. Another quote is not a remedy for it: such a finding's resolution may not name the cause evidence_binding, a listed drawn-instant
- *   relation (p{n}:relation:{id}) may not be declared again, and its entity may not be hidden from that frame. The review's findings, their
- *   impacts and reasons are never changed or reinterpreted by the engine.
+ *   reviews (a drawn-instant relation slot p{n}:relation:{id} also with the values the two held drafts gave it). Another quote is not a
+ *   remedy for it: such a finding's resolution may not name the cause evidence_binding, a listed relation slot may be declared again only
+ *   as a stated relation whose relation or target differs from every value it was held with (never staged), and its entity may not be
+ *   hidden from that frame. A genuinely changed relation goes to the unchanged review; the review's findings, their impacts and reasons
+ *   are never changed or reinterpreted by the engine.
  * Absent, nothing changes: no source, digest, instruction, schema, review input or packet byte differs.
  */
 export const STORYBOARD_PRESENCE_VERSION = 'storyboard-presence/v1' as const;
@@ -79,7 +81,15 @@ export function validatePresence(frames: readonly PresenceFrame[], plan: Preview
 
 /** A typed finding of a held review as a repair's planner input carries it (claim basis): its check and its issues. */
 type TypedFinding = { scope: 'book' | 'page'; pageNumber?: number; category: string; issues: readonly { impact: string; ref: string }[] };
-export type RepeatedReference = { ref: string; impact: string; checks: string[]; previousChecks: string[] };
+/** A drawn-instant relation's structured content: the relation and its target (its quote is not part of it). */
+export type RelationValue = { relation: string; targetId: string | null };
+/**
+ * A reference both last reviews held for the same impact. A drawn-instant relation reference (p{n}:relation:{id}) names a slot, not a claim,
+ * so it also carries `heldValues`: the relation values the two held drafts themselves gave that slot (latest first, each once).
+ */
+export type RepeatedReference = { ref: string; impact: string; checks: string[]; previousChecks: string[]; heldValues?: RelationValue[] };
+const RELATION_REF = /^p(\d{1,2}):relation:([a-z][a-z0-9_]{0,49})$/;
+const sameRelation = (a: RelationValue, b: RelationValue) => a.relation === b.relation && a.targetId === b.targetId;
 /**
  * Every reference that a blocking finding of the latest review and a blocking finding of the review before it both hold for the same impact,
  * with the checks that hold it in each (latest first), sorted by reference then impact. Derived from the two reviews' own typed findings.
@@ -100,23 +110,47 @@ export function repeatedReferences(latest: readonly TypedFinding[], previous: re
 /** The typed findings a repair's planner input carries, or null when they are not typed (the rule then has nothing to compare). */
 export const typedFindingsOf = (raw: unknown): TypedFinding[] | null => Array.isArray(raw) &&
   raw.every(f => f && typeof f === 'object' && Array.isArray((f as { issues?: unknown }).issues)) ? raw as TypedFinding[] : null;
+/** A raw draft's drawn-instant relation value for one entity on frame n (its structured content only), if it declares one. */
+export function draftRelationValue(raw: unknown, n: number, entityId: string): RelationValue | undefined {
+  const frames = (raw as { moments?: { frames?: unknown[] } } | null)?.moments?.frames;
+  const relations = (frames?.[n] as { depicted?: { relations?: { entityId?: unknown; value?: { relation?: unknown; targetId?: unknown } }[] } | null } | undefined)
+    ?.depicted?.relations;
+  const value = Array.isArray(relations) ? relations.find(o => o?.entityId === entityId)?.value : undefined;
+  return value && typeof value.relation === 'string' && (typeof value.targetId === 'string' || value.targetId === null)
+    ? { relation: value.relation, targetId: value.targetId } : undefined;
+}
+/** Each repeated relation reference with the values the two held drafts gave its slot (the latest held draft first); other references unchanged. */
+export function withHeldValues(repeated: readonly RepeatedReference[], latestDraft: unknown, previousDraft: unknown): RepeatedReference[] {
+  return repeated.map(r => {
+    const m = RELATION_REF.exec(r.ref);
+    if (!m) return r;
+    const values = [latestDraft, previousDraft].flatMap(d => { const v = draftRelationValue(d, Number(m[1]), m[2]); return v ? [v] : []; });
+    return { ...r, heldValues: values.filter((v, i) => values.findIndex(w => sameRelation(v, w)) === i) };
+  });
+}
 
 /**
  * The repeated-reference rule on a candidate (structure only): a resolution of a check that holds a repeated reference does not name the cause
- * evidence_binding; a repeated drawn-instant relation reference is not a claim of the candidate again (stated or staged); and the entity of
- * such a reference, visible in that frame of the parent draft, stays visible there.
+ * evidence_binding; a repeated drawn-instant relation slot is declared again only as a stated relation whose structured content (relation and
+ * target) differs from every value it was held with, never staged and never without that provenance, so an identical failed relation with
+ * only another quote or cause cannot be recycled while a genuinely changed one reaches the unchanged review; and the entity of such a
+ * reference, visible in that frame of the parent draft, stays visible there.
  */
 export function validateRepeatedReferences(repeated: readonly RepeatedReference[], resolutions: readonly { finding: string; cause: string }[],
-  candidateClaims: (n: number) => readonly string[], parentVisible: (n: number) => ReadonlySet<string>, candidateVisible: (n: number) => ReadonlySet<string>) {
+  candidateClaims: (n: number) => readonly string[], parentVisible: (n: number) => ReadonlySet<string>, candidateVisible: (n: number) => ReadonlySet<string>,
+  candidateRelation: (n: number, entityId: string) => RelationValue | undefined, candidateStaged: (n: number) => ReadonlySet<string>) {
   const keys = new Set(repeated.flatMap(r => r.checks));
   if (resolutions.some(r => keys.has(r.finding) && r.cause === 'evidence_binding')) fail('repeated_rebind');
   // A frame declares at most one relation per entity (duplicate_override), so a relation claim ref never carries an ordinal suffix.
   for (const r of repeated) {
-    const m = /^p(\d{1,2}):relation:([a-z][a-z0-9_]{0,49})$/.exec(r.ref);
+    const m = RELATION_REF.exec(r.ref);
     if (!m) continue;
-    const n = Number(m[1]);
-    if (candidateClaims(n).includes(r.ref)) fail('repeated_claim');
-    if (parentVisible(n).has(m[2]) && !candidateVisible(n).has(m[2])) fail('repeated_hidden');
+    const n = Number(m[1]), id = m[2];
+    if (candidateClaims(n).includes(r.ref)) {
+      const value = candidateRelation(n, id), held = r.heldValues ?? [];
+      if (candidateStaged(n).has(r.ref) || !value || !held.length || held.some(h => sameRelation(h, value))) fail('repeated_claim');
+    }
+    if (parentVisible(n).has(id) && !candidateVisible(n).has(id)) fail('repeated_hidden');
   }
 }
 /** A raw draft's frame visible ids (its own sequence visibleCastIds and continuity visibleEntityIds), for the parent of a repair. */
@@ -127,7 +161,7 @@ export const draftFrameVisible = (raw: unknown, n: number) => {
 
 export const PRESENCE_STORYBOARD_ADDENDUM = `PRESENCE (storyboard-presence/v1; the compiler and the review apply it; it refines the rules above):
 - A visible cast member whose state the drawn instant must declare (a transition later on its page) but whose place at that instant the page does not state goes in depicted.presence as {actorId, evidence}, not in depicted.relations. evidence is an exact quote of that page, beginning no later than the drawn instant, that puts them in the scene (for example their own words). Presence is not a place, a move, a contact or an action: the picture shows them in the scene touching, holding, pushing and acting on nothing, so they have no depicted.relations or depicted.actorStates entry on that frame, and that frame's composition, actions and staging must not place them or give them any of those. Every depicted lists presence, empty when there is none. Its claim ref is p{n}:presence:{actorId}: one of that frame's selfCheck claims (quoted like every claim), never staged. The compiler refuses a presence for an actor that is not the child, the companion or a supporting character, is not visible on that frame, has no transition later on that page, or has a relation or temporary look on that frame, and an evidence quote that is not on that page or begins after the drawn instant.
-- priorReviewedStoryboard.repeatedReferences lists references held for the same impact in each of the last two reviews. Another quote is not a remedy: change the claim itself. Do not declare a listed p{n}:relation:{id} again (use presence, or a drawn instant that needs no such claim), do not hide its entity, and never give such a finding the cause evidence_binding.`;
+- priorReviewedStoryboard.repeatedReferences lists references held for the same impact in each of the last two reviews; a relation reference p{n}:relation:{id} also lists heldValues, the relation values it was held with. Another quote is not a remedy: change the claim itself. Never declare a listed p{n}:relation:{id} again with a relation and target equal to one of its heldValues, and never stage it; a relation the page states with a different relation or target may be declared, and the review judges it; otherwise use presence, or a drawn instant that needs no such claim. Do not hide its entity, and never give such a finding the cause evidence_binding.`;
 
 /**
  * The planner's self-check entry under the contract: the calibration's, with the presence claim named in its claims list (the compiler

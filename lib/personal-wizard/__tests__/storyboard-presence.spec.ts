@@ -11,7 +11,7 @@ import { claimBasisSectionsView } from '../storyboard-claim-basis';
 import { storyboardFrameClaims, storyboardReviewRefs } from '../storyboard-review-impact';
 import { CALIBRATION_STORYBOARD_ADDENDUM, CALIBRATION_REVIEW_ADDENDUM, calibrationSelfCheckStoryboardAddendum } from '../storyboard-calibration';
 import { STORYBOARD_PRESENCE_VERSION, PRESENCE_COMPONENTS, PRESENCE_STORYBOARD_ADDENDUM, PRESENCE_REVIEW_ADDENDUM, validatePresence, repeatedReferences,
-  typedFindingsOf } from '../storyboard-presence';
+  typedFindingsOf, withHeldValues } from '../storyboard-presence';
 import { personalBookProviderSchema } from '../book-openai';
 import { previewStoryEvidence, previewTextPages } from '../../local-story-preview';
 import { storyboardReviewInstructions, runSimpleStoryboardDiagnostic } from '../simple-storyboard-diagnostic';
@@ -192,8 +192,10 @@ describe('storyboard-presence/v1 (opt-in, owner-directed 2026-10-20): presence w
     const b2 = compilePersonalStoryboard(s1, structuredClone(d2));
     const repair2 = { parentStoryboardDigest: b2.storyboardDigest, draft: d2, review: reviewOf(f, b2, holdBoth), parentRepair: repair1, addedContracts: ['presenceContract'] };
     const s2 = prep(f, { calibration: true, presence: true, repair: repair2 }), prior = (s2.planningInput as any).priorReviewedStoryboard;
+    // Each relation slot carries the values its two held drafts gave it (the latest first): the repair's at the garden, the plan's beside the hut.
     expect(prior.repeatedReferences).toEqual(['p6:relation:child', 'p6:relation:companion'].map(ref =>
-      ({ ref, impact: 'evidence', checks: ['page:6:physical_state'], previousChecks: ['page:6:physical_state'] })));
+      ({ ref, impact: 'evidence', checks: ['page:6:physical_state'], previousChecks: ['page:6:physical_state'],
+        heldValues: [{ relation: 'at', targetId: 'garden' }, { relation: 'beside', targetId: 'hut' }] })));
     expect([prior.diagnosis.findings.map((x: any) => x.key), prior.diagnosis.protectedPages]).toEqual([['page:6:physical_state'], [3]]);
     // Without the contract the same repair carries no such list (absent, unchanged).
     const { addedContracts: _a, ...plainRepair } = repair2;
@@ -203,14 +205,62 @@ describe('storyboard-presence/v1 (opt-in, owner-directed 2026-10-20): presence w
         s => { s.resolutions.forEach((r: any) => { r.cause = cause; }); }));
     const presentAs = (d: any, ids: string[]) => { const dep = d.moments.frames[6].depicted;
       dep.relations = dep.relations.filter((o: any) => !ids.includes(o.entityId)); dep.presence = ids.map(actorId => ({ actorId, evidence: DRAWN })); };
-    // Another quote, the same claim again (stated or staged), or its actor hidden from that frame: refused. Presence under a changed strategy: admitted.
+    // Another quote, the same claim again (either held value, stated or staged), or its actor hidden from that frame: refused. Presence under a
+    // changed strategy: admitted.
     expect(candidate(d => presentAs(d, ['child', 'companion']), 'evidence_binding')).toThrow('storyboard_presence_repeated_rebind');
     expect(candidate(d => presentAs(d, ['companion']))).toThrow('storyboard_presence_repeated_claim');
+    expect(candidate(d => { presentAs(d, ['companion']); d.moments.frames[6].depicted.relations.find((o: any) => o.entityId === 'child').value =
+      { relation: 'at', targetId: 'garden' }; })).toThrow('storyboard_presence_repeated_claim');
     expect(candidate(d => { presentAs(d, ['companion']); d.moments.frames[6].staging = [{ ref: 'p6:relation:child', reason: 'direction' }]; }))
       .toThrow('storyboard_presence_repeated_claim');
     expect(candidate(d => { d.sequence.pages[5].visibleCastIds = ['child']; presentAs(d, ['child']); })).toThrow('storyboard_presence_repeated_hidden');
     const admitted = candidate(d => presentAs(d, ['child', 'companion']))();
     expect([admitted.presence?.version, admitted.repair?.parentStoryboardDigest]).toEqual([STORYBOARD_PRESENCE_VERSION, b2.storyboardDigest]);
+  });
+
+  it('RRP-1: a repeated relation slot with a structurally changed relation the page states reaches the review; the same value, staged or hidden does not', async () => {
+    const f = await personalStoryboardFixture();
+    // Codex's integrated counterexample: page 5 'They turn back into the garden and stop beside the same hut.', drawn at its first clause,
+    // both actors' transitions at the later one; two held drafts put them inside the hut, then on the hut; the page states the garden.
+    const DRAWN5 = 'They turn back into the garden', LATER5 = 'stop beside the same hut';
+    const draft5 = (value: { relation: string; targetId: string }, change?: (d: any) => void) => {
+      const d: any = { ...structuredClone(f.draft), moments: { version: STORYBOARD_MOMENTS_VERSION,
+        frames: Array.from({ length: f.result.manuscript.pages.length + 1 }, () => ({ requirements: [], depicted: null, staging: [] })) } };
+      d.moments.frames[5].depicted = { evidence: DRAWN5, attributes: [], actorStates: [],
+        relations: ['child', 'companion'].map(entityId => ({ entityId, value: { ...value }, evidence: DRAWN5 })) };
+      for (const t of d.sequence.pages[4].transitions) if (['child', 'companion'].includes(t.entityId)) t.evidence = LATER5;
+      change?.(d);
+      return d;
+    };
+    const holdBoth = (book: { sourceDigest: string; storyboardDigest: string }) => reviewOf(f, book, r => set(r.frames[5].checks[2], 'uncertain',
+      'the proposed relation is not the stated position', ['child', 'companion'].map(id => cal('evidence', `p5:relation:${id}`, 'unsupported'))));
+    const s0 = prep(f, { calibration: true }), d1 = withCheck(draft5({ relation: 'inside', targetId: 'hut' }), s0), b1 = compilePersonalStoryboard(s0, structuredClone(d1));
+    const repair1 = { parentStoryboardDigest: b1.storyboardDigest, draft: d1, review: holdBoth(b1) };
+    const s1 = prep(f, { calibration: true, repair: repair1 }), d2 = withCheck(draft5({ relation: 'on', targetId: 'hut' }), s1);
+    const b2 = compilePersonalStoryboard(s1, structuredClone(d2));
+    const repair2 = { parentStoryboardDigest: b2.storyboardDigest, draft: d2, review: holdBoth(b2), parentRepair: repair1, addedContracts: ['presenceContract'] };
+    const s2 = prep(f, { calibration: true, presence: true, repair: repair2 }), prior = (s2.planningInput as any).priorReviewedStoryboard;
+    expect(prior.repeatedReferences.map((r: any) => [r.ref, r.heldValues])).toEqual(['child', 'companion'].map(id =>
+      [`p5:relation:${id}`, [{ relation: 'on', targetId: 'hut' }, { relation: 'inside', targetId: 'hut' }]]));
+    const candidate = (value: { relation: string; targetId: string }, change?: (d: any) => void, cause = 'state_design') => () =>
+      compilePersonalStoryboard(s2, withCheck(asPresence(draft5(value, change)), s2, { diagnosis: prior.diagnosis, parentDraft: d2 },
+        s => { s.resolutions.forEach((r: any) => { r.cause = cause; }); }));
+    // The changed relation and target (what the page states), with the SAME quote and a changed strategy: compiled, its claim goes to the review.
+    const changed = candidate({ relation: 'at', targetId: 'garden' })();
+    expect(['p5:relation:child', 'p5:relation:companion'].every(ref => storyboardReviewRefs(changed).includes(ref))).toBe(true);
+    // Either held value again (whatever its quote or cause label), the changed one staged, its entity hidden, or an evidence_binding cause: refused.
+    // (the latest held value with the page otherwise re-planned: a candidate identical to its parent is refused earlier, by the self-check)
+    expect(candidate({ relation: 'on', targetId: 'hut' }, d => { d.plan.pages[5].composition += ' (re-planned)'; })).toThrow('storyboard_presence_repeated_claim');
+    expect(candidate({ relation: 'inside', targetId: 'hut' })).toThrow('storyboard_presence_repeated_claim');
+    expect(candidate({ relation: 'at', targetId: 'garden' }, d => { d.moments.frames[5].staging = [{ ref: 'p5:relation:child', reason: 'direction' }]; }))
+      .toThrow('storyboard_presence_repeated_claim');
+    expect(candidate({ relation: 'at', targetId: 'garden' }, d => { d.sequence.pages[4].visibleCastIds = ['child']; })).toThrow('storyboard_presence_repeated_hidden');
+    expect(candidate({ relation: 'at', targetId: 'garden' }, undefined, 'evidence_binding')).toThrow('storyboard_presence_repeated_rebind');
+    // Without the contract the same changed candidate compiles exactly as before (absent, unchanged).
+    const { addedContracts: _a, ...plainRepair } = repair2, sOld = prep(f, { calibration: true, repair: plainRepair });
+    expect(() => compilePersonalStoryboard(sOld, withCheck(draft5({ relation: 'at', targetId: 'garden' }), sOld,
+      { diagnosis: (sOld.planningInput as any).priorReviewedStoryboard.diagnosis, parentDraft: d2 }, s => { s.resolutions.forEach((r: any) => { r.cause = 'state_design'; }); })))
+      .not.toThrow();
   });
 
   it('the nesting bound rises only with the owner\'s extension: attempt 6 stands on four nested repairs under the v2 ceiling 6; otherwise the bound stays 3', () => {
@@ -256,5 +306,9 @@ describe('storyboard-presence/v1 (opt-in, owner-directed 2026-10-20): presence w
     const previous = blocking(JSON.parse(readFileSync(XREVAL_RESULT, 'utf8')).storyboard.rawReview, []);
     expect(repeatedReferences(latest as any, previous as any)).toEqual([{ ref: 'p8:relation:child', impact: 'evidence',
       checks: ['book:continuity', 'page:8:physical_state'], previousChecks: ['page:8:physical_state'] }]);
+    // Its held values, from the two held drafts themselves: attempt 5 beside the ball, attempt 4 on the spiral trail.
+    const owned = (line: string) => JSON.parse(readFileSync(path.join(BOOK, line, 'owned_storyboard_draft.json'), 'utf8'));
+    expect(withHeldValues(repeatedReferences(latest as any, previous as any), owned('storyboard-calibration'), owned('storyboard-extension-revalidation'))[0].heldValues)
+      .toEqual([{ relation: 'beside', targetId: 'gray_ball' }, { relation: 'at', targetId: 'spiral_trail' }]);
   });
 });

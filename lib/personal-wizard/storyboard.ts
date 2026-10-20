@@ -39,7 +39,7 @@ import { STORYBOARD_CALIBRATION_VERSION, CALIBRATION_COMPONENTS, CALIBRATION_STO
   findingGroups, type CalibrationIssue, type VisualStates } from './storyboard-calibration';
 import { STORYBOARD_PRESENCE_VERSION, PRESENCE_COMPONENTS, PRESENCE_STORYBOARD_ADDENDUM, presenceMomentsSchema, presenceMomentsPolicy,
   presenceWholeBookDraftSchema, ownedPresenceWholeBookDraftSchema, validatePresence, repeatedReferences, typedFindingsOf, validateRepeatedReferences,
-  draftFrameVisible, presenceSelfCheckStoryboardAddendum, type RepeatedReference } from './storyboard-presence';
+  draftFrameVisible, draftRelationValue, presenceSelfCheckStoryboardAddendum, withHeldValues, type RepeatedReference } from './storyboard-presence';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -269,10 +269,11 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     const groups = calibrationContract && typedFindings ? findingGroups(typedFindings) : undefined;
     // Under presence they are also compared with the review before it (the parent's own held parent, whose typed findings the parent's
     // preparation just derived for its own repair input): every reference both held for the same impact is listed
-    // (storyboard-repeated-reference/v1); untyped earlier findings list none.
+    // (storyboard-repeated-reference/v1), a relation slot with the values the two held drafts gave it; untyped earlier findings list none.
     priorTypedOf.set(repair, typedFindings ?? null);
     const previousTyped = presenceContract && typedFindings && repair.parentRepair ? typedFindingsOf(priorTypedOf.get(repair.parentRepair)) : null;
-    const repeated: RepeatedReference[] | undefined = presenceContract && typedFindings ? (previousTyped ? repeatedReferences(typedFindings, previousTyped) : [])
+    const repeated: RepeatedReference[] | undefined = presenceContract && typedFindings ? (previousTyped
+      ? withHeldValues(repeatedReferences(typedFindings, previousTyped), repair.draft, repair.parentRepair!.draft) : [])
       : undefined;
     return { parentStoryboardDigest: repair.parentStoryboardDigest, draft: structuredClone(repair.draft), review: structuredClone(repair.review),
       findings, chain, diagnosis, ...(groups ? { groups } : {}), ...(repeated ? { repeated } : {}),
@@ -457,13 +458,15 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
       ? { diagnosis: recoveryOf.get(source)?.diagnosis ?? null, parentDraft: basis ? claimBasisSectionsView(source.repair.draft) : source.repair.draft,
         candidateDraft: basis ? claimBasisSectionsView(rawDraft) : rawDraft } : undefined,
     checkOptions) : undefined;
-  // Presence: a reference held for the same impact in each of the last two reviews is not re-bound by another quote, re-declared or hidden
-  // (storyboard-repeated-reference/v1; structure only).
+  // Presence: a reference held for the same impact in each of the last two reviews is not re-bound by another quote, recycled with a value it
+  // was held with, staged or hidden (storyboard-repeated-reference/v1; structure only).
   const repeatedRefs = source.presenceContract ? ((source.planningInput as { priorReviewedStoryboard?: { repeatedReferences?: RepeatedReference[] } })
     .priorReviewedStoryboard?.repeatedReferences ?? []) : [];
   if (repeatedRefs.length) validateRepeatedReferences(repeatedRefs, selfCheck!.resolutions,
     n => storyboardFrameClaims({ plan: compiled.plan, sequence: compiled.sequence, moments: moments! }, n).map(c => c.ref),
-    n => draftFrameVisible(source.repair!.draft, n), n => draftFrameVisible({ plan: compiled.plan, sequence: compiled.sequence }, n));
+    n => draftFrameVisible(source.repair!.draft, n), n => draftFrameVisible({ plan: compiled.plan, sequence: compiled.sequence }, n),
+    (n, id) => draftRelationValue({ moments: moments! }, n, id),
+    n => new Set(((moments!.frames[n] as unknown as { staging?: { ref: string }[] }).staging ?? []).map(s => s.ref)));
   const presence = source.presenceContract ? { version: STORYBOARD_PRESENCE_VERSION, components: [...PRESENCE_COMPONENTS] } : undefined;
   const selfCheckNames = options?.selfCheckNames ? STORYBOARD_SELF_CHECK_NAMES_VERSION : undefined;
   const stagingFields = options?.stagingFields ? CLAIM_BASIS_STAGING_FIELDS_VERSION : undefined;

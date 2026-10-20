@@ -3674,7 +3674,7 @@ function presenceRecovery(config: FreshBookConfig, loaded: ReturnType<typeof loa
       addedContracts: [...PRS.addedContracts], reviewPolicy: STORYBOARD_REVIEW_SEVERITY_VERSION, selfCheck: STORYBOARD_SELF_CHECK_VERSION,
       claimBasis: CLAIM_BASIS_CONTRACT_VERSION, calibration: STORYBOARD_CALIBRATION_VERSION, presence: STORYBOARD_PRESENCE_VERSION,
       components: [...PRESENCE_COMPONENTS], repeatedReferences: repeated as unknown[],
-      strategy: 'diagnose_and_change_strategy under presence: a visible cast member the text includes in the scene but does not place is listed in depicted.presence (no position, move, contact or action claimed) instead of an invented relation; a reference held for the same impact in both last reviews is not re-quoted, re-declared or hidden; every other finding group fixed once where it lives under the calibration' },
+      strategy: 'diagnose_and_change_strategy under presence: a visible cast member the text includes in the scene but does not place is listed in depicted.presence (no position, move, contact or action claimed) instead of an invented relation; a reference held for the same impact in both last reviews is not re-quoted, recycled with a relation value it was held with, staged or hidden (a relation the page states with a different relation or target goes to the review); every other finding group fixed once where it lives under the calibration' },
     terminal: null };
   const diagnosisRecord = { version: STORYBOARD_DIAGNOSIS_VERSION, diagnosisDigest: diagnosed, diagnosis, latestReviewFindings: rec.chain[rec.chain.length - 1].findings,
     allowance: { attempts: diagnosis.allowance, money: { bookKnownMicroUsd: held.ledger.bookKnownMicroUsd, bookSubcapMicroUsd: FRESH_BOOK_CYCLE.bookSubcapMicroUsd,
