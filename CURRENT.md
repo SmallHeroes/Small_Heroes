@@ -1,5 +1,72 @@
 # SmallHeroes — Current Technical State
 
+## Attempt 5's review held; the presence contract and the attempt-6 line built offline (d0448a9e), for Codex QA; the book is NOT done (2026-10-20)
+
+**What happened since 40927765.**
+- Codex passed 40927765 and the unused calibration grant 7af5fa76…. After a fresh preflight the ONE attempt 5 ran: Opus 5.5 Max planner
+  1104180 microUSD (Claude Max, separate, not an invoice) and Sol 6.1 review 91286 microUSD (API).
+- It HELD: `held_uncertain` → `held_storyboard_calibration`, `stop_allowance_exhausted` (5 of 5); no successor, child or book.
+  - 2 blocking checks, both on ONE reference `p8:relation:child` (impact `evidence`, basis `unsupported`); 1 note (a verified citation).
+  - Page 8's drawn instant (the stripes peeling) comes before the child's own transition home ("ויונתן חזר הביתה"), so the drawn-instant
+    contract had to declare his state then. Its only form was a relation with a stated quote, and the text never places him. Attempts 4
+    and 5 both bound his proposal to a position, and both were held for the same reason.
+  - Stop report and consolidated engine report: `_review/…/attempt5-outcome-20261020/`. Codex's cost explanation:
+    `CODEX-OPUS-COST-EXPLANATION-ATTEMPT5-20261020.txt`.
+- Guy directed the same-book continuation (`OWNER-SAME-BOOK-CONTINUATION-AFTER-ATTEMPT5-20261020.txt`, "בכל מקרה אנחנו נמשיך כרגע בביצוע כדי
+  לראות ספר"): a minimal general fix, then at most ONE more planner + review (historically attempt 6), continuing to the illustrations if
+  it passes; no model change now; no attempt 7.
+
+**The general contract: `storyboard-presence/v1`** (opt-in, versioned; needs the calibration; absent = byte-identical). Two components:
+- `storyboard-unplaced-presence/v1`: a visible cast member whose state the drawn instant must declare, but whose place the text does not
+  state, may be listed in `depicted.presence {actorId, evidence}` instead of an invented relation.
+  - It claims no position, move, contact, custody or action. The actor is drawn at the frame's own place, touching nothing, and the renderer
+    is told so.
+  - The compiler checks structure: a visible cast member; no relation override or temporary look for it on that frame; a quote of that page
+    beginning no later than the drawn instant; a later transition on that page; once; never staged.
+  - The review judges the claim `p{n}:presence:{actorId}` under the unchanged severity rule.
+  - A carried state was examined first and cannot be proven: the ledger records only end-of-page states, and the child's page-7 state
+    (beside the ammonite, elsewhere) is stale at page 8's instant.
+- `storyboard-repeated-reference/v1`: a repair's planner input lists every reference both last reviews held for the same impact. For such a
+  reference the compiler refuses the cause `evidence_binding`, declaring the same relation again, and hiding its entity. The engine never
+  changes or reinterprets a finding.
+- Plumbing: the repair nesting bound is max(3, the owner ceiling − 2); `REPAIR_ADDABLE_CONTRACTS` gains `presenceContract`.
+
+**The line: `fresh-book-storyboard-presence/v1`** (ONE Opus Max planner, ONE floored Sol review; attempt 6 of 6 under the v2 extension bound
+to the owner's record).
+- It stands on the held calibration, re-derived exactly with its whole lineage. Its input: attempt 5's held draft and raw review, with the
+  calibration's input as ancestry.
+- Held ends the line: no attempt 7. Own claim, outcome, audition start, successor and folder. Downstream: `child|book --storyboard-presence`.
+
+**Real book, read only (dry plan and planner preview).**
+- Held candidate 1e27782d…, review 6459a5f8…: 2 findings in 1 group; 1 repeated reference, `p8:relation:child` (evidence; held by
+  `book:continuity` and `page:8:physical_state` now, by `page:8:physical_state` in attempt 4). Recovery: 5 held candidates, ceiling 6, one
+  attempt left.
+- The planner request: content 66777 of 104000; wire 96971 of 104000; argv 26005 of 31000; reserve 1526673 of 2000000.
+- The review request is measured only after the planner. Attempt 5's was 94633 of 104000; the presence rule adds about 570 bytes.
+- API: book 428234 / 8 calls, cycle 557164; the floor fits (6571766 left). Max for the book: 4711396 (7 sessions; separate, never 0).
+
+**Tests.**
+- 11 new, all pass.
+  - Engine 6 (`storyboard-presence.spec.ts`): absent byte-identical; the policy; the instructions (the self-check list names the presence
+    claim only under the contract); the provider shape, strict frames, marker and loader. Presence: the drawn-instant declaration, drawn at
+    the frame's place, the render line; the severity (a justified setting is a note; unsupported, contradiction and identity hold); the
+    instruction/validator parity; validated where drawn. Every refusal. Repeated references (unit; a chain refusing rebind, re-declared,
+    staged and hidden; presence admitted; a protected page's empty list). The nesting bound. The real attempt 5 (read only).
+  - Driver 5 (`fresh-book-recovery.spec.ts`): positive (ONE planner, ONE floored review, successor, child and book on the line); held at
+    attempt 6 (no attempt 7); 14 pre-claim refusals; successor tamper; the real-data dry plan and planner preview.
+- Focused mutation controls: 34 of 34 killed. The first run's 4 survivors are closed: a dead suffix branch removed from the source, and
+  three real gaps given tests.
+- The 53 spec files that import a changed module, serially: 2316 passed, 3 failed, 2 skipped (2321). The sources were unchanged from start
+  to end.
+  - The stale `fresh-book-driver.spec.ts:152` and `simple-book-flow.spec.ts:184`, as before.
+  - `simple-book-flow.spec.ts:465` (the worker bootstrap) hit its default 5 s timeout once in the serial run; alone it passes in 826 ms.
+  - Skipped: the real repair line's pre-run check, and `simple-book-flow.spec.ts:1211`, excluded by name (its known 180 s timeout, which
+    the base sources hit too).
+- nonincremental tsc 0. The full check stays RED.
+
+**Next.** Codex's code QA of the range and the unused presence grant. After a PASS and a fresh preflight: the ONE attempt 6; if admitted,
+child, references, two samples, the rest and the cover (gpt-image-2 LOW), the viewer and the reports. Held: an honest stop, no attempt 7.
+
 ## Attempt 4's review held; corrected B approved; the calibration contract and the attempt-5 line built offline (5f17de4d), for Codex QA; the book is NOT done (2026-10-20)
 
 **What happened since 99f97904.**

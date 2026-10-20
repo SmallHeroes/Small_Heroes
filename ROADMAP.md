@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Attempt 5 held on one reference; the presence contract + attempt-6 line built offline (d0448a9e); next: Codex QA, then attempt 6 and the book (2026-10-20)
+
+- **What happened.** The ONE attempt 5 (Opus Max planner 1104180, Sol review 91286 microUSD) was held on one reference: the child's place
+  at page 8's early drawn instant, held for the same evidence reason in attempts 4 and 5 (`stop_allowance_exhausted`, 5 of 5). Guy directed
+  the same-book continuation ("בכל מקרה אנחנו נמשיך כרגע בביצוע כדי לראות ספר"); model changes wait until a book works.
+- **Built (opt-in, versioned; absent byte-identical):**
+  - `storyboard-presence/v1`: a visible cast member present in the drawn scene without a placement claim (no position, move, contact,
+    custody or action; drawn at the scene's place, touching nothing; judged by the review), and a reference held twice for the same impact
+    is not re-quoted, re-declared or hidden;
+  - the repair nesting bound follows the owner's ceiling;
+  - the `fresh-book-storyboard-presence/v1` line: ONE Opus planner and ONE Sol review, attempt 6 of 6, held ends the line.
+- **Real book (read only):** 2 findings in 1 group, the repeated `p8:relation:child`; the planner request fits (wire 96971/104000, argv 26005/31000).
+- **Tests:** 11 new pass; mutants 34/34; 53 files serially 2316/2321 (stale :152/:184; simple-book-flow:465 one 5 s timeout, passes alone; :1211 excluded); tsc 0; the full check stays RED.
+- **Next:** Codex code QA → attempt 6 → child → samples → rest + cover → viewer → QA report → consolidated engine report.
+
 ## Attempt 4 held; corrected B approved: the calibration contract + attempt-5 line built offline (5f17de4d); next: Codex QA, then attempt 5 and the book (2026-10-20)
 
 - **What happened.** The ONE extension-revalidation review (89352 microUSD, no planner) held attempt 4 (`stop_allowance_exhausted`, 4 of 4).
