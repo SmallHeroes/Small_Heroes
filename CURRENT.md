@@ -1,5 +1,64 @@
 # SmallHeroes — Current Technical State
 
+## The extension's paid answer refused at compile; staging-fields correction + bound extension revalidation (5dfcd2d9), offline, for a narrow Codex re-gate; the book is NOT done (2026-10-20)
+
+**What happened.** Codex passed 42fafd71 and the extension grant 8e700b5c… (`CODEX-REFINED-B-QA-PASS-42fafd71-20261020.txt`). The writer
+re-derived the native plan and preview exactly (15 of 15 preflight checks) and ran the ONE extension once (claim 2026-10-19T22:08:38.904Z;
+native exit 1; 22:08:31Z..22:13:33Z):
+- The Opus 5.5 Max planner answered in 288 s with 36943 output tokens; Max estimate 1053404 microUSD (separate from the API).
+- The engine refused that PAID answer at compile with `storyboard_claim_basis_staging_ref`, BEFORE its ONE Sol review. The outcome
+  `failed_storyboard_extension` is terminal and immutable, with no successor.
+- API spend is unchanged: book 247596 / 6 calls, cycle 376526. Max for the book: 3607216 (separate, never 0).
+
+**Cause (verified read-only; an engine vocabulary defect, not a planner rule violation).**
+- The answer staged two plan direction fields as visual direction: `p2:composition` and `p3:childAction`.
+- The contract's own instruction names gesture, gaze, expression, posture and arrangement as visual direction. In the draft those choices
+  live in a page's plan direction fields (the engine's own `empty_page_direction` set), which carry no claim ref, and the strict v1 validator
+  accepted only claim refs.
+- Rebuilt on the exact source the paid run used (its digest is in the paid wire), the strict compile reproduces the refusal. With only those
+  two staging entries removed, the same paid answer compiles completely: 61 claims, 10 resolutions, no hidden overrides, protected page 4
+  intact.
+
+**The general correction: `storyboard-claim-basis-staging-fields/v1`** (opt-in, versioned, compile-level; strict v1 byte-identical):
+- Under `compilePersonalStoryboard(source, draft, { stagingFields: true })` (claim-basis sources only), a frame's staging may also name that
+  frame's own plan direction fields: `p{n}:composition`, `childAction`, `childExpression`, `childGaze`, `companionAction`.
+- Still refused: `scene` (its ref is the scene-cut claim), the instant, scene cuts, withholds, another frame's field and any other field.
+- The book and its digest carry the `stagingFields` marker. Under it the review's reference vocabulary also lists those fields, and the review
+  reads one added rule: a staged field is direction, judged for contradiction and identity, age, style and safety, never a stated fact.
+- The source and the planner request are unchanged, so a paid answer stays replayable. The loader takes the marker only from the saved,
+  digest-bound book.
+
+**The bound line: `fresh-book-storyboard-extension-revalidation/v1`** (same owner record, same allowance; plannerCalls 0, apiCalls 1,
+floor 600000):
+- **No planner call.** The extension's ONE paid planner session is replayed under its own saved wire (f1d29fd1…) and re-decoded from its own
+  CLI output; it is compiled under both corrections and gets the ONE floored Sol review.
+- **Admission stands only on THIS refusal of THIS paid answer:** the extension's grant, claim, outcome, seal, admission, input, recovery
+  records and meters (no review claim; one settled planner session whose wire is the request rebuilt now); its whole lineage re-derived by the
+  extension line's own verifiers; the owner's record; the strict compile refusing the answer with exactly the recorded code, and the corrected
+  compile admitting it, every staged field recorded.
+- **Own records.** Its own claim, outcome, audition start, successor and folder. Downstream: `child|book --storyboard-extension-revalidation`.
+- **Still attempt 4 of 4.** Held ends the line; there is no attempt 5. Corrections used: 1 of 2.
+
+**Real book, read only (dry plan and review preview).** Candidate ce4c5025…: 61 claims, 10 resolutions, staged fields `p2:composition` and
+`p3:childAction`. The review request: content 91280 of 104000 bytes, reserve 664315 (floor 600000), output cap 39000. API: book 247596, 6 calls.
+
+**Tests.**
+- 6 new, all pass. Engine 1: strict v1 still refuses a staged plan field; under the option exactly the frame's own five direction
+  fields; scene, the instant, a withhold, other frames' and other fields refused; the policy; the marker; the review refs and rule only
+  under it; the loader binding. Driver 5: positive (NO planner call, ONE floored review admits with a note on the staged field, successor,
+  child and book complete on the line); held at attempt 4 of 4; 14 pre-claim refusals plus an edited CLI answer refused at the preview;
+  successor tamper; the real-data dry plan and review preview. The extension line's 5 tests re-pass with the native planner wire shape.
+- Focused mutation controls on the new code: 12 of 12 killed.
+- The relevant 19 spec files, serially: 645 passed, 2 failed, 1 skipped.
+  - The stale `fresh-book-driver.spec.ts:152`, as before.
+  - `fresh-book-recovery.spec.ts:540` timed out: the machine entered low-power standby (02:10..06:55, Kernel-Power 506/507) while it ran,
+    and its timer counted the suspended hours. It passes alone in 64 s.
+  - `simple-book-flow` was not re-run: its change here is one optional pass-through, whose effect the new driver tests assert.
+- nonincremental tsc 0. The full check stays RED.
+
+**Next.** Codex's narrow re-gate of the range and the unused extension-revalidation grant. After a PASS: the ONE review; if admitted, child,
+references, two samples, the rest and the cover, the viewer and the reports. Held: an honest stop, no attempt 5.
+
 ## Refined B: the claim-basis contract and the owner-approved attempt 4 of 4, built offline (28606b65), for Codex QA; the book is NOT done (2026-10-19)
 
 **What happened since a4aaeb0e.** Codex passed a4aaeb0e and the unused revalidation grant 059c6686…. The ONE revalidation review

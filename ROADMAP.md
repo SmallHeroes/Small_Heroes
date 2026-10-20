@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Extension refused at compile (plan-field staging); staging-fields correction + bound extension revalidation built offline (5dfcd2d9); next: Codex re-gate, then the ONE review and the book (2026-10-20)
+
+- **What happened.** Codex passed 42fafd71, and the ONE extension (attempt 4 of 4) ran. Its Opus Max answer (1053404 Max microUSD) was
+  refused at compile (`storyboard_claim_basis_staging_ref`) BEFORE its review: it staged two plan direction fields (`p2:composition`,
+  `p3:childAction`) that the contract's own instruction invites but its strict validator did not accept. API unchanged: book 247596.
+- **Built (opt-in, versioned; strict v1 byte-identical):**
+  - `storyboard-claim-basis-staging-fields/v1` (compile-level): a frame's staging may also name its own plan direction fields; the review
+    sees them in its reference vocabulary and reads one added rule. Nothing else is relaxed.
+  - the `fresh-book-storyboard-extension-revalidation/v1` line: the SAME paid answer, replayed (no planner call), compiled under the
+    correction, and given attempt 4's ONE unspent floored Sol review. Bound to exactly this refusal; held ends the line (no attempt 5).
+- **Real book (read only):** candidate ce4c5025…, 61 claims, 10 resolutions; the review request is 91280 of 104000 bytes, reserve 664315.
+- **Tests:** 6 new pass; the extension line's 5 re-pass; mutants 12/12; the relevant 19 files serially: 645 passed, 2 failed (stale `:152`;
+  `:540`, a timeout while the machine was in standby, passes alone), 1 skipped. tsc 0. The full check stays RED.
+- **Next:** Codex re-gate → the ONE review → child → samples → rest + cover → viewer → QA report → consolidated engine report.
+
 ## Refined B approved: claim-basis contract and attempt 4 of 4 built offline (28606b65); next: Codex QA, then the ONE extension and the book (2026-10-19)
 
 - **What happened.** The ONE revalidation review held candidate db61a2dd… (10 blocking checks; 17 of its 19 issue entries were
