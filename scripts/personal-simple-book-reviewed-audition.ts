@@ -24,7 +24,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboard
   currentPersonalStoryboardFrame, storyboardOwnerAcceptance, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { childAnchorAcceptanceVersions, childAnchorDescriptionRequest, childAnchorInspectionContext, assertChildAnchorInspectedAccepted,
-  childAnchorPoseDescriptionRequest, CHILD_ANCHOR_POSE_VERSION } from '../lib/personal-wizard/child-anchor-style';
+  childAnchorPoseDescriptionRequest, childAnchorPoseVersions, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_MATERIALITY_VERSION } from '../lib/personal-wizard/child-anchor-style';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-moments';
 import { SCENE_LOCATION_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-scene-location';
@@ -69,11 +69,13 @@ export const reviewedBookLayoutSchema = z.object({ version: z.literal('reviewed-
    */
   childAnchor: z.enum(childAnchorAcceptanceVersions).optional(),
   /**
-   * Opt-in (2026-10-21), only with childAnchor: the adopted anchor's context binds the pose clause of child-anchor-visible-pose/v1 (its
-   * request is the pose description request). Absent: the context exactly as before.
+   * Opt-in (2026-10-21), only with childAnchor: the adopted anchor's context binds the pose contract of child-anchor-visible-pose/v1 or /v2
+   * (its request is that version's pose description request). Absent: the context exactly as before.
    */
-  childAnchorPose: z.literal(CHILD_ANCHOR_POSE_VERSION).optional() }).strict()
-  .refine(l => l.childAnchorPose === undefined || l.childAnchor !== undefined, 'audition_layout_child_anchor_pose');
+  childAnchorPose: z.enum(childAnchorPoseVersions).optional() }).strict()
+  .refine(l => l.childAnchorPose === undefined || l.childAnchor !== undefined, 'audition_layout_child_anchor_pose')
+  // v2 binds the materiality contract's occlusion record: only beside the materiality acceptance.
+  .refine(l => l.childAnchorPose !== CHILD_ANCHOR_POSE_V2 || l.childAnchor === CHILD_ANCHOR_MATERIALITY_VERSION, 'audition_layout_child_anchor_pose');
 export type ReviewedBookLayout = z.infer<typeof reviewedBookLayoutSchema>;
 /** The ONE already-reviewed book (2026-10-08): its historical folders and constants, unchanged. */
 export const LEGACY_BOOK_LAYOUT: ReviewedBookLayout = Object.freeze({ version: 'reviewed-book-layout/v1', seed: SEED, childDesign: CHILD_DESIGN,
@@ -350,7 +352,7 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
     // Under the layout's pose contract the request is the pose description request and the view binds its pose clause.
     const child = { age: prepared.brief.child.age, gender: prepared.brief.child.address as 'boy' | 'girl', design: layout.childDesign, wardrobe: active.book.plan.wardrobe };
     const authority = layout.childAnchorPose
-      ? childAnchorInspectionContext(child, childAnchorPoseDescriptionRequest(child).prompt, layout.childAnchor, layout.childAnchorPose)
+      ? childAnchorInspectionContext(child, childAnchorPoseDescriptionRequest(child, layout.childAnchorPose).prompt, layout.childAnchor, layout.childAnchorPose)
       : childAnchorInspectionContext(child, childAnchorDescriptionRequest(child).prompt, layout.childAnchor);
     if (adoption.name !== 'child' || canonicalJson(adoption.context) !== canonicalJson(authority) || previewSha(childBytes) !== adoption.candidate?.imageSha)
       fail('audition_child_reference');

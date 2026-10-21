@@ -11,7 +11,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
-import { childAnchorAcceptanceVersions, CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_VISIBILITY_RECOVERABLE, CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION }
+import { childAnchorAcceptanceVersions, CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_VISIBILITY_RECOVERABLE, CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION }
   from '../lib/personal-wizard/child-anchor-style';
 import { AuditionMeter, auditionReviewRule, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { REREVIEW_AMENDMENT, rereviewAuthority, rereviewOutput, settledRereviewOutcome, type RereviewConfig } from './personal-child-anchor-rereview';
@@ -851,16 +851,19 @@ export const FRESH_BOOK_CHILD_RECOVERY = Object.freeze({
   approvalLine: 'מאשר את תיקון המנוע הכללי והתאוששות הדמות המוגבלת שבהצעה: תיקון LOW אחד של הרפרנס הקיים ושתי ביקורות חדשות אחרי QA, באותן תקרות ועל הסטוריבורד שכבר עבר; אם הדמות עוברת, להמשיך אוטומטית לאיורים, לכריכה ולספר המלא.',
 });
 const abs = z.string().refine(p => path.isAbsolute(p));
+/** The consumed presence authority (its grant, claim, terminal held_child record, admitted storyboard and successor) and every claim it names. */
+const childLinePresenceSchema = z.object({ grantFile: abs, grantSha256: hash, claimSha256: hash, outcomeSha256: hash, successorSha256: hash, storyboardDigest: hash,
+  calibrationClaimSha256: hash, extensionRevalidationClaimSha256: hash, extensionClaimSha256: hash, revalidationClaimSha256: hash,
+  continuationClaimSha256: hash, repairClaimSha256: hash, recoveryClaimSha256: hash, originalClaimSha256: hash }).strict();
+/** The presence line's held child: its folder, seal, candidate, recipe and context by digest, and its settled answers' dispositions, re-derived. */
+const childLineHeldSchema = z.object({ folderSha256: hash, sealSha256: hash, candidateSha256: hash, recipeSha256: hash, contextSha256: hash,
+  style: z.enum(['passed', 'defect']), design: z.literal(FRESH_BOOK_CHILD_RECOVERY.heldDisposition), disposition: z.literal(FRESH_BOOK_CHILD_RECOVERY.heldDisposition) }).strict();
 export const freshBookChildRecoveryGrantSchema = z.object({ version: z.literal('fresh-book-child-recovery-grant/v1'),
   cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_CHILD_RECOVERY.amendment),
   ownerApproval: z.object({ file: abs, sha256: hash }).strict(), profileSha256: hash, bookDir: abs,
-  /** The consumed presence authority (its grant, claim, terminal held_child record, admitted storyboard and successor) and every claim it names. */
-  presence: z.object({ grantFile: abs, grantSha256: hash, claimSha256: hash, outcomeSha256: hash, successorSha256: hash, storyboardDigest: hash,
-    calibrationClaimSha256: hash, extensionRevalidationClaimSha256: hash, extensionClaimSha256: hash, revalidationClaimSha256: hash,
-    continuationClaimSha256: hash, repairClaimSha256: hash, recoveryClaimSha256: hash, originalClaimSha256: hash }).strict(),
-  /** The held child it corrects: its folder, seal, candidate, recipe and context by digest, and its settled answers' dispositions, re-derived. */
-  held: z.object({ folderSha256: hash, sealSha256: hash, candidateSha256: hash, recipeSha256: hash, contextSha256: hash, style: z.enum(['passed', 'defect']),
-    design: z.literal(FRESH_BOOK_CHILD_RECOVERY.heldDisposition), disposition: z.literal(FRESH_BOOK_CHILD_RECOVERY.heldDisposition) }).strict(),
+  presence: childLinePresenceSchema,
+  /** The held child it corrects. */
+  held: childLineHeldSchema,
   /** The typed recovery the engine derives from those answers, and the one correction it plans: its prompt, recipe and bound context. */
   recovery: z.object({ version: z.literal(CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION), pose: z.literal(CHILD_ANCHOR_POSE_VERSION),
     aspects: z.array(z.enum(CHILD_ANCHOR_VISIBILITY_RECOVERABLE)).min(1), corrections: z.array(z.string().trim().min(1)).min(1),
@@ -916,6 +919,91 @@ export function assertFreshBookChildRecoveryPaid(args: { env: FreshBookEnv; gran
       claim.repairClaimSha256 !== p.repairClaimSha256 || claim.recoveryClaimSha256 !== p.recoveryClaimSha256 || claim.originalClaimSha256 !== p.originalClaimSha256 ||
       claim.heldCandidateSha256 !== grant.held.candidateSha256 || claim.profileSha256 !== grant.profileSha256 ||
       path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() || claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
+/**
+ * The owner-approved FRESH CHILD ANCHOR (Guy's direct approval 2026-10-21, after the child recovery's terminal hold): ONE fresh gpt-image-2 LOW
+ * anchor of the same frozen child under child-anchor-visible-pose/v2, judged by the general child stage's gates (style; design + apparent age),
+ * with that stage's single correction for a known or typed-visibility defect and its reviews (at most 6 API calls), on the presence line's
+ * admitted storyboard. Every earlier grant, claim, outcome, seal, pixel, answer and cost stays byte-identical (held_child and
+ * held_child_recovery are not reset); its own claim/outcome/audition start/successor and folder are fixed in code; a held anchor ends the line.
+ */
+export const FRESH_BOOK_CHILD_FRESH_ANCHOR = Object.freeze({
+  version: 'fresh-book-child-fresh-anchor/v1',
+  amendment: 'Guy 2026-10-21 OWNER-APPROVAL-CHILD-FRESH-ANCHOR-20261021.txt (direct, in chat: "כן מאשר - רוץ", approving the route recommended after the child recovery\'s terminal hold, STOP-REPORT-CHILD-RECOVERY-20261021.md): general offline engine fixes first (child-anchor-visible-pose/v2: a typed covered-by-declared-wardrobe unobserved condition, a written trait under a declared wardrobe item recorded verbatim, never matched and never a defect, a required aspect not visible at all still unreadable; and one eye-scale precedence clause bound into the render request and the judge\'s view), independent Codex QA, then ONE fresh gpt-image-2 LOW anchor of the same frozen fictional child (no profile, canon or wardrobe change) under the pose contract, judged by the existing child-stage gates with that stage\'s single correction for a known or typed-visibility defect and its reviews (at most 6 API calls), on the presence line\'s admitted storyboard; the same cumulative USD 7 book / USD 8 cycle caps; gpt-image-2 LOW, Sol 6.1, the declared gpt-4o resemblance and 0.70 unchanged; no storyboard attempt 7, author/editor/planner rerun or reset; only if the fresh child passes every gate: the two representative samples, all 8 pages and the cover (LOW, the existing page gates and limits), the local viewer and the reports; a held fresh child stops with an honest report.',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.child-fresh-anchor.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.child-fresh-anchor.outcome.json',
+  auditionStartName: 'owner-cycle-20261017-fresh-book-usd7.child-fresh-anchor.audition.json',
+  /** The fresh child's one durable provenance record (written once, at completion, only after its whole evidence re-derives). */
+  successorName: 'owner-cycle-20261017-fresh-book-usd7.child-fresh-anchor.successor.json',
+  folder: 'child-fresh-anchor',
+  /** The terminal record it stands on: the child recovery's corrected child held by its own gates. */
+  heldOutcome: 'held_child_recovery', heldDisposition: 'held_uncertain', ownHeldOutcome: 'held_child_fresh_anchor',
+  /** The general child stage: a render and its two reviews, then (only for a known or typed-visibility defect) one correction and its two reviews. */
+  apiCalls: 6, renders: 2, reviews: 4, reviewReserveMicroUsd: 600_000,
+  /** The owner's record: Guy's verbatim approval line must be in it (its bytes are bound by digest). */
+  approvalLine: 'כן מאשר - רוץ',
+});
+export const freshBookChildFreshAnchorGrantSchema = z.object({ version: z.literal('fresh-book-child-fresh-anchor-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_CHILD_FRESH_ANCHOR.amendment),
+  ownerApproval: z.object({ file: abs, sha256: hash }).strict(), profileSha256: hash, bookDir: abs,
+  presence: childLinePresenceSchema, held: childLineHeldSchema,
+  /** The consumed child recovery (its grant, claim and terminal record) and its held corrected child, by digest. */
+  recovery: z.object({ grantFile: abs, grantSha256: hash, claimSha256: hash, outcomeSha256: hash, folderSha256: hash, sealSha256: hash, candidateSha256: hash,
+    contextSha256: hash, recipeSha256: hash }).strict(),
+  /** The fresh anchor the general child stage plans under v2: its request, bound context and first render's claim maximum. */
+  fresh: z.object({ pose: z.literal(CHILD_ANCHOR_POSE_V2), visibilityRecovery: z.literal(CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION), requestPromptSha256: hash,
+    contextSha256: hash, renderMaximumMicroUsd: micro }).strict(),
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, bookKnownMicroUsd: micro, calls: micro }).strict(),
+  allowance: z.object({ apiCalls: z.literal(FRESH_BOOK_CHILD_FRESH_ANCHOR.apiCalls), renders: z.literal(FRESH_BOOK_CHILD_FRESH_ANCHOR.renders),
+    reviews: z.literal(FRESH_BOOK_CHILD_FRESH_ANCHOR.reviews), reviewReserveMicroUsd: z.literal(FRESH_BOOK_CHILD_FRESH_ANCHOR.reviewReserveMicroUsd) }).strict(),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookChildFreshAnchorGrant = z.infer<typeof freshBookChildFreshAnchorGrantSchema>;
+/** The named claims a fresh-anchor grant stands on: the recovery's claim and terminal record, the presence line's, and the whole chain. */
+const freshAnchorNamed = (g: FreshBookChildFreshAnchorGrant) => [[FRESH_BOOK_CHILD_RECOVERY.claimName, g.recovery.claimSha256],
+  [FRESH_BOOK_CHILD_RECOVERY.outcomeName, g.recovery.outcomeSha256], [FRESH_BOOK_STORYBOARD_PRESENCE.claimName, g.presence.claimSha256],
+  [FRESH_BOOK_STORYBOARD_PRESENCE.outcomeName, g.presence.outcomeSha256], [FRESH_BOOK_STORYBOARD_PRESENCE.successorName, g.presence.successorSha256],
+  [FRESH_BOOK_STORYBOARD_CALIBRATION.claimName, g.presence.calibrationClaimSha256], [FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.claimName, g.presence.extensionRevalidationClaimSha256],
+  [FRESH_BOOK_STORYBOARD_EXTENSION.claimName, g.presence.extensionClaimSha256], [FRESH_BOOK_STORYBOARD_REVALIDATION.claimName, g.presence.revalidationClaimSha256],
+  [FRESH_BOOK_STORYBOARD_CONTINUATION.claimName, g.presence.continuationClaimSha256], [FRESH_BOOK_STORYBOARD_REPAIR.claimName, g.presence.repairClaimSha256],
+  [FRESH_BOOK_RECOVERY.claimName, g.presence.recoveryClaimSha256], [FRESH_BOOK_CYCLE.claimName, g.presence.originalClaimSha256]] as const;
+const freshAnchorClaimFields = (g: FreshBookChildFreshAnchorGrant) => ({ recoveryGrantSha256: g.recovery.grantSha256,
+  ...Object.fromEntries(freshAnchorNamed(g).map(([name, digest]) => [name, digest])) });
+
+/** The fresh anchor's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookChildFreshAnchor(env: FreshBookEnv, grant: FreshBookChildFreshAnchorGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_CHILD_FRESH_ANCHOR.outcomeName))) fail('fresh_book_child_fresh_anchor_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_CHILD_FRESH_ANCHOR.claimName), 'wx'); } catch { return fail('fresh_book_child_fresh_anchor_used'); }
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, childFreshAnchor: FRESH_BOOK_CHILD_FRESH_ANCHOR.version, grantSha256: grantSha,
+    ownerApprovalSha256: grant.ownerApproval.sha256, named: freshAnchorClaimFields(grant), profileSha256: grant.profileSha256, bookDir: path.resolve(grant.bookDir),
+    engineHead: grant.engine.head, claimedAt: new Date().toISOString() }) + '\n');
+    fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/**
+ * Synchronous, before EVERY paid call of a fresh-anchor-line stage: its grant bytes, the owner's record bytes, its profile, the claim it wrote,
+ * every record the grant names (the recovery's claim and terminal record, the presence line's claim, terminal record and successor, the whole
+ * chain's claims), the clean source at its head, every pinned file.
+ */
+export function assertFreshBookChildFreshAnchorPaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_child_fresh_anchor_grant');
+  const grant = freshBookChildFreshAnchorGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  if (previewSha(fileBytes(grant.ownerApproval.file)) !== grant.ownerApproval.sha256) fail('fresh_book_child_fresh_anchor_approval');
+  const at = (name: string) => path.join(args.env.authorityRoot, name), claimFile = at(FRESH_BOOK_CHILD_FRESH_ANCHOR.claimName);
+  if (!existsSync(claimFile) || freshAnchorNamed(grant).some(([name, digest]) => !existsSync(at(name)) || previewSha(fileBytes(at(name))) !== digest)) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.childFreshAnchor !== FRESH_BOOK_CHILD_FRESH_ANCHOR.version || claim.grantSha256 !== args.grantSha ||
+      claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || canonicalJson(claim.named) !== canonicalJson(freshAnchorClaimFields(grant)) ||
+      claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
+      claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
   const engine = args.env.head();
   if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
   for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');

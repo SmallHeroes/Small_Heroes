@@ -10,7 +10,10 @@ import { CHILD_ANCHOR_TECHNIQUE_MANIFEST, CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_A
   CHILD_ANCHOR_CORRECTION_ROLES, childAnchorDescriptionRequest, childAnchorPoseDescriptionRequest, childAnchorPoseCorrectionPrompt, childAnchorCorrectionPrompt,
   childAnchorInspectionView, childAnchorInspectionContext, childAnchorInspectionContextSha, childAnchorAttemptRecipe, childAnchorRecipeSha,
   childAnchorStyleDisposition, childAnchorInspectedDesignDisposition, childAnchorDisposition, childAnchorVisibilityRecovery, childAnchorVisibilityCorrection,
-  childAnchorInspectedDesignPayload, childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted, assertChildAnchorRenderPlan } from '../child-anchor-style';
+  childAnchorInspectedDesignPayload, childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted, assertChildAnchorRenderPlan,
+  CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_EYE_SCALE_CLAUSE, CHILD_ANCHOR_OCCLUSION_CONDITION, CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2,
+  CHILD_ANCHOR_VIEW_V2_INSTRUCTION, childAnchorInspectedDesignSchemaFor, childAnchorMaterialityDesignReviewSchema,
+  childAnchorMaterialityDesignReviewSchemaV2 } from '../child-anchor-style';
 import { reviewedBookLayoutSchema } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
@@ -111,7 +114,149 @@ describe('child-anchor-visible-pose/v1: one pose source for the request, the cor
     expect(reviewedBookLayoutSchema.parse(layout)).toEqual(layout);
     const { childAnchor: _c, ...legacy } = layout;
     expect(() => reviewedBookLayoutSchema.parse({ ...legacy, childAnchorPose: CHILD_ANCHOR_POSE_VERSION })).toThrow();
-    expect(() => reviewedBookLayoutSchema.parse({ ...layout, childAnchorPose: 'child-anchor-visible-pose/v2' })).toThrow();
+    // v2 is a known opt-in version (child-anchor-visible-pose/v2); an unknown version refuses.
+    expect(reviewedBookLayoutSchema.parse({ ...layout, childAnchorPose: CHILD_ANCHOR_POSE_V2 }).childAnchorPose).toBe(CHILD_ANCHOR_POSE_V2);
+    expect(() => reviewedBookLayoutSchema.parse({ ...layout, childAnchorPose: 'child-anchor-visible-pose/v3' })).toThrow();
+    expect(() => reviewedBookLayoutSchema.parse({ ...legacy, childAnchorPose: CHILD_ANCHOR_POSE_V2 })).toThrow();
+    // v2 only beside the materiality acceptance (its occlusion record rests on the typed character judgment); v1 beside either.
+    expect(() => reviewedBookLayoutSchema.parse({ ...layout, childAnchor: CHILD_ANCHOR_INSPECTION_VERSION, childAnchorPose: CHILD_ANCHOR_POSE_V2 })).toThrow();
+    expect(reviewedBookLayoutSchema.parse({ ...layout, childAnchor: CHILD_ANCHOR_INSPECTION_VERSION, childAnchorPose: CHILD_ANCHOR_POSE_VERSION }).childAnchorPose)
+      .toBe(CHILD_ANCHOR_POSE_VERSION);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// child-anchor-visible-pose/v2: the covered-by-declared-wardrobe condition and the eye-scale precedence clause, opt-in, materiality only.
+// ---------------------------------------------------------------------------------------------------------------
+const pose2 = childAnchorPoseDescriptionRequest(child, CHILD_ANCHOR_POSE_V2);
+const context2 = childAnchorInspectionContext(child, pose2.prompt, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_POSE_V2), CTX2 = childAnchorInspectionContextSha(context2);
+const recipe2 = childAnchorAttemptRecipe('reference_child', 'style', technique, pose2.prompt, 5), RSHA2 = childAnchorRecipeSha(recipe2);
+/** A v2 materiality answer (its unobserved entries carry coveredBy), bound to the v2 context and recipe. */
+const answer2 = (over: Parameters<typeof answer>[0] & { unobserved?: { trait: string; condition: string; coveredBy: string }[] } = {}) => {
+  const { unobserved, ...rest } = over;
+  return { ...answer({ contextSha: CTX2, recipeSha: RSHA2, ...rest }),
+    unobservedConditional: (unobserved ?? []).map(u => ({ ...u, observation: `${u.trait} not seen: ${u.coveredBy || 'smile'}` })) };
+};
+const design2 = (v: unknown) => childAnchorInspectedDesignDisposition(v, A, context2, recipe2);
+const COWLICK = 'a cowlick that sticks up at the crown', HAT = 'White floppy sun hat';
+
+describe('child-anchor-visible-pose/v2: covered-by-declared-wardrobe and the eye-scale precedence clause (opt-in)', () => {
+  it('absent and v1 stay byte-identical (the same prompt, recipe, context and correction digests as before v2)', () => {
+    expect([sha(request.prompt), RSHA, CTX, PCTX]).toEqual(['5125fcd48bbd6655bca37b1f7c64b65e98765f0aaf319801f5e6766930260b68',
+      '136220810ed689b55a17615320de92203184334d471e8237715f2dbd2d25028b', '542a4c4a23d1ece4303541fcd489264ded4f17d4650c1613f053b0de04e4eb55',
+      'f40bc1a50764ee58ba83323f884cb85716955d40c1054d5e5492a1c271c2b88c']);
+    expect(childAnchorPoseDescriptionRequest(child, CHILD_ANCHOR_POSE_VERSION)).toEqual(pose);
+    expect([context.view.excludedConditions, poseContext.view.excludedConditions]).toEqual([['open_mouth_or_smile'], ['open_mouth_or_smile']]);
+    expect([request.prompt, pose.prompt].some(p => p.includes(CHILD_ANCHOR_EYE_SCALE_CLAUSE) || p.includes(CHILD_ANCHOR_POSE_CLAUSE_V2))).toBe(false);
+    // The payload of a non-v2 context keeps its instruction, schema and format name (no v2 rule, no coveredBy).
+    const p1 = childAnchorInspectedDesignPayload({ candidateSha: A, context: poseContext, recipe, imageURLs: IMAGES });
+    expect([p1.instructions.includes(CHILD_ANCHOR_VIEW_V2_INSTRUCTION), (p1.text as any).format.name]).toEqual([false, 'child_anchor_design_materiality_v1']);
+    expect(childAnchorInspectedDesignSchemaFor(poseContext)).toBe(childAnchorMaterialityDesignReviewSchema);
+  });
+  it('the v2 request: v1\'s pose line replacement with the v2 clause, and ONE eye-scale clause right after the child\'s visual lock; nothing else changes', () => {
+    expect(pose2.pose).toBe(CHILD_ANCHOR_POSE_V2);
+    expect([pose2.prompt.split(CHILD_ANCHOR_POSE_CLAUSE_V2).length, pose2.prompt.split(CHILD_ANCHOR_EYE_SCALE_CLAUSE).length,
+      pose2.prompt.includes(CHILD_ANCHOR_POSE_CLAUSE), pose2.prompt.includes(CHILD_ANCHOR_PRODUCTION_POSE_LINE)]).toEqual([2, 2, false, false]);
+    const blocks = pose2.core.split('\n\n'), lock = blocks.findIndex(b => b.startsWith('CHILD VISUAL LOCK: '));
+    expect([blocks[lock].includes(DESIGN), blocks[lock + 1]]).toEqual([true, CHILD_ANCHOR_EYE_SCALE_CLAUSE]);
+    // Removing the eye-scale block and restoring the pose line gives production's request byte for byte.
+    expect(pose2.core.replace(`\n\n${CHILD_ANCHOR_EYE_SCALE_CLAUSE}`, '').replace(CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_PRODUCTION_POSE_LINE)).toBe(request.core);
+    expect(pose2.prompt.replace(`\n\n${CHILD_ANCHOR_EYE_SCALE_CLAUSE}`, '').replace(CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_PRODUCTION_POSE_LINE)).toBe(request.prompt);
+    expect(CHILD_ANCHOR_POSE_CLAUSE_V2).toBe(CHILD_ANCHOR_POSE_CLAUSE.replace(CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2));
+    expect(CHILD_ANCHOR_EYE_SCALE_CLAUSE).toMatch(/natural eye scale governs the size of the eyes/);
+    expect(CHILD_ANCHOR_EYE_SCALE_CLAUSE).toMatch(/colour and shape the design names stay exact/);
+    // A design quoting any contract clause refuses, as does an unknown version.
+    for (const quoted of [CHILD_ANCHOR_EYE_SCALE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_PRODUCTION_POSE_LINE])
+      expect(() => childAnchorPoseDescriptionRequest({ ...child, design: `${DESIGN} ${quoted}` }, CHILD_ANCHOR_POSE_V2), quoted.slice(0, 20)).toThrow('child_anchor_production_prompt');
+    expect(() => childAnchorPoseDescriptionRequest(child, 'child-anchor-visible-pose/v3' as never)).toThrow('child_anchor_production_prompt');
+    expect(assertChildAnchorRenderPlan(pose2.prompt, CHILD_ANCHOR_TECHNIQUE_MANIFEST.length, pose2.referenceMode)).toMatchObject({ bodyWithoutBinaryImage: { model: 'gpt-image-2', quality: 'low' } });
+  });
+  it('the v2 view binds both clauses and v2\'s excluded conditions; only under materiality; requests and views that disagree refuse', () => {
+    expect(context2.view.poseContract).toEqual({ version: CHILD_ANCHOR_POSE_V2, clause: CHILD_ANCHOR_POSE_CLAUSE_V2, clauseSha256: sha(CHILD_ANCHOR_POSE_CLAUSE_V2),
+      eyeScaleClause: CHILD_ANCHOR_EYE_SCALE_CLAUSE, eyeScaleClauseSha256: sha(CHILD_ANCHOR_EYE_SCALE_CLAUSE) });
+    expect(context2.view.excludedConditions).toEqual(['open_mouth_or_smile', CHILD_ANCHOR_OCCLUSION_CONDITION]);
+    expect([...CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2]).toEqual(['open_mouth_or_smile', 'covered_by_declared_wardrobe']);
+    expect(new Set([CTX, PCTX, CTX2]).size).toBe(3);
+    // Materiality only.
+    expect(() => childAnchorInspectionContext(child, pose2.prompt, CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_POSE_V2)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionContext(child, pose2.prompt)).toThrow('child_anchor_inspection_view');
+    // A v2 prompt under another view, a v1 prompt under v2, a doubled or missing clause: refused.
+    expect(() => childAnchorInspectionView(pose2.prompt)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(pose2.prompt, CHILD_ANCHOR_POSE_VERSION)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(pose.prompt, CHILD_ANCHOR_POSE_V2)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(`${pose2.prompt}\n${CHILD_ANCHOR_EYE_SCALE_CLAUSE}`, CHILD_ANCHOR_POSE_V2)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(pose2.prompt.replace(CHILD_ANCHOR_EYE_SCALE_CLAUSE, ''), CHILD_ANCHOR_POSE_V2)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(`${pose2.prompt}\n${CHILD_ANCHOR_POSE_CLAUSE}`, CHILD_ANCHOR_POSE_V2)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(`${pose.prompt}\n${CHILD_ANCHOR_EYE_SCALE_CLAUSE}`, CHILD_ANCHOR_POSE_VERSION)).toThrow('child_anchor_inspection_view');
+    // A context whose view carries the occlusion condition without v2, or v2 without it, is not a valid context.
+    expect(() => childAnchorInspectionContextSha({ ...poseContext, view: { ...poseContext.view, excludedConditions: [...CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2] } } as never)).toThrow();
+    expect(() => childAnchorInspectionContextSha({ ...context2, view: { ...context2.view, excludedConditions: ['open_mouth_or_smile'] } } as never)).toThrow();
+  });
+  it('the v2 payload: the materiality instruction plus the v2 view rules, the v2 schema and format name; the view reaches the judge in its context', () => {
+    const p = childAnchorInspectedDesignPayload({ candidateSha: A, context: context2, recipe: recipe2, imageURLs: IMAGES });
+    const base = childAnchorInspectedDesignPayload({ candidateSha: A, context: poseContext, recipe, imageURLs: IMAGES });
+    expect(p.instructions).toBe(`${base.instructions}\n${CHILD_ANCHOR_VIEW_V2_INSTRUCTION}`);
+    expect((p.text as any).format.name).toBe('child_anchor_design_materiality_pose_v2');
+    const text = JSON.parse((p.input[0].content[0] as { text: string }).text);
+    expect([text.contextSha, text.recipeSha, text.context.view.poseContract.eyeScaleClause]).toEqual([CTX2, RSHA2, CHILD_ANCHOR_EYE_SCALE_CLAUSE]);
+    expect(childAnchorInspectedDesignSchemaFor(context2)).toBe(childAnchorMaterialityDesignReviewSchemaV2);
+    expect(CHILD_ANCHOR_VIEW_V2_INSTRUCTION).toContain(`condition ${CHILD_ANCHOR_OCCLUSION_CONDITION}`);
+    expect(CHILD_ANCHOR_VIEW_V2_INSTRUCTION).toContain('A required aspect that is not visible at all stays unreadable');
+  });
+  it('a crown trait under the declared hat is recorded unobserved (verbatim trait and item), never a defect: the visible hair matched passes', () => {
+    const d = design2(answer2({ unobserved: [{ trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: HAT }] }));
+    expect([d.design, d.unobservedConditional]).toEqual(['passed', [{ trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: HAT,
+      observation: `${COWLICK} not seen: ${HAT}` }]]);
+    expect(childAnchorDisposition(childAnchorStyleDisposition(styleAnswer({ contextSha: CTX2, recipeSha: RSHA2 }), A, CTX2, RSHA2), d).disposition).toBe('passed');
+    // Case and spacing of the quoted item follow the wardrobe's own text loosely (normalized), as the trait does.
+    expect(design2(answer2({ unobserved: [{ trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: 'white  floppy sun hat' }] })).design).toBe('passed');
+    // The smile condition still works under v2, with an empty coveredBy.
+    expect(design2(answer2({ unobserved: [{ trait: 'large dark-brown eyes', condition: 'open_mouth_or_smile', coveredBy: '' }] })).design).toBe('passed');
+    // The hidden aspect itself stays required: a crown under the hat does not excuse unreadable hair.
+    const hidden = design2(answer2({ checks: { identity: 'uncertain' }, evidence: { hair: { verdict: 'unreadable' } },
+      unobserved: [{ trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: HAT }] }));
+    expect(hidden.design).toBe('held_uncertain');
+  });
+  it('an occlusion record that is not a verbatim declared item, names no item, is a sentence, or rides another condition refuses; v1 views never accept it', () => {
+    const bad: [string, { trait: string; condition: string; coveredBy: string }][] = [
+      ['an item not in the wardrobe', { trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: 'a red baseball cap' }],
+      ['no item', { trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: ' ' }],
+      ['a sentence', { trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: 'White floppy sun hat. Brown strap sandals' }],
+      ['an item on the smile condition', { trait: COWLICK, condition: 'open_mouth_or_smile', coveredBy: HAT }],
+      ['a trait not in the design', { trait: 'a scar above the left eyebrow', condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: HAT }],
+      ['an unknown condition', { trait: COWLICK, condition: 'behind_an_object', coveredBy: HAT }],
+    ];
+    for (const [name, u] of bad) expect(() => design2(answer2({ unobserved: [u] })), name).toThrow();
+    // Under the v1 pose context the occlusion condition does not exist (the v1 schema has no coveredBy and v1's conditions only).
+    const v1Answer = { ...answer({ contextSha: PCTX }), unobservedConditional: [{ trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, observation: 'under the hat' }] };
+    expect(() => childAnchorInspectedDesignDisposition(v1Answer, A, poseContext, recipe)).toThrow();
+    // A v2 answer is bound to the v2 context: the v1 pose context's digest never judges it, nor the reverse.
+    expect(() => childAnchorInspectedDesignDisposition(answer2(), A, poseContext, recipe)).toThrow();
+    expect(() => design2(answer({ contextSha: PCTX, recipeSha: RSHA2 }))).toThrow();
+    expect(design2(answer({ contextSha: CTX2, recipeSha: RSHA2 })).design).toBe('passed');
+  });
+  it('the general child stage under v2: the typed visibility recovery and the pose-aware correction work on the v2 core; the v2 context binds the repair', () => {
+    const s = childAnchorStyleDisposition(styleAnswer({ contextSha: CTX2, recipeSha: RSHA2 }), A, CTX2, RSHA2);
+    const d = design2(answer2({ checks: { identity: 'uncertain' }, evidence: HANDS }));
+    const r = childAnchorVisibilityRecovery(s, d, CHILD_ANCHOR_POSE_V2)!;
+    expect([r.pose, r.aspects, r.corrections]).toEqual([CHILD_ANCHOR_POSE_V2, ['hands'], [childAnchorVisibilityCorrection('hands')]]);
+    // The same answers under the default (the child recovery's v1) name v1: the pose is the correction's contract, the derivation is the same.
+    expect(childAnchorVisibilityRecovery(s, d)).toEqual({ ...r, pose: CHILD_ANCHOR_POSE_VERSION });
+    expect(() => childAnchorVisibilityRecovery(s, d, 'child-anchor-visible-pose/v3' as never)).toThrow('child_anchor_correction_scope');
+    const c = childAnchorPoseCorrectionPrompt(pose2.core, r.corrections);
+    expect(c.startsWith(`${pose2.core}\n\n${CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION}\nTARGETED CORRECTIONS:\n${childAnchorVisibilityCorrection('hands')}\n\n[AVOID]\n`)).toBe(true);
+    expect([c.split(CHILD_ANCHOR_EYE_SCALE_CLAUSE).length, c.split(CHILD_ANCHOR_POSE_CLAUSE_V2).length]).toEqual([2, 2]);
+    // A core carrying both pose clauses is out of scope.
+    expect(() => childAnchorPoseCorrectionPrompt(`${pose2.core}\n\n${CHILD_ANCHOR_POSE_CLAUSE}`, ['x'])).toThrow('child_anchor_correction_scope');
+    expect(assertChildAnchorRenderPlan(c, 1, 'book_design', CHILD_ANCHOR_CORRECTION_ROLES)).toMatchObject({ apiMode: 'images.edit', referenceRoles: ['rejected_edit_target'] });
+    // The corrected candidate is judged under the SAME v2 context: a pass admits, its record binds that context only.
+    const repair = childAnchorAttemptRecipe('reference_child_repair', 'book_design', [{ role: 'rejected_edit_target', sha256: 'b'.repeat(64) }], c, 5);
+    const repairSha = childAnchorRecipeSha(repair);
+    const posedStyle = childAnchorStyleDisposition(styleAnswer({ contextSha: CTX2, recipeSha: repairSha }), A, CTX2, repairSha);
+    const ok = childAnchorInspectedAdoptionRecord(context2, repair, posedStyle.review, answer2({ recipeSha: repairSha,
+      unobserved: [{ trait: COWLICK, condition: CHILD_ANCHOR_OCCLUSION_CONDITION, coveredBy: HAT }] }));
+    expect(assertChildAnchorInspectedAccepted(ok, A, context2).acceptedDeviations).toEqual([]);
+    expect(() => assertChildAnchorInspectedAccepted(ok, A, poseContext)).toThrow('child_anchor_evidence_binding');
   });
 });
 

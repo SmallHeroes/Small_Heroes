@@ -22,13 +22,14 @@ import { canonicalJson } from '../request-acceptance';
 import { previewSha } from '../../local-story-preview';
 import { folderBaseline } from '../../../scripts/personal-child-anchor-rereview';
 import { CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_ANCHOR_INSPECTION_VERSION, childAnchorInspectionContextSha, CHILD_ANCHOR_MATERIALITY_VERSION,
-  CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_CLAUSE_SHA256, CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, childAnchorVisibilityCorrection } from '../child-anchor-style';
-import { auditionReviewRule, AuditionMeter, verifyMeterRecords, savedSelfCheckNames } from '../../../scripts/personal-simple-book-reviewed-audition';
+  CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_CLAUSE_SHA256, CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, childAnchorVisibilityCorrection,
+  CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_EYE_SCALE_CLAUSE, CHILD_ANCHOR_PRODUCTION_POSE_LINE, CHILD_ANCHOR_TECHNIQUE_MANIFEST } from '../child-anchor-style';
+import { auditionReviewRule, AuditionMeter, verifyMeterRecords, savedSelfCheckNames, renderMaximum } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/personal-child-anchor-judges';
 import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
 import { FRESH_BOOK_CYCLE, FRESH_BOOK_RECOVERY, FRESH_BOOK_STORYBOARD_REPAIR, FRESH_BOOK_STORYBOARD_CONTINUATION, FRESH_BOOK_STORYBOARD_REVALIDATION,
   FRESH_BOOK_STORYBOARD_EXTENSION, FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION, FRESH_BOOK_STORYBOARD_CALIBRATION, FRESH_BOOK_STORYBOARD_PRESENCE,
-  FRESH_BOOK_CHILD_RECOVERY, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
+  FRESH_BOOK_CHILD_RECOVERY, FRESH_BOOK_CHILD_FRESH_ANCHOR, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
 import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTextRecovery, runFreshBookChild, runFreshBookBook, freshBookConfig, realFreshBookEnv,
   planFreshBookStoryboardRepair, previewFreshBookStoryboardRepair, runFreshBookStoryboardRepair, flooredReviewRule, assertReviewFloorFits,
   planFreshBookStoryboardContinuation, previewFreshBookStoryboardContinuation, runFreshBookStoryboardContinuation,
@@ -38,6 +39,7 @@ import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTex
   EXTENSION_REVALIDATION_ADMISSION_FILE, planFreshBookStoryboardCalibration, previewFreshBookStoryboardCalibration, runFreshBookStoryboardCalibration,
   CALIBRATION_ADMISSION_FILE, planFreshBookStoryboardPresence, previewFreshBookStoryboardPresence, runFreshBookStoryboardPresence, PRESENCE_ADMISSION_FILE,
   STORYBOARD_REPAIR_RULES, REVIEW_RESERVE_FLOOR_MICRO_USD, planFreshBookChildRecovery, runFreshBookChildRecovery, CHILD_RECOVERY_ADMISSION_FILE,
+  planFreshBookChildFreshAnchor, runFreshBookChildFreshAnchor, assertChildFreshAnchorFits, CHILD_FRESH_ANCHOR_ADMISSION_FILE,
   type FreshBookConfig, type FreshTextTransports } from '../../../scripts/personal-fresh-book-driver';
 import { CALIBRATION_STORYBOARD_ADDENDUM, CALIBRATION_REVIEW_IMPACT_ADDENDUM, STORYBOARD_CALIBRATION_VERSION } from '../storyboard-calibration';
 import { PRESENCE_STORYBOARD_ADDENDUM, PRESENCE_REVIEW_ADDENDUM, STORYBOARD_PRESENCE_VERSION } from '../storyboard-presence';
@@ -2158,6 +2160,264 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
                     await expect(planFreshBookChildRecovery(s.config, s.env, s.g.grantFile, s.approval)).rejects.toThrow('fresh_book_child_recovery_not_visibility');
                     expect([existsSync(path.join(s.authority, CRL.claimName)), existsSync(crDir(s))]).toEqual([false, false]);
                   }, 1_200_000);
+
+                  // -----------------------------------------------------------------------------------------------------------------------------
+                  // The ONE owner-approved fresh child anchor (2026-10-21): the child recovery's corrected child held by its own gates, then the
+                  // GENERAL child stage under child-anchor-visible-pose/v2 in its own folder (a fresh render and its two reviews; at most its one
+                  // correction and their two reviews), then the book. The held recovery is built ONCE on the held chain and restored byte-exact.
+                  // -----------------------------------------------------------------------------------------------------------------------------
+                  describe('the ONE owner-approved fresh child anchor (after the child recovery held its corrected child)', () => {
+                    const CFL = FRESH_BOOK_CHILD_FRESH_ANCHOR, FRESH_HEAD = '6'.repeat(40);
+                    const cfDir = (s: { config: FreshBookConfig }, ...p: string[]) => path.join(s.config.bookDir, CFL.folder, ...p);
+                    /**
+                     * providers() with the fresh anchor's judges (materiality, pose v2): style answers from a queue (then passed); the FIRST v2 design
+                     * answer by `fresh` ('pass'; 'hands': the hands unreadable, a typed-visibility hold; 'face': an unreadable face, never corrected;
+                     * 'smile': a scene defect, a known-defect repair), the correction's by `corrected` ('pass' or 'hidden'). Every answer records a
+                     * design trait under the first declared wardrobe item (covered_by_declared_wardrobe), quoted from the request's own context.
+                     */
+                    const freshJudges = (mode: { style?: ('defect' | 'unassessable')[]; fresh?: 'pass' | 'hands' | 'face' | 'smile'; corrected?: 'pass' | 'hidden' } = {}) => {
+                      providers(90);
+                      const base = sdk.create.getMockImplementation()!, styles = [...(mode.style ?? [])];
+                      let designs = 0;
+                      sdk.create.mockImplementation(async (payload: any) => {
+                        const name: string = payload.text.format.name, text = JSON.parse(payload.input[0].content[0].text);
+                        const reply = (value: unknown) => ({ model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 },
+                          output_text: JSON.stringify(value) });
+                        if (name === 'child_anchor_style_materiality_v1') { const kind = styles.shift();
+                          return reply({ candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha, assessable: kind !== 'unassessable',
+                            style01Match: kind === undefined, looksPhotoreal: false, looksPortrait: false, notes: kind === 'defect' ? 'oversized eyes.' : 'watercolor' }); }
+                        if (name !== 'child_anchor_design_materiality_pose_v2') return base(payload);
+                        const shape = designs++ === 0 ? (mode.fresh ?? 'pass') : mode.corrected === 'hidden' ? 'hands' : 'pass';
+                        const unreadable = shape === 'hands' ? ['hands'] : shape === 'face' ? ['face'] : [];
+                        const covered = { trait: String(text.context.design.fictionalDesign).split(/[.;,]/)[0].trim().slice(0, 48),
+                          condition: 'covered_by_declared_wardrobe', coveredBy: String(text.context.design.wardrobe).split(';')[0].trim(), observation: 'under the declared item' };
+                        return reply({ candidateSha: text.candidateSha, contextSha: text.contextSha, recipeSha: text.recipeSha, acceptanceVersion: CHILD_ANCHOR_MATERIALITY_VERSION,
+                          checks: passChecks().map(c => c.category === 'identity' && unreadable.length ? { ...c, verdict: 'uncertain', correction: JUDGE_TEXT }
+                            : c.category === 'scene' && shape === 'smile' ? { ...c, verdict: 'defect', correction: 'relax the mouth corners into a neutral rest' } : c),
+                          apparentAge: { requestedAge: text.apparentAge.requestedAge, verdict: 'compatible', observation: 'reads the age', correction: '' },
+                          visibleEvidence: CHILD_ANCHOR_REQUIRED_VISIBLE.map(aspect => unreadable.includes(aspect)
+                            ? { aspect, verdict: 'unreadable', observation: `${aspect} not shown`, materiality: 'not_applicable', deviation: '' }
+                            : { aspect, verdict: 'matched', observation: `${aspect} seen`, materiality: 'not_applicable', deviation: '' }),
+                          unobservedConditional: [covered], recognizableCharacter: { verdict: 'same_character', observation: 'the same written child' } });
+                      });
+                    };
+                    let crGrant: Awaited<ReturnType<typeof base.recoveryGrant>>, freshApproval = '', freshPristine = '';
+                    beforeAll(async () => {
+                      sdk.create.mockReset(); vi.stubGlobal('fetch', vi.fn(() => { throw Error('no network in the recovery rehearsal'); }));
+                      rmSync(base.root, { recursive: true, force: true }); cpSync(pristine, base.root, { recursive: true }); base.setHead('5'.repeat(40)); base.setClean(true);
+                      // The child recovery runs once and its corrected child still hides the hands: its own terminal hold.
+                      crGrant = await base.recoveryGrant();
+                      judges({ corrected: 'hidden' });
+                      expect(await runFreshBookChildRecovery(crGrant)).toMatchObject({ status: 'child_reference_held', disposition: 'held_uncertain' });
+                      expect(json(path.join(base.authority, CRL.outcomeName))).toMatchObject({ status: 'held_child_recovery', disposition: 'held_uncertain' });
+                      vi.restoreAllMocks(); vi.unstubAllGlobals();
+                      // A NEW reviewed head for the fresh anchor and the owner's record.
+                      base.setHead(FRESH_HEAD);
+                      freshApproval = path.join(base.root, 'OWNER-CHILD-FRESH-ANCHOR.txt');
+                      writeFileSync(freshApproval, `Synthetic owner record (test only).\n${CFL.approvalLine}\n`);
+                      freshPristine = `${base.root}-fresh-pristine`; cpSync(base.root, freshPristine, { recursive: true });
+                    }, 1_200_000);
+                    afterAll(() => { if (freshPristine) rmSync(freshPristine, { recursive: true, force: true }); });
+                    /** The held recovery exactly as built (every byte), at the fresh anchor's reviewed head, clean. */
+                    const restore = (still = owned()) => { still(); rmSync(base.root, { recursive: true, force: true }); cpSync(freshPristine, base.root, { recursive: true });
+                      base.setHead(FRESH_HEAD); base.setClean(true); return base; };
+                    const freshGrant = async (s: typeof base, name = 'child-fresh-anchor-grant.json') => {
+                      const gr = (await planFreshBookChildFreshAnchor(s.config, s.env, crGrant.grantFile, freshApproval)).grantDraft, file = path.join(s.root, name);
+                      writeFileSync(file, JSON.stringify(gr)); return { ...s.original, grantFile: file, grantSha: sha(readFileSync(file)) }; };
+                    const frozenHeldRecovery = (s: typeof base) => ({ ...s.frozenHeldChild(), recovery: tree(crDir(s)), recoveryGrant: sha(readFileSync(crGrant.grantFile)),
+                      freshApproval: sha(readFileSync(freshApproval)), ...Object.fromEntries([CRL.claimName, CRL.outcomeName].map(n => [n, sha(readFileSync(path.join(s.authority, n)))])) });
+                    const renders = () => vi.mocked(images.generateGPTImage).mock.calls;
+                    const reviewTexts = () => sdk.create.mock.calls.map(c => JSON.parse((c[0] as any).input[0].content[0].text));
+
+                    it('positive: the recovery\'s hold re-derives; ONE fresh LOW render under pose v2 from the technique files and its TWO reviews bound to the v2 context pass; successor; the book on its own line', async () => {
+                      const s = restore(), before = frozenHeldRecovery(s), fa = await freshGrant(s), crd = crDir(s);
+                      const planned = await planFreshBookChildFreshAnchor(s.config, s.env, crGrant.grantFile, freshApproval), g = planned.grantDraft;
+                      expect(g.recovery).toEqual({ grantFile: crGrant.grantFile, grantSha256: crGrant.grantSha, claimSha256: sha(readFileSync(path.join(s.authority, CRL.claimName))),
+                        outcomeSha256: sha(readFileSync(path.join(s.authority, CRL.outcomeName))), folderSha256: sha(canonicalJson(folderBaseline(crd))),
+                        sealSha256: sha(readFileSync(path.join(crd, 'sealed.json'))), candidateSha256: json(path.join(crd, 'paid-stages', 'reference_child_repair.receipt.json')).candidate.imageSha,
+                        contextSha256: childAnchorInspectionContextSha(json(path.join(crd, 'context.json'))), recipeSha256: json(path.join(crd, 'reference_child_repair_style_review.json')).recipeSha });
+                      expect([g.presence, g.held]).toEqual([json(crGrant.grantFile).presence, json(crGrant.grantFile).held]);
+                      expect(g.fresh).toMatchObject({ pose: CHILD_ANCHOR_POSE_V2, visibilityRecovery: CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION });
+                      expect(g.fresh.contextSha256).not.toBe(g.recovery.contextSha256);
+                      const reserve = g.fresh.renderMaximumMicroUsd + renderMaximum('x'.repeat(images.GPT_IMAGE_PROMPT_MAX_CHARS * 4), 1) + 4 * 600_000;
+                      expect([g.allowance, g.ledger.calls, planned.plan.calls.reserveMicroUsd, (planned.state.budget as any).reserveMicroUsd, planned.plan.providerCalls,
+                        planned.plan.keyRead, planned.state.claimExists, planned.state.folderExists, planned.state.layoutExists])
+                        .toEqual([{ apiCalls: 6, renders: 2, reviews: 4, reviewReserveMicroUsd: 600000 }, 15, reserve, reserve, 0, false, false, false, false]);
+                      expect(() => assertChildFreshAnchorFits({ bookKnownMicroUsd: 7_000_000 - reserve, nextCapMicroUsd: 7_000_000 }, g.fresh.renderMaximumMicroUsd)).not.toThrow();
+                      expect(() => assertChildFreshAnchorFits({ bookKnownMicroUsd: 7_000_000 - reserve + 1, nextCapMicroUsd: 7_000_000 }, g.fresh.renderMaximumMicroUsd))
+                        .toThrow('fresh_book_child_fresh_anchor_budget');
+                      expect((await planFreshBookChildFreshAnchor(s.config, s.env, crGrant.grantFile, freshApproval)).grantDraft).toEqual(g);
+                      freshJudges({ fresh: 'pass' });
+                      expect(await runFreshBookChildFreshAnchor(fa)).toMatchObject({ status: 'child_reference_passed' });
+                      // Exactly ONE fresh render (style mode, the pinned technique files, the v2 request) and its TWO reviews bound to the v2 context.
+                      const dir = cfDir(s);
+                      expect([renders().length, sdk.create.mock.calls.length, claims(path.join(dir, 'paid-stages'))])
+                        .toEqual([1, 2, ['reference_child', 'reference_child_qa', 'reference_child_style_qa']]);
+                      expect(renders()[0][0]).toMatchObject({ referenceMode: 'style', quality: 'low', size: '1024x1024', modelOverride: 'gpt-image-2' });
+                      expect(renders()[0][0].exactReferenceBytes!.map(b => sha(b))).toEqual(CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(e => e.sha256));
+                      expect([CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_EYE_SCALE_CLAUSE, CHILD_ANCHOR_PRODUCTION_POSE_LINE].map(c => renders()[0][0].finalPrompt.includes(c)))
+                        .toEqual([true, true, false]);
+                      expect(reviewTexts().map(t => t.contextSha)).toEqual([g.fresh.contextSha256, g.fresh.contextSha256]);
+                      expect(reviewTexts()[1].context.view.poseContract).toMatchObject({ version: CHILD_ANCHOR_POSE_V2, eyeScaleClause: CHILD_ANCHOR_EYE_SCALE_CLAUSE });
+                      expect((sdk.create.mock.calls[1][0] as any).text.format.name).toBe('child_anchor_design_materiality_pose_v2');
+                      // The durable records.
+                      expect(json(path.join(dir, CHILD_FRESH_ANCHOR_ADMISSION_FILE))).toMatchObject({ version: CFL.version, grantSha256: fa.grantSha, recovery: g.recovery, fresh: g.fresh });
+                      expect(json(path.join(dir, 'reference_child_design_review.json')).unobservedConditional).toEqual([expect.objectContaining({ condition: 'covered_by_declared_wardrobe' })]);
+                      expect(json(path.join(dir, 'sealed.json'))).toMatchObject({ status: 'child_reference_passed', contextSha: g.fresh.contextSha256,
+                        childAnchor: CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorPose: CHILD_ANCHOR_POSE_V2, runtimeEligible: false });
+                      expect(json(path.join(s.config.bookDir, 'book-layout.json'))).toMatchObject({ storyboardDir: PRL.folder, childDir: CFL.folder, childImage: 'reference_child.png',
+                        childAnchor: CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorPose: CHILD_ANCHOR_POSE_V2 });
+                      expect(json(path.join(s.authority, CFL.successorName))).toMatchObject({ grantSha256: fa.grantSha, recoveryGrantSha256: crGrant.grantSha,
+                        presenceGrantSha256: s.g.grantSha, pose: CHILD_ANCHOR_POSE_V2, contextSha256: g.fresh.contextSha256, corrected: false });
+                      expect(frozenHeldRecovery(s)).toEqual(before);
+                      // Once only; the recovery line's own downstream stays closed.
+                      await expect(runFreshBookChildFreshAnchor(fa)).rejects.toThrow(/fresh_book_child_fresh_anchor_(used|grant)|fresh_book_roots_changed/);
+                      await expect(runFreshBookChildFreshAnchor(await freshGrant(s, 'relabelled.json'))).rejects.toThrow(/fresh_book_child_fresh_anchor_(used|grant)/);
+                      expect(renders().length).toBe(1);
+                      await expect(runFreshBookBook({ ...crGrant, childRecovery: true })).rejects.toThrow(/fresh_book_(stage_not_passed|child_recovery_grant|source_changed)/);
+                      // The book on the fresh-anchor line: its own ledger, layout, claim and outcome.
+                      const book = await runFreshBookBook({ ...fa, childFreshAnchor: true });
+                      expect(book.status).toBe('complete');
+                      expect(book.ledger.stages.map(x => [x.name, x.calls]).slice(-4)).toEqual([['child', 3], [CRL.folder, 3], [CFL.folder, 3], ['audition', expect.any(Number)]]);
+                      expect(json(path.join(s.config.bookDir, 'audition.grant.json'))).toMatchObject({ scope: { recovery: 'stage-recovery/v1' },
+                        experiment: { claimSha256: sha(readFileSync(path.join(s.authority, CFL.claimName))) } });
+                      expect(json(path.join(s.authority, CFL.outcomeName)).status).toBe('complete');
+                      expect(frozenHeldRecovery(s)).toEqual(before);
+                    }, 1_200_000);
+
+                    it('a typed-visibility hold (hands unreadable) gets the stage\'s ONE pose-aware correction under v2 and its two reviews; the corrected child passes; the book admits it', async () => {
+                      const s = restore(), before = frozenHeldRecovery(s), fa = await freshGrant(s), g = json(fa.grantFile);
+                      freshJudges({ fresh: 'hands', corrected: 'pass' });
+                      expect(await runFreshBookChildFreshAnchor(fa)).toMatchObject({ status: 'child_reference_passed' });
+                      const dir = cfDir(s), first = json(path.join(dir, 'paid-stages', 'reference_child.receipt.json')).candidate.imageSha;
+                      expect([renders().length, sdk.create.mock.calls.length, claims(path.join(dir, 'paid-stages'))]).toEqual([2, 4,
+                        ['reference_child', 'reference_child_qa', 'reference_child_repair', 'reference_child_repair_qa', 'reference_child_repair_style_qa', 'reference_child_style_qa']]);
+                      expect(renders()[1][0]).toMatchObject({ referenceMode: 'book_design', referenceRoles: ['rejected_edit_target'], quality: 'low', modelOverride: 'gpt-image-2' });
+                      expect(renders()[1][0].exactReferenceBytes!.map(b => sha(b))).toEqual([first]);
+                      expect([childAnchorVisibilityCorrection('hands'), CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_EYE_SCALE_CLAUSE, JUDGE_TEXT]
+                        .map(c => renders()[1][0].finalPrompt.includes(c))).toEqual([true, true, true, false]);
+                      expect(json(path.join(dir, 'reference_child_correction_input.json'))).toEqual({ candidate: { imageName: 'reference_child.png', imageSha: first },
+                        corrections: [childAnchorVisibilityCorrection('hands')], recovery: { version: CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, pose: CHILD_ANCHOR_POSE_V2, aspects: ['hands'] },
+                        authority: 'rejected_edit_input_only_not_canonical' });
+                      expect(reviewTexts().map(t => t.contextSha)).toEqual(Array(4).fill(g.fresh.contextSha256));
+                      expect(json(path.join(s.config.bookDir, 'book-layout.json'))).toMatchObject({ childDir: CFL.folder, childImage: 'reference_child_repair.png', childAnchorPose: CHILD_ANCHOR_POSE_V2 });
+                      expect(json(path.join(s.authority, CFL.successorName))).toMatchObject({ corrected: true, visibility: ['hands'] });
+                      const book = await runFreshBookBook({ ...fa, childFreshAnchor: true });
+                      expect(book.status).toBe('complete');
+                      expect(book.ledger.stages.map(x => [x.name, x.calls]).slice(-2)).toEqual([[CFL.folder, 6], ['audition', expect.any(Number)]]);
+                      expect(frozenHeldRecovery(s)).toEqual(before);
+                    }, 1_200_000);
+
+                    it('held: an unreadable face (never corrected), a correction that still hides the hands, a known-defect correction still held, or an unassessable style ends the line with its own record; no layout, successor or book', async () => {
+                      const still = owned();
+                      const cases = [['face', { fresh: 'face' }, [1, 2]], ['hidden', { fresh: 'hands', corrected: 'hidden' }, [2, 4]],
+                        ['smile', { fresh: 'smile', corrected: 'hidden' }, [2, 4]], ['unassessable', { style: ['unassessable'] }, [1, 1]]] as const;
+                      for (const [kind, mode, calls] of cases) {
+                        const s = restore(still), before = frozenHeldRecovery(s), fa = await freshGrant(s);
+                        still();
+                        freshJudges(mode as Parameters<typeof freshJudges>[0]);
+                        expect(await runFreshBookChildFreshAnchor(fa), kind).toMatchObject({ status: 'child_reference_held', disposition: 'held_uncertain' });
+                        expect([kind, renders().length, sdk.create.mock.calls.length]).toEqual([kind, ...calls]);
+                        expect(json(path.join(s.authority, CFL.outcomeName))).toMatchObject({ status: CFL.ownHeldOutcome, disposition: 'held_uncertain' });
+                        expect(json(cfDir(s, 'sealed.json'))).toMatchObject({ status: 'child_reference_held', childAnchorPose: CHILD_ANCHOR_POSE_V2, runtimeEligible: false });
+                        if (kind === 'smile') expect(json(cfDir(s, 'reference_child_correction_input.json'))).toEqual({ candidate: expect.any(Object),
+                          corrections: ['scene: relax the mouth corners into a neutral rest'], authority: 'rejected_edit_input_only_not_canonical' });
+                        expect([path.join(s.config.bookDir, 'book-layout.json'), path.join(s.authority, CFL.successorName), cfDir(s, 'reference_child_adoption.json')]
+                          .map(p => existsSync(p))).toEqual([false, false, false]);
+                        await expect(runFreshBookChildFreshAnchor(fa)).rejects.toThrow('fresh_book_child_fresh_anchor_used');
+                        await expect(runFreshBookBook({ ...fa, childFreshAnchor: true })).rejects.toThrow('fresh_book_stage_not_passed');
+                        expect([renders().length, existsSync(path.join(s.config.bookDir, 'audition'))]).toEqual([calls[0], false]);
+                        expect(frozenHeldRecovery(s)).toEqual(before);
+                        vi.restoreAllMocks();
+                      }
+                    }, 1_200_000);
+
+                    it('immutable inputs: the owner record, the recovery\'s grant, claim, terminal record and folder, the presence chain, the held child, the grant, the head or the tree refuse BEFORE the claim or any call', async () => {
+                      const regrant = <G extends { grantFile: string }>(gr: G) => ({ ...gr, grantSha: sha(readFileSync(gr.grantFile)) });
+                      type Case = (s: typeof base) => Promise<{ grant: Awaited<ReturnType<typeof freshGrant>>; expect: RegExp }>;
+                      const cases: Record<string, Case> = {
+                        'owner record changed': async s => { const gr = await freshGrant(s); writeFileSync(freshApproval, readFileSync(freshApproval, 'utf8') + ' ');
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_approval/ }; },
+                        'recovery terminal record changed': async s => { const gr = await freshGrant(s); edit(path.join(s.authority, CRL.outcomeName), o => { o.disposition = 'repair'; });
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_recovery/ }; },
+                        'recovery claim changed': async s => { const gr = await freshGrant(s); edit(path.join(s.authority, CRL.claimName), c => { c.claimedAt = '2026-10-21T00:00:00.000Z'; });
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_(grant|recovery)/ }; },
+                        'recovery saved review changed': async s => { const gr = await freshGrant(s);
+                          edit(path.join(crDir(s), 'reference_child_repair_design_review.json'), r => { r.visibleEvidence[0].observation += ' (reworded)'; });
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_recovery/ }; },
+                        'recovery paid answer changed': async s => { const gr = await freshGrant(s);
+                          edit(path.join(crDir(s), 'paid-stages', 'reference_child_repair_qa.receipt.json'), r => { const a = JSON.parse(r.raw.output_text);
+                            a.visibleEvidence.find((e: any) => e.aspect === 'hands').observation = 'the hands partly seen'; r.raw.output_text = JSON.stringify(a); });
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_recovery|child_anchor_/ }; },
+                        'recovery corrected image changed': async s => { const gr = await freshGrant(s);
+                          writeFileSync(path.join(crDir(s), 'illustrations', 'reference_child_repair.png'), await png(203, 1024));
+                          return { grant: gr, expect: /child_anchor_render_binding|fresh_book_child_fresh_anchor_recovery/ }; },
+                        'recovery seal changed': async s => { const gr = await freshGrant(s); edit(path.join(crDir(s), 'sealed.json'), x => { x.disposition = 'repair'; });
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_recovery/ }; },
+                        'a recovery successor appeared': async s => { const gr = await freshGrant(s); writeFileSync(path.join(s.authority, CRL.successorName), '{}');
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_recovery/ }; },
+                        'consumed recovery grant bytes changed': async s => { const gr = await freshGrant(s); writeFileSync(crGrant.grantFile, readFileSync(crGrant.grantFile, 'utf8') + ' ');
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_recovery/ }; },
+                        'held child saved review changed': async s => { const gr = await freshGrant(s);
+                          edit(heldChildDir(s, 'reference_child_design_review.json'), r => { r.visibleEvidence[5].observation += ' (reworded)'; });
+                          return { grant: gr, expect: /fresh_book_child_recovery_presence/ }; },
+                        'presence successor record changed': async s => { const gr = await freshGrant(s); edit(path.join(s.authority, PRL.successorName), x => { x.notes = 0; });
+                          return { grant: gr, expect: /fresh_book_storyboard_presence_successor/ }; },
+                        'grant rebinds the fresh context': async s => { const gr = await freshGrant(s); edit(gr.grantFile, x => { x.fresh.contextSha256 = 'c'.repeat(64); });
+                          return { grant: regrant(gr), expect: /fresh_book_child_fresh_anchor_grant/ }; },
+                        'grant widens the allowance': async s => { const gr = await freshGrant(s); edit(gr.grantFile, x => { x.allowance.apiCalls = 9; });
+                          return { grant: regrant(gr), expect: /fresh_book_child_fresh_anchor_grant/ }; },
+                        'grant lowers the ledger': async s => { const gr = await freshGrant(s); edit(gr.grantFile, x => { x.ledger.bookKnownMicroUsd -= 1; });
+                          return { grant: regrant(gr), expect: /fresh_book_child_fresh_anchor_grant/ }; },
+                        'a fresh folder already present': async s => { const gr = await freshGrant(s); mkdirSync(cfDir(s));
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_used/ }; },
+                        'head moved after the grant': async s => { const gr = await freshGrant(s); s.setHead('7'.repeat(40));
+                          return { grant: gr, expect: /fresh_book_child_fresh_anchor_grant|fresh_book_source_changed/ }; },
+                        'dirty tree': async s => { const gr = await freshGrant(s); s.setClean(false); return { grant: gr, expect: /fresh_book_source_changed/ }; },
+                      };
+                      const still = owned();
+                      for (const [name, mutate] of Object.entries(cases)) {
+                        const s = restore(still); freshJudges({ fresh: 'pass' });
+                        let c: Awaited<ReturnType<Case>>;
+                        try { c = await mutate(s); } catch (e) { throw new Error(`${name}: ${e}`); }
+                        still();
+                        await expect(runFreshBookChildFreshAnchor(c.grant), name).rejects.toThrow(c.expect);
+                        expect([name, existsSync(path.join(s.authority, CFL.claimName)), existsSync(cfDir(s, 'paid-stages')), renders().length, sdk.create.mock.calls.length])
+                          .toEqual([name, false, false, 0, 0]);
+                        vi.restoreAllMocks();
+                      }
+                      // The plan needs the owner's fresh-anchor record by absolute path, with its verbatim line, and the consumed recovery grant.
+                      const s = restore(still);
+                      await expect(planFreshBookChildFreshAnchor(s.config, s.env, crGrant.grantFile, s.approval)).rejects.toThrow('fresh_book_child_fresh_anchor_approval');
+                      await expect(planFreshBookChildFreshAnchor(s.config, s.env, crGrant.grantFile, 'OWNER-CHILD-FRESH-ANCHOR.txt')).rejects.toThrow('fresh_book_child_fresh_anchor_approval');
+                      await expect(planFreshBookChildFreshAnchor(s.config, s.env, s.g.grantFile, freshApproval)).rejects.toThrow('fresh_book_child_fresh_anchor_recovery');
+                    }, 1_800_000);
+
+                    it('a changed fresh child (its adoption, review record, correction record, context, spend, an extra file or the layout) refuses the book BEFORE the audition', async () => {
+                      const kinds: Record<string, [Parameters<typeof freshJudges>[0], (s: typeof base) => void | Promise<void>]> = {
+                        adoption: [{ fresh: 'pass' }, s => edit(cfDir(s, 'reference_child_adoption.json'), a => { a.authority = 'owner_override'; })],
+                        review_record: [{ fresh: 'pass' }, s => edit(cfDir(s, 'reference_child_design_review.json'), r => { r.visibleEvidence[0].observation += ' (reworded)'; })],
+                        correction_input: [{ fresh: 'hands', corrected: 'pass' }, s => edit(cfDir(s, 'reference_child_correction_input.json'), c => { c.corrections.push('identity: redraw the child'); })],
+                        context: [{ fresh: 'pass' }, s => edit(cfDir(s, 'context.json'), c => { c.design.wardrobe += ' and a scarf'; })],
+                        spend: [{ fresh: 'pass' }, s => edit(cfDir(s, 'spend.json'), x => { x.newKnownApiMicroUsd -= 1; })],
+                        extra_file: [{ fresh: 'pass' }, s => writeFileSync(cfDir(s, 'notes.json'), '{}')],
+                        layout: [{ fresh: 'pass' }, s => edit(path.join(s.config.bookDir, 'book-layout.json'), l => { l.childAnchorPose = CHILD_ANCHOR_POSE_VERSION; })],
+                      };
+                      const still = owned();
+                      for (const [kind, [mode, tamper]] of Object.entries(kinds)) {
+                        const s = restore(still), fa = await freshGrant(s); freshJudges(mode);
+                        still();
+                        expect((await runFreshBookChildFreshAnchor(fa)).status, kind).toBe('child_reference_passed');
+                        still();
+                        await tamper(s);
+                        const before = renders().length;
+                        await expect(runFreshBookBook({ ...fa, childFreshAnchor: true }), kind).rejects.toThrow(/fresh_book_child_fresh_anchor_successor|fresh_book_layout/);
+                        expect([kind, renders().length - before, existsSync(path.join(s.config.bookDir, 'audition')),
+                          existsSync(path.join(s.config.bookDir, 'audition.grant.json'))]).toEqual([kind, 0, false, false]);
+                        vi.restoreAllMocks();
+                      }
+                    }, 1_800_000);
+                  });
                 });
               });
             });
