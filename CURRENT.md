@@ -1,5 +1,136 @@
 # SmallHeroes — Current Technical State
 
+## The fresh child PASSED; the book halted on ONE page review without a receipt; the owner-approved same-book recovery built offline (bf830e5d, test c12a5e9c), for Codex QA; the book is NOT done (2026-10-22)
+
+**What happened since 95202726.**
+- Codex PASSed 337ca6c2..95202726 and the fresh-anchor grant 24c0db81… (pinned to 95202726; consumed; never re-pinned).
+- The ONE fresh anchor ran (3 calls, 65944 microUSD, no correction): child 5393eb77… passed under pose v2 (context 24533436…).
+  - One cosmetic eyebrow deviation is retained.
+  - Hair matched directly and `unobservedConditional` is empty, so this success does not empirically validate the new
+    covered-by-wardrobe classification (its offline contract checks are separate).
+- The book ran on the fresh-anchor line (16 audition claims: 15 known, 690946 microUSD, and 1 unknown):
+  - Both sheets were held with continuity findings (`diagnostic_candidate`, not `approved_reference`). The page contexts carry their
+    known flaws.
+  - Page 1 is `qa_supported` at its second attempt (identity 0.9999… against 0.70). Its framing finding is at impact `detail`: the
+    child fills 59% of the image height where the plan says 25%. That is a substantial numeric composition deviation, not proof that it
+    is visually trivial. Guy's product acceptance is separate.
+  - Page 2's first drawing exists. Its review (`page_2_0_qa`, seq 15, wire fb313c8e…, maximum 600000) ended at the 300 s client
+    deadline: `completed:false`, `estimatedMicroUsd:null`, failure "Request timed out.", no receipt. The meter refused the next claim
+    (`audition_unknown_cost`, native exit 1); no line outcome was written.
+  - This verifies a client timeout with no answer or usage in the journal. It does not establish a provider-side error, a quota, a
+    network stall, or whether the provider billed the call.
+- Codex's outcome QA verified this (`CODEX-FRESH-ANCHOR-BOOK-OUTCOME-QA-20261021.txt`) and found **RSM-1 (P2, latent)**: a plain resume
+  loads only saved `page_N.json` records, so it would have restarted page 2 at `r1_page_2_0` with three new attempts on top of the spent one.
+- **Corrections of my earlier report.**
+  - I wrote that a plain resume would count page 2's spent attempt. It would not (RSM-1 above).
+  - Held sheets keep the manifest `held_audition_with_findings`, so the driver reports `partial` even if every page and the cover pass.
+    Full artifact coverage is not full QA qualification.
+  - The previous entry's "this is not the change" about the serial `new-book-experiment` timeout was too strong. The isolated timings
+    and the sibling A/B support a machine/timing contribution; they do not prove it is the exclusive cause.
+- Guy approved Codex's proposal directly (`OWNER-APPROVAL-SAME-BOOK-TIMEOUT-RECOVERY-20261021.txt`, dc6ab037…): ONE conservative
+  budget debit of $0.60 while the actual cost stays unknown, the engine fix and QA, then the SAME book to the illustrations, the cover
+  and the viewer within the remaining caps and attempts.
+
+**The engine change (general; the money part opt-in).**
+- **`audition-conservative-debit/v1`** (opt-in, owner-approved, never a default):
+  - it binds exactly ONE journaled call that ended without a receipt: its step, sequence, wire digest and claim maximum, and the bytes
+    of its claim, result and failure records (`conservativeDebitOf` derives it from those records only);
+  - the meter counts the debit (= the claim maximum) against the cap in place of the unknown and reports it apart from known spend
+    (`conservativeDebitMicroUsd`, `conservativeDebitCalls`, `actualChargeUnknownCalls`); the actual cost stays `unknown`;
+  - a debit that does not bind its record exactly refuses (another sequence, wire, maximum, record bytes; a known cost; a receipt; a
+    missing record; a repeat). Any OTHER unknown cost or outcome still stops the meter. Absent, every snapshot is unchanged;
+  - `audition_meter_debit` is now a fatal audition code. Found while writing the checkpoint tests: without it, a debit that stops binding
+    mid-run became an `unavailable` attempt (the runner's own resume record already stopped the real path first);
+  - the cycle ledger takes a stage's debits (opt-in): counted inside the book subcap and the cycle ceiling, reported apart
+    (`bookBudgetAccountedMicroUsd`, `cycleKnownMicroUsd`). Absent, the ledger's shape is unchanged.
+- **RSM-1 (every resume; not opt-in).**
+  - For every sheet or page without a saved record, the runner reconstructs its paid attempts from the meter's bound journal
+    (`interruptedAttempts`): each journaled render of that image, under any run prefix, is one spent attempt, numbered 0..k-1 without a
+    gap or a repeat; a completed render's candidate is bound by its own bytes.
+  - They come back CLOSED (`unavailable`, `audition_attempt_interrupted`): counted against the same ceiling, kept as records, never
+    re-judged, selected or used for a correction. The next attempt continues at k (page 2 here: `r1_page_2_1`, so at most attempts 1
+    and 2).
+  - A saved image with closed attempts, or closed attempts that are not exactly the reconstruction, refuses. A resume with nothing
+    interrupted is unchanged (its resume record has no `interrupted` field).
+  - Known limit (conservative): an attempt whose review did arrive but whose image never got a saved record is closed too; its review
+    is not re-used.
+  - It changes one older flow by design: an interrupted scale comparison (one attempt per page) can no longer redraw its spent page on
+    resume (`new-book-experiment.spec.ts`, updated in c12a5e9c).
+- **The pixel review's client deadline: 600 s** (was 300 s), still `maxRetries: 0`, with the same model, tier, output cap, schema and
+  request. A deadline is not a success guarantee: a call it ends has no receipt, so its cost is unknown and the meter stops. Sheet and
+  page reviews share this seam; this book's sheets are complete.
+
+**The line: `fresh-book-audition-continuation/v1`.**
+- Its own claim and outcome. Its grant binds:
+  - the owner's record;
+  - the consumed fresh-anchor line: its grant (file and digest, never edited), its claim, the fresh child's successor, the audition
+    start, the candidate, its pose context, the storyboard and the layout;
+  - the halted audition: its grant, its admission, every file by digest, 16 calls and 690946 known, the saved sheets and page 1, and the
+    closed attempts `{ pages: { 2: 1 } }`;
+  - the ONE debit, the ledger, the new head and the presence line's 40 pins.
+- Admission re-derives all of it before the claim:
+  - the fresh-anchor grant, re-planned equal except its own head and pins; its claim fields and owner record; the fresh child's
+    successor;
+  - the audition start and grant; every journal record under its rules; exactly ONE unknown cost, its debit derived from its own
+    records; nothing else unknown; no repeated failure; no resume or finish files.
+- Then ONE claim and the native audition resumed (`resume: true`) with that ONE debit, under the line's guard before every paid call (the
+  frozen grants and owner records, the roots, the clean head and pins).
+- At the end: `book-status-continuation.json` and its outcome. A failure (a new unknown included) writes `failed_audition_continuation`
+  and ends the line.
+- CLI: `audition-continuation-plan --fresh-grant … --owner-approval …` (dry) and `audition-continuation --execute --grant … --grant-sha …`
+  (no line flag, no `--resume`).
+
+**Real book, read only (dry plan; no key, provider or write).**
+- The consumed fresh-anchor line re-derives: grant 24c0db81…, claim 67ac4d92…, the fresh child's successor 514c1fcb…, audition start
+  e51b04e3…; child 5393eb77…, storyboard a2cfdeb2…, layout c0044e73….
+- The halted audition: grant 2822e252…, admission 372b3335…, folder a2bf3fe4…; saved: both sheets and page 1; closed: page 2, attempt 0
+  (its drawn candidate kept).
+- The ONE debit: `page_2_0_qa`, seq 15, wire fb313c8e…, maximum and debit 600000; claim 8654cf39…, result ac5d038c…, failure 93504107….
+- Ledger: 34 calls (33 known, 1 debited). The audition meter: cap 7000000; 714362 prior + 690946 known + 600000 debit = 2005308.
+
+**Tests.**
+- Focused: the RSM-1 describe 7/7, including every checkpoint of an attempt (a render without a receipt, a held attempt then an
+  interrupted review, a call killed before its result never debited); the debit describe 3/3; the review-deadline seam 1/1; the ledger
+  10/10 (1 new).
+- The continuation describe on fake providers: 4/4 in the serial run.
+  - The halt; the positive continuation (first new claim `r1_page_2_1`, every review at 600 s, the halted records byte-identical, the
+    debit reported apart, once only); a new unknown stops it with `failed_audition_continuation`; 16 immutable inputs and 3 plan
+    refusals, all before any claim.
+  - Its first (development) run had 1 failure, `fresh_book_source_changed`: I edited a pinned file during that test, and the line's guard
+    stopped before the next paid call. Not a defect; the serial run is the evidence.
+- Mutation checks: 14/14 killed (the fatal debit code; reopened page or sheet attempts; closed attempts with another error; saved and
+  closed at once; journal gaps; a 300 s deadline; a literal at the seam; the failure-record bytes; the debit outside the cap; the ledger
+  cap; a debit without records; the runner without the reconstruction, end to end and on the comparison).
+- The serial run of the 23 affected spec files at bf830e5d (sources unchanged during the run): 697 passed, 6 failed, 59 skipped by the
+  focus. `fresh-book-recovery` was focused on the fresh-anchor line and the new continuation (9/9), not its whole 2.4-hour file.
+  - `new-book-experiment:719` failed because its old expectation relied on the reset RSM-1 removes. Updated in c12a5e9c: the resume is
+    refused before any claim; it passes alone (53.7 s), and the runner-reconstruction mutant kills it.
+  - Four tests exceeded their time limits: `new-book-experiment:800` (62.7 s of 60 s), `:823` (61.5 s of 60 s), `:1056` (5.26 s of 5 s)
+    and `child-anchor-inspection` "materiality round 2" (5.08 s of 5 s). Each passes alone (52.5 s, 52.7 s, 3.8 s, 4.1 s).
+  - At aa209b04 the same three experiment tests took 58.2 s, 56.8 s and 4.8 s. This time the whole file ran 15% slower while another
+    session's 4-worker suite was running. That supports a machine-load contribution; it does not prove the exclusive cause.
+  - `fresh-book-driver:152` is the same stale real-data check as before.
+- The older describes of `fresh-book-recovery` were not re-run (2.4 h; Codex's proposal: no hour-long campaign). They contain no audition
+  resume; this change reaches them only through the ledger's no-debit path, the extra authority roots and the client option, which
+  `fresh-book-driver` and the focused describes also run.
+- nonincremental tsc: 0. The full check stays RED.
+
+**Money.**
+- API, book: 1405308 known (33 known calls) and 1 call of unknown cost. With the ONE conservative debit (600000), the book's
+  budget-accounted total is 2005308 of 7000000 (4994692 left). This is NOT an invoice total; that call's actual charge stays unknown.
+- Cycle: 1534238 known (including the consumed diagnostic 128930); 2134238 accounted with the debit, of 8000000.
+- Claude Max for the book: 5502244 in 8 sessions. It is separate: never 0, not an invoice. Engineering Max for this work is unmeasured,
+  not 0.
+- This milestone: 0 paid calls and 0 Max sessions.
+
+**Next.**
+1. Codex QA of 95202726..this docs commit (code bf830e5d, test c12a5e9c) and the staged one-use continuation grant pinned to this docs
+   commit.
+2. After a PASS and a fresh preflight: `audition-continuation --execute`. Page 2 continues at attempt 1 (at most attempts 1 and 2) and
+   must pass before the cover and pages 3–8 (LOW, Sol 6.1, gpt-4o 0.70, the existing diagnosis after two holds).
+3. The cover-first viewer and the QA, cost and engine reports. With both sheets held, the result is at best `partial` (full artifacts,
+   findings kept), never relabelled.
+
 ## The ONE child recovery held (the hat over the crown, the eye scale); pose v2 and the ONE fresh-anchor line built offline (aa209b04), for Codex QA; the book is NOT done (2026-10-21)
 
 **What happened since 337ca6c2.**

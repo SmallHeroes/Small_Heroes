@@ -1,5 +1,28 @@
 # SmallHeroes — Roadmap
 
+## The fresh child PASSED; the book halted on ONE page review without a receipt; the same-book recovery built offline (bf830e5d, test c12a5e9c); next: Codex QA, then the SAME audition to the end (2026-10-22)
+
+- **What happened.** Codex PASSed the fresh-anchor line. The ONE fresh anchor passed (65944 microUSD). The book drew both sheets (held,
+  diagnostic) and page 1 (supported at its second attempt). Page 2's first review ended at the 300 s client deadline with no receipt, so
+  the meter stopped (unknown cost). Codex verified it and found RSM-1: a plain resume would have given page 2 three new attempts.
+- **Guy approved Codex's proposal** ("מאשר את הצעת Codex: זקיפה שמרנית של $0.60 …").
+- **Built (offline):**
+  - `audition-conservative-debit/v1` (opt-in): ONE receipt-less call counted at its claim maximum (600000) against both caps, apart
+    from known spend; its actual cost stays unknown; any other unknown still stops; `audition_meter_debit` is fatal.
+  - RSM-1 (every resume): the paid attempts of an image without a saved record come back closed from the journal and count; page 2
+    continues at attempt 1 (at most attempts 1 and 2).
+  - The pixel review's deadline: 600 s, no retries, the same request.
+  - The ONE line `fresh-book-audition-continuation/v1`, bound to the whole consumed lineage (24c0db81 never re-pinned).
+- **Real book (read only):** the debit binds `page_2_0_qa` (seq 15, wire fb313c8e…); known 1405308 + debit 600000 = 2005308 of 7000000.
+- **Tests:** RSM-1 7/7, debit 3/3, deadline seam 1/1, ledger 10/10, the continuation end to end 4/4; mutants 14/14 killed; the 23 affected
+  files at bf830e5d 697 passed / 6 failed / 59 skipped by the focus. One failure was an older comparison test that relied on the reset
+  RSM-1 removes (updated in c12a5e9c). Four were time-limit overruns that pass alone. One is the known stale real-data check. tsc 0. The
+  full check stays RED.
+- **Corrections:** a plain resume would not have counted page 2's attempt; held sheets make the result `partial` even with every page
+  passed; the earlier timing A/B supports a machine contribution, not an exclusive cause.
+- **Next:** Codex QA → a fresh preflight → the continuation: page 2 (attempts 1–2), then the cover and pages 3–8 → the cover-first viewer
+  and the reports. A new unknown, exhausted attempts or a held sample: an honest stop.
+
 ## The ONE child recovery held (hat over the crown, eye scale); pose v2 + the ONE fresh-anchor line built offline (aa209b04); next: Codex QA, then the fresh anchor and the book (2026-10-21)
 
 - **What happened.** Codex PASSed the child recovery. The ONE edit ran (61318 microUSD): the hands are now visible, but the child was held
