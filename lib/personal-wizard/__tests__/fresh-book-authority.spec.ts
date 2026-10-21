@@ -5,7 +5,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { previewSha } from '../../local-story-preview';
 import { canonicalJson } from '../request-acceptance';
-import { AuditionMeter, type MeterRule } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { AuditionMeter, conservativeDebitOf, type MeterRule } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { FRESH_BOOK_CYCLE, freshBookProfileSchema, freshBookProfileSha, claimFreshBook, assertFreshBookPaid, freshBookCycleLedger,
   assertLaterPagesAllowed, freshBookReadingOrder, assertFreshBookAdmission, type FreshBookProfile, type FreshBookGrant, type FreshBookEnv }
   from '../../../scripts/personal-fresh-book-authority';
@@ -88,6 +88,34 @@ describe('cumulative cycle ledger (priced, unpriced, orphan, resume)', () => {
     writeFileSync(path.join(orphan, 'call_b.claim.json'), JSON.stringify({ step: 'call_b', seq: 0, wireDigest: previewSha(canonicalJson({ step: 'call_b' })), maximumMicroUsd: 100000 }));
     expect(() => freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [stage(s.root, 'child')] })).toThrow('fresh_book_ledger_unknown');
     expect(() => freshBookCycleLedger({ diagnosticSettledMicroUsd: 0, stages: [] })).toThrow('fresh_book_ledger_diagnostic');
+  });
+  it('ONE owner-approved conservative debit: the call without a receipt counts at its maximum against both caps, apart from known spend', async () => {
+    /** A call that ended without a receipt (a client deadline): its outcome is settled (failed), its cost unknown. */
+    const lose = async (dir: string, step: string) => {
+      mkdirSync(dir, { recursive: true });
+      const meter = new AuditionMeter(path.join(dir, 'paid-stages'), 7_000_000, 6, 0, 0, rules);
+      await meter.run(step, { step }, 100000, async () => { throw new Error('Request timed out.'); }).catch(() => {});
+    };
+    const s = setup(); await pay(path.join(s.root, 'text'), 'call_a', 30000); await lose(path.join(s.root, 'audition'), 'call_b');
+    const debit = conservativeDebitOf(path.join(s.root, 'audition', 'paid-stages'), 'call_b');
+    expect(debit).toMatchObject({ step: 'call_b', maximumMicroUsd: 100000, debitMicroUsd: 100000, actualCost: 'unknown' });
+    const l = freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [stage(s.root, 'text'), { ...stage(s.root, 'audition'), debits: [debit] }] });
+    expect(l).toMatchObject({ bookKnownMicroUsd: 30000, conservativeDebitMicroUsd: 100000, bookBudgetAccountedMicroUsd: 130000, cycleKnownMicroUsd: 89910,
+      cycleAccountedMicroUsd: 189910 });
+    expect(l.stages[1]).toEqual({ name: 'audition', knownMicroUsd: 0, calls: 1, conservativeDebitMicroUsd: 100000, actualChargeUnknownCalls: 1 });
+    // Absent: the unknown halts as before, and the ledger's shape is unchanged; a debit of a stage without records, or one that no longer binds, refuses.
+    expect(() => freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [stage(s.root, 'text'), stage(s.root, 'audition')] })).toThrow('fresh_book_ledger_unknown');
+    expect(Object.keys(freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [stage(s.root, 'text')] })).sort())
+      .toEqual(['bookKnownMicroUsd', 'cycleAccountedMicroUsd', 'diagnosticSettledMicroUsd', 'nextCapMicroUsd', 'stages']);
+    expect(() => freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [{ ...stage(s.root, 'child'), debits: [debit] }] })).toThrow('fresh_book_ledger_debit');
+    expect(() => freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [{ ...stage(s.root, 'audition'), debits: [{ ...debit, failureSha256: 'f'.repeat(64) }] }] }))
+      .toThrow('audition_meter_debit');
+    // The debit is inside the cap: known spend that fits alone no longer fits beside it.
+    const t = setup(); await pay(path.join(t.root, 'text'), 'call_a', 6_950_000); await lose(path.join(t.root, 'audition'), 'call_b');
+    expect(freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [stage(t.root, 'text')] }).bookKnownMicroUsd).toBe(6_950_000);
+    const over = conservativeDebitOf(path.join(t.root, 'audition', 'paid-stages'), 'call_b');
+    expect(() => freshBookCycleLedger({ diagnosticSettledMicroUsd: 59910, stages: [stage(t.root, 'text'), { ...stage(t.root, 'audition'), debits: [over] }] }))
+      .toThrow('fresh_book_ledger_cap');
   });
 });
 

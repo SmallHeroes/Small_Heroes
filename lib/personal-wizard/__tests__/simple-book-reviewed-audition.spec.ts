@@ -16,9 +16,9 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
   sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
-  AUDITION_SCALE_LINEUP_PAGE_SUFFIX } from '../simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
-  readReusedSheets } from '../../../scripts/personal-simple-book-reviewed-audition';
+  readReusedSheets, interruptedAttempts, conservativeDebitOf, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
 import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { canonicalJson } from '../request-acceptance';
@@ -1634,5 +1634,237 @@ describe('stage-recovery/v1 on page attempts (opt-in, inside the unchanged three
     await expect(resume({ ...page, recovery: undefined }, true)).rejects.toThrow('audition_resume_binding');
     const edited = structuredClone(page); edited.recovery.diagnoses[0].diagnosis.prompt += ' (edited)';
     await expect(resume(edited, true)).rejects.toThrow('audition_resume_binding');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// The same-audition continuation's engine (2026-10-21): an owner-approved conservative debit of ONE unknown-cost call, and RSM-1 (a paid
+// interrupted attempt survives every resume, closed and counted). Journaled through a real meter, as the halted book was.
+// ---------------------------------------------------------------------------------------------------------------
+describe('RSM-1 and the one-call conservative debit (real meter journal; synthetic providers)', () => {
+  /** A real meter around the harness's calls: each render writes its candidate file (bytes whose digest the candidate names) and receipt. */
+  const journaled = (opts: { timeoutOn?: string[]; debits?: ConservativeDebit[]; at?: { root: string; images: string } } = {}) => {
+    const dir = opts.at ? null : mkdtempSync(path.join(tmpdir(), 'audition-rsm1-'));
+    const root = opts.at?.root ?? path.join(dir!, 'paid'), images = opts.at?.images ?? path.join(dir!, 'illustrations');
+    mkdirSync(images, { recursive: true });
+    const meter = new AuditionMeter(root, 9000000, AUDITION_WORST_CASE_CALLS, 1000000, 0, undefined, opts.debits ?? []);
+    const wrap = <T>(step: string, work: () => Promise<T>) => meter.run(step, { step }, 1000, async () => {
+      // A client deadline: no answer and no receipt, so the call's cost is unknown.
+      if (opts.timeoutOn?.includes(step)) throw new Error('Request timed out.');
+      const value = await work(), render = /_[0-9]+$/.test(step);
+      if (render) writeFileSync(path.join(images, `${step}.png`), step);
+      return { value, estimatedMicroUsd: 10, receipt: render ? { candidate: value } : {} };
+    });
+    return { meter, root, images, wrap };
+  };
+  const renders = (h: ReturnType<typeof harness>) => h.args.render.mock.calls.map(c => String(c[0]));
+  const halted = async () => {
+    const run = journaled({ timeoutOn: ['page_2_0_qa'] }), h = harness({ wrap: run.wrap });
+    await expect(illustrateReviewedAudition({ ...h.args, sample: [1, 2] })).rejects.toThrow('audition_unknown_cost');
+    const resume = (interrupted?: unknown, pages: Record<number, unknown> = { 1: h.saved.get('page_1') }) => ({ designs: h.saved.get('audition_sheet_designs'),
+      sheets: { entities: h.saved.get('sheet_entities') as any, locations: h.saved.get('sheet_locations') as any }, pages: pages as any, stepPrefix: 'r1_',
+      ...(interrupted ? { interrupted: interrupted as any } : {}) });
+    return { run, h, resume };
+  };
+
+  it('the halt: page 2\'s render is paid, its review ends without a receipt (unknown cost), the meter refuses the next render; no page-2 record', async () => {
+    const { run, h, resume } = await halted();
+    // The next attempt's render was asked for and refused by the meter BEFORE any claim (no record of it exists).
+    expect(renders(h)).toEqual(['sheet_entities_0', 'sheet_locations_0', 'page_1_0', 'page_2_0', 'page_2_1']);
+    expect(readdirSync(run.root).filter(n => n.startsWith('page_2_1'))).toEqual([]);
+    expect([h.saved.has('page_1'), h.saved.has('page_2')]).toEqual([true, false]);
+    expect(run.meter.snapshot()).toMatchObject({ unknownCost: 1, unknownOutcome: 0, failed: 1, reservedUnsettledMicroUsd: 1000 });
+    expect(readdirSync(run.root).filter(n => n.startsWith('page_2_0_qa.')).sort()).toEqual(['page_2_0_qa.claim.json', 'page_2_0_qa.failure.json',
+      'page_2_0_qa.result.json', 'page_2_0_qa.wire.json']);
+    // A resume without the owner's debit is still refused before any claim: the unknown is never assumed zero.
+    const again = harness({ wrap: journaled({ at: run }).wrap });
+    await expect(illustrateReviewedAudition({ ...again.args, sample: [1, 2], resume: resume() })).rejects.toThrow('audition_unknown_cost');
+    expect(readdirSync(run.root).filter(n => n.startsWith('r1_'))).toEqual([]);
+  });
+
+  it('RSM-1: the journal gives page 2\'s paid attempt back CLOSED; the resume continues at attempt 1 (at most 1 and 2), page 1 and both sheets re-bound, never redrawn', async () => {
+    const { run, h, resume } = await halted();
+    const closed = interruptedAttempts(run.root, run.images, 'page', '2');
+    expect(closed).toEqual([{ attempt: 0, candidate: image('page_2_0'), review: null, assessment: null, status: 'unavailable', error: AUDITION_ATTEMPT_INTERRUPTED }]);
+    expect(interruptedAttempts(run.root, run.images, 'page', '1')).toHaveLength(1);  // page 1 was saved: the runner never asks for it
+    const debit = conservativeDebitOf(run.root, 'page_2_0_qa');
+    const r = harness({ wrap: journaled({ at: run, debits: [debit] }).wrap });
+    const m = await illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resume({ pages: { 2: closed } }) });
+    expect(renders(r)).toEqual(['r1_page_2_1', ...[0, 3, 4, 5, 6, 7, 8].map(n => `r1_page_${n}_0`)]);
+    expect(r.args.judge.mock.calls.map(c => String(c[0])).filter(s => /page_[12]_/.test(s))).toEqual(['r1_page_2_1_qa']);
+    const page2 = r.saved.get('page_2') as any;
+    expect([page2.attempts.length, page2.attempts[0], page2.chosen.attempt, page2.status]).toEqual([2, closed[0], 1, 'qa_supported']);
+    expect(m).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    expect(m.pages.find(p => p.pageNumber === 2)!.alternatives).toEqual([{ attempt: 0, candidate: image('page_2_0'), status: 'unavailable', counts: null,
+      identityScore: null, error: AUDITION_ATTEMPT_INTERRUPTED }]);
+    expect(r.saved.get('page_1')).toBeUndefined();  // page 1 re-bound from its saved record, not saved again
+    // The saved page 2 (with its closed attempt) re-binds on a later resume exactly as any saved page.
+    const later = harness();
+    await expect(illustrateReviewedAudition({ ...later.args, sample: [1, 2], resume: resume(undefined, { 1: h.saved.get('page_1'), 2: page2 }) }))
+      .resolves.toMatchObject({ status: 'qa_supported_audition' });
+    expect(renders(later).filter(s => /page_[12]_/.test(s))).toEqual([]);
+  });
+
+  it('RSM-1: repeated resumes keep the ceiling (attempts numbered across prefixes); three spent leave none: nothing is drawn for that page', async () => {
+    const { resume } = await halted();
+    const c = (attempt: number): AuditionAttempt => ({ attempt, candidate: image(`page_2_${attempt}`), review: null, assessment: null, status: 'unavailable',
+      error: AUDITION_ATTEMPT_INTERRUPTED });
+    const two = harness({ judge: step => step.includes('page_2_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } } : {} });
+    await illustrateReviewedAudition({ ...two.args, sample: [1, 2], resume: { ...resume({ pages: { 2: [c(0), c(1)] } }), stepPrefix: 'r2_' } });
+    expect(renders(two).filter(s => s.includes('page_2_'))).toEqual(['r2_page_2_2']);
+    const none = harness();
+    await expect(illustrateReviewedAudition({ ...none.args, sample: [1, 2], resume: { ...resume({ pages: { 2: [c(0), c(1), c(2)] } }), stepPrefix: 'r3_' } }))
+      .rejects.toThrow('audition_page_2_unavailable');
+    expect(renders(none)).toEqual([]);
+  });
+
+  it('RSM-1 binding: closed attempts must be exactly what the runner reconstructs; a saved image never has interrupted attempts', async () => {
+    const { run, h, resume } = await halted();
+    const closed = interruptedAttempts(run.root, run.images, 'page', '2');
+    const bad: [string, unknown][] = [['renumbered', [{ ...closed[0], attempt: 1 }]], ['judged', [{ ...closed[0], review: {} }]],
+      ['held status', [{ ...closed[0], status: 'held' }]], ['another error', [{ ...closed[0], error: 'audition_attempt_failed' }]],
+      ['an identity', [{ ...closed[0], identity: null }]], ['over the ceiling', [0, 1, 2, 3].map(a => ({ ...closed[0], attempt: a }))]];
+    for (const [name, list] of bad) {
+      const r = harness();
+      await expect(illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resume({ pages: { 2: list } }) }), name).rejects.toThrow('audition_resume_binding');
+      expect([name, renders(r)]).toEqual([name, []]);
+    }
+    const saved = harness();
+    await expect(illustrateReviewedAudition({ ...saved.args, sample: [1, 2], resume: resume({ pages: { 1: interruptedAttempts(run.root, run.images, 'page', '1') } }) }))
+      .rejects.toThrow('audition_resume_binding');
+    await expect(illustrateReviewedAudition({ ...saved.args, sample: [1, 2], resume: resume({ sheets: { entities: [{ ...closed[0] }] } }) }))
+      .rejects.toThrow('audition_resume_binding');
+    expect(h.saved.has('page_2')).toBe(false);
+  });
+
+  it('RSM-1 for sheets: an interrupted sheet attempt is closed too; its next attempt continues after it', async () => {
+    const run = journaled({ timeoutOn: ['sheet_entities_0_qa'] }), h = harness({ wrap: run.wrap });
+    await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_unknown_cost');
+    const closed = interruptedAttempts(run.root, run.images, 'sheet', 'entities');
+    expect(closed).toEqual([{ attempt: 0, candidate: image('sheet_entities_0'), review: null, assessment: null, status: 'unavailable', error: AUDITION_ATTEMPT_INTERRUPTED }]);
+    const r = harness({ wrap: journaled({ at: run, debits: [conservativeDebitOf(run.root, 'sheet_entities_0_qa')] }).wrap });
+    await illustrateReviewedAudition({ ...r.args, resume: { designs: h.saved.get('audition_sheet_designs'), sheets: {}, pages: {}, stepPrefix: 'r1_',
+      interrupted: { sheets: { entities: closed } } } });
+    expect(renders(r).slice(0, 2)).toEqual(['r1_sheet_entities_1', 'r1_sheet_locations_0']);
+    expect((r.saved.get('sheet_entities') as any).attempts[0]).toEqual(closed[0]);
+  });
+
+  it('RSM-1 at every checkpoint of an attempt: a render without a receipt (no candidate); a held attempt, then a review without one; a call killed before its result is never debited', async () => {
+    const resumeOf = (h: ReturnType<typeof harness>, interrupted: unknown) => ({ designs: h.saved.get('audition_sheet_designs'),
+      sheets: { entities: h.saved.get('sheet_entities') as any, locations: h.saved.get('sheet_locations') as any }, pages: { 1: h.saved.get('page_1') as any },
+      stepPrefix: 'r1_', interrupted: interrupted as any });
+    // The render ended without a receipt: the attempt is closed with no candidate (never judged); the resume draws attempt 1.
+    const drawn = journaled({ timeoutOn: ['page_2_0'] }), d = harness({ wrap: drawn.wrap });
+    await expect(illustrateReviewedAudition({ ...d.args, sample: [1, 2] })).rejects.toThrow('audition_unknown_cost');
+    expect(d.args.judge.mock.calls.map(c => String(c[0])).filter(s => s.startsWith('page_2_'))).toEqual([]);
+    const none = interruptedAttempts(drawn.root, drawn.images, 'page', '2');
+    expect(none).toEqual([{ attempt: 0, candidate: null, review: null, assessment: null, status: 'unavailable', error: AUDITION_ATTEMPT_INTERRUPTED }]);
+    const dr = harness({ wrap: journaled({ at: drawn, debits: [conservativeDebitOf(drawn.root, 'page_2_0')] }).wrap });
+    await illustrateReviewedAudition({ ...dr.args, sample: [1, 2], resume: resumeOf(d, { pages: { 2: none } }) });
+    expect(renders(dr).filter(s => s.includes('page_2_'))).toEqual(['r1_page_2_1']);
+    expect((dr.saved.get('page_2') as any).attempts.map((a: AuditionAttempt) => [a.attempt, a.status])).toEqual([[0, 'unavailable'], [1, 'qa_supported']]);
+    // A held attempt 0, then attempt 1's review ended without a receipt: both are closed (the minimal route re-judges and re-uses neither).
+    const held = journaled({ timeoutOn: ['page_2_1_qa'] });
+    const h = harness({ wrap: held.wrap, judge: step => step === 'page_2_0_qa' ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } } : {} });
+    await expect(illustrateReviewedAudition({ ...h.args, sample: [1, 2] })).rejects.toThrow('audition_unknown_cost');
+    expect(renders(h).filter(s => s.startsWith('page_2_'))).toEqual(['page_2_0', 'page_2_1', 'page_2_2']);
+    const both = interruptedAttempts(held.root, held.images, 'page', '2');
+    expect(both).toEqual([0, 1].map(attempt => ({ attempt, candidate: image(`page_2_${attempt}`), review: null, assessment: null, status: 'unavailable',
+      error: AUDITION_ATTEMPT_INTERRUPTED })));
+    const hr = harness({ wrap: journaled({ at: held, debits: [conservativeDebitOf(held.root, 'page_2_1_qa')] }).wrap });
+    await illustrateReviewedAudition({ ...hr.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: both } }) });
+    expect(renders(hr).filter(s => s.includes('page_2_'))).toEqual(['r1_page_2_2']);
+    expect((hr.saved.get('page_2') as any).chosen.attempt).toBe(2);
+    // Killed between a claim and its result (no result, no failure record): an unknown outcome. It is never debitable, a debit made
+    // before cannot bind it, and the resume stops before any claim either way.
+    const { run, h: k, resume } = await halted(), debit = conservativeDebitOf(run.root, 'page_2_0_qa');
+    for (const kind of ['result', 'failure']) unlinkSync(path.join(run.root, `page_2_0_qa.${kind}.json`));
+    expect(() => conservativeDebitOf(run.root, 'page_2_0_qa')).toThrow('audition_meter_debit');
+    const closed = interruptedAttempts(run.root, run.images, 'page', '2');
+    for (const [debits, code] of [[[debit], 'audition_meter_debit'], [[], 'audition_unknown_cost']] as const) {
+      const again = harness({ wrap: journaled({ at: run, debits: [...debits] }).wrap });
+      await expect(illustrateReviewedAudition({ ...again.args, sample: [1, 2], resume: resume({ pages: { 2: closed } }) }), code).rejects.toThrow(code);
+    }
+    expect([readdirSync(run.root).filter(n => n.startsWith('r1_')), k.saved.has('page_2')]).toEqual([[], false]);
+  });
+
+  it('the journal reconstruction refuses a gap, a repeat across prefixes (the pre-fix restart), a foreign candidate or a bad name; nothing journaled: none', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'audition-journal-')), root = path.join(dir, 'paid'), images = path.join(dir, 'illustrations');
+    mkdirSync(root); mkdirSync(images);
+    const record = (step: string, candidate = true) => {
+      writeFileSync(path.join(root, `${step}.claim.json`), JSON.stringify({ step, seq: 0, wireDigest: sha(step), maximumMicroUsd: 1000 }));
+      writeFileSync(path.join(root, `${step}.result.json`), JSON.stringify({ wireDigest: sha(step), estimatedMicroUsd: 10, completed: true }));
+      writeFileSync(path.join(root, `${step}.receipt.json`), JSON.stringify({ candidate: image(step) }));
+      if (candidate) writeFileSync(path.join(images, `${step}.png`), step);
+    };
+    expect(interruptedAttempts(root, images, 'page', '4')).toEqual([]);
+    expect(interruptedAttempts(path.join(dir, 'missing'), images, 'page', '4')).toEqual([]);
+    record('page_4_0'); record('r1_page_4_1');
+    expect(interruptedAttempts(root, images, 'page', '4').map(a => a.attempt)).toEqual([0, 1]);
+    record('r1_page_4_0');
+    expect(() => interruptedAttempts(root, images, 'page', '4')).toThrow('audition_resume_journal');
+    record('page_5_1');
+    expect(() => interruptedAttempts(root, images, 'page', '5')).toThrow('audition_resume_journal');
+    record('page_6_0', false);
+    expect(() => interruptedAttempts(root, images, 'page', '6')).toThrow('audition_resume_journal');
+    writeFileSync(path.join(images, 'page_6_0.png'), 'other bytes');
+    expect(() => interruptedAttempts(root, images, 'page', '6')).toThrow('audition_resume_journal');
+    for (const [phase, name] of [['page', '9'], ['page', 'entities'], ['sheet', '2'], ['sheet', 'props']] as const)
+      expect(() => interruptedAttempts(root, images, phase, name), `${phase}:${name}`).toThrow('audition_resume_journal');
+  });
+});
+
+describe('the one-call conservative debit (opt-in, owner-approved): bound to exactly one unknown-cost record', () => {
+  const meterIn = (debits: ConservativeDebit[] = [], root?: string) =>
+    new AuditionMeter(root ?? path.join(mkdtempSync(path.join(tmpdir(), 'audition-debit-')), 'paid'), 4000000, 10, 3400000, 0, undefined, debits);
+  const timedOut = async () => {
+    const meter = meterIn();
+    await meter.run('a', { a: 1 }, 1000, async () => ({ value: 1, estimatedMicroUsd: 40, receipt: {} }));
+    await expect(meter.run('b_qa', { b: 1 }, 600, async () => { throw new Error('Request timed out.'); })).rejects.toThrow('Request timed out.');
+    return meter;
+  };
+  it('without it the unknown stops the meter; with it the debit counts against the cap apart from known spend; a NEW unknown still stops', async () => {
+    const meter = await timedOut(), dispatch = vi.fn();
+    expect(meter.snapshot()).toMatchObject({ newKnownApiMicroUsd: 40, reservedUnsettledMicroUsd: 600, unknownCost: 1, cumulativeAccountedMicroUsd: 3400640 });
+    expect(Object.keys(meter.snapshot())).not.toContain('conservativeDebitMicroUsd');
+    await expect(meter.run('c', { c: 1 }, 10, dispatch)).rejects.toThrow('audition_unknown_cost');
+    expect(dispatch).not.toHaveBeenCalled();
+    const debit = conservativeDebitOf(meter.root, 'b_qa');
+    expect(debit).toMatchObject({ version: 'audition-conservative-debit/v1', step: 'b_qa', seq: 1, maximumMicroUsd: 600, debitMicroUsd: 600, actualCost: 'unknown' });
+    const debited = meterIn([debit], meter.root);
+    expect(debited.snapshot()).toMatchObject({ newKnownApiMicroUsd: 40, reservedUnsettledMicroUsd: 0, conservativeDebitMicroUsd: 600, conservativeDebitCalls: 1,
+      actualChargeUnknownCalls: 1, unknownCost: 0, failed: 1, cumulativeAccountedMicroUsd: 3400640 });
+    expect(await debited.run('c', { c: 1 }, 10, async () => ({ value: 2, estimatedMicroUsd: 5, receipt: {} }))).toBe(2);
+    await expect(debited.run('d_qa', { d: 1 }, 10, async () => { throw new Error('Request timed out.'); })).rejects.toThrow('Request timed out.');
+    const after = vi.fn();
+    await expect(debited.run('e', { e: 1 }, 10, after)).rejects.toThrow('audition_unknown_cost');
+    expect(after).not.toHaveBeenCalled();
+    expect(debited.snapshot()).toMatchObject({ unknownCost: 1, conservativeDebitMicroUsd: 600, newKnownApiMicroUsd: 45 });
+  });
+  it('a debit that does not bind its one record exactly refuses: another sequence, request, maximum, record bytes, a known or missing record, a repeat', async () => {
+    const meter = await timedOut(), debit = conservativeDebitOf(meter.root, 'b_qa');
+    const variants: [string, ConservativeDebit[]][] = [['seq', [{ ...debit, seq: 0 }]], ['wire', [{ ...debit, wireDigest: sha('x') }]],
+      ['claim bytes', [{ ...debit, claimSha256: sha('x') }]], ['result bytes', [{ ...debit, resultSha256: sha('x') }]],
+      ['failure bytes', [{ ...debit, failureSha256: sha('x') }]], ['a known record', [{ ...debit, step: 'a' }]], ['no record', [{ ...debit, step: 'zz' }]],
+      ['repeated', [debit, debit]]];
+    for (const [name, debits] of variants) expect(() => meterIn(debits, meter.root).snapshot(), name).toThrow('audition_meter_debit');
+    for (const [name, d] of [['below the maximum', { ...debit, debitMicroUsd: 599 }], ['above', { ...debit, debitMicroUsd: 601, maximumMicroUsd: 601 }],
+      ['actual cost claimed', { ...debit, actualCost: 'known' }], ['other version', { ...debit, version: 'x' }]] as const)
+      expect(() => meterIn([d as never], meter.root).snapshot(), name).toThrow('audition_meter_debit');
+    // The record changed after the decision: refused.
+    writeFileSync(path.join(meter.root, 'b_qa.failure.json'), readFileSync(path.join(meter.root, 'b_qa.failure.json'), 'utf8') + ' ');
+    expect(() => meterIn([debit], meter.root).snapshot()).toThrow('audition_meter_debit');
+  });
+  it('only a call that ended without a receipt can be debited: a known cost, a completed call, a receipt or a missing failure record refuses', async () => {
+    const meter = await timedOut();
+    expect(() => conservativeDebitOf(meter.root, 'a')).toThrow('audition_meter_debit');
+    expect(() => conservativeDebitOf(meter.root, 'zz')).toThrow('audition_meter_debit');
+    const withCost = meterIn();
+    await expect(withCost.run('p_qa', { p: 1 }, 600, async () => { throw Object.assign(new Error('x'), { receipt: { estimatedMicroUsd: 7 } }); })).rejects.toThrow('x');
+    expect(() => conservativeDebitOf(withCost.root, 'p_qa')).toThrow('audition_meter_debit');
+    const pending = meterIn();
+    await pending.run('q', { q: 1 }, 600, async () => ({ value: 1, estimatedMicroUsd: 1, receipt: {} }));
+    unlinkSync(path.join(pending.root, 'q.result.json'));
+    expect(() => conservativeDebitOf(pending.root, 'q')).toThrow('audition_meter_debit');
   });
 });

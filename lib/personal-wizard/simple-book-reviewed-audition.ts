@@ -632,7 +632,7 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
  */
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
   'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable',
-  'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost']);
+  'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost', 'audition_meter_debit']);
 /** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
 export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';
@@ -651,6 +651,19 @@ export const pageRecoveryDiagnoses = (attempts: readonly AuditionAttempt[]) => a
   const diagnosis = auditionRecoveryDiagnosis(attempts.slice(0, i));
   return diagnosis ? [{ beforeAttempt: a.attempt, diagnosis }] : [];
 });
+/**
+ * RSM-1 (every resume): a paid attempt an interrupted run left without its image's saved record is CLOSED, never reopened. It keeps its
+ * number, counts against the image's attempt ceiling, keeps its drawn candidate as a record, and is never judged, selected or used for a
+ * correction (it has no review). The runner reconstructs these from the meter's bound journal (interruptedAttempts).
+ */
+export const AUDITION_ATTEMPT_INTERRUPTED = 'audition_attempt_interrupted' as const;
+/** The closed attempts of one image on a resume, exactly as the runner reconstructs them (0..k-1, at most the ceiling); anything else refuses. */
+function closedAttempts(list: readonly AuditionAttempt[] | undefined, limit: number): AuditionAttempt[] {
+  const attempts = [...(list ?? [])];
+  if (attempts.length > limit || attempts.some((a, i) => a.attempt !== i || a.status !== 'unavailable' || a.review !== null || a.assessment !== null ||
+      a.error !== AUDITION_ATTEMPT_INTERRUPTED || 'identity' in a)) fail('audition_resume_binding');
+  return attempts;
+}
 type Judge = (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
   predecessor: AuditionImage | null, kind: 'sheet' | 'page') => Promise<unknown>;
 type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
@@ -690,8 +703,12 @@ export async function illustrateReviewedAudition(args: {
   sample?: readonly number[];
   progress?: (event: { phase: 'sheet' | 'page'; name: string; attempt: number; status: AttemptStatus; counts: Record<Impact, number> | null;
     identity?: number | null; error?: string }) => void;
-  /** Completed sheets/pages of an interrupted run. Reused only when their recomputed context, selection and status still bind. */
-  resume?: { designs: unknown; sheets: Partial<Record<'entities' | 'locations', SavedSheet>>; pages: Partial<Record<number, SavedPage>>; stepPrefix: string };
+  /**
+   * Completed sheets/pages of an interrupted run. Reused only when their recomputed context, selection and status still bind.
+   * `interrupted` (RSM-1): the closed paid attempts of an image that has no saved record; its next attempt continues after them.
+   */
+  resume?: { designs: unknown; sheets: Partial<Record<'entities' | 'locations', SavedSheet>>; pages: Partial<Record<number, SavedPage>>; stepPrefix: string;
+    interrupted?: { sheets?: Partial<Record<'entities' | 'locations', AuditionAttempt[]>>; pages?: Partial<Record<number, AuditionAttempt[]>> } };
   /** The owner's bound acceptance of a held storyboard (storyboardOwnerAcceptance); absent, frames need a supported review as before. */
   ownerAcceptance?: unknown;
   /**
@@ -799,13 +816,17 @@ export async function illustrateReviewedAudition(args: {
   const styleRefs = [args.child, args.companion];
   const styleRoles: BookDesignReferenceRole[] = ['child_design_authority', 'companion_design_authority'];
   for (const role of ['entities', 'locations'] as const) {
-    const { context: judgeContext, contextSha, requirementIds } = auditionSheetContext(role, designs[role]), attempts: AuditionAttempt[] = [];
-    const prior = resumed('sheet', args.resume?.sheets[role], contextSha, requirementIds);
+    const { context: judgeContext, contextSha, requirementIds } = auditionSheetContext(role, designs[role]);
+    const prior = resumed('sheet', args.resume?.sheets[role], contextSha, requirementIds), closed = args.resume?.interrupted?.sheets?.[role];
+    // A saved image has no interrupted attempts: both at once is a contradiction.
+    if (prior && closed) fail('audition_resume_binding');
     if (prior) { sheets[role] = prior; continue; }
     // A comparison reuses an earlier run's saved sheet exactly as judged there (bound above, before anything was drawn).
     const reused = reusedSheets[role];
+    if (reused && closed) fail('audition_resume_binding');
     if (reused) { sheets[role] = reused; args.save(`sheet_${role}`, reused); continue; }
-    for (let attempt = 0; attempt < policy.sheetAttempts; attempt++) {
+    const attempts = closedAttempts(closed, policy.sheetAttempts);
+    for (let attempt = attempts.length; attempt < policy.sheetAttempts; attempt++) {
       const previous = attempts[attempts.length - 1];
       // Fix the source in place when a reviewed sheet exists; regenerate only when there is nothing to edit.
       const repairable = previous?.candidate && previous.assessment ? previous.assessment.findings.filter(f => f.impact !== 'detail' && (f.bound || f.impact === 'safety')) : [];
@@ -835,12 +856,15 @@ export async function illustrateReviewedAudition(args: {
     const seq = args.book.sequence.pages, previous = pages.find(p => p.pageNumber === pageNumber - 1);
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
     const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor);
-    const attempts: AuditionAttempt[] = [];
     const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks);
+    const closed = args.resume?.interrupted?.pages?.[pageNumber];
+    if (prior && closed) fail('audition_resume_binding');
     if (prior) { pages.push(prior); continue; }
+    // RSM-1: the page's closed paid attempts first; its next attempt continues after them, inside the same ceiling.
+    const attempts = closedAttempts(closed, pageAttempts);
     const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`;
     const diagnoses: NonNullable<SavedPage['recovery']>['diagnoses'] = [];
-    for (let attempt = 0; attempt < pageAttempts; attempt++) {
+    for (let attempt = attempts.length; attempt < pageAttempts; attempt++) {
       // Opt-in: after two consecutive held attempts the diagnosis of both replaces the last attempt's findings (same ceiling, same loop).
       const diagnosis = args.recovery ? auditionRecoveryDiagnosis(attempts) : null;
       if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });

@@ -29,7 +29,8 @@ import { inspectedDesignWire, inspectedStyleWire } from '../../../scripts/person
 import { planRereview, runRereview, REREVIEW_AMENDMENT, type RereviewConfig, type RereviewEnv } from '../../../scripts/personal-child-anchor-rereview';
 import { FRESH_BOOK_CYCLE, FRESH_BOOK_RECOVERY, FRESH_BOOK_STORYBOARD_REPAIR, FRESH_BOOK_STORYBOARD_CONTINUATION, FRESH_BOOK_STORYBOARD_REVALIDATION,
   FRESH_BOOK_STORYBOARD_EXTENSION, FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION, FRESH_BOOK_STORYBOARD_CALIBRATION, FRESH_BOOK_STORYBOARD_PRESENCE,
-  FRESH_BOOK_CHILD_RECOVERY, FRESH_BOOK_CHILD_FRESH_ANCHOR, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
+  FRESH_BOOK_CHILD_RECOVERY, FRESH_BOOK_CHILD_FRESH_ANCHOR, FRESH_BOOK_AUDITION_CONTINUATION, freshBookProfileSchema } from '../../../scripts/personal-fresh-book-authority';
+import { AUDITION_ATTEMPT_INTERRUPTED } from '../simple-book-reviewed-audition';
 import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTextRecovery, runFreshBookChild, runFreshBookBook, freshBookConfig, realFreshBookEnv,
   planFreshBookStoryboardRepair, previewFreshBookStoryboardRepair, runFreshBookStoryboardRepair, flooredReviewRule, assertReviewFloorFits,
   planFreshBookStoryboardContinuation, previewFreshBookStoryboardContinuation, runFreshBookStoryboardContinuation,
@@ -40,6 +41,7 @@ import { planFreshBook, planFreshBookRecovery, runFreshBookText, runFreshBookTex
   CALIBRATION_ADMISSION_FILE, planFreshBookStoryboardPresence, previewFreshBookStoryboardPresence, runFreshBookStoryboardPresence, PRESENCE_ADMISSION_FILE,
   STORYBOARD_REPAIR_RULES, REVIEW_RESERVE_FLOOR_MICRO_USD, planFreshBookChildRecovery, runFreshBookChildRecovery, CHILD_RECOVERY_ADMISSION_FILE,
   planFreshBookChildFreshAnchor, runFreshBookChildFreshAnchor, assertChildFreshAnchorFits, CHILD_FRESH_ANCHOR_ADMISSION_FILE,
+  planFreshBookAuditionContinuation, runFreshBookAuditionContinuation,
   type FreshBookConfig, type FreshTextTransports } from '../../../scripts/personal-fresh-book-driver';
 import { CALIBRATION_STORYBOARD_ADDENDUM, CALIBRATION_REVIEW_IMPACT_ADDENDUM, STORYBOARD_CALIBRATION_VERSION } from '../storyboard-calibration';
 import { PRESENCE_STORYBOARD_ADDENDUM, PRESENCE_REVIEW_ADDENDUM, STORYBOARD_PRESENCE_VERSION } from '../storyboard-presence';
@@ -2417,6 +2419,180 @@ describe.skipIf(!real)('fresh-book same-book text recovery (native stages, synth
                         vi.restoreAllMocks();
                       }
                     }, 1_800_000);
+
+                    // ---------------------------------------------------------------------------------------------------------------------------
+                    // The ONE owner-approved continuation of the SAME audition (2026-10-21): the fresh child passed; the book's second sample review
+                    // ended at a client deadline without a receipt (unknown cost: the meter stopped). ONE conservative debit of that call, then the
+                    // same audition resumed (RSM-1: the interrupted attempt closed and counted) through every remaining frame. Built once, restored.
+                    // ---------------------------------------------------------------------------------------------------------------------------
+                    describe('the ONE owner-approved continuation of the SAME audition (after a sample review ended without a receipt)', () => {
+                      const ACL = FRESH_BOOK_AUDITION_CONTINUATION, CONT_HEAD = '7'.repeat(40);
+                      const auditionDir = (s: { config: FreshBookConfig }, ...p: string[]) => path.join(s.config.bookDir, 'audition', ...p);
+                      /** The current judges, with a client deadline (no answer, no receipt) on the listed page-review calls (1-based, this run). */
+                      const deadlineOn = (calls: number[]) => {
+                        const base = sdk.create.getMockImplementation()!; let pages = 0;
+                        sdk.create.mockImplementation(async (payload: any, options?: unknown) => {
+                          if (payload.text.format.name === 'personal_audition_pixels_v4' && calls.includes(++pages)) throw new Error('Request timed out.');
+                          return base(payload, options);
+                        });
+                      };
+                      const claimsBySeq = (s: typeof base) => readdirSync(auditionDir(s, 'paid-stages')).filter(n => n.endsWith('.claim.json'))
+                        .map(n => json(auditionDir(s, 'paid-stages', n))).sort((a, b) => a.seq - b.seq).map(c => c.step as string);
+                      let faHalted: Awaited<ReturnType<typeof freshGrant>>, contApproval = '', haltPristine = '', samples: number[] = [];
+                      beforeAll(async () => {
+                        sdk.create.mockReset(); vi.stubGlobal('fetch', vi.fn(() => { throw Error('no network in the recovery rehearsal'); }));
+                        rmSync(base.root, { recursive: true, force: true }); cpSync(freshPristine, base.root, { recursive: true }); base.setHead(FRESH_HEAD); base.setClean(true);
+                        faHalted = await freshGrant(base);
+                        freshJudges({ fresh: 'pass' });
+                        expect(await runFreshBookChildFreshAnchor(faHalted)).toMatchObject({ status: 'child_reference_passed' });
+                        // The book: both sample pages drawn; the SECOND sample's first review ends at the deadline; the meter stops.
+                        deadlineOn([2]);
+                        await expect(runFreshBookBook({ ...faHalted, childFreshAnchor: true })).rejects.toThrow('audition_unknown_cost');
+                        samples = json(path.join(base.config.bookDir, 'audition.grant.json')).scope.sample;
+                        vi.restoreAllMocks(); vi.unstubAllGlobals();
+                        // A NEW reviewed head for the continuation and the owner's record.
+                        base.setHead(CONT_HEAD);
+                        contApproval = path.join(base.root, 'OWNER-SAME-BOOK-TIMEOUT-RECOVERY.txt');
+                        writeFileSync(contApproval, `Synthetic owner record (test only).\n${ACL.approvalLine}\n`);
+                        haltPristine = `${base.root}-halt-pristine`; cpSync(base.root, haltPristine, { recursive: true });
+                      }, 1_200_000);
+                      afterAll(() => { if (haltPristine) rmSync(haltPristine, { recursive: true, force: true }); });
+                      /** The halted book exactly as built (every byte), at the continuation's reviewed head, clean. */
+                      const restoreHalt = (still = owned()) => { still(); rmSync(base.root, { recursive: true, force: true }); cpSync(haltPristine, base.root, { recursive: true });
+                        base.setHead(CONT_HEAD); base.setClean(true); return base; };
+                      const contGrant = async (s: typeof base, name = 'audition-continuation-grant.json') => {
+                        const gr = (await planFreshBookAuditionContinuation(s.config, s.env, faHalted.grantFile, contApproval)).grantDraft, file = path.join(s.root, name);
+                        writeFileSync(file, JSON.stringify(gr)); return { ...s.original, grantFile: file, grantSha: sha(readFileSync(file)) }; };
+
+                      it('the halt is what the real book shows: the second sample\'s review has no receipt, no page record, the line has no outcome', async () => {
+                        const s = restoreHalt(), [one, two] = samples, paid = auditionDir(s, 'paid-stages');
+                        expect(readdirSync(paid).filter(n => n.startsWith(`page_${two}_0_qa.`)).sort()).toEqual([`page_${two}_0_qa.claim.json`,
+                          `page_${two}_0_qa.failure.json`, `page_${two}_0_qa.result.json`, `page_${two}_0_qa.wire.json`]);
+                        expect(json(path.join(paid, `page_${two}_0_qa.result.json`))).toMatchObject({ completed: false, estimatedMicroUsd: null });
+                        expect([existsSync(auditionDir(s, `page_${one}.json`)), existsSync(auditionDir(s, `page_${two}.json`)),
+                          existsSync(path.join(s.authority, CFL.outcomeName))]).toEqual([true, false, false]);
+                        // A plain resume of the fresh-anchor line is still refused (its grant binds the old head; the unknown would stop it anyway).
+                        await expect(runFreshBookBook({ ...faHalted, childFreshAnchor: true, resume: true })).rejects.toThrow(/fresh_book_child_fresh_anchor_grant|fresh_book_source_changed/);
+                      }, 1_200_000);
+
+                      it('positive: ONE debit of that review; the SAME audition resumes at the second sample\'s attempt 1 (attempt 0 closed and counted); every frame; known spend and the debit apart', async () => {
+                        const s = restoreHalt(), [one, two] = samples, cg = await contGrant(s);
+                        const planned = await planFreshBookAuditionContinuation(s.config, s.env, faHalted.grantFile, contApproval), g = planned.grantDraft;
+                        expect(g.debit).toMatchObject({ step: `page_${two}_0_qa`, maximumMicroUsd: 600000, debitMicroUsd: 600000, actualCost: 'unknown' });
+                        expect(g.audition).toMatchObject({ savedSheets: ['entities', 'locations'], savedPages: [one], interrupted: { sheets: {}, pages: { [String(two)]: 1 } } });
+                        expect([g.ledger.conservativeDebitMicroUsd, planned.state.claimExists, planned.state.outcomeExists, planned.state.freshOutcomeExists,
+                          planned.plan.providerCalls, planned.plan.keyRead]).toEqual([600000, false, false, false, 0, false]);
+                        expect((await planFreshBookAuditionContinuation(s.config, s.env, faHalted.grantFile, contApproval)).grantDraft).toEqual(g);
+                        const halted = tree(auditionDir(s)), fresh = tree(cfDir(s)), records = [CFL.claimName, CFL.successorName, CFL.auditionStartName]
+                          .map(n => sha(readFileSync(path.join(s.authority, n))));
+                        const before = claimsBySeq(s).length;
+                        freshJudges({ fresh: 'pass' });
+                        const result = await runFreshBookAuditionContinuation(cg);
+                        expect(result).toMatchObject({ status: 'complete', manifestStatus: 'qa_supported_audition' });
+                        // The first dispatch respects the spent attempt: the second sample's attempt 1; never the first sample, a sheet or attempt 0 again.
+                        const added = claimsBySeq(s).slice(before);
+                        expect(added[0]).toBe(`r1_page_${two}_1`);
+                        expect(added.filter(st => st.startsWith(`r1_page_${one}_`) || st.startsWith('r1_sheet_') || st.startsWith(`r1_page_${two}_0`))).toEqual([]);
+                        // Every pixel review used the 600 s deadline (no retries live in the client).
+                        const reviews = sdk.create.mock.calls.filter(c => String((c[0] as any).text.format.name).startsWith('personal_audition_pixels'));
+                        expect(reviews.length).toBeGreaterThan(0);
+                        expect(reviews.every(c => (c[1] as any)?.timeout === 600000)).toBe(true);
+                        // The halted audition's records, the fresh child and the line's records stay byte-identical.
+                        const now = tree(auditionDir(s));
+                        for (const [rel, digest] of Object.entries(halted)) expect([rel, now[rel]]).toEqual([rel, digest]);
+                        expect([tree(cfDir(s)), [CFL.claimName, CFL.successorName, CFL.auditionStartName].map(n => sha(readFileSync(path.join(s.authority, n))))])
+                          .toEqual([fresh, records]);
+                        const page2 = json(auditionDir(s, `page_${two}.json`));
+                        expect([page2.attempts[0].attempt, page2.attempts[0].status, page2.attempts[0].error, page2.attempts[0].candidate.imageName, page2.chosen.attempt])
+                          .toEqual([0, 'unavailable', AUDITION_ATTEMPT_INTERRUPTED, `page_${two}_0.png`, 1]);
+                        expect(json(auditionDir(s, 'resume-1.json'))).toMatchObject({ resumedPages: [one], interrupted: { pages: { [String(two)]: 1 } } });
+                        // Known spend and the conservative debit apart, everywhere they are reported.
+                        expect(json(auditionDir(s, 'spend-r1.json'))).toMatchObject({ conservativeDebitMicroUsd: 600000, conservativeDebitCalls: 1, actualChargeUnknownCalls: 1,
+                          unknownCost: 0, unknownOutcome: 0 });
+                        expect(result.ledger).toMatchObject({ conservativeDebitMicroUsd: 600000, bookBudgetAccountedMicroUsd: result.ledger.bookKnownMicroUsd + 600000 });
+                        expect(json(path.join(s.config.bookDir, 'book-status-continuation.json'))).toMatchObject({ status: 'complete',
+                          debit: { step: `page_${two}_0_qa`, debitMicroUsd: 600000, actualCost: 'unknown' }, runtimeEligible: false });
+                        expect(json(path.join(s.authority, ACL.outcomeName))).toMatchObject({ status: 'complete', manifestStatus: 'qa_supported_audition' });
+                        // Once only; the fresh-anchor line's own book stays closed.
+                        await expect(runFreshBookAuditionContinuation(cg)).rejects.toThrow(/fresh_book_audition_continuation_(used|fresh|grant)/);
+                        await expect(runFreshBookBook({ ...faHalted, childFreshAnchor: true, resume: true })).rejects.toThrow(/fresh_book_child_fresh_anchor_grant|fresh_book_source_changed/);
+                      }, 1_800_000);
+
+                      it('a NEW unknown during the continuation stops it again (no settlement, nothing sent after it); its own terminal record', async () => {
+                        const s = restoreHalt(), cg = await contGrant(s), before = claimsBySeq(s).length;
+                        freshJudges({ fresh: 'pass' }); deadlineOn([2]);
+                        await expect(runFreshBookAuditionContinuation(cg)).rejects.toThrow('audition_unknown_cost');
+                        const added = claimsBySeq(s).slice(before), last = added[added.length - 1];
+                        expect([added[0], last.endsWith('_qa'), json(auditionDir(s, 'paid-stages', `${last}.result.json`)).estimatedMicroUsd]).toEqual([`r1_page_${samples[1]}_1`, true, null]);
+                        expect(json(path.join(s.authority, ACL.outcomeName))).toMatchObject({ status: 'failed_audition_continuation', code: 'audition_unknown_cost' });
+                        expect(existsSync(path.join(s.config.bookDir, 'book-status-continuation.json'))).toBe(false);
+                      }, 1_800_000);
+
+                      it('immutable inputs: the owner record, the debited call, the audition\'s records, a second unknown, the fresh-anchor line, the grant, the head or the tree refuse BEFORE the claim or any call', async () => {
+                        const regrant = <G extends { grantFile: string }>(gr: G) => ({ ...gr, grantSha: sha(readFileSync(gr.grantFile)) });
+                        const paid = (s: typeof base, ...p: string[]) => auditionDir(s, 'paid-stages', ...p);
+                        type Case = (s: typeof base) => Promise<{ grant: Awaited<ReturnType<typeof contGrant>>; expect: RegExp }>;
+                        const cases: Record<string, Case> = {
+                          'owner record changed': async s => { const gr = await contGrant(s); writeFileSync(contApproval, readFileSync(contApproval, 'utf8') + ' ');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_approval/ }; },
+                          'the debited failure record changed': async s => { const gr = await contGrant(s);
+                            edit(paid(s, `page_${samples[1]}_0_qa.failure.json`), f => { f.message = 'edited'; });
+                            return { grant: gr, expect: /fresh_book_audition_continuation_grant|audition_meter/ }; },
+                          'a second unknown call appeared': async s => { const gr = await contGrant(s), step = `page_${samples[1]}_0_qa`, extra = 'page_8_0_qa';
+                            const claim = json(paid(s, `${step}.claim.json`));
+                            writeFileSync(paid(s, `${extra}.wire.json`), readFileSync(paid(s, `${step}.wire.json`)));
+                            writeFileSync(paid(s, `${extra}.claim.json`), JSON.stringify({ ...claim, step: extra, seq: claimsBySeq(s).length }));
+                            writeFileSync(paid(s, `${extra}.result.json`), readFileSync(paid(s, `${step}.result.json`)));
+                            writeFileSync(paid(s, `${extra}.failure.json`), readFileSync(paid(s, `${step}.failure.json`)));
+                            return { grant: gr, expect: /fresh_book_audition_continuation_fresh/ }; },
+                          'a saved page changed': async s => { const gr = await contGrant(s); edit(auditionDir(s, `page_${samples[0]}.json`), p => { p.status = 'held'; });
+                            return { grant: gr, expect: /fresh_book_audition_continuation_grant/ }; },
+                          'an extra file in the audition': async s => { const gr = await contGrant(s); writeFileSync(auditionDir(s, 'notes.json'), '{}');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_grant/ }; },
+                          'the audition already resumed': async s => { const gr = await contGrant(s); writeFileSync(auditionDir(s, 'resume-1.json'), '{}');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_fresh/ }; },
+                          'the fresh-anchor grant bytes changed': async s => { const gr = await contGrant(s); writeFileSync(faHalted.grantFile, readFileSync(faHalted.grantFile, 'utf8') + ' ');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_fresh/ }; },
+                          'the fresh child\'s successor changed': async s => { const gr = await contGrant(s); edit(path.join(s.authority, CFL.successorName), x => { x.corrected = true; });
+                            return { grant: gr, expect: /fresh_book_child_fresh_anchor_successor/ }; },
+                          'the fresh-anchor line got an outcome': async s => { const gr = await contGrant(s); writeFileSync(path.join(s.authority, CFL.outcomeName), '{}');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_(fresh|used)/ }; },
+                          'the audition grant changed': async s => { const gr = await contGrant(s); writeFileSync(path.join(s.config.bookDir, 'audition.grant.json'),
+                            readFileSync(path.join(s.config.bookDir, 'audition.grant.json'), 'utf8') + ' ');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_fresh/ }; },
+                          'grant widens the debit': async s => { const gr = await contGrant(s); edit(gr.grantFile, x => { x.debit.debitMicroUsd = 700000; x.debit.maximumMicroUsd = 700000; });
+                            return { grant: regrant(gr), expect: /fresh_book_audition_continuation_grant/ }; },
+                          'grant lowers the ledger': async s => { const gr = await contGrant(s); edit(gr.grantFile, x => { x.ledger.bookKnownMicroUsd -= 1; });
+                            return { grant: regrant(gr), expect: /fresh_book_audition_continuation_grant/ }; },
+                          'grant reopens the attempt': async s => { const gr = await contGrant(s); edit(gr.grantFile, x => { x.audition.interrupted.pages = {}; });
+                            return { grant: regrant(gr), expect: /fresh_book_audition_continuation_grant/ }; },
+                          'a continuation claim already present': async s => { const gr = await contGrant(s); writeFileSync(path.join(s.authority, ACL.claimName), '{}');
+                            return { grant: gr, expect: /fresh_book_audition_continuation_used|fresh_book_roots_changed/ }; },
+                          'head moved after the grant': async s => { const gr = await contGrant(s); s.setHead('8'.repeat(40));
+                            return { grant: gr, expect: /fresh_book_audition_continuation_grant|fresh_book_source_changed/ }; },
+                          'dirty tree': async s => { const gr = await contGrant(s); s.setClean(false); return { grant: gr, expect: /fresh_book_source_changed/ }; },
+                        };
+                        const still = owned();
+                        for (const [name, mutate] of Object.entries(cases)) {
+                          const s = restoreHalt(still); freshJudges({ fresh: 'pass' });
+                          let c: Awaited<ReturnType<Case>>;
+                          try { c = await mutate(s); } catch (e) { throw new Error(`${name}: ${e}`); }
+                          still();
+                          const before = readdirSync(auditionDir(s, 'paid-stages')).filter(n => n.endsWith('.claim.json')).length;
+                          await expect(runFreshBookAuditionContinuation(c.grant), name).rejects.toThrow(c.expect);
+                          expect([name, readdirSync(auditionDir(s, 'paid-stages')).filter(n => n.endsWith('.claim.json')).length - before, renders().length,
+                            sdk.create.mock.calls.length]).toEqual([name, 0, 0, 0]);
+                          if (name !== 'a continuation claim already present') expect([name, existsSync(path.join(s.authority, ACL.claimName))]).toEqual([name, false]);
+                          vi.restoreAllMocks();
+                        }
+                        // The plan needs the owner's continuation record by absolute path, with its verbatim line, and the consumed fresh-anchor grant.
+                        const s = restoreHalt(still);
+                        await expect(planFreshBookAuditionContinuation(s.config, s.env, faHalted.grantFile, freshApproval)).rejects.toThrow('fresh_book_audition_continuation_approval');
+                        await expect(planFreshBookAuditionContinuation(s.config, s.env, faHalted.grantFile, 'OWNER-SAME-BOOK-TIMEOUT-RECOVERY.txt'))
+                          .rejects.toThrow('fresh_book_audition_continuation_approval');
+                        await expect(planFreshBookAuditionContinuation(s.config, s.env, crGrant.grantFile, contApproval)).rejects.toThrow('fresh_book_audition_continuation_fresh');
+                      }, 2_400_000);
+                    });
                   });
                 });
               });

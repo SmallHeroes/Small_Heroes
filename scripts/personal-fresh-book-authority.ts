@@ -13,7 +13,7 @@ import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { childAnchorAcceptanceVersions, CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_VISIBILITY_RECOVERABLE, CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION }
   from '../lib/personal-wizard/child-anchor-style';
-import { AuditionMeter, auditionReviewRule, type MeterRules } from './personal-simple-book-reviewed-audition';
+import { AuditionMeter, auditionReviewRule, conservativeDebitSchema, type ConservativeDebit, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { REREVIEW_AMENDMENT, rereviewAuthority, rereviewOutput, settledRereviewOutcome, type RereviewConfig } from './personal-child-anchor-rereview';
 
 export class FreshBookError extends Error { constructor(readonly code: string) { super(code); } }
@@ -96,29 +96,45 @@ export function freshBookDiagnosticSpend(rereview: RereviewConfig, env: Pick<Fre
 }
 const REREVIEW_RULES: MeterRules = step => step === 'reference_child_style_qa' || step === 'reference_child_qa' ? auditionReviewRule : undefined;
 
-/** One stage's meter folder and the rules its calls settle under (the stage driver's own). */
-export type FreshBookStage = { name: string; dir: string; rules: MeterRules; maxCalls: number };
+/**
+ * One stage's meter folder and the rules its calls settle under (the stage driver's own). `debits` (opt-in, an owner-approved continuation
+ * only): the conservative debits of this stage's own unknown-cost records (AuditionMeter); absent on every other stage and line.
+ */
+export type FreshBookStage = { name: string; dir: string; rules: MeterRules; maxCalls: number; debits?: readonly ConservativeDebit[] };
 /**
  * The cycle's cumulative ledger: the diagnostic subcap's settled spend (the original 59910 and every claimed re-review round, re-derived)
  * and every stage of THIS book, in order, each re-derived from its own records. Any unknown cost or outcome (an orphan claim, an in-flight
- * call on resume) halts: it is never reset or treated as headroom. Old books are never part of it.
+ * call on resume) halts: it is never reset or treated as headroom. Old books are never part of it. A stage's owner-approved conservative
+ * debit (opt-in) counts against both caps and is reported apart from known spend; absent, the ledger exactly as before.
  */
 export function freshBookCycleLedger(args: { diagnosticSettledMicroUsd: number; stages: readonly FreshBookStage[] }) {
   if (!Number.isSafeInteger(args.diagnosticSettledMicroUsd) || args.diagnosticSettledMicroUsd < REREVIEW_AMENDMENT.originalSettledMicroUsd ||
       args.diagnosticSettledMicroUsd > FRESH_BOOK_CYCLE.diagnosticSubcapMicroUsd) fail('fresh_book_ledger_diagnostic');
-  let book = 0;
+  let book = 0, debited = 0;
+  const debiting = args.stages.some(s => s.debits?.length);
   const stages = args.stages.map(stage => {
-    if (!existsSync(path.join(stage.dir, 'paid-stages'))) return { name: stage.name, knownMicroUsd: 0, calls: 0 };
-    const snapshot = new AuditionMeter(path.join(stage.dir, 'paid-stages'), FRESH_BOOK_CYCLE.bookSubcapMicroUsd, stage.maxCalls, book, 0, stage.rules).snapshot();
+    if (!existsSync(path.join(stage.dir, 'paid-stages'))) {
+      if (stage.debits?.length) fail('fresh_book_ledger_debit');
+      return { name: stage.name, knownMicroUsd: 0, calls: 0 };
+    }
+    const snapshot = new AuditionMeter(path.join(stage.dir, 'paid-stages'), FRESH_BOOK_CYCLE.bookSubcapMicroUsd, stage.maxCalls, book, 0, stage.rules,
+      stage.debits ?? []).snapshot();
     if (snapshot.unknownCost || snapshot.unknownOutcome || snapshot.reservedUnsettledMicroUsd) fail('fresh_book_ledger_unknown');
     book += snapshot.newKnownApiMicroUsd;
-    return { name: stage.name, knownMicroUsd: snapshot.newKnownApiMicroUsd, calls: snapshot.calls };
+    const debit = (snapshot as { conservativeDebitMicroUsd?: number }).conservativeDebitMicroUsd ?? 0;
+    debited += debit;
+    return { name: stage.name, knownMicroUsd: snapshot.newKnownApiMicroUsd, calls: snapshot.calls,
+      ...(stage.debits?.length ? { conservativeDebitMicroUsd: debit, actualChargeUnknownCalls: stage.debits.length } : {}) };
   });
-  if (book > FRESH_BOOK_CYCLE.bookSubcapMicroUsd || book + args.diagnosticSettledMicroUsd > FRESH_BOOK_CYCLE.cycleCeilingMicroUsd) fail('fresh_book_ledger_cap');
-  return { diagnosticSettledMicroUsd: args.diagnosticSettledMicroUsd, bookKnownMicroUsd: book, stages,
+  if (book + debited > FRESH_BOOK_CYCLE.bookSubcapMicroUsd || book + debited + args.diagnosticSettledMicroUsd > FRESH_BOOK_CYCLE.cycleCeilingMicroUsd)
+    fail('fresh_book_ledger_cap');
+  return { diagnosticSettledMicroUsd: args.diagnosticSettledMicroUsd, bookKnownMicroUsd: book,
+    // Opted in only: the conservative debits apart from known spend, and the budget they account for (their actual charge stays unknown).
+    ...(debiting ? { conservativeDebitMicroUsd: debited, bookBudgetAccountedMicroUsd: book + debited } : {}), stages,
     /** The next book meter's cap is the smaller of the subcap and what the cycle ceiling leaves. */
     nextCapMicroUsd: Math.min(FRESH_BOOK_CYCLE.bookSubcapMicroUsd, FRESH_BOOK_CYCLE.cycleCeilingMicroUsd - args.diagnosticSettledMicroUsd),
-    cycleAccountedMicroUsd: book + args.diagnosticSettledMicroUsd };
+    ...(debiting ? { cycleKnownMicroUsd: book + args.diagnosticSettledMicroUsd } : {}),
+    cycleAccountedMicroUsd: book + debited + args.diagnosticSettledMicroUsd };
 }
 
 /** The one claim: written once, before the first provider or model stage; any existing claim refuses, for any profile, grant or folder. */
@@ -971,7 +987,7 @@ const freshAnchorNamed = (g: FreshBookChildFreshAnchorGrant) => [[FRESH_BOOK_CHI
   [FRESH_BOOK_STORYBOARD_EXTENSION.claimName, g.presence.extensionClaimSha256], [FRESH_BOOK_STORYBOARD_REVALIDATION.claimName, g.presence.revalidationClaimSha256],
   [FRESH_BOOK_STORYBOARD_CONTINUATION.claimName, g.presence.continuationClaimSha256], [FRESH_BOOK_STORYBOARD_REPAIR.claimName, g.presence.repairClaimSha256],
   [FRESH_BOOK_RECOVERY.claimName, g.presence.recoveryClaimSha256], [FRESH_BOOK_CYCLE.claimName, g.presence.originalClaimSha256]] as const;
-const freshAnchorClaimFields = (g: FreshBookChildFreshAnchorGrant) => ({ recoveryGrantSha256: g.recovery.grantSha256,
+export const freshAnchorClaimFields = (g: FreshBookChildFreshAnchorGrant) => ({ recoveryGrantSha256: g.recovery.grantSha256,
   ...Object.fromEntries(freshAnchorNamed(g).map(([name, digest]) => [name, digest])) });
 
 /** The fresh anchor's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
@@ -1002,6 +1018,82 @@ export function assertFreshBookChildFreshAnchorPaid(args: { env: FreshBookEnv; g
   const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
   if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.childFreshAnchor !== FRESH_BOOK_CHILD_FRESH_ANCHOR.version || claim.grantSha256 !== args.grantSha ||
       claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || canonicalJson(claim.named) !== canonicalJson(freshAnchorClaimFields(grant)) ||
+      claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
+      claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
+/**
+ * The owner-approved SAME-AUDITION CONTINUATION (Guy's direct approval 2026-10-21, recorded verbatim by Codex in
+ * OWNER-APPROVAL-SAME-BOOK-TIMEOUT-RECOVERY-20261021.txt), after the fresh-anchor line's book halted (audition_unknown_cost) on ONE review that
+ * ended without a receipt: ONE conservative budget debit of that call's claim maximum while its actual charge stays unknown, then the SAME
+ * audition resumed under the reviewed engine (its interrupted attempts closed and counted, RSM-1; the 600 s review deadline) through every
+ * remaining page and the cover, on the unchanged gates and caps. Every earlier grant, claim, record, attempt and cost stays byte-identical (the
+ * consumed fresh-anchor grant is never re-pinned); its own claim and outcome are fixed in code; a new unknown cost or output stops it.
+ */
+export const FRESH_BOOK_AUDITION_CONTINUATION = Object.freeze({
+  version: 'fresh-book-audition-continuation/v1',
+  amendment: 'Guy 2026-10-21 OWNER-APPROVAL-SAME-BOOK-TIMEOUT-RECOVERY-20261021.txt (direct, in the Codex chat, recorded verbatim by Codex: "מאשר את הצעת Codex: זקיפה שמרנית של $0.60 לתקציב כשהעלות בפועל נשארת לא ידועה, תיקון המנוע ו־QA, ואז המשך אותו ספר עד האיורים, הכריכה והוויואר במסגרת התקרות והניסיונות שנותרו."), approving CODEX-PROPOSAL-SAME-BOOK-TIMEOUT-RECOVERY-20261021.txt after CODEX-FRESH-ANCHOR-BOOK-OUTCOME-QA-20261021.txt: ONE conservative budget debit of the claim maximum of the single existing call whose cost is unknown (it ended without a receipt; its actual charge stays unknown; its records stay immutable; never a receipt, known spend or a policy for another unknown), a general offline correction (interrupted page attempts reconstructed from the bound journal and counted, RSM-1; a 600 s page-review deadline with no retries), independent Codex QA, then the SAME book and the SAME audition of the fresh-anchor line resumed through every remaining page, the cover and the viewer, within the cumulative USD 7 book / USD 8 cycle caps and the remaining attempts; the fresh child, page 1 and every upstream stage unchanged; both diagnostic sheets held with their findings; a new unknown cost or output stops it again.',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.audition-continuation.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.audition-continuation.outcome.json',
+  /** Exactly one unknown-cost call is debited by this line (no other unknown is ever debited). */
+  debitCalls: 1,
+  /** The owner's record: Guy's verbatim approval line must be in it (its bytes are bound by digest). */
+  approvalLine: 'מאשר את הצעת Codex: זקיפה שמרנית של $0.60 לתקציב כשהעלות בפועל נשארת לא ידועה',
+});
+export const freshBookAuditionContinuationGrantSchema = z.object({ version: z.literal('fresh-book-audition-continuation-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_AUDITION_CONTINUATION.amendment),
+  ownerApproval: z.object({ file: abs, sha256: hash }).strict(), profileSha256: hash, bookDir: abs,
+  /** The consumed fresh-anchor line it continues: its grant, claim, the fresh child's successor and the audition start, and what they bind. */
+  fresh: z.object({ grantFile: abs, grantSha256: hash, claimSha256: hash, successorSha256: hash, auditionStartSha256: hash, candidateSha256: hash,
+    contextSha256: hash, storyboardDigest: hash, layoutSha256: hash }).strict(),
+  /** The halted audition as its records stand: its grant and admission, every file by digest, the saved images and the closed attempts. */
+  audition: z.object({ grantSha256: hash, admissionSha256: hash, folderSha256: hash, calls: micro, knownMicroUsd: micro,
+    savedSheets: z.array(z.enum(['entities', 'locations'])).max(2), savedPages: z.array(z.number().int().min(0).max(8)).max(9),
+    interrupted: z.object({ sheets: z.record(z.string(), micro), pages: z.record(z.string(), micro) }).strict() }).strict(),
+  /** The ONE conservative debit (the owner's decision), derived from that call's own records. */
+  debit: conservativeDebitSchema,
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, bookKnownMicroUsd: micro, conservativeDebitMicroUsd: micro, calls: micro }).strict(),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookAuditionContinuationGrant = z.infer<typeof freshBookAuditionContinuationGrantSchema>;
+/** The named records a continuation grant stands on: the fresh-anchor line's claim, the fresh child's successor and the audition start. */
+const continuationNamed = (g: FreshBookAuditionContinuationGrant) => [[FRESH_BOOK_CHILD_FRESH_ANCHOR.claimName, g.fresh.claimSha256],
+  [FRESH_BOOK_CHILD_FRESH_ANCHOR.successorName, g.fresh.successorSha256], [FRESH_BOOK_CHILD_FRESH_ANCHOR.auditionStartName, g.fresh.auditionStartSha256]] as const;
+const continuationClaimFields = (g: FreshBookAuditionContinuationGrant) => ({ freshGrantSha256: g.fresh.grantSha256,
+  ...Object.fromEntries(continuationNamed(g).map(([name, digest]) => [name, digest])),
+  debit: { step: g.debit.step, seq: g.debit.seq, wireDigest: g.debit.wireDigest, debitMicroUsd: g.debit.debitMicroUsd } });
+
+/** The continuation's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookAuditionContinuation(env: FreshBookEnv, grant: FreshBookAuditionContinuationGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_AUDITION_CONTINUATION.outcomeName))) fail('fresh_book_audition_continuation_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_AUDITION_CONTINUATION.claimName), 'wx'); } catch { return fail('fresh_book_audition_continuation_used'); }
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, auditionContinuation: FRESH_BOOK_AUDITION_CONTINUATION.version, grantSha256: grantSha,
+    ownerApprovalSha256: grant.ownerApproval.sha256, named: continuationClaimFields(grant), profileSha256: grant.profileSha256, bookDir: path.resolve(grant.bookDir),
+    engineHead: grant.engine.head, claimedAt: new Date().toISOString() }) + '\n');
+    fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/**
+ * Synchronous, before EVERY paid call of the continuation: its grant bytes, the owner's record bytes, its profile, the claim it wrote, the
+ * fresh-anchor line's claim, the fresh child's successor and the audition start (each at its recorded digest), the clean source at its head,
+ * every pinned file.
+ */
+export function assertFreshBookAuditionContinuationPaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_audition_continuation_grant');
+  const grant = freshBookAuditionContinuationGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  if (previewSha(fileBytes(grant.ownerApproval.file)) !== grant.ownerApproval.sha256) fail('fresh_book_audition_continuation_approval');
+  const at = (name: string) => path.join(args.env.authorityRoot, name), claimFile = at(FRESH_BOOK_AUDITION_CONTINUATION.claimName);
+  if (!existsSync(claimFile) || continuationNamed(grant).some(([name, digest]) => !existsSync(at(name)) || previewSha(fileBytes(at(name))) !== digest)) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.auditionContinuation !== FRESH_BOOK_AUDITION_CONTINUATION.version || claim.grantSha256 !== args.grantSha ||
+      claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || canonicalJson(claim.named) !== canonicalJson(continuationClaimFields(grant)) ||
       claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
       claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
   const engine = args.env.head();

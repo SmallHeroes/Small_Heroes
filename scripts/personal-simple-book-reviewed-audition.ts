@@ -41,8 +41,8 @@ import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
-  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, type ReferenceStatus, type SavedSheet }
-  from '../lib/personal-wizard/simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, AUDITION_ATTEMPT_INTERRUPTED,
+  type ReferenceStatus, type SavedSheet, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -488,6 +488,31 @@ export function verifyMeterRecords(root: string, rules: MeterRules) {
 }
 
 /**
+ * A conservative budget debit (opt-in, owner-approved, ONE journaled call each; never a default or a policy): the claim maximum of one paid
+ * call that ended without a receipt, so its cost cannot be known, counted against the cap in place of that unknown while its actual charge
+ * stays unknown. It binds exactly that record (its step, sequence, request digest and maximum, and the bytes of its claim, result and failure
+ * records). It is never a receipt and never known spend, and it settles nothing else: any other unknown cost or outcome still stops the meter.
+ */
+export const AUDITION_CONSERVATIVE_DEBIT_VERSION = 'audition-conservative-debit/v1' as const;
+export const conservativeDebitSchema = z.object({ version: z.literal(AUDITION_CONSERVATIVE_DEBIT_VERSION), step: z.string().regex(/^[a-z][a-z0-9_]{0,79}$/),
+  seq: z.number().int().nonnegative(), wireDigest: hash, maximumMicroUsd: z.number().int().positive(), debitMicroUsd: z.number().int().positive(),
+  claimSha256: hash, resultSha256: hash, failureSha256: hash, actualCost: z.literal('unknown') }).strict()
+  .refine(d => d.debitMicroUsd === d.maximumMicroUsd, 'audition_meter_debit');
+export type ConservativeDebit = z.infer<typeof conservativeDebitSchema>;
+/** The conservative debit of one journaled call of a meter folder, derived from its own records only (the plan's one source of a debit). */
+export function conservativeDebitOf(root: string, step: string): ConservativeDebit {
+  const at = (kind: string) => path.join(root, `${step}.${kind}.json`);
+  if (![at('wire'), at('claim'), at('result'), at('failure')].every(f => existsSync(f)) || existsSync(at('receipt'))) fail('audition_meter_debit');
+  const claim = read(at('claim')), result = read(at('result')), failure = read(at('failure'));
+  if (claim?.step !== step || result?.completed !== false || result.estimatedMicroUsd !== null || result.wireDigest !== claim.wireDigest ||
+      failure?.receipt !== null) fail('audition_meter_debit');
+  const parsed = conservativeDebitSchema.safeParse({ version: AUDITION_CONSERVATIVE_DEBIT_VERSION, step, seq: claim.seq, wireDigest: claim.wireDigest,
+    maximumMicroUsd: claim.maximumMicroUsd, debitMicroUsd: claim.maximumMicroUsd, claimSha256: previewSha(readFileSync(at('claim'))),
+    resultSha256: previewSha(readFileSync(at('result'))), failureSha256: previewSha(readFileSync(at('failure'))), actualCost: 'unknown' });
+  return parsed.success ? parsed.data : fail('audition_meter_debit');
+}
+
+/**
  * Journals every paid call before dispatch. Prior spend is an explicit input. An unknown cost or an unknown outcome
  * (a claim without a result) stops further paid calls instead of hiding behind a reservation; two consecutive failed
  * calls stop the run instead of retrying silently.
@@ -498,37 +523,58 @@ export class AuditionMeter {
    * never known spend: it counts against the cap like a reservation and is reported on its own (absent when zero, as on every legacy run).
    * `rules` (opt-in): every snapshot, and so every claim and every resume, first re-derives each of this meter's own calls from its bound
    * request and raw answer (verifyMeterRecords) and sums exactly those records; absent, the saved records are summed as they are.
+   * `debits` (opt-in, owner-approved): conservative debits, each of exactly ONE of this meter's own unknown-cost records (see
+   * conservativeDebitSchema). A bound record counts its debit against the cap in place of the unknown and is reported on its own, never as
+   * known spend; a debit that does not bind one such record exactly refuses. Absent: every snapshot exactly as before.
    */
   constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls: number, readonly priorKnownApiMicroUsd = 0,
-    readonly carriedUnresolvedMicroUsd = 0, readonly rules?: MeterRules) {
+    readonly carriedUnresolvedMicroUsd = 0, readonly rules?: MeterRules, readonly debits: readonly ConservativeDebit[] = []) {
     if (![capMicroUsd, maxCalls, priorKnownApiMicroUsd, carriedUnresolvedMicroUsd].every(Number.isSafeInteger) || carriedUnresolvedMicroUsd < 0 ||
       capMicroUsd <= priorKnownApiMicroUsd + carriedUnresolvedMicroUsd ||
       capMicroUsd - priorKnownApiMicroUsd > 8000000 || maxCalls < 1 || maxCalls > AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3) fail('audition_meter_policy');
+    if (debits.some(d => !conservativeDebitSchema.safeParse(d).success) || new Set(debits.map(d => d.step)).size !== debits.length) fail('audition_meter_debit');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root);
+  }
+  /** A debit binds exactly its one record: the record's own bytes, request digest, sequence and maximum; no receipt; cost still unknown. */
+  private boundDebit(debit: ConservativeDebit, claim: any, result: any) {
+    const at = (kind: string) => path.join(this.root, `${debit.step}.${kind}.json`);
+    const sha = (kind: string) => existsSync(at(kind)) ? previewSha(readFileSync(at(kind))) : null;
+    if (claim.step !== debit.step || claim.seq !== debit.seq || claim.wireDigest !== debit.wireDigest || claim.maximumMicroUsd !== debit.maximumMicroUsd ||
+        result.completed !== false || result.estimatedMicroUsd !== null || existsSync(at('receipt')) || sha('claim') !== debit.claimSha256 ||
+        sha('result') !== debit.resultSha256 || sha('failure') !== debit.failureSha256) fail('audition_meter_debit');
+    return debit.debitMicroUsd;
   }
   snapshot() {
     const records = this.rules ? verifyMeterRecords(this.root, this.rules) : readdirSync(this.root).filter(n => n.endsWith('.claim.json')).map(name => {
       const file = path.join(this.root, name.replace('.claim.', '.result.'));
       return { claim: JSON.parse(readFileSync(path.join(this.root, name), 'utf8')), result: existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null };
     });
-    let newKnownApiMicroUsd = 0, reservedUnsettledMicroUsd = 0, calls = 0, failed = 0, unknownCost = 0, unknownOutcome = 0;
-    const settled: { seq: number; stage: string; completed: boolean }[] = [];
+    let newKnownApiMicroUsd = 0, reservedUnsettledMicroUsd = 0, calls = 0, failed = 0, unknownCost = 0, unknownOutcome = 0, conservativeDebitMicroUsd = 0;
+    const settled: { seq: number; stage: string; completed: boolean }[] = [], debited = new Set<string>();
     for (const { claim, result } of records) {
       calls++;
+      const debit = this.debits.find(d => d.step === claim.step);
+      // A debit names a record whose outcome is settled (failed) and whose cost alone is unknown; anything else is not what it binds.
+      if (debit && (!result || typeof result.estimatedMicroUsd === 'number')) fail('audition_meter_debit');
       if (!result) { unknownOutcome++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; continue; }
       settled.push({ seq: claim.seq, stage: auditionStage(claim.step), completed: result.completed === true });
       if (!result.completed) failed++;
       if (typeof result.estimatedMicroUsd === 'number') newKnownApiMicroUsd += result.estimatedMicroUsd;
+      else if (debit) { conservativeDebitMicroUsd += this.boundDebit(debit, claim, result); debited.add(debit.step); }
       else { unknownCost++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; }
     }
+    if (debited.size !== this.debits.length) fail('audition_meter_debit');
     // Two consecutive failures overall, or in one logical stage even when calls of another stage succeeded in between.
     const lastTwo = (list: typeof settled) => { const two = list.slice(-2); return two.length === 2 && two.every(s => !s.completed); };
     const ordered = settled.sort((a, b) => a.seq - b.seq);
     const repeatedFailure = lastTwo(ordered) || [...new Set(ordered.map(s => s.stage))].some(stage => lastTwo(ordered.filter(s => s.stage === stage)));
-    const cumulativeAccountedMicroUsd = this.priorKnownApiMicroUsd + this.carriedUnresolvedMicroUsd + newKnownApiMicroUsd + reservedUnsettledMicroUsd;
+    const cumulativeAccountedMicroUsd = this.priorKnownApiMicroUsd + this.carriedUnresolvedMicroUsd + newKnownApiMicroUsd + conservativeDebitMicroUsd +
+      reservedUnsettledMicroUsd;
     if (this.rules && ![newKnownApiMicroUsd, reservedUnsettledMicroUsd, cumulativeAccountedMicroUsd].every(Number.isSafeInteger)) fail('audition_meter_cost');
     return { priorKnownApiMicroUsd: this.priorKnownApiMicroUsd, newKnownApiMicroUsd, reservedUnsettledMicroUsd,
       ...(this.carriedUnresolvedMicroUsd ? { carriedUnresolvedMicroUsd: this.carriedUnresolvedMicroUsd } : {}),
+      // Opted in only: the conservative debits, apart from known spend; their calls' actual charge stays unknown.
+      ...(this.debits.length ? { conservativeDebitMicroUsd, conservativeDebitCalls: debited.size, actualChargeUnknownCalls: debited.size } : {}),
       cumulativeAccountedMicroUsd,
       capMicroUsd: this.capMicroUsd, calls, maxCalls: this.maxCalls, failed, unknownCost, unknownOutcome,
       repeatedFailure,
@@ -653,6 +699,13 @@ export const auditionMeterRules: MeterRules = step => {
   return !m ? undefined : m[2] === '_qa' ? auditionReviewRule : m[2] !== '_identity' ? auditionRenderRule : m[1].startsWith('page_') ? auditionIdentityRule : undefined;
 };
 
+/**
+ * The pixel review's client deadline (2026-10-21, after a page review was abandoned at 300 s with no receipt): a 12000-token answer at the
+ * observed ~60 tokens/s takes ~200 s alone, so 600 s leaves room for a slow provider. Still no retries, the same model, output cap, request
+ * and acceptance. A deadline is not proof of a provider failure or of a zero charge: a call it ends has no receipt, so its cost is unknown
+ * and the meter stops.
+ */
+export const AUDITION_REVIEW_TIMEOUT_MS = 600_000;
 /** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
 export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void }) {
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
@@ -714,7 +767,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     check();
     return args.meter.run(step, digestImages(payload), SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
       cancelled(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
-      const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
+      const raw = await client.responses.create(payload, { signal: args.signal, timeout: AUDITION_REVIEW_TIMEOUT_MS });
       const estimatedMicroUsd = reviewCost(raw);
       const receipt = { raw, estimatedMicroUsd };
       if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
@@ -803,10 +856,43 @@ export function readReusedSheets(reuse: { sourceRun: string; roles: readonly ('e
   return { sheets, binding: { sourceRun: path.resolve(reuse.sourceRun), admissionSha256: previewSha(admissionText), roles: [...reuse.roles], sheets: files } };
 }
 
+/**
+ * RSM-1 (every resume): the paid progress an interrupted run left for ONE image (a sheet role or a page) that has no saved record,
+ * reconstructed from the meter's bound journal. Each journaled render of that image, under any run prefix, is one spent attempt, numbered
+ * by its own step: exactly 0..k-1, without a gap or a repeat. Each comes back CLOSED (AUDITION_ATTEMPT_INTERRUPTED): it counts against the
+ * image's attempt ceiling and keeps the candidate its render's receipt names (by the image's own bytes), and it is never re-judged, selected
+ * or used for a correction. Its review and identity records stay in the journal as they are; the meter alone prices them. Nothing is repaired
+ * or sent again.
+ */
+export function interruptedAttempts(root: string, directory: string, phase: 'sheet' | 'page', name: string): AuditionAttempt[] {
+  if (!(phase === 'sheet' ? /^(entities|locations)$/ : /^[0-8]$/).test(name)) fail('audition_resume_journal');
+  if (!existsSync(root)) return [];
+  const pattern = new RegExp(`^(?:r[0-9]{1,2}_)?${phase}_${name}_([0-9]{1,2})$`);
+  const renders = readdirSync(root).map(n => /^([a-z0-9_]+)\.claim\.json$/.exec(n)?.[1]).filter((s): s is string => !!s && pattern.test(s))
+    .map(step => ({ step, attempt: Number(pattern.exec(step)![1]) })).sort((a, b) => a.attempt - b.attempt);
+  if (renders.some((r, i) => r.attempt !== i)) fail('audition_resume_journal');
+  return renders.map(({ step, attempt }) => {
+    const at = (kind: string) => path.join(root, `${step}.${kind}.json`), claim = read(at('claim'));
+    const result = existsSync(at('result')) ? read(at('result')) : null;
+    if (claim?.step !== step || result && result.wireDigest !== claim.wireDigest) fail('audition_resume_journal');
+    let candidate: AuditionImage | null = null;
+    if (result?.completed === true) {
+      const named = image.safeParse(read(at('receipt'))?.candidate), file = named.success ? path.join(directory, named.data.imageName) : null;
+      if (!named.success || !file || !existsSync(file) || lstatSync(file).isSymbolicLink() || previewSha(readFileSync(file)) !== named.data.imageSha)
+        fail('audition_resume_journal');
+      candidate = { imageName: named.data!.imageName, imageSha: named.data!.imageSha };
+    }
+    return { attempt, candidate, review: null, assessment: null, status: 'unavailable' as const, error: AUDITION_ATTEMPT_INTERRUPTED };
+  });
+}
+
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout;
   /** Required exactly for a grant issued to an experiment: its slot, claim and guard (claim + source pin), run before every paid call. */
-  experiment?: { slot: string; claimSha256: string; guard: () => void } }) {
+  experiment?: { slot: string; claimSha256: string; guard: () => void };
+  /** Opt-in, owner-approved conservative debits of this audition's own unknown-cost records (see AuditionMeter); only with a resume. */
+  debits?: readonly ConservativeDebit[] }) {
+  if (args.debits?.length && !args.resume) fail('audition_meter_debit');
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
@@ -830,7 +916,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   // An experiment's audition (its grant names it, so a start or resume without its guard is refused above) re-derives its own calls before
   // every claim, resume and spend record: opted in exactly here. Every other run sums its saved records as before.
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
-    grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined);
+    grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined, args.debits ?? []);
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
@@ -855,9 +941,22 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     const optional = (name: string) => existsSync(path.join(args.out, `${name}.json`)) ? read(path.join(args.out, `${name}.json`)) : undefined;
     const markers = readdirSync(args.out).filter(n => /^resume-[0-9]+\.json$/.test(n)).length + 1;
     const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => [n, optional(`page_${n}`)]).filter(([, p]) => p));
-    resume = { designs: read(path.join(args.out, 'audition_sheet_designs.json')), sheets: { entities: optional('sheet_entities'), locations: optional('sheet_locations') },
-      pages, stepPrefix: `r${markers}_` };
-    save(`resume-${markers}`, { resumedPages: Object.keys(pages).map(Number), spendBefore: meter.snapshot(), at: new Date().toISOString() });
+    const sheets = { entities: optional('sheet_entities'), locations: optional('sheet_locations') };
+    // RSM-1: every image without a saved record keeps the paid attempts its journal shows (closed), before anything else is dispatched.
+    const paid = path.join(args.out, 'paid-stages');
+    const closedSheets = Object.fromEntries((['entities', 'locations'] as const).filter(role => !sheets[role])
+      .map(role => [role, interruptedAttempts(paid, directory, 'sheet', role)] as const).filter(([, a]) => a.length));
+    const closedPages = Object.fromEntries((renderScope?.pages ?? []).filter(n => !pages[n])
+      .map(n => [n, interruptedAttempts(paid, directory, 'page', String(n))] as const).filter(([, a]) => a.length));
+    const interrupted = Object.keys(closedSheets).length || Object.keys(closedPages).length
+      ? { ...(Object.keys(closedSheets).length ? { sheets: closedSheets } : {}), ...(Object.keys(closedPages).length ? { pages: closedPages } : {}) } : null;
+    resume = { designs: read(path.join(args.out, 'audition_sheet_designs.json')), sheets, pages, stepPrefix: `r${markers}_`, ...(interrupted ? { interrupted } : {}) };
+    const counts = (closed: Record<string, AuditionAttempt[]>) => Object.fromEntries(Object.entries(closed).map(([k, a]) => [k, a.length]));
+    save(`resume-${markers}`, { resumedPages: Object.keys(pages).map(Number),
+      // Absent when nothing was interrupted (every earlier resume record's shape, unchanged).
+      ...(interrupted ? { interrupted: { ...(interrupted.sheets ? { sheets: counts(interrupted.sheets) } : {}),
+        ...(interrupted.pages ? { pages: counts(interrupted.pages) } : {}) } } : {}),
+      spendBefore: meter.snapshot(), at: new Date().toISOString() });
   } else {
     child = await io.writeImage('reference_child.png', loaded.childBytes);
     companion = await io.writeImage('reference_companion.png', loaded.companionBytes);
