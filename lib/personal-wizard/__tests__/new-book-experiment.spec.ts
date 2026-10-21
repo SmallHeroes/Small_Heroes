@@ -716,8 +716,8 @@ describe('the reviewed audition on the new book (synthetic providers through the
     expect(run.result.manifest).toMatchObject({ scope: { reusedSheets: ['locations'], pageAttempts: 1 }, sheets: { locations: { referenceStatus: json(sheetFile).status === 'qa_supported'
       ? 'approved_reference' : 'diagnostic_candidate' } } });
   }, 180_000);
-  it('scale comparison: an interrupted run continues only by resume, in the same folder and meter; a resume without a start is refused', async () => {
-    const { dir, pages } = await heldSample();
+  it('scale comparison: an interrupted run continues only by resume, in the same folder and meter, its spent page attempt still spent (RSM-1); a resume without a start is refused', async () => {
+    const { dir } = await heldSample();
     await expect(comparison(['--execute', '--resume'])).rejects.toThrow(/^new_book_comparison_binding$/);
     const controller = new AbortController(), realJudge = sdk.create.getMockImplementation()!;
     let judged = 0;
@@ -726,13 +726,18 @@ describe('the reviewed audition on the new book (synthetic providers through the
     sdk.create.mockImplementation(realJudge);
     const out = path.join(dir, NEW_BOOK_SCALE_COMPARISON.outDir), paid = path.join(out, 'paid-stages'), first = claims(paid);
     await expect(comparison(['--execute'])).rejects.toThrow(/^new_book_comparison_used$/);
-    const resumed = await runNewBookScaleComparison({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, resume: true });
-    if (resumed.mode !== 'render') throw Error('render expected');
-    const added = claims(paid).filter(s => !first.includes(s));
-    expect(added.length).toBeGreaterThan(0);
-    expect(added.every(s => s.startsWith('r1_page_'))).toBe(true);
-    expect(resumed.manifest).toMatchObject({ scope: { frames: pages, pageAttempts: 1, reusedSheets: ['locations'] } });
-    expect(resumed.spend).toMatchObject({ unknownCost: 0, unknownOutcome: 0, maxCalls: 10 });
+    // Interrupted after the first sample's ONE attempt was paid (its render and review journaled, its page record not written). Before
+    // RSM-1 the resume drew that page again (a second paid attempt over the comparison's one per page); now the resume, in the same folder
+    // and meter, gives the spent attempt back closed and counted, so that page has none left: refused before any new claim.
+    const spent = first.filter(s => /^page_[0-9]_0$/.test(s));
+    expect(spent).toHaveLength(1);
+    const page = Number(spent[0].split('_')[1]);
+    expect(first.filter(s => s.startsWith(`page_${page}_`))).toEqual([`page_${page}_0`, `page_${page}_0_qa`]);
+    await expect(runNewBookScaleComparison({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, resume: true }))
+      .rejects.toThrow(`audition_page_${page}_unavailable`);
+    expect(claims(paid)).toEqual(first);
+    expect(json(path.join(out, 'resume-1.json'))).toMatchObject({ interrupted: { pages: { [String(page)]: 1 } },
+      spendBefore: { unknownCost: 0, unknownOutcome: 0, maxCalls: 10 } });
   }, 180_000);
 
   it('F3: one fresh audition per approval; a second start, another output folder or the grant on a bare runner is refused before any image', async () => {
