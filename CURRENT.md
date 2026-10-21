@@ -1,5 +1,85 @@
 # SmallHeroes — Current Technical State
 
+## Attempt 6 admitted its storyboard and held its child; the pose/visibility engine change and the ONE child-recovery line built offline (c84e712e), for Codex QA; the book is NOT done (2026-10-21)
+
+**What happened since 8d9714eb.**
+- Codex re-gated the RRP-1 correction: narrow technical PASS (`CODEX-PRESENCE-RRP1-REGATE-PASS-8d9714eb-20261020.txt`).
+- The ONE presence attempt 6 ran (grant 8538ac4d…). Its storyboard was ADMITTED: `review_supported_with_notes`, 4 notes, 0 blockers
+  (candidate a2cfdeb2…); its successor is recorded.
+- Its child anchor was then held by its own gate (`held_child` / `held_uncertain`, candidate 90331690…):
+  - style defect: large eyes;
+  - scene defect: a slight smile;
+  - identity uncertain: both hands hidden in the shorts pockets, while the inspection view requires them.
+- Codex's outcome QA (`CODEX-ATTEMPT6-CHILD-OUTCOME-QA-20261021.txt`) verified the stop and proposed a bounded recovery
+  (`CODEX-PROPOSAL-CHILD-VISIBILITY-RECOVERY-20261021.txt`). Guy approved it directly in chat
+  (`OWNER-APPROVAL-CHILD-VISIBILITY-RECOVERY-20261021.txt`, 4e639c4f…). That record is not an execution grant.
+
+**The verified general gap (not this child).**
+- Production's anchor prompt says "Front or 3/4 view, half/full body" and never asks for the hands to be shown.
+- The inspection view is a full-body anchor that requires face, eyes, hair, skin tone, body proportions, hands and wardrobe to be visible.
+- An obedient render can hide exactly the evidence the gate requires. Any uncertainty was terminal, so a known visibility problem could
+  never use the one correction.
+
+**The engine change (c84e712e; opt-in, versioned; absent = byte-identical, pinned to the held child's own digests).**
+- `child-anchor-visible-pose/v1` gives ONE source for the pose and the required visible aspects:
+  - one phrase per required aspect builds the pose clause (full body; both hands outside any pocket);
+  - the pose request replaces production's pose line exactly once;
+  - the inspection view binds the same clause (text + sha256);
+  - the correction may change the pose only where a named correction says so.
+- `child-anchor-visibility-recovery/v1` is a typed, visibility-only recovery into the one correction. It applies only when the hold's sole
+  unresolved evidence is unreadable hands, wardrobe or whole body, and every one of these holds:
+  - identity uncertain, and no other category uncertain;
+  - every visible difference cosmetic, and the same character;
+  - anatomy and safety pass;
+  - the age judged, and the style assessable.
+- The corrections are the known defects as the existing disposition writes them, plus the engine's fixed visibility text; never the judge's
+  text. Anything else stays held.
+
+**The line (fresh-book-child-recovery/v1).**
+- Scope: ONE gpt-image-2 LOW edit of the held candidate (the rejected edit target only) and its two Sol 6.1 reviews, under the pose context
+  and the frozen recipe, on the presence line's admitted storyboard. It has its own claim, outcome, audition start, successor and folder.
+- Admission re-derives, before the claim:
+  - the presence chain and its successor (whole-chain replay);
+  - `held_child`, and the held child's three settled calls under its own context;
+  - then the typed recovery.
+- `book --child-recovery` stands on the recovered child and its own ledger stage.
+- The child stage's attempt and verifier are now shared functions; the child stage's behaviour is unchanged.
+
+**Real book, read only (dry plan; no key, provider or write).**
+- The held child re-derives: style `defect`; design `held_uncertain`.
+- The recovery covers `hands` only, with three corrections:
+  - scene: the mouth;
+  - style: natural eye scale;
+  - visibility: both hands.
+- The edit: prompt 6360 characters (f456a11c…); pose context f40bc1a5…; recipe 27e35334…; claim maximum 362288.
+- Reserve 1562288 against 6412900 left.
+
+**Tests.**
+- `child-anchor-visibility.spec.ts`: 10/10.
+- The child-recovery driver tests: 5/5. They cover the positive path through to the complete book, the held cases, 17 immutable-input
+  refusals, 6 tampered recovered children refused before the audition, and a non-visibility hold never planned.
+- The serial run of the 19 affected spec files: 694 passed, 3 failed, 1 skipped, sources unchanged during the run. The 3: `fresh-book-driver:152` and `fresh-book-recovery:2454` are stale real-data checks that expect the fresh book's / the presence line's claim and records to be absent (both exist since those runs); `new-book-experiment:3588` timed out at 300 s inside a 66-minute window that overlapped Modern Standby and passes alone in 10 s (cause not proven).
+- nonincremental tsc: 0.
+- The full check stays RED.
+
+**Correction of the attempt-6 stop report.**
+- The eye scale is an instruction tension, not proven noncompliance: the written design asks for "large dark-brown eyes", while the style
+  asks for "natural eye scale".
+- The pose gap also includes the prompt's "half/full body".
+- The recovery does not use the reviewer's correction text.
+
+**Money.**
+- API, book: 587100 known, 12 calls, of 7000000.
+- Cycle: 716030 of 8000000.
+- Claude Max for the book: 5502244. It is separate: never 0, not an invoice.
+- This milestone: 0 paid calls and 0 Max sessions.
+
+**Next.**
+1. Codex QA of 8d9714eb..this docs commit (code c84e712e) and the staged one-use grant pinned to this docs commit.
+2. After a PASS and a fresh preflight: the one edit and its reviews.
+3. If the corrected child passes: two samples, then the rest and the cover (LOW), the viewer and the reports.
+4. If the child holds: the line ends with an honest report.
+
 ## Codex held e97fc6e5 on RRP-1; the repeated-relation rule now compares structured content (7def732d), for Codex re-gate; the book is NOT done (2026-10-20)
 
 **What happened since e97fc6e5.** Codex's independent source-read-only QA (`CODEX-PRESENCE-QA-HOLD-e97fc6e5-20261020.txt`) passed the

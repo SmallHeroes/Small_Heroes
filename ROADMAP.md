@@ -1,5 +1,23 @@
 # SmallHeroes — Roadmap
 
+## Attempt 6's storyboard admitted, its child held; pose/visibility engine change + the ONE child-recovery line built offline (c84e712e); next: Codex QA, then the one edit and the book (2026-10-21)
+
+- **What happened.** Codex PASSed the RRP-1 correction. Attempt 6 ADMITTED the storyboard: 4 notes, 0 blockers, successor recorded.
+- **The child.** The child anchor was held: large eyes, a slight smile, and both hands hidden in the pockets while the inspection view
+  requires them.
+- **General gap.** The anchor prompt allowed "half/full body" and never asked for visible hands. The gate required them, and any
+  uncertainty was terminal.
+- **Built (offline, opt-in):**
+  - `child-anchor-visible-pose/v1`: one pose source for the render, the correction and the judge's view.
+  - `child-anchor-visibility-recovery/v1`: a typed, visibility-only recovery into the one correction (hands, wardrobe or whole body only;
+    identity, age and safety uncertainty still hold).
+  - The bounded line: ONE LOW edit of the held child and two Sol reviews on the admitted storyboard.
+- **Real book (read only):** the recovery covers the hands only, with 3 corrections (mouth, natural eye scale, both hands visible). The edit
+  maximum is 362288; the reserve is 1562288 of 6412900 left.
+- **Tests:** the engine spec 10/10; the recovery driver 5/5; the 19 affected files 694 passed / 3 failed / 1 skipped (2 stale real-data checks; 1 timeout in a standby window that passes alone in 10 s); tsc 0. The full check stays RED.
+- **Next:** Codex QA → the one edit + two reviews → if passed, samples → the rest and the cover → the viewer → the QA report and the engine
+  report. If the child holds: an honest stop.
+
 ## Codex RRP-1 HOLD on e97fc6e5 corrected (7def732d): a repeated relation slot compares structured content; next: Codex re-gate, then attempt 6 and the book (2026-10-20)
 
 - **What happened.** Codex's QA passed the presence mechanism and held one P2: the repeated-relation rule refused any relation in the slot,
