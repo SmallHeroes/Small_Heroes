@@ -1,5 +1,25 @@
 # SmallHeroes — Roadmap
 
+## The ONE child recovery held (hat over the crown, eye scale); pose v2 + the ONE fresh-anchor line built offline (aa209b04); next: Codex QA, then the fresh anchor and the book (2026-10-21)
+
+- **What happened.** Codex PASSed the child recovery. The ONE edit ran (61318 microUSD): the hands are now visible, but the child was held
+  again. The declared sun hat covers the crown cowlick the design asks for (hair unreadable), the eyes are still large, and the edit kept
+  the smile.
+- **Guy approved the recommended route** ("כן מאשר - רוץ").
+- **Built (offline, opt-in, materiality only):**
+  - `child-anchor-visible-pose/v2`: a trait under a declared wardrobe item is recorded as unobserved (verbatim trait and item), never a
+    defect; an aspect with nothing visible still holds. ONE eye-scale clause ("large" = noticeable within natural proportions) goes into
+    the render request and the judge's view.
+  - The bounded line: the GENERAL child stage under v2 in its own folder: ONE fresh LOW render (not an edit) + 2 Sol reviews, and at most
+    its one correction + 2 reviews (6 calls).
+- **Real book (read only):** the recovery's hold re-derives. The fresh request is 6009 characters, with the eye-scale clause right after the
+  visual lock; the first render maximum is 425048; the reserve is 4160344 of 6351582 left.
+- **Tests:** the engine spec 17/17; the fresh-anchor driver 5/5; the 19 affected files 706 passed / 3 failed / 1 skipped (2 stale real-data
+  checks; 1 heavy audition test at 63 s of 60 s that passes alone, with its sibling's A/B at base showing the slower machine); tsc 0. The
+  full check stays RED.
+- **Next:** Codex QA → the fresh anchor → if passed, samples → the rest and the cover → the viewer → the reports. If it holds: an honest
+  stop.
+
 ## Attempt 6's storyboard admitted, its child held; pose/visibility engine change + the ONE child-recovery line built offline (c84e712e); next: Codex QA, then the one edit and the book (2026-10-21)
 
 - **What happened.** Codex PASSed the RRP-1 correction. Attempt 6 ADMITTED the storyboard: 4 notes, 0 blockers, successor recorded.

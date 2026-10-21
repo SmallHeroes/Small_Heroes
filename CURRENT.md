@@ -1,5 +1,92 @@
 # SmallHeroes — Current Technical State
 
+## The ONE child recovery held (the hat over the crown, the eye scale); pose v2 and the ONE fresh-anchor line built offline (aa209b04), for Codex QA; the book is NOT done (2026-10-21)
+
+**What happened since 337ca6c2.**
+- Codex PASSed 8d9714eb..337ca6c2 and grant 0b107756… (`CODEX-CHILD-VISIBILITY-RECOVERY-PASS-337ca6c2-20261021.txt`).
+- The ONE child recovery ran (3 calls, 61318 microUSD) and was held: `held_child_recovery` / `held_uncertain`, corrected candidate
+  fb1d935c…. No successor, no layout, no book.
+  - The pose contract worked on pixels: both hands visible and matched, the whole body in the frame.
+  - Hair `unreadable`, so identity `uncertain`: the mandatory "White floppy sun hat" covers the crown cowlick the design asks for.
+  - Style `defect` again: oversized eyes. The written design says "large dark-brown eyes"; the style asks for natural eye scale.
+  - The LOW edit kept the held face, including the slight smile.
+- Stop report: `_review/new-book-autonomous-closure-20261018/child-recovery-outcome-20261021/STOP-REPORT-CHILD-RECOVERY-20261021.md`.
+- Guy approved the recommended route directly in chat ("כן מאשר - רוץ"; `OWNER-APPROVAL-CHILD-FRESH-ANCHOR-20261021.txt`, 9e708cbd…).
+  That record is not an execution grant.
+
+**The engine change: `child-anchor-visible-pose/v2` (opt-in, versioned, materiality only; absent and v1 byte-identical).**
+- **Covered by a declared wardrobe item.** A new excluded condition, `covered_by_declared_wardrobe`:
+  - a written trait under a declared wardrobe item is recorded as unobserved: the trait quoted verbatim from the design, the covering item
+    quoted verbatim from the wardrobe (`coveredBy`, one phrase);
+  - it is never matched and never a defect; the required aspect is judged by its visible parts;
+  - a required aspect that is not visible at all stays `unreadable` and holds.
+- **Eye-scale precedence.** ONE clause, placed right after the child's visual lock in the render request and bound into the judge's view
+  (text and sha256): Style 01's natural eye scale governs the size; "large" or "big" means noticeable within natural proportions; the colour
+  and shape stay exact.
+- Under a v2 view only, the judge gets the v2 view rules, the v2 schema (`coveredBy`) and its own format name. A layout may name v2 only
+  beside the materiality acceptance.
+- The typed visibility recovery now names the pose contract its correction is made under (default v1, so the child recovery's records stay
+  byte-identical).
+- Known limit: the engine verifies that the trait and the covering item are verbatim quotes; the occlusion itself is the judge's typed
+  claim, as for the smile-only rule.
+
+**The line: `fresh-book-child-fresh-anchor/v1`.**
+- Scope: the GENERAL child stage under pose v2, in its own folder `child-fresh-anchor`:
+  - ONE fresh gpt-image-2 LOW render from the pinned technique files (not an edit, so the held face is not inherited);
+  - its two Sol 6.1 reviews;
+  - only for a known defect or a typed-visibility hold, its ONE correction and that candidate's two reviews (at most 6 calls).
+- It stands on the presence line's admitted storyboard and has its own claim, outcome, audition start and successor.
+- Admission re-derives, before the claim:
+  - the presence chain and its successor, and the held child;
+  - the consumed recovery grant (re-planned equal), its claim and its terminal record;
+  - the recovery folder: its settled calls re-judged under ITS v1 context to `held_uncertain`, and every record it wrote.
+- The reserve before the claim: the first render's maximum, one correction at the image seam's longest prompt, and four review slots.
+- `book --child-fresh-anchor` stands on the fresh child and its own ledger stage.
+
+**Wording correction (Codex's nonblocking note on 337ca6c2).** The recovery's corrections are the judge's own known scene, style and age
+corrections, as the existing disposition writes them, plus the engine's fixed visibility text. Only the judge's identity prose is never used.
+The previous entry's "never the judge's text" was too broad.
+
+**Real book, read only (dry plan; no key, provider or write).**
+- The consumed recovery re-derives: grant 0b107756…, claim 49c1b72b…, outcome 39456ecc… (`held_child_recovery`), folder 92104d48…; its
+  corrected candidate fb1d935c… re-judges under its v1 pose context f40bc1a5… to `held_uncertain`.
+- On the way, the presence chain (grant 8538ac4d…, successor c41f36f5…, storyboard a2cfdeb2…) and the held child 90331690… re-derive.
+- The fresh request: 6009 characters (prompt sha 22750958…). The v2 pose clause replaces production's pose line; the eye-scale clause sits
+  right after the CHILD VISUAL LOCK. The v2 context is 24533436…; the first render's maximum is 425048.
+- The reserve is 4160344 (425048 + 1335296 for one correction at the longest prompt + 4 × 600000), against 6351582 left.
+
+**Tests.**
+- `child-anchor-visibility.spec.ts`: 17/17. The 7 new v2 cases: absent/v1 parity; the v2 request, view and payload; the occlusion record,
+  valid and refused; the general stage under v2; the layout opt-in.
+- The fresh-anchor driver describe: 5/5. It runs inside the child-recovery describe on its held chain; the recovery runs once (held), and
+  the state is restored byte-exact before every case.
+  - Positive: ONE fresh render and two reviews pass; the successor; once only; the complete book on its own line.
+  - The typed-visibility correction under v2 passes; the complete book.
+  - Held: an unreadable face (no correction), a correction that still hides the hands, a known-defect correction still held, and an
+    unassessable style.
+  - 17 immutable inputs refused before the claim or any call, plus 3 plan refusals.
+  - 7 tampered fresh children refused before the audition.
+- The serial run of the 19 affected spec files (at aa209b04; sources unchanged during the run): 706 passed, 3 failed, 1 skipped.
+  - `fresh-book-driver:152` and `fresh-book-recovery:2714` (previously :2454) are the same stale real-data checks as before. They expect
+    the book's claim and the presence line's records to be absent.
+  - The `new-book-experiment` test "the drawn instant … reaches the renderer" timed out at 63 s of 60 s, and passes alone in 53.8 s. Its
+    sibling in the same group took 55.3 s at base 337ca6c2 and 57–59 s at this code, in the same machine state. The machine is slower
+    today (about 40–55% above earlier runs); this is not the change.
+- nonincremental tsc: 0.
+- The full check stays RED.
+
+**Money.**
+- API, book: 648418 known, 15 calls, of 7000000.
+- Cycle: 777348 of 8000000.
+- Claude Max for the book: 5502244 in 8 sessions. It is separate: never 0, not an invoice.
+- This milestone: 0 paid calls and 0 Max sessions.
+
+**Next.**
+1. Codex QA of 337ca6c2..this docs commit (code aa209b04) and the staged one-use grant pinned to this docs commit.
+2. After a PASS and a fresh preflight: the ONE fresh anchor.
+3. If the fresh child passes: two samples, then the rest and the cover (LOW), the viewer and the reports.
+4. If it holds: an honest stop.
+
 ## Attempt 6 admitted its storyboard and held its child; the pose/visibility engine change and the ONE child-recovery line built offline (c84e712e), for Codex QA; the book is NOT done (2026-10-21)
 
 **What happened since 8d9714eb.**
