@@ -222,6 +222,11 @@ export function childAnchorDesignDisposition(value: unknown, candidateSha: strin
 }
 type StyleOutcome = ReturnType<typeof childAnchorStyleDisposition>;
 type DesignOutcome = Pick<ReturnType<typeof childAnchorDesignDisposition>, 'review' | 'design' | 'apparentAge'>;
+/** The correction of every KNOWN defect of one candidate, in the order the one correction carries them: categories, apparent age, style. */
+const knownCorrections = (style: StyleOutcome, design: DesignOutcome) => [
+  ...design.review.checks.filter(c => c.verdict === 'defect').map(c => `${c.category}: ${c.correction}`),
+  ...(design.apparentAge.verdict === 'defect' ? [`apparent_age (requested ${design.apparentAge.requestedAge}): ${design.apparentAge.correction}`] : []),
+  ...(style.disposition === 'defect' ? [`style: ${style.review.notes} Refined semi-naturalistic Style 01 watercolor, natural eye scale, no mascot, chibi, flat-cartoon or photographic treatment.`] : [])];
 /**
  * All three dimensions of ONE candidate: any uncertain (style not assessable, an uncertain category, uncertain age) or missing evidence holds;
  * otherwise any known defect is a repair with its corrections; otherwise passed. Never a pass from part of the evidence.
@@ -229,9 +234,7 @@ type DesignOutcome = Pick<ReturnType<typeof childAnchorDesignDisposition>, 'revi
 export function childAnchorDisposition(style: StyleOutcome | null, design: DesignOutcome | null) {
   if (!style || !design || style.disposition === 'held_uncertain' || design.design === 'held_uncertain' || design.apparentAge.verdict === 'uncertain')
     return { disposition: 'held_uncertain' as const, corrections: [] as string[] };
-  const corrections = [...design.review.checks.filter(c => c.verdict === 'defect').map(c => `${c.category}: ${c.correction}`),
-    ...(design.apparentAge.verdict === 'defect' ? [`apparent_age (requested ${design.apparentAge.requestedAge}): ${design.apparentAge.correction}`] : []),
-    ...(style.disposition === 'defect' ? [`style: ${style.review.notes} Refined semi-naturalistic Style 01 watercolor, natural eye scale, no mascot, chibi, flat-cartoon or photographic treatment.`] : [])];
+  const corrections = knownCorrections(style, design);
   return corrections.length ? { disposition: 'repair' as const, corrections } : { disposition: 'passed' as const, corrections };
 }
 
@@ -265,21 +268,70 @@ export const CHILD_ANCHOR_VIEW_EXPRESSION_SHA256 = '3febb25b417ef4b479d0861c8877
 export const CHILD_ANCHOR_REQUIRED_VISIBLE = Object.freeze(['face', 'eyes', 'hair', 'skin_tone', 'body_proportions', 'hands', 'wardrobe'] as const);
 /** What the neutral anchor clause excludes: a trait seen only with an open mouth or a smile cannot be observed in this view. */
 export const CHILD_ANCHOR_EXCLUDED_CONDITIONS = Object.freeze(['open_mouth_or_smile'] as const);
+
+// ---------------------------------------------------------------------------------------------------------------
+// child-anchor-visible-pose/v1 (opt-in, owner-approved 2026-10-21, OWNER-APPROVAL-CHILD-VISIBILITY-RECOVERY-20261021.txt): ONE source for the
+// anchor's pose and the aspects its inspection must see. The inspection view requires every aspect of CHILD_ANCHOR_REQUIRED_VISIBLE (the hands
+// included) on a full-body neutral anchor, while production's description prompt allows "half/full body" and never asks for the hands to be
+// shown, so an obedient render can hide the very evidence the gate requires (the fresh book's child: both hands in the shorts pockets, read as
+// unreadable). Under the contract the request's pose line is replaced by a pose clause built from the same required-visible list (one phrase
+// per aspect), the inspection view binds that clause (its text and sha256), and a correction under it may change the pose only where a named
+// correction says so: the render, the correction and the judge read one definition. Absent, every request, view, context and digest is
+// byte-identical.
+// ---------------------------------------------------------------------------------------------------------------
+export const CHILD_ANCHOR_POSE_VERSION = 'child-anchor-visible-pose/v1' as const;
+/** Production's pose line in the description prompt, replaced (exactly once) under the contract. */
+export const CHILD_ANCHOR_PRODUCTION_POSE_LINE = 'Front or 3/4 view, half/full body, clean near-empty background.';
+/** How each required visible aspect must appear in the anchor: one phrase per aspect, for the render, the correction and the judge. */
+export const CHILD_ANCHOR_VISIBLE_PHRASES: Readonly<Record<(typeof CHILD_ANCHOR_REQUIRED_VISIBLE)[number], string>> = Object.freeze({
+  face: 'the whole face, unobstructed', eyes: 'both eyes, open and unobstructed', hair: 'the hair, uncropped',
+  skin_tone: 'the skin of the face, arms and legs', body_proportions: 'the whole body from the top of the head to the soles of the feet',
+  hands: 'both hands, fully visible outside any pocket and not behind the body or an object, open and relaxed with the fingers showing',
+  wardrobe: 'every wardrobe item, uncropped' });
+export const CHILD_ANCHOR_POSE_CLAUSE = `ANCHOR POSE (mandatory, ${CHILD_ANCHOR_POSE_VERSION}): one child standing, front or 3/4 view, the FULL body inside the frame, clean near-empty background. Visible in the picture: ${CHILD_ANCHOR_REQUIRED_VISIBLE.map(a => CHILD_ANCHOR_VISIBLE_PHRASES[a]).join('; ')}.`;
+export const CHILD_ANCHOR_POSE_CLAUSE_SHA256 = sha(CHILD_ANCHOR_POSE_CLAUSE);
+/** The correction instruction under the contract: the existing one, except that a named correction may change the pose (a visibility fix). */
+export const CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION = 'Image 1 is the REJECTED edit target, not an approved canonical reference. Make only the named corrections. Preserve identity, face, anatomy, palette, refined Style 01 watercolor treatment and every other design detail; keep the pose except where a named correction changes it, and then follow the ANCHOR POSE clause above. Anatomical left/right belong to the subject: for a front-facing figure, its right is image-left. Do not mirror the whole image.';
+/**
+ * The description route under the contract: production's description request with its pose line replaced by the pose clause. The line must
+ * occur exactly once in the whole core, as its own block, and the clause nowhere (or the production text drifted, or a design quotes either):
+ * otherwise it refuses, as the view would.
+ */
+export function childAnchorPoseDescriptionRequest(child: ChildAnchorChild) {
+  const base = childAnchorDescriptionRequest(child), blocks = base.core.split('\n\n'), at = blocks.indexOf(CHILD_ANCHOR_PRODUCTION_POSE_LINE);
+  if (at < 0 || base.core.split(CHILD_ANCHOR_PRODUCTION_POSE_LINE).length !== 2 || base.core.includes(CHILD_ANCHOR_POSE_CLAUSE)) fail('child_anchor_production_prompt');
+  const core = [...blocks.slice(0, at), CHILD_ANCHOR_POSE_CLAUSE, ...blocks.slice(at + 1)].join('\n\n');
+  return { identitySource: base.identitySource, core, prompt: `${core}${AVOID}`, referenceMode: base.referenceMode, pose: CHILD_ANCHOR_POSE_VERSION };
+}
+/** The one correction under the contract: an edit of the rejected candidate, the pose core, the pose-aware instruction, the corrections, [AVOID]. */
+export const childAnchorPoseCorrectionPrompt = (core: string, corrections: readonly string[]) => {
+  if (!corrections.length || corrections.some(c => !c.trim()) || core.split(CHILD_ANCHOR_POSE_CLAUSE).length !== 2) fail('child_anchor_correction_scope');
+  return `${core}\n\n${CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION}\nTARGETED CORRECTIONS:\n${corrections.join('\n')}${AVOID}`;
+};
+
+const poseContractSchema = z.object({ version: z.literal(CHILD_ANCHOR_POSE_VERSION), clause: z.literal(CHILD_ANCHOR_POSE_CLAUSE),
+  clauseSha256: z.literal(CHILD_ANCHOR_POSE_CLAUSE_SHA256) }).strict();
 const inspectionViewSchema = z.object({ version: z.literal(CHILD_ANCHOR_INSPECTION_VERSION), pose: z.literal('single_child_full_body_neutral_anchor'),
   expression: z.string().min(1), expressionSha256: z.literal(CHILD_ANCHOR_VIEW_EXPRESSION_SHA256),
   requiredVisible: z.array(z.enum(CHILD_ANCHOR_REQUIRED_VISIBLE)).length(CHILD_ANCHOR_REQUIRED_VISIBLE.length),
-  excludedConditions: z.array(z.enum(CHILD_ANCHOR_EXCLUDED_CONDITIONS)).min(1) }).strict();
+  excludedConditions: z.array(z.enum(CHILD_ANCHOR_EXCLUDED_CONDITIONS)).min(1), poseContract: poseContractSchema.optional() }).strict();
 export type ChildAnchorInspectionView = z.infer<typeof inspectionViewSchema>;
 /**
  * The view of THIS anchor request: its prompt must carry production's anchor expression clause exactly once, and that clause must be the one
- * the view was reviewed against. Derived from the planned prompt, never from the child's design text.
+ * the view was reviewed against. Derived from the planned prompt, never from the child's design text. `pose` (child-anchor-visible-pose/v1,
+ * opt-in): the prompt must carry the pose clause exactly once and not production's pose line, and the view binds that clause; absent, a
+ * prompt carrying the pose clause refuses (the view must name the pose contract its request uses).
  */
-export function childAnchorInspectionView(prompt: string): ChildAnchorInspectionView {
+export function childAnchorInspectionView(prompt: string, pose?: typeof CHILD_ANCHOR_POSE_VERSION): ChildAnchorInspectionView {
   if (sha(STAGE0_ANCHOR_NEUTRAL_EXPRESSION) !== CHILD_ANCHOR_VIEW_EXPRESSION_SHA256 || prompt.split(STAGE0_ANCHOR_NEUTRAL_EXPRESSION).length !== 2)
+    fail('child_anchor_inspection_view');
+  if (pose === undefined ? prompt.includes(CHILD_ANCHOR_POSE_CLAUSE)
+    : pose !== CHILD_ANCHOR_POSE_VERSION || prompt.split(CHILD_ANCHOR_POSE_CLAUSE).length !== 2 || prompt.includes(CHILD_ANCHOR_PRODUCTION_POSE_LINE))
     fail('child_anchor_inspection_view');
   return inspectionViewSchema.parse({ version: CHILD_ANCHOR_INSPECTION_VERSION, pose: 'single_child_full_body_neutral_anchor',
     expression: STAGE0_ANCHOR_NEUTRAL_EXPRESSION, expressionSha256: CHILD_ANCHOR_VIEW_EXPRESSION_SHA256,
-    requiredVisible: [...CHILD_ANCHOR_REQUIRED_VISIBLE], excludedConditions: [...CHILD_ANCHOR_EXCLUDED_CONDITIONS] });
+    requiredVisible: [...CHILD_ANCHOR_REQUIRED_VISIBLE], excludedConditions: [...CHILD_ANCHOR_EXCLUDED_CONDITIONS],
+    ...(pose ? { poseContract: { version: pose, clause: CHILD_ANCHOR_POSE_CLAUSE, clauseSha256: CHILD_ANCHOR_POSE_CLAUSE_SHA256 } } : {}) });
 }
 export const CHILD_ANCHOR_INSPECTION_RULE = 'Judge the written design against actual pixels as this inspection view shows it. Every required visible aspect is judged; a design trait whose visibility depends on a condition this view excludes is recorded as unobserved, never as matched or as a defect. Unreadable required evidence or omitted required design is not pass. Mark unrelated scene/framing categories pass with N/A evidence. This does not grant production qualification.';
 /**
@@ -302,12 +354,14 @@ export type ChildAnchorInspectionContext = z.infer<typeof inspectionContextSchem
 export type ChildAnchorAcceptanceVersion = ChildAnchorInspectionContext['version'];
 /**
  * The authoritative inspection context of one anchor: the child's written design as configured and the view of its planned prompt.
- * `acceptance` (opt-in) binds the materiality rule and its owner amendment; absent, the inspection/v1 context exactly.
+ * `acceptance` (opt-in) binds the materiality rule and its owner amendment; absent, the inspection/v1 context exactly. `pose` (opt-in): the
+ * view binds the pose clause its prompt carries (child-anchor-visible-pose/v1); absent, the view exactly as before.
  */
-export const childAnchorInspectionContext = (child: ChildAnchorChild, prompt: string, acceptance: ChildAnchorAcceptanceVersion = CHILD_ANCHOR_INSPECTION_VERSION): ChildAnchorInspectionContext =>
+export const childAnchorInspectionContext = (child: ChildAnchorChild, prompt: string, acceptance: ChildAnchorAcceptanceVersion = CHILD_ANCHOR_INSPECTION_VERSION,
+  pose?: typeof CHILD_ANCHOR_POSE_VERSION): ChildAnchorInspectionContext =>
   inspectionContextSchema.parse({ version: acceptance, scope: 'noncommercial_reference_design_only',
     design: { age: child.age, address: child.gender, fictionalDesign: child.design, wardrobe: child.wardrobe, role: 'child' },
-    view: childAnchorInspectionView(prompt), inspection: CHILD_ANCHOR_INSPECTION_RULE,
+    view: childAnchorInspectionView(prompt, pose), inspection: CHILD_ANCHOR_INSPECTION_RULE,
     ...(acceptance === CHILD_ANCHOR_MATERIALITY_VERSION ? { materiality: { rule: CHILD_ANCHOR_MATERIALITY_RULE, amendment: CHILD_ANCHOR_MATERIALITY_AMENDMENT } } : {}) });
 export const childAnchorInspectionContextSha = (context: ChildAnchorInspectionContext) => sha(canonicalJson(inspectionContextSchema.parse(context)));
 
@@ -429,6 +483,45 @@ export function childAnchorInspectedDesignDisposition(value: unknown, candidateS
   return { review: quality.review as PreviewQualityReview, design: disposition, apparentAge, visibleEvidence,
     /** Recorded, not observed and not matched. */
     unobservedConditional, full };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// child-anchor-visibility-recovery/v1 (opt-in, owner-approved 2026-10-21, OWNER-APPROVAL-CHILD-VISIBILITY-RECOVERY-20261021.txt): a TYPED,
+// visibility-only recovery into the ONE existing correction. A held materiality answer whose ONLY unresolved evidence is required aspects the
+// picture did not show, each one a pose can expose (hands, wardrobe, the whole body), is a known visibility defect, not an identity doubt:
+// every visible mismatch cosmetic and the same recognizable character, the identity check uncertain and no other category uncertain, anatomy
+// and safety passed, the apparent age judged (compatible, or a known defect) and the style assessable. The decision reads only those typed
+// fields, never a correction text. The one correction then carries the known defects' corrections exactly as childAnchorDisposition writes
+// them, plus the engine's FIXED visibility correction of each unreadable aspect, built from the one pose source (the judge's identity text is
+// never used); it names the ANCHOR POSE clause, so it is drawn only by childAnchorPoseCorrectionPrompt on the pose request's core. Anything
+// else stays held: missing evidence, an unassessable style, an uncertain age, an unreadable face, eyes, hair or skin tone, an uncertain or
+// material difference, another character, an anatomy or safety finding, another uncertain category, or no unreadable aspect at all. The
+// corrected candidate is judged by the unchanged disposition: no recovery applies to it (one visibility repair, judged once).
+// ---------------------------------------------------------------------------------------------------------------
+export const CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION = 'child-anchor-visibility-recovery/v1' as const;
+/** The required aspects a changed pose can make visible; an unreadable face, eyes, hair or skin tone is identity uncertainty and stays held. */
+export const CHILD_ANCHOR_VISIBILITY_RECOVERABLE = Object.freeze(['hands', 'wardrobe', 'body_proportions'] as const);
+type RecoverableAspect = (typeof CHILD_ANCHOR_VISIBILITY_RECOVERABLE)[number];
+/** The engine's fixed correction of one unreadable recoverable aspect: its phrase from the one pose source. */
+export const childAnchorVisibilityCorrection = (aspect: RecoverableAspect) =>
+  `visibility (${aspect}): show ${CHILD_ANCHOR_VISIBLE_PHRASES[aspect]}, as the ANCHOR POSE clause requires; change the pose only as far as that needs.`;
+type InspectedOutcome = ReturnType<typeof childAnchorInspectedDesignDisposition>;
+/**
+ * The recovery of ONE held anchor's settled answers (style, then the inspected design + age answer), or null when the hold is anything but
+ * visibility-only (see above). Pure: the same answers always give the same recovery.
+ */
+export function childAnchorVisibilityRecovery(style: StyleOutcome | null, design: InspectedOutcome | null) {
+  if (!style || !design || !('recognizableCharacter' in design) || style.disposition === 'held_uncertain' || design.design !== 'held_uncertain' ||
+      design.apparentAge.verdict === 'uncertain' || design.recognizableCharacter.verdict !== 'same_character') return null;
+  const unreadable = design.visibleEvidence.filter(e => e.verdict === 'unreadable').map(e => e.aspect);
+  const verdict = (category: string) => design.review.checks.find(c => c.category === category)?.verdict;
+  if (!unreadable.length || unreadable.some(a => !(CHILD_ANCHOR_VISIBILITY_RECOVERABLE as readonly string[]).includes(a)) ||
+      design.visibleEvidence.some(e => e.verdict === 'mismatch' && e.materiality !== 'cosmetic') || verdict('identity') !== 'uncertain' ||
+      verdict('anatomy') !== 'pass' || verdict('safety') !== 'pass' || design.review.checks.some(c => c.category !== 'identity' && c.verdict === 'uncertain'))
+    return null;
+  const aspects = unreadable as RecoverableAspect[];
+  return { version: CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, pose: CHILD_ANCHOR_POSE_VERSION, aspects,
+    corrections: [...knownCorrections(style, design), ...aspects.map(childAnchorVisibilityCorrection)] };
 }
 /** The saved acceptance of an anchor adopted under the inspection view: context, recipe and both answers, re-derived on every read. */
 export const childAnchorInspectedAdoptionSchema = z.object({ version: z.enum(childAnchorAcceptanceVersions), context: z.unknown(), contextSha: hash,

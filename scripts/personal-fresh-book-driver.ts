@@ -58,6 +58,12 @@
  *   ... --config <abs json> storyboard-presence-preview --calibration-grant <abs ...> --owner-approval <abs record>  (dry: the request)
  *   ... --config <abs json> storyboard-presence --execute --grant <abs presence grant> --grant-sha <sha256>
  *   ... --config <abs json> <child|book> --storyboard-presence --execute --grant <abs presence grant> --grant-sha <sha256> [--resume]
+ * The ONE owner-approved child recovery (Guy 2026-10-21), after the presence line's held_child record (its storyboard admitted, its child anchor
+ * held): ONE LOW correction edit of the held anchor under child-anchor-visible-pose/v1 and the typed child-anchor-visibility-recovery/v1, and
+ * its TWO fresh Sol reviews; then the book on its gates:
+ *   ... --config <abs json> child-recovery-plan --presence-grant <abs consumed presence grant.json> --owner-approval <abs record>  (dry)
+ *   ... --config <abs json> child-recovery --execute --grant <abs child-recovery grant> --grant-sha <sha256>
+ *   ... --config <abs json> book --child-recovery --execute --grant <abs child-recovery grant> --grant-sha <sha256> [--resume]
  */
 import path from 'node:path';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, writeFileSync } from 'node:fs';
@@ -79,10 +85,12 @@ import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-re
 import { CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_MATERIALITY_AMENDMENT, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique, childAnchorDescriptionRequest, childAnchorCorrectionPrompt,
   assertChildAnchorRenderPlan, childAnchorAttemptRecipe, childAnchorRecipeSha, childAnchorStyleDisposition, childAnchorDisposition,
   childAnchorInspectionContext, childAnchorInspectionContextSha, childAnchorInspectedDesignDisposition, childAnchorInspectedAdoptionRecord,
-  assertChildAnchorInspectedAccepted, type ChildAnchorChild, type ChildAnchorInspectionContext, type ChildAnchorRecipe } from '../lib/personal-wizard/child-anchor-style';
+  assertChildAnchorInspectedAccepted, CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_CLAUSE_SHA256, CHILD_ANCHOR_PRODUCTION_POSE_LINE,
+  CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, childAnchorPoseDescriptionRequest, childAnchorPoseCorrectionPrompt, childAnchorVisibilityRecovery,
+  type ChildAnchorChild, type ChildAnchorInspectionContext, type ChildAnchorRecipe } from '../lib/personal-wizard/child-anchor-style';
 import { AuditionMeter, auditionAdapters, auditionMeterRules, keyReader, loadReviewedStoryboard, loadReviewedBook, reviewedBookLayoutSchema, readReviewedBookLayout,
-  runReviewedAudition, auditionGrantSchema, verifyMeterRecords, type AuditionGrant, type ReviewedBookLayout, type MeterRules } from './personal-simple-book-reviewed-audition';
-import { readAuditionImage } from './personal-simple-book-illustrator';
+  runReviewedAudition, auditionGrantSchema, verifyMeterRecords, renderMaximum, type AuditionGrant, type ReviewedBookLayout, type MeterRules } from './personal-simple-book-reviewed-audition';
+import { readAuditionImage, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { childAnchorJudges, inspectedDesignWire, inspectedStyleWire, type ChildAnchorInspectedDesignJudge, type ChildAnchorInspectedStyleJudge } from './personal-child-anchor-judges';
 import { CAUSAL_MODELS, createAstraCausalTransport, createOpusCausalTransport, prepareCausalWire, type CausalWire, type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
 import type { CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
@@ -105,7 +113,8 @@ import { FRESH_BOOK_CYCLE, FreshBookError, freshBookProfileSchema, freshBookProf
   type FreshBookStoryboardExtensionRevalidationGrant, FRESH_BOOK_STORYBOARD_CALIBRATION, freshBookStoryboardCalibrationGrantSchema,
   claimFreshBookStoryboardCalibration, assertFreshBookStoryboardCalibrationPaid, type FreshBookStoryboardCalibrationGrant, FRESH_BOOK_STORYBOARD_PRESENCE,
   freshBookStoryboardPresenceGrantSchema, claimFreshBookStoryboardPresence, assertFreshBookStoryboardPresencePaid,
-  type FreshBookStoryboardPresenceGrant } from './personal-fresh-book-authority';
+  type FreshBookStoryboardPresenceGrant, FRESH_BOOK_CHILD_RECOVERY, freshBookChildRecoveryGrantSchema, claimFreshBookChildRecovery,
+  assertFreshBookChildRecoveryPaid, type FreshBookChildRecoveryGrant } from './personal-fresh-book-authority';
 import { STORYBOARD_ATTEMPT_EXTENSION_VERSION, STORYBOARD_ATTEMPT_EXTENSION_V2 } from '../lib/personal-wizard/storyboard-repair';
 import { STORYBOARD_CALIBRATION_VERSION, STORYBOARD_REVIEW_SEVERITY_VERSION, CALIBRATION_COMPONENTS, findingGroups } from '../lib/personal-wizard/storyboard-calibration';
 import { STORYBOARD_PRESENCE_VERSION, PRESENCE_COMPONENTS } from '../lib/personal-wizard/storyboard-presence';
@@ -186,34 +195,41 @@ export const STORYBOARD_REVALIDATION_RULES: MeterRules = STORYBOARD_REPAIR_RULES
  * extension's (after the held revalidation), or the extension revalidation's (after the extension's compile refusal).
  */
 type LedgerLine = false | true | 'storyboard_repair' | 'storyboard_continuation' | 'storyboard_revalidation' | 'storyboard_extension'
-  | 'storyboard_extension_revalidation' | 'storyboard_calibration' | 'storyboard_presence';
-/** The book's stages in ledger order (each folder re-derived under its own rules); each later line adds its own folder after the earlier ones. */
+  | 'storyboard_extension_revalidation' | 'storyboard_calibration' | 'storyboard_presence' | 'child_recovery';
+/** The child recovery's API meter: its one correction edit and that candidate's two reviews, under their child-anchor rules; nothing else. */
+const CHILD_RECOVERY_RULES = pick(stageRules.childAnchor, [...FRESH_BOOK_CHILD_RECOVERY.steps]);
+/**
+ * The book's stages in ledger order (each folder re-derived under its own rules); each later line adds its own folder after the earlier ones.
+ * The child recovery keeps the presence line's stages and its held child, then adds its own folder after that child.
+ */
 const bookStages = (bookDir: string, recovery: LedgerLine = false): FreshBookStage[] => [
   { name: 'text', dir: path.join(bookDir, 'text'), rules: TEXT_RULES, maxCalls: TEXT_API_CALLS },
   ...(recovery ? [{ name: FRESH_BOOK_RECOVERY.folder, dir: path.join(bookDir, FRESH_BOOK_RECOVERY.folder), rules: RECOVERY_RULES, maxCalls: FRESH_BOOK_RECOVERY.apiCalls }] : []),
   ...(recovery === 'storyboard_repair' || recovery === 'storyboard_continuation' || recovery === 'storyboard_revalidation' || recovery === 'storyboard_extension'
-    || recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence'
+    || recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' || recovery === 'child_recovery'
     ? [{ name: FRESH_BOOK_STORYBOARD_REPAIR.folder, dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_REPAIR.folder), rules: STORYBOARD_REPAIR_RULES,
       maxCalls: FRESH_BOOK_STORYBOARD_REPAIR.apiCalls }] : []),
   ...(recovery === 'storyboard_continuation' || recovery === 'storyboard_revalidation' || recovery === 'storyboard_extension'
-    || recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence'
+    || recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' || recovery === 'child_recovery'
     ? [{ name: FRESH_BOOK_STORYBOARD_CONTINUATION.folder,
     dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_CONTINUATION.folder), rules: STORYBOARD_CONTINUATION_RULES, maxCalls: FRESH_BOOK_STORYBOARD_CONTINUATION.apiCalls }] : []),
   ...(recovery === 'storyboard_revalidation' || recovery === 'storyboard_extension' || recovery === 'storyboard_extension_revalidation'
-    || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' ? [{ name: FRESH_BOOK_STORYBOARD_REVALIDATION.folder,
+    || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' || recovery === 'child_recovery' ? [{ name: FRESH_BOOK_STORYBOARD_REVALIDATION.folder,
     dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_REVALIDATION.folder), rules: STORYBOARD_REVALIDATION_RULES, maxCalls: FRESH_BOOK_STORYBOARD_REVALIDATION.apiCalls }] : []),
   ...(recovery === 'storyboard_extension' || recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration'
-    || recovery === 'storyboard_presence' ? [{ name: FRESH_BOOK_STORYBOARD_EXTENSION.folder,
+    || recovery === 'storyboard_presence' || recovery === 'child_recovery' ? [{ name: FRESH_BOOK_STORYBOARD_EXTENSION.folder,
     dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_EXTENSION.folder), rules: STORYBOARD_REPAIR_RULES, maxCalls: FRESH_BOOK_STORYBOARD_EXTENSION.apiCalls }] : []),
-  ...(recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence'
+  ...(recovery === 'storyboard_extension_revalidation' || recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' || recovery === 'child_recovery'
     ? [{ name: FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.folder,
     dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.folder), rules: STORYBOARD_REPAIR_RULES,
     maxCalls: FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.apiCalls }] : []),
-  ...(recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' ? [{ name: FRESH_BOOK_STORYBOARD_CALIBRATION.folder,
+  ...(recovery === 'storyboard_calibration' || recovery === 'storyboard_presence' || recovery === 'child_recovery' ? [{ name: FRESH_BOOK_STORYBOARD_CALIBRATION.folder,
     dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_CALIBRATION.folder), rules: STORYBOARD_REPAIR_RULES, maxCalls: FRESH_BOOK_STORYBOARD_CALIBRATION.apiCalls }] : []),
-  ...(recovery === 'storyboard_presence' ? [{ name: FRESH_BOOK_STORYBOARD_PRESENCE.folder,
+  ...(recovery === 'storyboard_presence' || recovery === 'child_recovery' ? [{ name: FRESH_BOOK_STORYBOARD_PRESENCE.folder,
     dir: path.join(bookDir, FRESH_BOOK_STORYBOARD_PRESENCE.folder), rules: STORYBOARD_REPAIR_RULES, maxCalls: FRESH_BOOK_STORYBOARD_PRESENCE.apiCalls }] : []),
   { name: 'child', dir: path.join(bookDir, 'child'), rules: CHILD_RULES, maxCalls: CHILD_API_CALLS },
+  ...(recovery === 'child_recovery' ? [{ name: FRESH_BOOK_CHILD_RECOVERY.folder, dir: path.join(bookDir, FRESH_BOOK_CHILD_RECOVERY.folder),
+    rules: CHILD_RECOVERY_RULES, maxCalls: FRESH_BOOK_CHILD_RECOVERY.apiCalls }] : []),
   { name: 'audition', dir: path.join(bookDir, 'audition'), rules: auditionMeterRules, maxCalls: AUDITION_WORST_CASE_CALLS }];
 
 /** The engine files whose bytes the grant pins (the driver, its authority and every reviewed primitive it calls). */
@@ -246,6 +262,8 @@ export const FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION_PINNED = FRESH_BOOK_ST
 export const FRESH_BOOK_STORYBOARD_CALIBRATION_PINNED = Object.freeze([...FRESH_BOOK_STORYBOARD_EXTENSION_PINNED, 'lib/personal-wizard/storyboard-calibration.ts']);
 /** Presence-line grants also pin the presence contract (its moments, drawn-instant, claim and review hooks live in files already pinned). */
 export const FRESH_BOOK_STORYBOARD_PRESENCE_PINNED = Object.freeze([...FRESH_BOOK_STORYBOARD_CALIBRATION_PINNED, 'lib/personal-wizard/storyboard-presence.ts']);
+/** Child-recovery-line grants pin exactly the presence line's files (the pose contract and the recovery live in files it already pins). */
+export const FRESH_BOOK_CHILD_RECOVERY_PINNED = FRESH_BOOK_STORYBOARD_PRESENCE_PINNED;
 
 export const realFreshBookEnv = (): FreshBookEnv => {
   const git = (...a: string[]) => execFileSync('git', ['-C', workspace(), ...a], { encoding: 'utf8' }).trim();
@@ -268,9 +286,11 @@ function loadRereview(config: FreshBookConfig): RereviewConfig {
   if (previewSha(fileBytes(config.rereviewConfig)) !== config.rereviewConfigSha256) fail('fresh_book_rereview_config');
   return rereviewConfig(config.rereviewConfig);
 }
-const layoutFor = (profile: FreshBookProfile, childImage = 'reference_child.png', storyboardDir = 'text'): ReviewedBookLayout => reviewedBookLayoutSchema.parse({
-  version: 'reviewed-book-layout/v1', seed: profile.seed, childDesign: profile.child.design, storyboardDir, childDir: 'child', childImage,
-  savedCompanion: null, childAnchor: profile.childAnchor });
+/** The book's layout: its storyboard folder, its child folder and image, and (the child recovery only) the pose contract its adopted child binds. */
+const layoutFor = (profile: FreshBookProfile, childImage = 'reference_child.png', storyboardDir = 'text', childDir = 'child',
+  pose?: typeof CHILD_ANCHOR_POSE_VERSION): ReviewedBookLayout => reviewedBookLayoutSchema.parse({
+  version: 'reviewed-book-layout/v1', seed: profile.seed, childDesign: profile.child.design, storyboardDir, childDir, childImage,
+  savedCompanion: null, childAnchor: profile.childAnchor, ...(pose ? { childAnchorPose: pose } : {}) });
 /** The book's child acceptance and its admission re-review must be the same contract (a materiality book is admitted by materiality evidence). */
 const policyOf = (profile: FreshBookProfile, rereview: RereviewConfig) => {
   if (profile.childAnchor !== (rereview.acceptance ?? CHILD_ANCHOR_INSPECTION_VERSION)) fail('fresh_book_policy_mismatch');
@@ -323,7 +343,9 @@ function rootsOf(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewC
     FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.outcomeName, FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.auditionStartName,
     FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.successorName, FRESH_BOOK_STORYBOARD_CALIBRATION.claimName, FRESH_BOOK_STORYBOARD_CALIBRATION.outcomeName,
     FRESH_BOOK_STORYBOARD_CALIBRATION.auditionStartName, FRESH_BOOK_STORYBOARD_CALIBRATION.successorName, FRESH_BOOK_STORYBOARD_PRESENCE.claimName,
-    FRESH_BOOK_STORYBOARD_PRESENCE.outcomeName, FRESH_BOOK_STORYBOARD_PRESENCE.auditionStartName, FRESH_BOOK_STORYBOARD_PRESENCE.successorName]) {
+    FRESH_BOOK_STORYBOARD_PRESENCE.outcomeName, FRESH_BOOK_STORYBOARD_PRESENCE.auditionStartName, FRESH_BOOK_STORYBOARD_PRESENCE.successorName,
+    FRESH_BOOK_CHILD_RECOVERY.claimName, FRESH_BOOK_CHILD_RECOVERY.outcomeName, FRESH_BOOK_CHILD_RECOVERY.auditionStartName,
+    FRESH_BOOK_CHILD_RECOVERY.successorName]) {
     const file = path.join(env.authorityRoot, name); out[`authority/${name}`] = existsSync(file) ? previewSha(fileBytes(file)) : 'absent';
   }
   for (const [rel, d] of Object.entries(folderBaseline(rereview.diagnosticOutput))) out[`diagnostic/${rel}`] = d;
@@ -542,7 +564,7 @@ function verifyRecoverySuccessor(a: { config: FreshBookConfig; env: FreshBookEnv
  * compiled under the correction and reviewed; its own claim and outcome).
  */
 type Line = { kind: 'original' | 'recovery' | 'storyboard_repair' | 'storyboard_continuation' | 'storyboard_revalidation' | 'storyboard_extension'
-    | 'storyboard_extension_revalidation' | 'storyboard_calibration' | 'storyboard_presence'; recovery: boolean;
+    | 'storyboard_extension_revalidation' | 'storyboard_calibration' | 'storyboard_presence' | 'child_recovery'; recovery: boolean;
   ledger: LedgerLine; storyboardDir: string; claimName: string; outcomeName: string; auditionStart: (env: FreshBookEnv) => string };
 const ORIGINAL_LINE: Line = { kind: 'original', recovery: false, ledger: false, storyboardDir: 'text', claimName: FRESH_BOOK_CYCLE.claimName,
   outcomeName: FRESH_BOOK_CYCLE.outcomeName, auditionStart: env => auditionStartFile(env) };
@@ -570,14 +592,25 @@ const STORYBOARD_CALIBRATION_LINE: Line = { kind: 'storyboard_calibration', reco
 const STORYBOARD_PRESENCE_LINE: Line = { kind: 'storyboard_presence', recovery: true, ledger: 'storyboard_presence',
   storyboardDir: FRESH_BOOK_STORYBOARD_PRESENCE.folder, claimName: FRESH_BOOK_STORYBOARD_PRESENCE.claimName,
   outcomeName: FRESH_BOOK_STORYBOARD_PRESENCE.outcomeName, auditionStart: env => path.join(env.authorityRoot, FRESH_BOOK_STORYBOARD_PRESENCE.auditionStartName) };
+/** The child recovery: the presence line's admitted storyboard, its own recovered child (its own folder), claim, outcome and audition start. */
+const CHILD_RECOVERY_LINE: Line = { kind: 'child_recovery', recovery: true, ledger: 'child_recovery', storyboardDir: FRESH_BOOK_STORYBOARD_PRESENCE.folder,
+  claimName: FRESH_BOOK_CHILD_RECOVERY.claimName, outcomeName: FRESH_BOOK_CHILD_RECOVERY.outcomeName,
+  auditionStart: env => path.join(env.authorityRoot, FRESH_BOOK_CHILD_RECOVERY.auditionStartName) };
+/** Where a line's adopted child lives, and the layout its book reads: the child recovery's own folder and pose contract, else `child`. */
+const childDirOf = (line: Line) => line.kind === 'child_recovery' ? FRESH_BOOK_CHILD_RECOVERY.folder : 'child';
+const lineLayout = (profile: FreshBookProfile, childImage: string | undefined, line: Line) => line.kind === 'child_recovery'
+  ? layoutFor(profile, childImage, line.storyboardDir, FRESH_BOOK_CHILD_RECOVERY.folder, CHILD_ANCHOR_POSE_VERSION) : layoutFor(profile, childImage, line.storyboardDir);
 const lineOf = (recovery?: true, storyboardRepair?: true, storyboardContinuation?: true, storyboardRevalidation?: true, storyboardExtension?: true,
-  storyboardExtensionRevalidation?: true, storyboardCalibration?: true, storyboardPresence?: true) =>
-  storyboardPresence ? STORYBOARD_PRESENCE_LINE : storyboardCalibration ? STORYBOARD_CALIBRATION_LINE
+  storyboardExtensionRevalidation?: true, storyboardCalibration?: true, storyboardPresence?: true, childRecovery?: true) =>
+  childRecovery ? CHILD_RECOVERY_LINE : storyboardPresence ? STORYBOARD_PRESENCE_LINE : storyboardCalibration ? STORYBOARD_CALIBRATION_LINE
   : storyboardExtensionRevalidation ? STORYBOARD_EXTENSION_REVALIDATION_LINE : storyboardExtension ? STORYBOARD_EXTENSION_LINE
   : storyboardRevalidation ? STORYBOARD_REVALIDATION_LINE : storyboardContinuation ? STORYBOARD_CONTINUATION_LINE
   : storyboardRepair ? STORYBOARD_REPAIR_LINE : recovery ? RECOVERY_LINE : ORIGINAL_LINE;
 const admitLine = (args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal }, line: Line, earlier: string[]) =>
-  line.kind === 'storyboard_presence' ? admitStoryboardPresence({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder,
+  line.kind === 'child_recovery' ? admitChildRecovery({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder,
+    FRESH_BOOK_STORYBOARD_CONTINUATION.folder, FRESH_BOOK_STORYBOARD_REVALIDATION.folder, FRESH_BOOK_STORYBOARD_EXTENSION.folder,
+    FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.folder, FRESH_BOOK_STORYBOARD_CALIBRATION.folder, FRESH_BOOK_STORYBOARD_PRESENCE.folder, FRESH_BOOK_CHILD_RECOVERY.folder] })
+  : line.kind === 'storyboard_presence' ? admitStoryboardPresence({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder,
     FRESH_BOOK_STORYBOARD_REPAIR.folder, FRESH_BOOK_STORYBOARD_CONTINUATION.folder, FRESH_BOOK_STORYBOARD_REVALIDATION.folder, FRESH_BOOK_STORYBOARD_EXTENSION.folder,
     FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION.folder, FRESH_BOOK_STORYBOARD_CALIBRATION.folder, FRESH_BOOK_STORYBOARD_PRESENCE.folder] })
   : line.kind === 'storyboard_calibration' ? admitStoryboardCalibration({ ...args, earlier: [...earlier, FRESH_BOOK_RECOVERY.folder,
@@ -605,6 +638,16 @@ async function linePassed(a: { config: FreshBookConfig; env: FreshBookEnv; grant
   admitted: Awaited<ReturnType<typeof admitLine>>) {
   const { config, env } = a, text = path.join(config.bookDir, 'text');
   if (line.kind === 'original') return sealedStatus(text) === 'review_supported' && !existsSync(path.join(env.authorityRoot, FRESH_BOOK_CYCLE.outcomeName));
+  if (line.kind === 'child_recovery') {
+    // The presence line's terminal held_child, its admitted storyboard's successor, and this line's own claim, successor and no outcome yet;
+    // the recovered child's successor re-derived now (the admission already re-derived the presence chain and the held child exactly).
+    const at = (name: string) => existsSync(path.join(env.authorityRoot, name)), P = FRESH_BOOK_STORYBOARD_PRESENCE, CR = FRESH_BOOK_CHILD_RECOVERY;
+    if (sealedStatus(text) !== 'failed' || !at(P.claimName) || !at(P.outcomeName) || !at(P.successorName) || at(P.auditionStartName) ||
+        !at(CR.claimName) || !at(CR.successorName) || at(CR.outcomeName)) return false;
+    if (!('childRecovery' in admitted)) return fail('fresh_book_child_recovery_grant');
+    await verifyChildRecoverySuccessor({ config, env, grantSha: a.grantSha, admitted });
+    return true;
+  }
   if (line.kind === 'storyboard_presence') {
     const at = (name: string) => existsSync(path.join(env.authorityRoot, name)), X = FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION, C = FRESH_BOOK_STORYBOARD_CALIBRATION,
       P = FRESH_BOOK_STORYBOARD_PRESENCE;
@@ -684,7 +727,7 @@ async function linePassed(a: { config: FreshBookConfig; env: FreshBookEnv; grant
   if (sealedStatus(text) !== 'failed' || !existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.claimName)) ||
       existsSync(path.join(env.authorityRoot, FRESH_BOOK_RECOVERY.outcomeName))) return false;
   if (!('grant' in admitted) || 'repair' in admitted || 'continuation' in admitted || 'revalidation' in admitted || 'extension' in admitted ||
-      'extensionRevalidation' in admitted || 'calibration' in admitted || 'presence' in admitted) return fail('fresh_book_recovery_grant');
+      'extensionRevalidation' in admitted || 'calibration' in admitted || 'presence' in admitted || 'childRecovery' in admitted) return fail('fresh_book_recovery_grant');
   verifyRecoverySuccessor({ config, env, grant: admitted.grant as FreshBookRecoveryGrant, grantSha: a.grantSha, requestId: admitted.planned.prepared.accepted.requestId,
     rereviewOutcome: admitted.outcome });
   return true;
@@ -4035,13 +4078,42 @@ export async function runFreshBookChild(args: { config: FreshBookConfig; env: Fr
   }
 }
 
+/** The live I/O of one inspected attempt: the render seam, the two judges, the guard, the record writer and the log. */
+type AttemptIO = { render: Render; style: ChildAnchorInspectedStyleJudge; design: ChildAnchorInspectedDesignJudge; check: () => void;
+  save: (name: string, value: unknown) => void; log: (line: string) => void };
+type AttemptStep = 'reference_child' | 'reference_child_repair';
+/** The saved record of one inspected design + age review, exactly as an attempt writes it (a verifier rebuilds it from the settled answer). */
+const designReviewRecord = (recipe: ChildAnchorRecipe, recipeSha: string, design: ReturnType<typeof childAnchorInspectedDesignDisposition>) =>
+  ({ recipe, recipeSha, design: design.design, apparentAge: design.apparentAge, visibleEvidence: design.visibleEvidence,
+    unobservedConditional: design.unobservedConditional,
+    ...('acceptedDeviations' in design ? { acceptedDeviations: design.acceptedDeviations, recognizableCharacter: design.recognizableCharacter } : {}), review: design.full });
+/**
+ * ONE inspected attempt (the child stage's and the child recovery's one call path): its render, its inspected style review, then (unless style
+ * is unassessable) its inspected design + age review, both bound to this candidate, THIS context and the recipe rebuilt from the attempt's own
+ * inputs, each saved as reviewed; its outcome under the unchanged disposition. A correction that returns its rejected input unchanged refuses.
+ */
+async function anchorAttempt(a: AttemptIO, context: ChildAnchorInspectionContext, age: number, step: AttemptStep, prompt: string, inputs: AuditionImage[],
+  mode: 'style' | 'book_design', roles: readonly BookDesignReferenceRole[] | undefined, references: ChildAnchorRecipe['references'], rejected: AuditionImage | null) {
+  a.check();
+  const candidate = await a.render(step, prompt, inputs, mode, roles); a.check();
+  if (rejected && candidate.imageSha === rejected.imageSha) fail('fresh_book_child_repair_unchanged');
+  const recipe = childAnchorAttemptRecipe(step, mode, references, prompt, age), recipeSha = childAnchorRecipeSha(recipe);
+  const styleAnswer = await a.style(`${step}_style_qa`, candidate, context, recipeSha); a.check();
+  const style = childAnchorStyleDisposition(styleAnswer, candidate.imageSha, childAnchorInspectionContextSha(context), recipeSha);
+  a.save(`${step}_style_review`, { recipe, recipeSha, ...style }); a.log(`${step} style: ${style.disposition}`);
+  if (style.disposition === 'held_uncertain') return { candidate, recipe, style, design: null, outcome: childAnchorDisposition(style, null) };
+  const design = childAnchorInspectedDesignDisposition(await a.design(`${step}_qa`, candidate, context, recipe), candidate.imageSha, context, recipe); a.check();
+  a.save(`${step}_design_review`, designReviewRecord(recipe, recipeSha, design));
+  a.log(`${step} design: ${design.design}, apparent age: ${design.apparentAge.verdict}`);
+  return { candidate, recipe, style, design, outcome: childAnchorDisposition(style, design) };
+}
+
 /**
  * The inspected anchor: render in style mode from the pinned technique files, its inspected style review, then (unless style is unassessable)
  * its inspected design + age review, both bound to this candidate, THIS context and the render recipe. One correction edit only for a known
  * defect, judged again under the SAME context (an earlier image's PASS never carries). All three dimensions of the final candidate must pass.
  */
-async function inspectedAnchor(a: { anchor: ReturnType<typeof anchorAuthority>; images: string; render: Render; style: ChildAnchorInspectedStyleJudge;
-  design: ChildAnchorInspectedDesignJudge; check: () => void; save: (name: string, value: unknown) => void; log: (line: string) => void }) {
+async function inspectedAnchor(a: AttemptIO & { anchor: ReturnType<typeof anchorAuthority>; images: string }) {
   const { technique, request, context, child } = a.anchor;
   const refs = technique.map((t, i) => {
     const imageName = `style_ref_${i + 1}.png`, file = path.join(a.images, imageName);
@@ -4049,35 +4121,57 @@ async function inspectedAnchor(a: { anchor: ReturnType<typeof anchorAuthority>; 
     if (previewSha(readFileSync(file)) !== t.sha256) fail('child_anchor_reference_changed');
     return { imageName, imageSha: t.sha256 };
   });
-  const attempt = async (step: 'reference_child' | 'reference_child_repair', prompt: string, inputs: AuditionImage[], mode: 'style' | 'book_design',
-    roles: readonly BookDesignReferenceRole[] | undefined, references: ChildAnchorRecipe['references'], rejected: AuditionImage | null) => {
-    a.check();
-    const candidate = await a.render(step, prompt, inputs, mode, roles); a.check();
-    if (rejected && candidate.imageSha === rejected.imageSha) fail('fresh_book_child_repair_unchanged');
-    const recipe = childAnchorAttemptRecipe(step, mode, references, prompt, child.age), recipeSha = childAnchorRecipeSha(recipe);
-    const styleAnswer = await a.style(`${step}_style_qa`, candidate, context, recipeSha); a.check();
-    const style = childAnchorStyleDisposition(styleAnswer, candidate.imageSha, childAnchorInspectionContextSha(context), recipeSha);
-    a.save(`${step}_style_review`, { recipe, recipeSha, ...style }); a.log(`${step} style: ${style.disposition}`);
-    if (style.disposition === 'held_uncertain') return { candidate, recipe, style, design: null, outcome: childAnchorDisposition(style, null) };
-    const design = childAnchorInspectedDesignDisposition(await a.design(`${step}_qa`, candidate, context, recipe), candidate.imageSha, context, recipe); a.check();
-    a.save(`${step}_design_review`, { recipe, recipeSha, design: design.design, apparentAge: design.apparentAge, visibleEvidence: design.visibleEvidence,
-      unobservedConditional: design.unobservedConditional,
-      ...('acceptedDeviations' in design ? { acceptedDeviations: design.acceptedDeviations, recognizableCharacter: design.recognizableCharacter } : {}), review: design.full });
-    a.log(`${step} design: ${design.design}, apparent age: ${design.apparentAge.verdict}`);
-    return { candidate, recipe, style, design, outcome: childAnchorDisposition(style, design) };
-  };
-  let current = await attempt('reference_child', request.prompt, refs, 'style', undefined, technique.map(t => ({ role: t.label, sha256: t.sha256 })), null);
+  let current = await anchorAttempt(a, context, child.age, 'reference_child', request.prompt, refs, 'style', undefined,
+    technique.map(t => ({ role: t.label, sha256: t.sha256 })), null);
   if (current.outcome.disposition === 'repair') {
     const rejected = current.candidate, prompt = childAnchorCorrectionPrompt(request.core, current.outcome.corrections);
     assertChildAnchorRenderPlan(prompt, 1, 'book_design', CHILD_ANCHOR_CORRECTION_ROLES);
     a.save('reference_child_correction_input', { candidate: rejected, corrections: current.outcome.corrections, authority: 'rejected_edit_input_only_not_canonical' });
-    current = await attempt('reference_child_repair', prompt, [rejected], 'book_design', CHILD_ANCHOR_CORRECTION_ROLES, [{ role: 'rejected_edit_target', sha256: rejected.imageSha }], rejected);
+    current = await anchorAttempt(a, context, child.age, 'reference_child_repair', prompt, [rejected], 'book_design', CHILD_ANCHOR_CORRECTION_ROLES,
+      [{ role: 'rejected_edit_target', sha256: rejected.imageSha }], rejected);
   }
   if (current.outcome.disposition !== 'passed' || !current.design) return { status: 'held' as const, disposition: current.outcome.disposition };
   const record = childAnchorInspectedAdoptionRecord(context, current.recipe, current.style.review, current.design.full);
   const accepted = assertChildAnchorInspectedAccepted(record, current.candidate.imageSha, context);
   return { status: 'passed' as const, candidate: current.candidate, record, acceptedDeviations: accepted.acceptedDeviations };
 }
+
+/** One settled call of a child folder's meter: its saved request and receipt, completed and priced. */
+function settledChildCall(paid: string, step: string) {
+  const at = (k: string) => path.join(paid, `${step}.${k}.json`);
+  if (!existsSync(at('result'))) fail('child_anchor_evidence_missing');
+  const result = json(at('result'));
+  if (result.completed !== true || !Number.isSafeInteger(result.estimatedMicroUsd)) fail('child_anchor_evidence_missing');
+  return { wire: json(at('wire')), receipt: json(at('receipt')) };
+}
+const settledAnswer = (receipt: any) => { try { return JSON.parse(receipt.raw.output_text); } catch { return fail('child_anchor_evidence_missing'); } };
+/**
+ * ONE inspected attempt as a child folder settled it (the child stage's and the child recovery's one verifier path): its recipe rebuilt from the
+ * attempt's own inputs, its render wire the planned request with exactly these references, its image the receipt's candidate (by digest), each
+ * review wire exactly the request binding that recipe and THIS context to that candidate, each answer the settled provider output.
+ */
+async function settledAnchorAttempt(childDir: string, context: ChildAnchorInspectionContext, age: number, step: AttemptStep, prompt: string,
+  mode: 'style' | 'book_design', roles: readonly BookDesignReferenceRole[] | undefined, references: ChildAnchorRecipe['references']) {
+  const paid = path.join(childDir, 'paid-stages'), images = path.join(childDir, 'illustrations'), contextSha = childAnchorInspectionContextSha(context);
+  const recipe = childAnchorAttemptRecipe(step, mode, references, prompt, age), recipeSha = childAnchorRecipeSha(recipe);
+  const render = settledChildCall(paid, step), plan = assertChildAnchorRenderPlan(prompt, references.length, mode, roles), candidate = render.receipt?.candidate as AuditionImage;
+  if (!sameJson(render.wire.body, plan.bodyWithoutBinaryImage) || render.wire.mode !== plan.apiMode || !sameJson(render.wire.referenceRoles ?? null, plan.referenceRoles ?? null) ||
+      !Array.isArray(render.wire.references) || !sameJson(render.wire.references.map((r: AuditionImage) => r.imageSha), references.map(r => r.sha256)) ||
+      typeof candidate?.imageSha !== 'string' || !/^[a-z0-9_]+\.png$/.test(candidate.imageName ?? '')) fail('child_anchor_render_binding');
+  const bytes = fileBytes(path.join(images, candidate.imageName));
+  if (previewSha(bytes) !== candidate.imageSha) fail('child_anchor_render_binding');
+  const styleCall = settledChildCall(paid, `${step}_style_qa`);
+  if (!sameJson(styleCall.wire, inspectedStyleWire(candidate, bytes, context, recipeSha))) fail('child_anchor_review_binding');
+  const style = childAnchorStyleDisposition(settledAnswer(styleCall.receipt), candidate.imageSha, contextSha, recipeSha);
+  if (style.disposition === 'held_uncertain') return { candidate, bytes, recipe, recipeSha, style, design: null, outcome: childAnchorDisposition(style, null) };
+  const designCall = settledChildCall(paid, `${step}_qa`);
+  if (!sameJson(designCall.wire, await inspectedDesignWire(candidate, bytes, context, recipe))) fail('child_anchor_review_binding');
+  const design = childAnchorInspectedDesignDisposition(settledAnswer(designCall.receipt), candidate.imageSha, context, recipe);
+  return { candidate, bytes, recipe, recipeSha, style, design, outcome: childAnchorDisposition(style, design) };
+}
+type SettledAttempt = Awaited<ReturnType<typeof settledAnchorAttempt>>;
+/** The step names a child folder claimed, from its meter's claim records. */
+const claimedSteps = (childDir: string) => readdirSync(path.join(childDir, 'paid-stages')).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length));
 
 /**
  * The inspected anchor's acceptance as the stage actually requested and was answered: each attempt's recipe rebuilt from the admitted request
@@ -4086,47 +4180,406 @@ async function inspectedAnchor(a: { anchor: ReturnType<typeof anchorAuthority>; 
  * adoption is the record those answers derive. A saved adoption's own echoes are never the authority.
  */
 export async function assertInspectedChildSettled(bookDir: string, anchor: ReturnType<typeof anchorAuthority>, adoption: any, candidateBytes: Buffer) {
-  const childDir = path.join(bookDir, 'child'), paid = path.join(childDir, 'paid-stages'), images = path.join(childDir, 'illustrations');
-  const same = (x: unknown, y: unknown) => canonicalJson(x) === canonicalJson(y);
-  const settled = (step: string) => {
-    const at = (k: string) => path.join(paid, `${step}.${k}.json`);
-    if (!existsSync(at('result'))) fail('child_anchor_evidence_missing');
-    const result = json(at('result'));
-    if (result.completed !== true || !Number.isSafeInteger(result.estimatedMicroUsd)) fail('child_anchor_evidence_missing');
-    return { wire: json(at('wire')), receipt: json(at('receipt')) };
-  };
-  const answer = (receipt: any) => { try { return JSON.parse(receipt.raw.output_text); } catch { return fail('child_anchor_evidence_missing'); } };
-  const { request, technique, context, child } = anchor, contextSha = childAnchorInspectionContextSha(context);
-  const attempt = async (step: 'reference_child' | 'reference_child_repair', prompt: string, mode: 'style' | 'book_design',
-    roles: readonly BookDesignReferenceRole[] | undefined, references: ChildAnchorRecipe['references']) => {
-    const recipe = childAnchorAttemptRecipe(step, mode, references, prompt, child.age), recipeSha = childAnchorRecipeSha(recipe);
-    const render = settled(step), plan = assertChildAnchorRenderPlan(prompt, references.length, mode, roles), candidate = render.receipt?.candidate as AuditionImage;
-    if (!same(render.wire.body, plan.bodyWithoutBinaryImage) || render.wire.mode !== plan.apiMode || !same(render.wire.referenceRoles ?? null, plan.referenceRoles ?? null) ||
-        !Array.isArray(render.wire.references) || !same(render.wire.references.map((r: AuditionImage) => r.imageSha), references.map(r => r.sha256)) ||
-        typeof candidate?.imageSha !== 'string' || !/^[a-z0-9_]+\.png$/.test(candidate.imageName ?? '')) fail('child_anchor_render_binding');
-    const bytes = fileBytes(path.join(images, candidate.imageName));
-    if (previewSha(bytes) !== candidate.imageSha) fail('child_anchor_render_binding');
-    const styleCall = settled(`${step}_style_qa`);
-    if (!same(styleCall.wire, inspectedStyleWire(candidate, bytes, context, recipeSha))) fail('child_anchor_review_binding');
-    const style = childAnchorStyleDisposition(answer(styleCall.receipt), candidate.imageSha, contextSha, recipeSha);
-    if (style.disposition === 'held_uncertain') return { candidate, recipe, style, design: null, outcome: childAnchorDisposition(style, null) };
-    const designCall = settled(`${step}_qa`);
-    if (!same(designCall.wire, await inspectedDesignWire(candidate, bytes, context, recipe))) fail('child_anchor_review_binding');
-    const design = childAnchorInspectedDesignDisposition(answer(designCall.receipt), candidate.imageSha, context, recipe);
-    return { candidate, recipe, style, design, outcome: childAnchorDisposition(style, design) };
-  };
-  const first = await attempt('reference_child', request.prompt, 'style', undefined, technique.map(t => ({ role: t.label, sha256: t.sha256 })));
+  const childDir = path.join(bookDir, 'child'), { request, technique, context, child } = anchor;
+  const first = await settledAnchorAttempt(childDir, context, child.age, 'reference_child', request.prompt, 'style', undefined,
+    technique.map(t => ({ role: t.label, sha256: t.sha256 })));
   const final = first.outcome.disposition !== 'repair' ? first
-    : await attempt('reference_child_repair', childAnchorCorrectionPrompt(request.core, first.outcome.corrections), 'book_design', CHILD_ANCHOR_CORRECTION_ROLES,
-      [{ role: 'rejected_edit_target', sha256: first.candidate.imageSha }]);
+    : await settledAnchorAttempt(childDir, context, child.age, 'reference_child_repair', childAnchorCorrectionPrompt(request.core, first.outcome.corrections), 'book_design',
+      CHILD_ANCHOR_CORRECTION_ROLES, [{ role: 'rejected_edit_target', sha256: first.candidate.imageSha }]);
   const candidateSha = previewSha(candidateBytes);
   if (final.outcome.disposition !== 'passed' || !final.design || final.candidate.imageSha !== candidateSha) fail('child_anchor_not_accepted');
   const steps = (final === first ? ['reference_child'] : ['reference_child', 'reference_child_repair']).flatMap(s => [s, `${s}_style_qa`, `${s}_qa`]);
-  const claimed = readdirSync(paid).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length));
-  if (!same(claimed.sort(), steps.sort())) fail('child_anchor_evidence_steps');
+  if (!sortedSame(claimedSteps(childDir), steps)) fail('child_anchor_evidence_steps');
   const record = childAnchorInspectedAdoptionRecord(context, final.recipe, final.style.review, final.design!.full);
-  if (!same(adoption?.anchor, record) || adoption?.candidate?.imageSha !== candidateSha || !same(adoption?.context, context)) fail('child_anchor_evidence_binding');
+  if (!sameJson(adoption?.anchor, record) || adoption?.candidate?.imageSha !== candidateSha || !sameJson(adoption?.context, context)) fail('child_anchor_evidence_binding');
   return assertChildAnchorInspectedAccepted(record, candidateSha, context);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The ONE owner-approved child recovery (Guy 2026-10-21): the presence line's held child anchor corrected once under child-anchor-visible-pose/v1
+// and the typed child-anchor-visibility-recovery/v1, that one candidate reviewed twice; the book on its gates only if it passes.
+// ---------------------------------------------------------------------------------------------------------------
+const CR = FRESH_BOOK_CHILD_RECOVERY;
+/** The recovery folder's own admission record (beside its context, its correction input and its reviews). */
+export const CHILD_RECOVERY_ADMISSION_FILE = 'child-recovery-admission.json';
+/** The held anchor's image, copied byte-exact into the recovery folder as its ONE edit input (the rejected edit target only, never canonical). */
+const HELD_INPUT_IMAGE = 'reference_child.png';
+/**
+ * The recovery's authority from THIS book: the held anchor's own (production's description request, the technique files, its context) and the
+ * pose route (the pose description request and the context whose view binds its pose clause), from one child definition.
+ */
+function recoveryAuthority(profile: FreshBookProfile, wardrobe: string) {
+  const held = anchorAuthority(profile, wardrobe), request = childAnchorPoseDescriptionRequest(held.child);
+  return { held, request, context: childAnchorInspectionContext(held.child, request.prompt, profile.childAnchor, CHILD_ANCHOR_POSE_VERSION) };
+}
+/**
+ * The ONE correction the typed recovery plans from the held anchor's settled answers: the engine's recovery (never the judge's identity text),
+ * its prompt on the pose request's core, the real image seam's plan for exactly one rejected edit target, the recipe it binds and that edit's
+ * claim maximum. A hold that is not visibility-only refuses.
+ */
+function recoveryCorrection(rec: ReturnType<typeof recoveryAuthority>, held: SettledAttempt) {
+  const recovery = childAnchorVisibilityRecovery(held.style, held.design) ?? fail('fresh_book_child_recovery_not_visibility');
+  const prompt = childAnchorPoseCorrectionPrompt(rec.request.core, recovery.corrections);
+  const plan = assertChildAnchorRenderPlan(prompt, 1, 'book_design', CHILD_ANCHOR_CORRECTION_ROLES);
+  const references: ChildAnchorRecipe['references'] = [{ role: 'rejected_edit_target', sha256: held.candidate.imageSha }];
+  const recipe = childAnchorAttemptRecipe('reference_child_repair', 'book_design', references, prompt, rec.held.child.age);
+  return { recovery, prompt, finalPrompt: plan.finalPrompt, references, recipe, recipeSha: childAnchorRecipeSha(recipe),
+    contextSha: childAnchorInspectionContextSha(rec.context), renderMaximumMicroUsd: renderMaximum(plan.finalPrompt, 1) };
+}
+/** The recovery's reservation: the one edit's claim maximum and both reviews' slots must fit under the balance before the claim. */
+function assertChildRecoveryFits(ledger: { bookKnownMicroUsd: number; nextCapMicroUsd: number }, renderMaximumMicroUsd: number) {
+  const reserveMicroUsd = renderMaximumMicroUsd + CR.reviewCalls * SOL_PIXEL_REVIEW_SLOT_MICRO_USD;
+  if (SOL_PIXEL_REVIEW_SLOT_MICRO_USD !== CR.reviewReserveMicroUsd || !Number.isSafeInteger(reserveMicroUsd) ||
+      ledger.bookKnownMicroUsd + reserveMicroUsd > ledger.nextCapMicroUsd) fail('fresh_book_child_recovery_budget');
+  return { remainingMicroUsd: ledger.nextCapMicroUsd - ledger.bookKnownMicroUsd, reserveMicroUsd };
+}
+/** The consumed grants the presence grant's chain names (calibration back to the original), each read at its recorded digest. */
+function presenceChainGrants(presence: FreshBookStoryboardPresenceGrant): [string, Buffer, string][] {
+  const read = <T>(file: string, digest: string, schema: { parse(value: unknown): T }, code: string): [T, Buffer] => {
+    const bytes = fileBytes(file);
+    if (previewSha(bytes) !== digest) fail(code);
+    try { return [schema.parse(JSON.parse(bytes.toString('utf8'))), bytes]; } catch { return fail(code); }
+  };
+  const calFile = presence.calibration.grantFile;
+  const [cal, calBytes] = read(calFile, presence.calibration.grantSha256, freshBookStoryboardCalibrationGrantSchema, 'fresh_book_storyboard_presence_calibration');
+  const xrevalFile = cal.extensionRevalidation.grantFile;
+  const [xreval, xrevalBytes] = read(xrevalFile, cal.extensionRevalidation.grantSha256, freshBookStoryboardExtensionRevalidationGrantSchema,
+    'fresh_book_storyboard_calibration_extension_revalidation');
+  const extFile = xreval.extension.grantFile;
+  const [ext, extBytes] = read(extFile, xreval.extension.grantSha256, freshBookStoryboardExtensionGrantSchema, 'fresh_book_storyboard_extension_revalidation_extension');
+  const revalFile = ext.revalidation.grantFile;
+  const [reval, revalBytes] = read(revalFile, ext.revalidation.grantSha256, freshBookStoryboardRevalidationGrantSchema, 'fresh_book_storyboard_extension_revalidation');
+  const contFile = reval.continuation.grantFile;
+  const [cont, contBytes] = read(contFile, reval.continuation.grantSha256, freshBookStoryboardContinuationGrantSchema, 'fresh_book_storyboard_revalidation_continuation');
+  const repairFile = cont.repair.grantFile;
+  const [repair, repairBytes] = read(repairFile, cont.repair.grantSha256, freshBookStoryboardRepairGrantSchema, 'fresh_book_storyboard_continuation_repair');
+  const recoveryFile = repair.recovery.grantFile;
+  const [recovery, recoveryBytes] = read(recoveryFile, repair.recovery.grantSha256, freshBookRecoveryGrantSchema, 'fresh_book_storyboard_repair_recovery');
+  const originalFile = recovery.original.grantFile, originalBytes = fileBytes(originalFile);
+  if (previewSha(originalBytes) !== recovery.original.grantSha256) fail('fresh_book_recovery_original');
+  return [[calFile, calBytes, 'fresh_book_storyboard_presence_calibration'], [xrevalFile, xrevalBytes, 'fresh_book_storyboard_calibration_extension_revalidation'],
+    [extFile, extBytes, 'fresh_book_storyboard_extension_revalidation_extension'], [revalFile, revalBytes, 'fresh_book_storyboard_extension_revalidation'],
+    [contFile, contBytes, 'fresh_book_storyboard_revalidation_continuation'], [repairFile, repairBytes, 'fresh_book_storyboard_continuation_repair'],
+    [recoveryFile, recoveryBytes, 'fresh_book_storyboard_repair_recovery'], [originalFile, originalBytes, 'fresh_book_recovery_original']];
+}
+
+/**
+ * The consumed presence line and the held child the recovery stands on, re-read exactly: the presence grant its claim names (naming every
+ * earlier claim of the chain, at that grant's own head) and its owner record; everything that grant recorded except its own head and pins,
+ * re-derived now by the engine and equal; its admitted storyboard's successor re-derived by replaying the whole chain and equal to its one
+ * durable record; its terminal record exactly held_child / held_uncertain and no audition start of its own; the held child folder exactly the
+ * presence child stage's: its three claimed calls (render, style review, design + age review) re-derive under ITS context (production's request)
+ * to held_uncertain, its seal, context, saved reviews, images and spend are what they derive; then the engine's typed recovery of those answers
+ * and the one correction it plans. The ledger it stands on is every stage through the held child.
+ */
+async function presenceChildHeld(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, loaded: ReturnType<typeof loadProfile>,
+  presenceGrantFile: string) {
+  const { profile } = loaded, refuse = (): never => fail('fresh_book_child_recovery_presence');
+  if (!path.isAbsolute(presenceGrantFile)) refuse();
+  const at = (name: string) => path.join(env.authorityRoot, name), childDir = path.join(config.bookDir, 'child');
+  const files = { grant: presenceGrantFile, claim: at(PRS.claimName), outcome: at(PRS.outcomeName), successor: at(PRS.successorName),
+    calibrationClaim: at(CAL.claimName), extensionRevalidationClaim: at(XREVAL.claimName), extensionClaim: at(EXT.claimName), revalidationClaim: at(REVAL.claimName),
+    continuationClaim: at(CONT.claimName), repairClaim: at(FRESH_BOOK_STORYBOARD_REPAIR.claimName), recoveryClaim: at(FRESH_BOOK_RECOVERY.claimName),
+    originalClaim: at(FRESH_BOOK_CYCLE.claimName), seal: path.join(childDir, 'sealed.json') };
+  if (Object.values(files).some(f => !existsSync(f)) || existsSync(at(PRS.auditionStartName))) refuse();
+  const digest = Object.fromEntries(Object.entries(files).map(([k, f]) => [k, previewSha(fileBytes(f))])) as Record<keyof typeof files, string>;
+  const parsed = freshBookStoryboardPresenceGrantSchema.safeParse(json(files.grant));
+  if (!parsed.success) return refuse();
+  const grant = parsed.data, claim = json(files.claim), c = grant.calibration;
+  const sameDir = (p: unknown) => typeof p === 'string' && path.resolve(p).toLowerCase() === path.resolve(config.bookDir).toLowerCase();
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.storyboardPresence !== PRS.version || claim.grantSha256 !== digest.grant ||
+      claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || previewSha(fileBytes(grant.ownerApproval.file)) !== grant.ownerApproval.sha256 ||
+      claim.calibrationClaimSha256 !== digest.calibrationClaim || c.claimSha256 !== digest.calibrationClaim ||
+      claim.extensionRevalidationClaimSha256 !== digest.extensionRevalidationClaim || c.extensionRevalidationClaimSha256 !== digest.extensionRevalidationClaim ||
+      claim.extensionClaimSha256 !== digest.extensionClaim || c.extensionClaimSha256 !== digest.extensionClaim ||
+      claim.revalidationClaimSha256 !== digest.revalidationClaim || c.revalidationClaimSha256 !== digest.revalidationClaim ||
+      claim.continuationClaimSha256 !== digest.continuationClaim || c.continuationClaimSha256 !== digest.continuationClaim ||
+      claim.repairClaimSha256 !== digest.repairClaim || c.repairClaimSha256 !== digest.repairClaim ||
+      claim.recoveryClaimSha256 !== digest.recoveryClaim || c.recoveryClaimSha256 !== digest.recoveryClaim ||
+      claim.originalClaimSha256 !== digest.originalClaim || c.originalClaimSha256 !== digest.originalClaim || claim.engineHead !== grant.engine.head ||
+      !sameDir(claim.bookDir) || !sameDir(grant.bookDir) || grant.profileSha256 !== freshBookProfileSha(profile) || claim.profileSha256 !== grant.profileSha256) refuse();
+  // Everything the consumed presence grant recorded, except its own head and pins (they bind ITS head), re-derived now by the engine.
+  const replanned = await planFreshBookStoryboardPresence(config, env, c.grantFile, grant.ownerApproval.file);
+  if (!sameJson({ ...replanned.grantDraft, engine: grant.engine, pins: grant.pins }, grant)) refuse();
+  // Its admitted storyboard: the successor re-derived by replaying the whole chain, equal to its one durable record.
+  const presenceAdmitted: PresenceAdmitted = { grant, presence: replanned.input, outcome: await assertFreshBookAdmission(rereview, env),
+    planned: { recoveryRecord: replanned.recoveryRecord, diagnosisRecord: replanned.diagnosisRecord } };
+  const successor = await verifyStoryboardPresenceSuccessor({ config, env, grantSha: digest.grant, admitted: presenceAdmitted });
+  if (!admittedPresence(successor.disposition)) refuse();
+  // Its terminal record: its own child stage held the anchor.
+  const outcome = json(files.outcome);
+  if (!sortedSame(Object.keys(outcome), ['cycle', 'disposition', 'finishedAt', 'status']) || outcome.cycle !== FRESH_BOOK_CYCLE.id ||
+      outcome.status !== CR.heldOutcome || outcome.disposition !== CR.heldDisposition) refuse();
+  // The held child: the presence child stage's folder exactly, its three settled calls re-derived under ITS context (production's request).
+  const board = loadReviewedStoryboard(config.bookDir, workspace(), layoutFor(profile, undefined, PRS.folder));
+  const rec = recoveryAuthority(profile, board.book.plan.wardrobe), anchor = rec.held;
+  const first = await settledAnchorAttempt(childDir, anchor.context, anchor.child.age, 'reference_child', anchor.request.prompt, 'style', undefined,
+    anchor.technique.map(t => ({ role: t.label, sha256: t.sha256 })));
+  const firstDesign = first.design ?? refuse();
+  if (first.outcome.disposition !== CR.heldDisposition || !sortedSame(claimedSteps(childDir), ['reference_child', 'reference_child_style_qa', 'reference_child_qa'])) refuse();
+  const images = path.join(childDir, 'illustrations');
+  if (!sameJson(json(files.seal), { status: 'child_reference_held', disposition: CR.heldDisposition, childAnchor: profile.childAnchor, runtimeEligible: false }) ||
+      !sameJson(json(path.join(childDir, 'context.json')), anchor.context) ||
+      !sameJson(json(path.join(childDir, 'reference_child_style_review.json')), plainJson({ recipe: first.recipe, recipeSha: first.recipeSha, ...first.style })) ||
+      !sameJson(json(path.join(childDir, 'reference_child_design_review.json')), plainJson(designReviewRecord(first.recipe, first.recipeSha, firstDesign))) ||
+      !sortedSame(readdirSync(childDir), ['context.json', 'illustrations', 'paid-stages', 'reference_child_design_review.json', 'reference_child_style_review.json',
+        'sealed.json', 'spend.json']) || !sortedSame(readdirSync(images), [first.candidate.imageName, 'style_ref_1.png', 'style_ref_2.png']) ||
+      anchor.technique.some((t, i) => previewSha(fileBytes(path.join(images, `style_ref_${i + 1}.png`))) !== t.sha256)) refuse();
+  // Its spend record is its own meter's, re-derived from its calls on the ledger before it.
+  const before = freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir, 'storyboard_presence').slice(0, -2) });
+  if (!sameJson(json(path.join(childDir, 'spend.json')), new AuditionMeter(path.join(childDir, 'paid-stages'), before.nextCapMicroUsd, CHILD_API_CALLS,
+    before.bookKnownMicroUsd, 0, CHILD_RULES).snapshot())) refuse();
+  const correction = recoveryCorrection(rec, first);
+  const through = freshBookCycleLedger({ diagnosticSettledMicroUsd: before.diagnosticSettledMicroUsd, stages: bookStages(config.bookDir, 'child_recovery').slice(0, -2) });
+  return { presence: { grantFile: path.resolve(presenceGrantFile), grantSha256: digest.grant, claimSha256: digest.claim, outcomeSha256: digest.outcome,
+      successorSha256: digest.successor, storyboardDigest: successor.storyboardDigest, calibrationClaimSha256: digest.calibrationClaim,
+      extensionRevalidationClaimSha256: digest.extensionRevalidationClaim, extensionClaimSha256: digest.extensionClaim, revalidationClaimSha256: digest.revalidationClaim,
+      continuationClaimSha256: digest.continuationClaim, repairClaimSha256: digest.repairClaim, recoveryClaimSha256: digest.recoveryClaim,
+      originalClaimSha256: digest.originalClaim },
+    held: { folderSha256: previewSha(canonicalJson(folderBaseline(childDir))), sealSha256: digest.seal, candidateSha256: first.candidate.imageSha,
+      recipeSha256: first.recipeSha, contextSha256: childAnchorInspectionContextSha(anchor.context), style: first.style.disposition, design: firstDesign.design,
+      disposition: first.outcome.disposition },
+    recovery: { version: correction.recovery.version, pose: correction.recovery.pose, aspects: correction.recovery.aspects, corrections: correction.recovery.corrections,
+      correctionPromptSha256: previewSha(correction.prompt), recipeSha256: correction.recipeSha, contextSha256: correction.contextSha,
+      renderMaximumMicroUsd: correction.renderMaximumMicroUsd },
+    ledger: { diagnosticSettledMicroUsd: through.diagnosticSettledMicroUsd, bookKnownMicroUsd: through.bookKnownMicroUsd,
+      calls: through.stages.reduce((n, s) => n + s.calls, 0) },
+    rec, first, correction, presenceGrant: grant };
+}
+type ChildRecoveryHeld = Awaited<ReturnType<typeof presenceChildHeld>>;
+
+/** Provider-free plan and the child-recovery grant this exact state needs (no key, no provider, no write). */
+export async function planFreshBookChildRecovery(config: FreshBookConfig, env: FreshBookEnv, presenceGrantFile: string, ownerApprovalFile: string) {
+  const base = planFreshBook(config, env), loaded = loadProfile(config);
+  const approval = ownerApproval(ownerApprovalFile, CR.approvalLine, 'fresh_book_child_recovery_approval');
+  const held = await presenceChildHeld(config, env, base.rereview, loaded, presenceGrantFile);
+  const at = (name: string) => path.join(env.authorityRoot, name);
+  const plan = { version: CR.version, cycle: FRESH_BOOK_CYCLE.id, amendment: CR.amendment, ownerApproval: approval, basePlanSha256: base.grantDraft.nativePlanSha256,
+    bookDir: path.resolve(config.bookDir), folder: CR.folder, storyboardDir: PRS.folder, childDir: CR.folder,
+    presence: held.presence, held: held.held,
+    storyboard: 'the presence line\'s admitted storyboard, its successor re-derived by replaying the whole chain; no author, editor, planner or storyboard call',
+    pose: { contract: CHILD_ANCHOR_POSE_VERSION, clauseSha256: CHILD_ANCHOR_POSE_CLAUSE_SHA256, replaces: CHILD_ANCHOR_PRODUCTION_POSE_LINE,
+      requestPromptSha256: previewSha(held.rec.request.prompt), view: 'the corrected candidate is reviewed under the context whose view binds this clause' },
+    recovery: held.recovery,
+    calls: { edit: `reference_child_repair: gpt-image-2 LOW 1024x1024 images.edit of the held candidate ${held.held.candidateSha256} only (rejected_edit_target), ${CR.editCalls}`,
+      reviews: `reference_child_repair_style_qa, reference_child_repair_qa: Sol 6.1 (${SOL}), ${CR.reviewCalls}, each claimed at ${CR.reviewReserveMicroUsd}; the design review is not sent when the style review is unassessable (held)`,
+      reserveMicroUsd: held.recovery.renderMaximumMicroUsd + CR.reviewCalls * CR.reviewReserveMicroUsd },
+    acceptance: 'the corrected candidate passes only under the unchanged disposition (style, every design category, apparent age, materiality); no recovery applies to it; anything else ends the line',
+    downstream: ['book --child-recovery [--resume]: two samples first, then the rest and the cover only if both pass (LOW, max 3 attempts/page)'],
+    caps: { ...base.plan.caps, childRecoveryApiCalls: CR.apiCalls },
+    claim: at(CR.claimName), outcome: at(CR.outcomeName), successor: at(CR.successorName),
+    successorAdmission: 'downstream re-derives the presence chain, the held child, the typed recovery and the recovered child from the saved evidence against its one durable record',
+    providerCalls: 0, keyRead: false };
+  const engine = env.head();
+  const pins = Object.fromEntries(FRESH_BOOK_CHILD_RECOVERY_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
+  const grantDraft: FreshBookChildRecoveryGrant = freshBookChildRecoveryGrantSchema.parse({ version: 'fresh-book-child-recovery-grant/v1',
+    cycle: FRESH_BOOK_CYCLE.id, approval: FRESH_BOOK_CYCLE.approval, amendment: CR.amendment, ownerApproval: approval, profileSha256: base.plan.profileSha256,
+    bookDir: path.resolve(config.bookDir), presence: held.presence, held: held.held, recovery: held.recovery, ledger: held.ledger,
+    allowance: { apiCalls: CR.apiCalls, editCalls: CR.editCalls, reviewCalls: CR.reviewCalls, reviewReserveMicroUsd: CR.reviewReserveMicroUsd },
+    engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
+  const probe = (f: () => unknown) => { try { return f(); } catch (e) { return { refused: e && typeof e === 'object' && 'code' in e ? e.code : String(e) }; } };
+  const state = { claimExists: existsSync(plan.claim), outcomeExists: existsSync(plan.outcome), successorExists: existsSync(plan.successor),
+    folderExists: existsSync(path.join(config.bookDir, CR.folder)), layoutExists: existsSync(path.join(config.bookDir, 'book-layout.json')),
+    ledger: probe(() => freshBookLedger(config, env, base.rereview, 'child_recovery')),
+    budget: probe(() => assertChildRecoveryFits(freshBookLedger(config, env, base.rereview, 'child_recovery'), held.recovery.renderMaximumMicroUsd)), engine };
+  return { plan, grantDraft, state, profile: base.profile, prepared: loaded.prepared, rereview: base.rereview, held };
+}
+
+/**
+ * A child-recovery-line stage's admission, as admitStoryboardPresence: the baseline pinned FIRST and held across every await: the recovery grant
+ * bytes, the owner's record bytes, the consumed presence grant and every grant its chain names (each at its recorded digest, never re-pinned to
+ * this head), configuration, profile, lineage, every line's authority records and the earlier stage entries (the held child among them). The
+ * grant is exactly the draft this state rebuilds, at the clean reviewed head. Its guard adds the recovery claim and every record it names.
+ */
+async function admitChildRecovery(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal; earlier: string[] }) {
+  const bytes = fileBytes(a.grantFile);
+  if (previewSha(bytes) !== a.grantSha) fail('fresh_book_child_recovery_grant');
+  const parsed = freshBookChildRecoveryGrantSchema.safeParse(JSON.parse(bytes.toString('utf8')));
+  if (!parsed.success) return fail('fresh_book_child_recovery_grant');
+  const approvalFile = parsed.data.ownerApproval.file, approvalBytes = fileBytes(approvalFile);
+  if (previewSha(approvalBytes) !== parsed.data.ownerApproval.sha256) fail('fresh_book_child_recovery_approval');
+  const presenceFile = parsed.data.presence.grantFile, presenceBytes = fileBytes(presenceFile);
+  if (previewSha(presenceBytes) !== parsed.data.presence.grantSha256) fail('fresh_book_child_recovery_presence');
+  let presence: FreshBookStoryboardPresenceGrant;
+  try { presence = freshBookStoryboardPresenceGrantSchema.parse(JSON.parse(presenceBytes.toString('utf8'))); } catch { return fail('fresh_book_child_recovery_presence'); }
+  const presenceApprovalFile = presence.ownerApproval.file, presenceApprovalBytes = fileBytes(presenceApprovalFile);
+  if (previewSha(presenceApprovalBytes) !== presence.ownerApproval.sha256) fail('fresh_book_storyboard_presence_approval');
+  const chain = presenceChainGrants(presence);
+  const rereview = loadRereview(a.config);
+  let roots = rootsOf(a.config, a.env, rereview, a.earlier);
+  const planned = await planFreshBookChildRecovery(a.config, a.env, presenceFile, approvalFile);
+  const outcome = await assertFreshBookAdmission(planned.rereview, a.env);
+  const engine = a.env.head();
+  if (canonicalJson(parsed.data) !== canonicalJson(planned.grantDraft)) fail('fresh_book_child_recovery_grant');
+  if (!engine.clean || engine.head !== planned.grantDraft.engine.head || engine.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
+  const frozen: [string, Buffer, string][] = [[a.grantFile, bytes, 'fresh_book_child_recovery_grant'], [approvalFile, approvalBytes, 'fresh_book_child_recovery_approval'],
+    [presenceFile, presenceBytes, 'fresh_book_child_recovery_presence'], [presenceApprovalFile, presenceApprovalBytes, 'fresh_book_storyboard_presence_approval'], ...chain];
+  const same = () => {
+    if (a.signal.aborted) fail('fresh_book_cancelled');
+    for (const [file, held, code] of frozen) if (!fileBytes(file).equals(held)) fail(code);
+    if (canonicalJson(rootsOf(a.config, a.env, rereview, a.earlier)) !== canonicalJson(roots)) fail('fresh_book_roots_changed');
+    const e = a.env.head();
+    if (!e.clean || e.head !== planned.grantDraft.engine.head || e.branch !== planned.grantDraft.engine.branch) fail('fresh_book_source_changed');
+    for (const [rel, digest] of Object.entries(planned.grantDraft.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('fresh_book_source_changed');
+  };
+  const guard = () => { same(); assertFreshBookChildRecoveryPaid({ env: a.env, grantFile: a.grantFile, grantSha: a.grantSha, profile: planned.profile, workspace: workspace() }); };
+  const recapture = (added: string[]) => {
+    const next = rootsOf(a.config, a.env, rereview, a.earlier), changed = Object.keys(next).filter(k => next[k] !== roots[k]);
+    if (canonicalJson(Object.keys(next).sort()) !== canonicalJson(Object.keys(roots).sort()) || canonicalJson(changed.sort()) !== canonicalJson([...added].sort()) ||
+        added.some(k => roots[k] !== 'absent' || next[k] === 'absent')) fail('fresh_book_roots_changed');
+    roots = next; same();
+  };
+  same();
+  return { planned, outcome, same, guard, recapture, grant: planned.grantDraft, childRecovery: planned.held };
+}
+type ChildRecoveryAdmitted = { grant: FreshBookChildRecoveryGrant; childRecovery: ChildRecoveryHeld; outcome: unknown; planned: { profile: FreshBookProfile } };
+
+/**
+ * The recovered anchor's acceptance as the recovery actually requested and was answered: the held attempt and its typed recovery (re-derived by
+ * the admission from the held folder under ITS context); the recovery folder's ONE correction re-derived from that recovery's prompt on the pose
+ * core with the held candidate (byte-exact in this folder) as its only reference, its two reviews under the pose context and the frozen recipe;
+ * exactly these three calls; the adoption is the record those answers derive under the pose context. A saved adoption's echoes are never the authority.
+ */
+export async function assertRecoveredChildSettled(bookDir: string, held: Pick<ChildRecoveryHeld, 'rec' | 'first' | 'correction'>, adoption: any, candidateBytes: Buffer) {
+  const dir = path.join(bookDir, CR.folder), { rec, first, correction } = held;
+  if (previewSha(fileBytes(path.join(dir, 'illustrations', HELD_INPUT_IMAGE))) !== first.candidate.imageSha) fail('child_anchor_render_binding');
+  const final = await settledAnchorAttempt(dir, rec.context, rec.held.child.age, 'reference_child_repair', correction.prompt, 'book_design', CHILD_ANCHOR_CORRECTION_ROLES,
+    correction.references);
+  const candidateSha = previewSha(candidateBytes);
+  const finalDesign = final.design ?? fail('child_anchor_not_accepted');
+  if (final.recipeSha !== correction.recipeSha || final.outcome.disposition !== 'passed' || final.candidate.imageSha !== candidateSha ||
+      candidateSha === first.candidate.imageSha) fail('child_anchor_not_accepted');
+  if (!sortedSame(claimedSteps(dir), [...CR.steps])) fail('child_anchor_evidence_steps');
+  const record = childAnchorInspectedAdoptionRecord(rec.context, final.recipe, final.style.review, finalDesign.full);
+  if (!sameJson(adoption?.anchor, record) || adoption?.candidate?.imageSha !== candidateSha || !sameJson(adoption?.context, rec.context) ||
+      adoption?.name !== 'child' || adoption?.authority !== 'fresh_book_reviewed_passed') fail('child_anchor_evidence_binding');
+  return { final, design: finalDesign, accepted: assertChildAnchorInspectedAccepted(record, candidateSha, rec.context) };
+}
+
+/**
+ * The ONE owner-approved child recovery: admission re-derives the presence chain, its admitted storyboard, the held child and the typed recovery
+ * exactly; the balance must cover the edit's maximum and both review slots; then one claim and its own folder with its admission, the bound pose
+ * context, the held candidate copied byte-exact as the ONE edit input and the correction record; ONE gpt-image-2 LOW correction edit and its Sol
+ * reviews on the shared attempt path (the unchanged disposition: passed, or held; no second correction, no fresh render). Passed: the adoption, the
+ * book layout (this folder, the pose contract) and the ONE durable successor re-derived from the settled evidence. Held or failed: its own terminal
+ * outcome. Nothing earlier is written.
+ */
+export async function runFreshBookChildRecovery(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
+  log: (line: string) => void }) {
+  const { config, env, signal } = args;
+  const admitted = await admitChildRecovery({ ...args, earlier: ['request.json', 'admission.json', 'text', FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder,
+    CONT.folder, REVAL.folder, EXT.folder, XREVAL.folder, CAL.folder, PRS.folder, 'child'] });
+  const held = admitted.childRecovery, profile = admitted.planned.profile, dir = path.join(config.bookDir, CR.folder), images = path.join(dir, 'illustrations');
+  const ledger = freshBookLedger(config, env, admitted.planned.rereview, 'child_recovery');
+  if (existsSync(dir) || ['book-layout.json', 'audition.grant.json', 'audition'].some(f => existsSync(path.join(config.bookDir, f)))) fail('fresh_book_child_recovery_used');
+  if (ledger.bookKnownMicroUsd !== admitted.grant.ledger.bookKnownMicroUsd || ledger.diagnosticSettledMicroUsd !== admitted.grant.ledger.diagnosticSettledMicroUsd)
+    fail('fresh_book_child_recovery_ledger');
+  assertChildRecoveryFits(ledger, held.correction.renderMaximumMicroUsd);
+  // No await from the last check to the one recovery claim and its folder.
+  admitted.same();
+  claimFreshBookChildRecovery(env, admitted.grant, args.grantSha);
+  admitted.recapture([`authority/${CR.claimName}`]);
+  try { mkdirSync(dir); } catch { fail('fresh_book_child_recovery_used'); }
+  mkdirSync(images);
+  const meter = new AuditionMeter(path.join(dir, 'paid-stages'), ledger.nextCapMicroUsd, CR.apiCalls, ledger.bookKnownMicroUsd, 0, CHILD_RECOVERY_RULES);
+  const save = (name: string, value: unknown) => exclusiveJson(path.join(dir, `${name}.json`), value);
+  const seal = (status: string, extra: Record<string, unknown> = {}) => { save('spend', meter.snapshot()); save('sealed', { status, ...extra, runtimeEligible: false }); };
+  try {
+    exclusiveJson(path.join(dir, CHILD_RECOVERY_ADMISSION_FILE), { version: CR.version, grantSha256: args.grantSha, ownerApproval: admitted.grant.ownerApproval,
+      presence: admitted.grant.presence, held: admitted.grant.held, recovery: admitted.grant.recovery, ledger, rereviewOutcome: admitted.outcome });
+    save('context', held.rec.context);
+    const input: AuditionImage = { imageName: HELD_INPUT_IMAGE, imageSha: held.first.candidate.imageSha };
+    writeFileSync(path.join(images, HELD_INPUT_IMAGE), held.first.bytes, { flag: 'wx' });
+    if (previewSha(readFileSync(path.join(images, HELD_INPUT_IMAGE))) !== input.imageSha) fail('fresh_book_child_recovery_input');
+    save('reference_child_correction_input', { candidate: input, corrections: held.correction.recovery.corrections,
+      recovery: { version: CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, pose: CHILD_ANCHOR_POSE_VERSION, aspects: held.correction.recovery.aspects },
+      authority: 'rejected_edit_input_only_not_canonical' });
+    const key = keyReader(config.keyEnvFile);
+    const io = auditionAdapters({ directory: images, meter, key, signal, guard: admitted.guard });
+    const judges = childAnchorJudges({ bytesOf: image => readAuditionImage(images, image), meter, key, signal, guard: admitted.guard });
+    const render: Render = (step, prompt, refs, mode, roles) => io.render(step, prompt, refs, mode, roles);
+    const result = await anchorAttempt({ render, style: judges.inspectedStyle, design: judges.inspectedDesign, check: admitted.guard, save, log: args.log },
+      held.rec.context, held.rec.held.child.age, 'reference_child_repair', held.correction.prompt, [input], 'book_design', CHILD_ANCHOR_CORRECTION_ROLES,
+      held.correction.references, input);
+    admitted.guard();
+    if (childAnchorRecipeSha(result.recipe) !== admitted.grant.recovery.recipeSha256) fail('fresh_book_child_recovery_recipe');
+    if (result.outcome.disposition !== 'passed' || !result.design) {
+      seal('child_reference_held', { disposition: result.outcome.disposition, childAnchor: profile.childAnchor, childAnchorPose: CHILD_ANCHOR_POSE_VERSION });
+      finish(env, CR.ownHeldOutcome, { disposition: result.outcome.disposition }, CR.outcomeName);
+      return { status: 'child_reference_held' as const, disposition: result.outcome.disposition, api: meter.snapshot(),
+        ledger: freshBookLedger(config, env, admitted.planned.rereview, 'child_recovery') };
+    }
+    const record = childAnchorInspectedAdoptionRecord(held.rec.context, result.recipe, result.style.review, result.design.full);
+    const accepted = assertChildAnchorInspectedAccepted(record, result.candidate.imageSha, held.rec.context);
+    save('reference_child_adoption', { name: 'child', context: held.rec.context, candidate: result.candidate, authority: 'fresh_book_reviewed_passed', anchor: record });
+    exclusiveJson(path.join(config.bookDir, 'book-layout.json'), lineLayout(profile, result.candidate.imageName, CHILD_RECOVERY_LINE));
+    seal('child_reference_passed', { candidate: result.candidate, contextSha: held.correction.contextSha, childAnchor: profile.childAnchor,
+      childAnchorPose: CHILD_ANCHOR_POSE_VERSION, ...(accepted.acceptedDeviations ? { acceptedDeviations: accepted.acceptedDeviations } : {}) });
+    // The recovered child's ONE durable provenance: its whole evidence re-derived from the saved records, then recorded once under a fresh guard.
+    const successor = await deriveChildRecoverySuccessor({ config, env, grantSha: args.grantSha, admitted });
+    admitted.guard();
+    exclusiveJson(path.join(env.authorityRoot, CR.successorName), successor);
+    admitted.recapture([`authority/${CR.successorName}`]);
+    return { status: 'child_reference_passed' as const, candidate: result.candidate, api: meter.snapshot(),
+      ledger: freshBookLedger(config, env, admitted.planned.rereview, 'child_recovery') };
+  } catch (error) {
+    const code = codeOf(error, 'fresh_book_child_recovery_failed');
+    if (!existsSync(path.join(dir, 'sealed.json'))) seal('failed', { code });
+    if (!existsSync(path.join(env.authorityRoot, CR.outcomeName))) finish(env, 'failed_child_recovery', { code }, CR.outcomeName);
+    throw error;
+  }
+}
+
+/**
+ * The recovered child's successor, re-derived from its saved evidence (never its own seal, summary or a re-captured folder): its admission is
+ * this grant's; its context is the pose context; its correction record is the typed recovery's; its folder holds exactly its records, the held
+ * candidate (its one edit input) and the corrected candidate; its settled calls re-derive to a pass (assertRecoveredChildSettled); its seal,
+ * spend and the book layout are what that evidence derives.
+ */
+async function deriveChildRecoverySuccessor(a: { config: FreshBookConfig; env: FreshBookEnv; grantSha: string; admitted: ChildRecoveryAdmitted }) {
+  const { config, env } = a, grant = a.admitted.grant, held = a.admitted.childRecovery, dir = path.join(config.bookDir, CR.folder);
+  const refuse = (): never => fail('fresh_book_child_recovery_successor'), layoutFile = path.join(config.bookDir, 'book-layout.json');
+  try {
+    const admission = json(path.join(dir, CHILD_RECOVERY_ADMISSION_FILE)), adoption = json(path.join(dir, 'reference_child_adoption.json'));
+    if (!sortedSame(Object.keys(admission), ['grantSha256', 'held', 'ledger', 'ownerApproval', 'presence', 'recovery', 'rereviewOutcome', 'version']) ||
+        admission.version !== CR.version || admission.grantSha256 !== a.grantSha || !sameJson(admission.ownerApproval, grant.ownerApproval) ||
+        !sameJson(admission.presence, grant.presence) || !sameJson(admission.held, grant.held) || !sameJson(admission.recovery, grant.recovery) ||
+        !sameJson(admission.rereviewOutcome, a.admitted.outcome) || admission.ledger?.bookKnownMicroUsd !== grant.ledger.bookKnownMicroUsd ||
+        admission.ledger?.diagnosticSettledMicroUsd !== grant.ledger.diagnosticSettledMicroUsd) refuse();
+    const input = { imageName: HELD_INPUT_IMAGE, imageSha: held.first.candidate.imageSha };
+    if (!sameJson(json(path.join(dir, 'context.json')), held.rec.context) || !sameJson(json(path.join(dir, 'reference_child_correction_input.json')),
+      { candidate: input, corrections: held.correction.recovery.corrections, recovery: { version: CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION, pose: CHILD_ANCHOR_POSE_VERSION,
+        aspects: held.correction.recovery.aspects }, authority: 'rejected_edit_input_only_not_canonical' })) refuse();
+    const candidate = adoption?.candidate as AuditionImage;
+    if (typeof candidate?.imageName !== 'string' || !/^[a-z0-9_]+\.png$/.test(candidate.imageName) ||
+        !sortedSame(readdirSync(path.join(dir, 'illustrations')), [HELD_INPUT_IMAGE, candidate.imageName])) refuse();
+    const { final, design, accepted } = await assertRecoveredChildSettled(config.bookDir, held, adoption, fileBytes(path.join(dir, 'illustrations', candidate.imageName)));
+    if (!sameJson(candidate, final.candidate) ||
+        !sameJson(json(path.join(dir, 'reference_child_repair_style_review.json')), plainJson({ recipe: final.recipe, recipeSha: final.recipeSha, ...final.style })) ||
+        !sameJson(json(path.join(dir, 'reference_child_repair_design_review.json')), plainJson(designReviewRecord(final.recipe, final.recipeSha, design))) ||
+        !sameJson(json(path.join(dir, 'sealed.json')), { status: 'child_reference_passed', candidate, contextSha: held.correction.contextSha,
+          childAnchor: a.admitted.planned.profile.childAnchor, childAnchorPose: CHILD_ANCHOR_POSE_VERSION,
+          ...(accepted.acceptedDeviations ? { acceptedDeviations: accepted.acceptedDeviations } : {}), runtimeEligible: false }) ||
+        !sortedSame(readdirSync(dir), [CHILD_RECOVERY_ADMISSION_FILE, 'context.json', 'illustrations', 'paid-stages', 'reference_child_adoption.json',
+          'reference_child_correction_input.json', 'reference_child_repair_design_review.json', 'reference_child_repair_style_review.json', 'sealed.json', 'spend.json']) ||
+        !sameJson(readReviewedBookLayout(layoutFile), lineLayout(a.admitted.planned.profile, candidate.imageName, CHILD_RECOVERY_LINE)) ||
+        !sameJson(json(path.join(dir, 'spend.json')), new AuditionMeter(path.join(dir, 'paid-stages'),
+          freshBookCycleLedger({ diagnosticSettledMicroUsd: grant.ledger.diagnosticSettledMicroUsd, stages: [] }).nextCapMicroUsd, CR.apiCalls,
+          grant.ledger.bookKnownMicroUsd, 0, CHILD_RECOVERY_RULES).snapshot())) refuse();
+    return { cycle: FRESH_BOOK_CYCLE.id, childRecovery: CR.version, grantSha256: a.grantSha, ownerApprovalSha256: grant.ownerApproval.sha256,
+      presenceGrantSha256: grant.presence.grantSha256, presenceClaimSha256: grant.presence.claimSha256, presenceOutcomeSha256: grant.presence.outcomeSha256,
+      presenceSuccessorSha256: grant.presence.successorSha256, recoveryClaimSha256: previewSha(fileBytes(path.join(env.authorityRoot, CR.claimName))),
+      storyboardDigest: grant.presence.storyboardDigest, heldCandidateSha256: grant.held.candidateSha256, heldContextSha256: grant.held.contextSha256,
+      recovery: { version: grant.recovery.version, pose: grant.recovery.pose, aspects: grant.recovery.aspects }, candidateSha256: candidate.imageSha,
+      contextSha256: grant.recovery.contextSha256, recipeSha256: grant.recovery.recipeSha256, layoutSha256: previewSha(fileBytes(layoutFile)),
+      successorSha256: previewSha(canonicalJson(folderBaseline(dir))) };
+  } catch { return refuse(); }
+}
+/** At every downstream entry: the recovered child's successor re-derived now must equal its one durable record. */
+async function verifyChildRecoverySuccessor(a: { config: FreshBookConfig; env: FreshBookEnv; grantSha: string; admitted: ChildRecoveryAdmitted }) {
+  const record = await deriveChildRecoverySuccessor(a), file = path.join(a.env.authorityRoot, CR.successorName);
+  if (!existsSync(file) || !sameJson(json(file), record)) fail('fresh_book_child_recovery_successor');
+  return record;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -4134,11 +4587,15 @@ export async function assertInspectedChildSettled(bookDir: string, anchor: Retur
 // ---------------------------------------------------------------------------------------------------------------
 export const FRESH_BOOK_AUDITION_SLOT = 'fresh-book-usd7' as const;
 const auditionStartFile = (env: FreshBookEnv) => path.join(env.authorityRoot, 'owner-cycle-20261017-fresh-book-usd7.audition.json');
-async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile, line: Line = ORIGINAL_LINE): Promise<AuditionGrant> {
+async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile, line: Line = ORIGINAL_LINE,
+  recovered?: ChildRecoveryHeld): Promise<AuditionGrant> {
   const layout = readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json'));
-  if (canonicalJson(layout) !== canonicalJson(layoutFor(profile, layout.childImage, line.storyboardDir))) fail('fresh_book_layout');
+  if (canonicalJson(layout) !== canonicalJson(lineLayout(profile, layout.childImage, line))) fail('fresh_book_layout');
   const loaded = loadReviewedBook(config.bookDir, workspace(), undefined, layout);
-  await assertInspectedChildSettled(config.bookDir, anchorAuthority(profile, loaded.book.plan.wardrobe), json(path.join(config.bookDir, 'child', 'reference_child_adoption.json')),
+  // The child recovery's adopted child is the recovered one (its held parent and typed recovery re-derived by the admission); any other line's is `child`.
+  if (line.kind === 'child_recovery') await assertRecoveredChildSettled(config.bookDir, recovered ?? fail('fresh_book_child_recovery_grant'),
+    json(path.join(config.bookDir, CR.folder, 'reference_child_adoption.json')), loaded.childBytes);
+  else await assertInspectedChildSettled(config.bookDir, anchorAuthority(profile, loaded.book.plan.wardrobe), json(path.join(config.bookDir, 'child', 'reference_child_adoption.json')),
     loaded.childBytes);
   const stages = bookStages(config.bookDir, line.ledger).slice(0, -1);
   const ledger = freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages });
@@ -4159,23 +4616,24 @@ async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, re
     scope: { mode: 'render', pages: [0, 1, 2, 3, 4, 5, 6, 7, 8], sample: earliestSameScenePair(loaded.book),
       ...(line.kind === 'storyboard_continuation' || line.kind === 'storyboard_revalidation' || line.kind === 'storyboard_extension'
         || line.kind === 'storyboard_extension_revalidation' || line.kind === 'storyboard_calibration' || line.kind === 'storyboard_presence'
-        ? { recovery: STAGE_RECOVERY_VERSION } : {}) },
+        || line.kind === 'child_recovery' ? { recovery: STAGE_RECOVERY_VERSION } : {}) },
     claudeMax: 'Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger',
     experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256 } });
 }
 
 export async function runFreshBookBook(args: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true; recovery?: true; storyboardRepair?: true; storyboardContinuation?: true; storyboardRevalidation?: true;
-  storyboardExtension?: true; storyboardExtensionRevalidation?: true; storyboardCalibration?: true; storyboardPresence?: true }) {
+  storyboardExtension?: true; storyboardExtensionRevalidation?: true; storyboardCalibration?: true; storyboardPresence?: true; childRecovery?: true }) {
   const { config, env } = args, line = lineOf(args.recovery, args.storyboardRepair, args.storyboardContinuation, args.storyboardRevalidation,
-    args.storyboardExtension, args.storyboardExtensionRevalidation, args.storyboardCalibration, args.storyboardPresence);
+    args.storyboardExtension, args.storyboardExtensionRevalidation, args.storyboardCalibration, args.storyboardPresence, args.childRecovery);
   // The audition grant is pinned too (absent on a start, its bytes on a resume); the start record is part of the authority roots.
   const earlier = ['request.json', 'admission.json', 'text', 'child', 'book-layout.json', 'audition.grant.json'];
   const admitted = await admitLine(args, line, earlier);
   admitted.guard();
-  if (!(await linePassed(args, line, admitted)) || sealedStatus(path.join(config.bookDir, 'child')) !== 'child_reference_passed' ||
+  if (!(await linePassed(args, line, admitted)) || sealedStatus(path.join(config.bookDir, childDirOf(line))) !== 'child_reference_passed' ||
       existsSync(path.join(env.authorityRoot, line.outcomeName))) fail('fresh_book_stage_not_passed');
-  const grant = await freshAuditionGrant(config, env, admitted.planned.rereview, admitted.planned.profile, line);
+  const grant = await freshAuditionGrant(config, env, admitted.planned.rereview, admitted.planned.profile, line,
+    'childRecovery' in admitted ? admitted.childRecovery : undefined);
   const grantFile = path.join(config.bookDir, 'audition.grant.json'), out = path.join(config.bookDir, 'audition'), start = line.auditionStart(env);
   admitted.guard();
   if (args.resume) {
@@ -4210,7 +4668,7 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const config = freshBookConfig(argValue('--config') ?? fail('fresh_book_arguments')), env = realFreshBookEnv();
-  const stage = ['storyboard-presence-preview', 'storyboard-presence-plan', 'storyboard-presence',
+  const stage = ['child-recovery-plan', 'child-recovery', 'storyboard-presence-preview', 'storyboard-presence-plan', 'storyboard-presence',
     'storyboard-calibration-preview', 'storyboard-calibration-plan', 'storyboard-calibration',
     'storyboard-extension-revalidation-preview', 'storyboard-extension-revalidation-plan', 'storyboard-extension-revalidation',
     'storyboard-extension-preview', 'storyboard-extension-plan', 'storyboard-extension', 'storyboard-revalidation-preview',
@@ -4220,8 +4678,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
   const execute = process.argv.includes('--execute');
   // A downstream stage runs under exactly one line: two line flags at once are refused (never a silent preference).
   if (['--recovery', '--storyboard-repair', '--storyboard-continuation', '--storyboard-revalidation', '--storyboard-extension', '--storyboard-extension-revalidation',
-    '--storyboard-calibration', '--storyboard-presence'].filter(f => process.argv.includes(f)).length > 1) fail('fresh_book_arguments');
-  const line = process.argv.includes('--storyboard-presence') ? { storyboardPresence: true as const }
+    '--storyboard-calibration', '--storyboard-presence', '--child-recovery'].filter(f => process.argv.includes(f)).length > 1) fail('fresh_book_arguments');
+  // The child recovery replaces the child stage of its line: only its book stage runs under the flag.
+  if (process.argv.includes('--child-recovery') && stage !== 'book') fail('fresh_book_arguments');
+  const line = process.argv.includes('--child-recovery') ? { childRecovery: true as const }
+    : process.argv.includes('--storyboard-presence') ? { storyboardPresence: true as const }
     : process.argv.includes('--storyboard-calibration') ? { storyboardCalibration: true as const }
     : process.argv.includes('--storyboard-extension-revalidation') ? { storyboardExtensionRevalidation: true as const }
     : process.argv.includes('--storyboard-extension') ? { storyboardExtension: true as const }
@@ -4230,10 +4691,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     : process.argv.includes('--storyboard-repair') ? { storyboardRepair: true as const } : process.argv.includes('--recovery') ? { recovery: true as const } : {};
   const done = (p: Promise<unknown>) => p.then(r => console.log(JSON.stringify(r, null, 2)))
     .catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
+  // The child recovery (dry): the presence chain, its admitted storyboard and the held child re-derived, the engine's typed recovery, the one
+  // correction it plans (its full prompt as the real image seam plans it, its claim maximum, recipe and bound pose context) and the grant draft
+  // (--presence-grant: the consumed presence grant file; --owner-approval: the owner's record). No key, provider, model, claim or write.
+  if (stage === 'child-recovery-plan' || (stage === 'child-recovery' && !execute)) done(Promise.resolve().then(async () => {
+    const { plan, grantDraft, state, held } = await planFreshBookChildRecovery(config, env, argValue('--presence-grant') ?? fail('fresh_book_arguments'),
+      argValue('--owner-approval') ?? fail('fresh_book_arguments'));
+    return { plan, grantDraft, state, correction: { finalPrompt: held.correction.finalPrompt, finalPromptChars: held.correction.finalPrompt.length,
+      recipe: held.correction.recipe, context: held.rec.context } }; }));
   // The presence line (dry): the planner request it would send under the presence contract with the engine's recovery state, diagnosis,
   // finding groups and repeated references, rebuilt offline and measured on its compacted wire; and its plan and grant draft
   // (--calibration-grant: the consumed calibration grant file; --owner-approval: the owner's record). No key, provider, model, claim or write.
-  if (stage === 'storyboard-presence-preview') done(Promise.resolve().then(async () => {
+  else if (stage === 'storyboard-presence-preview') done(Promise.resolve().then(async () => {
     const { grantDraft, input, recoveryRecord, diagnosisRecord } = await planFreshBookStoryboardPresence(config, env,
       argValue('--calibration-grant') ?? fail('fresh_book_arguments'), argValue('--owner-approval') ?? fail('fresh_book_arguments'));
     return { held: grantDraft.held, recovery: grantDraft.recovery, ledger: grantDraft.ledger, recoveryRecord, diagnosisRecord,
@@ -4310,14 +4779,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const common = { config, env, grantFile: argValue('--grant') ?? fail('fresh_book_arguments'), grantSha: argValue('--grant-sha') ?? fail('fresh_book_arguments'),
       signal: controller.signal, log: (line: string) => console.log(line) };
-    done(stage === 'storyboard-presence' ? runFreshBookStoryboardPresence(common)
+    done(stage === 'child-recovery' ? runFreshBookChildRecovery(common) : stage === 'storyboard-presence' ? runFreshBookStoryboardPresence(common)
       : stage === 'storyboard-calibration' ? runFreshBookStoryboardCalibration(common)
       : stage === 'storyboard-extension-revalidation' ? runFreshBookStoryboardExtensionRevalidation(common)
       : stage === 'storyboard-extension' ? runFreshBookStoryboardExtension(common)
       : stage === 'storyboard-revalidation' ? runFreshBookStoryboardRevalidation(common)
       : stage === 'storyboard-continuation' ? runFreshBookStoryboardContinuation(common)
       : stage === 'storyboard-repair' ? runFreshBookStoryboardRepair(common) : stage === 'recover' ? runFreshBookTextRecovery(common)
-      : stage === 'text' ? runFreshBookText(common) : stage === 'child' ? runFreshBookChild({ ...common, ...line })
+      : stage === 'text' ? runFreshBookText(common) : stage === 'child' ? runFreshBookChild({ ...common, ...('childRecovery' in line ? fail('fresh_book_arguments') : line) })
       : runFreshBookBook({ ...common, ...line, ...(process.argv.includes('--resume') ? { resume: true as const } : {}) }));
   }
 }
