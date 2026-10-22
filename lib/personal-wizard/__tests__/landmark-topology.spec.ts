@@ -66,6 +66,64 @@ describe('prospective typed landmark topology: no source-specific rules or legac
     s.inventory.landmarks[0].candidates[1].evidence = 'The prose says they are the SAME object';
     expect(assess(s as any).assessment.landmarks?.[0].instances).toBe(2);
   });
+  it.each([false, true])('refuses conflicting whole/non-instance evidence in one physical group (transitive=%s)', transitive => {
+    const s = single('same_object');
+    s.inventory.topology.bindings[1].extent = 'not_instance';
+    s.inventory.landmarks[0].candidates[1].association = 'different_object';
+    s.inventory.landmarks[0].candidates[1].featureChecks[0].observed = 'contradicted';
+    if (transitive) {
+      s.inventory.objects.push(object('o3'));
+      s.inventory.landmarks[0].candidates.push(candidate('o3'));
+      s.inventory.topology.bindings.push(binding('a', 'o3', 'building'));
+      s.inventory.topology.relations.push(relation('o2', 'o3', 'same_object'), relation('o1', 'o3', 'same_object'));
+    }
+    expect(() => assess(s as any)).toThrow();
+  });
+  it('refuses opposite decisive feature evidence across aliases even when neither single alias is a supported anchor', () => {
+    const s = single('same_object');
+    s.inventory.landmarks[0].candidates[0].featureChecks[1].observed = 'not_visible';
+    s.inventory.landmarks[0].candidates[1].featureChecks[1].observed = 'contradicted';
+    s.inventory.landmarks[0].candidates[1].featureChecks[0].observed = 'not_visible';
+    // The kind is visible on o1 and unreadable on o2; colour contradiction is not by itself a kind contradiction.
+    expect(assess(s as any).assessment.counts.continuity).toBeGreaterThan(0);
+    s.inventory.landmarks[0].candidates[0].featureChecks[1].observed = 'matches';
+    expect(() => assess(s as any)).toThrow();
+  });
+  it('does not treat not-visible decisive evidence in one consistent alias as an opposing verdict', () => {
+    const s = single('same_object');
+    s.inventory.landmarks[0].candidates[1].featureChecks[0].observed = 'not_visible';
+    expect(assess(s as any).assessment.landmarks?.[0]).toMatchObject({ instances: 1, strong: 1 });
+    // Missing whole-anchor evidence still stays uncertain in its own row; no inference from the positive alias.
+    expect(assess(s as any).assessment.counts.continuity).toBeGreaterThan(0);
+  });
+  it('unreadable relation of two decisively proven non-instances cannot hold the one positive landmark', () => {
+    const s = single();
+    s.inventory.objects.push(object('o3'));
+    s.inventory.landmarks[0].candidates.push(candidate('o3', 'different_object'));
+    s.inventory.landmarks[0].candidates[1].association = 'different_object';
+    for (const c of s.inventory.landmarks[0].candidates.slice(1)) c.featureChecks[0].observed = 'contradicted';
+    s.inventory.topology.bindings[1].extent = 'not_instance';
+    s.inventory.topology.bindings.push(binding('a', 'o3', 'building', 'not_instance'));
+    s.inventory.topology.relations.push(relation('o1', 'o3'), relation('o2', 'o3', 'uncertain'));
+    const result = assess(s as any).assessment;
+    expect(result.landmarks?.[0]).toMatchObject({ instances: 1, strong: 1, topologyUncertain: false });
+    expect(result.counts.continuity).toBe(0);
+    s.inventory.topology.relations[2] = relation('o2', 'o3');
+    expect(assess(s as any).assessment).toEqual(result);
+  });
+  it('does not let an irrelevant uncertain non-instance edge suppress a valid component exclusion', () => {
+    const s = aggregate();
+    s.inventory.objects.push(object('o3'));
+    for (const l of s.inventory.landmarks) {
+      const c = candidate('o3', 'different_object'); c.featureChecks[0].observed = 'contradicted'; l.candidates.push(c);
+    }
+    s.inventory.topology.bindings.push(binding('a', 'o3', 'canyon', 'not_instance'), binding('b', 'o3', 'cliff', 'not_instance'));
+    s.inventory.topology.relations.push(relation('o1', 'o3'), relation('o2', 'o3', 'uncertain'));
+    expect(assess(s).assessment.landmarks?.map(l => [l.instances, l.excluded, l.topologyUncertain])).toEqual([[1, 1, false], [1, 1, false]]);
+    // A genuinely unresolved membership between the part and its relevant source anchor still holds.
+    s.inventory.topology.relations[0] = relation('o2', 'o1', 'uncertain');
+    expect(assess(s).assessment.counts.continuity).toBeGreaterThan(0);
+  });
   it('does not merge two whole members just because both belong to one aggregate', () => {
     const s = aggregate('forest', 'tree');
     s.inventory.objects.push(object('o3'));

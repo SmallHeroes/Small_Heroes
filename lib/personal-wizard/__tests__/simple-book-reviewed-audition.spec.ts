@@ -147,14 +147,22 @@ describe('topology opt-in through the real existing audition orchestrator (synth
   it('uncertain physical evidence holds the representative sample and prevents downstream', async () => {
     const h = harness({ book: typedBook(), inventory: (_step, context) => {
       const inv = singleInventory(context);
+      inv.objects.push({ objectId: 'o3', region: 'distant background', description: 'a possible second whole landmark whose connection is hidden' });
       for (const l of inv.landmarks) {
         const own = l.candidates[0], features = context.checks.uniqueLandmarks.find((x: any) => x.id === l.landmarkId).features;
-        l.candidates = inv.objects.map(o => o.objectId === own.objectId ? own : { objectId: o.objectId, association: 'different_object',
+        l.candidates = inv.objects.map(o => o.objectId === own.objectId ? own : o.objectId === 'o3' && l === inv.landmarks[0] ? {
+          objectId: o.objectId, association: 'possible_copy', evidence: 'matching whole with hidden physical connectivity',
+          featureChecks: features.map((f: any) => ({ featureId: f.id, observed: 'matches' })),
+        } : { objectId: o.objectId, association: 'different_object',
           evidence: 'visible incompatible kind', featureChecks: features.map((f: any) => ({ featureId: f.id,
             observed: f.aspect === 'kind' ? 'contradicted' : 'not_visible' })) });
       }
       return { ...inv, topology: { version: LANDMARK_TOPOLOGY_VERSION,
-        relations: [{ from: 'o1', to: 'o2', relation: 'uncertain', basis: 'not_readable', evidence: 'connection hidden behind another object' }],
+        relations: [
+          { from: 'o1', to: 'o2', relation: 'separate_objects', basis: 'visible_separation', evidence: 'known distinct canonical bodies' },
+          { from: 'o1', to: 'o3', relation: 'uncertain', basis: 'not_readable', evidence: 'matching whole connection hidden behind another object' },
+          { from: 'o2', to: 'o3', relation: 'separate_objects', basis: 'visible_separation', evidence: 'known distinct canonical bodies' },
+        ],
         bindings: inv.landmarks.flatMap(l => l.candidates.map(c => ({ landmarkId: l.landmarkId, objectId: c.objectId,
           sourceKind: context.checks.uniqueLandmarks.find((x: any) => x.id === l.landmarkId).features.find((f: any) => f.aspect === 'kind').text,
           extent: c.association === 'different_object' ? 'not_instance' : 'whole_instance', evidence: 'visible extent but relation remains unreadable' }))) } };
