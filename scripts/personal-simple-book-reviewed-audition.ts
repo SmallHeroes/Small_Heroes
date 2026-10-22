@@ -656,16 +656,29 @@ export class AuditionMeter {
     if (!this.rules || !/^[a-z][a-z0-9_]{0,79}$/.test(step)) fail('audition_recovery_binding');
     const rules = this.rules ?? fail('audition_recovery_binding');
     const at = (kind: string) => path.join(this.root, `${step}.${kind}.json`), snapshot = this.snapshot();
-    if (snapshot.unknownCost || snapshot.unknownOutcome !== 1 || !existsSync(at('claim')) || existsSync(at('result')) || existsSync(at('failure')))
+    if (snapshot.unknownCost || snapshot.unknownOutcome !== 1 || !existsSync(at('claim')) || existsSync(at('result')))
       fail('audition_recovery_binding');
     const claim = read(at('claim')), wireDigest = previewSha(canonicalJson(wire));
     if (claim.step !== step || claim.wireDigest !== wireDigest || canonicalJson(read(at('wire'))) !== canonicalJson(wire) ||
         ruledMaximum(ruleOf(rules, step), wire) !== claim.maximumMicroUsd) fail('audition_recovery_binding');
     const claimSha256 = previewSha(readFileSync(at('claim'))), wireSha256 = previewSha(readFileSync(at('wire')));
+    // A crash may leave exactly our first settlement write. Adopt only that actual-failure prefix, never a generic failure or a PASS.
+    const priorFailureSha256 = existsSync(at('failure')) ? previewSha(readFileSync(at('failure'))) : null;
+    const priorFailure = priorFailureSha256 === null ? null : read(at('failure'));
+    if (priorFailureSha256 !== null) {
+      if (!priorFailure || typeof priorFailure !== 'object' || Object.keys(priorFailure).sort().join(',') !== 'code,receipt' ||
+          priorFailure.code !== 'audition_recovered_terminal_failure' || !priorFailure.receipt || existsSync(at('receipt')))
+        fail('audition_recovery_binding');
+      const settled = ruleOf(rules, step).settle(wire, priorFailure.receipt, false);
+      if (!settled.coherent || settled.estimatedMicroUsd === null || settled.estimatedMicroUsd !== priorFailure.receipt.estimatedMicroUsd)
+        fail('audition_recovery_binding');
+    }
     const same = () => {
       const now = this.snapshot();
       if (previewSha(readFileSync(at('claim'))) !== claimSha256 || previewSha(readFileSync(at('wire'))) !== wireSha256 ||
-          now.unknownCost || now.unknownOutcome !== 1 || existsSync(at('result')) || existsSync(at('failure'))) fail('audition_recovery_binding');
+          now.unknownCost || now.unknownOutcome !== 1 || existsSync(at('result')) ||
+          (existsSync(at('failure')) ? previewSha(readFileSync(at('failure'))) : null) !== priorFailureSha256)
+        fail('audition_recovery_binding');
     };
     let made: Awaited<ReturnType<typeof retrieve>>;
     try { made = await retrieve(); }
@@ -675,11 +688,14 @@ export class AuditionMeter {
       same();
       const receipt = error.receipt as { estimatedMicroUsd?: number | null }, settled = ruleOf(rules, step).settle(wire, receipt, false);
       if (!settled.coherent || settled.estimatedMicroUsd !== receipt.estimatedMicroUsd || existsSync(at('receipt'))) fail('audition_meter_cost');
-      exclusiveJson(at('failure'), { code: 'audition_recovered_terminal_failure', receipt });
+      if (priorFailureSha256 !== null) {
+        if (canonicalJson(priorFailure.receipt) !== canonicalJson(receipt)) fail('audition_recovery_binding');
+      } else exclusiveJson(at('failure'), { code: 'audition_recovered_terminal_failure', receipt });
       exclusiveJson(at('result'), { wireDigest, estimatedMicroUsd: settled.estimatedMicroUsd, completed: false });
       this.snapshot(); throw error;
     }
     same();
+    if (priorFailureSha256 !== null) fail('audition_recovery_binding');
     const settled = ruleOf(rules, step).settle(wire, made.receipt, true);
     if (!settled.coherent || settled.estimatedMicroUsd !== made.estimatedMicroUsd) fail('audition_meter_cost');
     if (existsSync(at('receipt'))) {

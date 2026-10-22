@@ -147,6 +147,70 @@ describe('one durable background review, not generation retry authority', { time
     expect(f.meter.snapshot()).toMatchObject({ calls: 1, failed: 1, unknownOutcome: 0, unknownCost: 0 });
     expect(f.read('result').completed).toBe(false); expect(posts).toBe(1);
   });
+  async function failurePrefix(status: 'failed' | 'completed' = 'failed') {
+    reset(status === 'failed' ? 'failed' : 'ok'); const f = fixture();
+    let made!: Awaited<ReturnType<typeof f.dispatch>>;
+    await expect(f.meter.run(f.step, f.wire, 600000, async () => {
+      made = await f.dispatch(); throw Object.assign(new Error('crash_before_settlement'), { durableReviewPending: true });
+    })).rejects.toThrow('crash_before_settlement');
+    const file = path.join(f.paid, `${f.step}.failure.json`);
+    exclusiveJson(file, { code: 'audition_recovered_terminal_failure', receipt: made.receipt });
+    return { ...f, made, file, before: readFileSync(file) };
+  }
+  it.each(['failed', 'completed'] as const)('reconciles the exact fsynced %s-but-rejected failure prefix once, preserving its bytes with ZERO new network calls', async status => {
+    const f = await failurePrefix(status), network = [posts, gets];
+    await expect(f.meter.recover(f.step, f.wire, async () => {
+      const made = await f.dispatch(true); throw Object.assign(new Error('actual_terminal_rejected'), { receipt: made.receipt });
+    })).rejects.toThrow('actual_terminal_rejected');
+    expect(readFileSync(f.file)).toEqual(f.before);
+    expect(f.read('result')).toMatchObject({ completed: false, estimatedMicroUsd: f.made.estimatedMicroUsd });
+    expect(f.meter.snapshot()).toMatchObject({ calls: 1, failed: 1, unknownCost: 0, unknownOutcome: 0,
+      reservedUnsettledMicroUsd: 0, newKnownApiMicroUsd: f.made.estimatedMicroUsd });
+    await expect(f.meter.recover(f.step, f.wire, () => f.dispatch(true))).rejects.toThrow('audition_recovery_binding');
+    expect([posts, gets]).toEqual(network);
+  });
+  it.each(['other-code', 'extra-field', 'mismatched-cost', 'unknown-cost', 'truncated'] as const)('rejects a %s failure prefix BEFORE retrieval, without overwriting evidence', async defect => {
+    const f = await failurePrefix(), bad = f.read('failure'); let callbacks = 0;
+    if (defect === 'other-code') bad.code = 'audition_call_failed';
+    if (defect === 'extra-field') bad.extra = true;
+    if (defect === 'mismatched-cost') bad.receipt.estimatedMicroUsd++;
+    if (defect === 'unknown-cost') { bad.receipt.raw.usage = null; bad.receipt.estimatedMicroUsd = null; }
+    writeFileSync(f.file, defect === 'truncated' ? '{"code":' : JSON.stringify(bad));
+    const before = readFileSync(f.file), network = [posts, gets];
+    await expect(f.meter.recover(f.step, f.wire, async () => { callbacks++; return f.dispatch(true); })).rejects.toThrow();
+    expect(callbacks).toBe(0); expect(readFileSync(f.file)).toEqual(before);
+    expect([posts, gets, f.meter.snapshot().unknownOutcome]).toEqual([...network, 1]);
+    expect(existsSync(path.join(f.paid, `${f.step}.result.json`))).toBe(false);
+  });
+  it('a failure prefix cannot become success or adopt a different receipt, even with identical cost', async () => {
+    const f = await failurePrefix('completed'), network = [posts, gets];
+    await expect(f.meter.recover(f.step, f.wire, () => f.dispatch(true))).rejects.toThrow('audition_recovery_binding');
+    await expect(f.meter.recover(f.step, f.wire, async () => {
+      throw Object.assign(new Error('contradictory_receipt'), { receipt: { ...f.made.receipt, extra: 'not the saved evidence' } });
+    })).rejects.toThrow('audition_recovery_binding');
+    expect(readFileSync(f.file)).toEqual(f.before);
+    expect([posts, gets, f.meter.snapshot().unknownOutcome]).toEqual([...network, 1]);
+  });
+  it.each(['claim', 'wire', 'failure'] as const)('refuses if the bound %s changes across retrieval', async kind => {
+    const f = await failurePrefix();
+    await expect(f.meter.recover(f.step, f.wire, async () => {
+      const file = path.join(f.paid, `${f.step}.${kind}.json`);
+      writeFileSync(file, readFileSync(file, 'utf8') + ' ');
+      throw Object.assign(new Error('actual_terminal_rejected'), { receipt: f.made.receipt });
+    })).rejects.toThrow('audition_recovery_binding');
+    expect(existsSync(path.join(f.paid, `${f.step}.result.json`))).toBe(false);
+  });
+  it('an unexpected failure file appearing during retrieval is not adopted', async () => {
+    reset(); const f = fixture(); let made!: Awaited<ReturnType<typeof f.dispatch>>;
+    await expect(f.meter.run(f.step, f.wire, 600000, async () => {
+      made = await f.dispatch(); throw Object.assign(new Error('crash'), { durableReviewPending: true });
+    })).rejects.toThrow();
+    await expect(f.meter.recover(f.step, f.wire, async () => {
+      exclusiveJson(path.join(f.paid, `${f.step}.failure.json`), { code: 'audition_recovered_terminal_failure', receipt: made.receipt });
+      throw Object.assign(new Error('actual_terminal_rejected'), { receipt: made.receipt });
+    })).rejects.toThrow('audition_recovery_binding');
+    expect(existsSync(path.join(f.paid, `${f.step}.result.json`))).toBe(false);
+  });
   it('another unresolved claim prevents reconciliation dispatch', async () => {
     reset(); const f = fixture();
     await expect(f.meter.run(f.step, f.wire, 600000, () => f.dispatch(undefined, crash))).rejects.toThrow();
