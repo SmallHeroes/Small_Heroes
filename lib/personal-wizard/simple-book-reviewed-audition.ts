@@ -57,7 +57,7 @@ export const TOPOLOGY_AUDITION_POLICY = Object.freeze({ ...DESIGN_HEAD_AUDITION_
 export const COVERAGE_AUDITION_POLICY = Object.freeze({ ...TOPOLOGY_AUDITION_POLICY, version: 'reviewed-audition-policy/v13',
   landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkCoverage: 'landmark-candidate-coverage/v1',
   landmarks: 'prospective whole-candidate coverage with four exact spatial scans and source-bound decisive negative population evidence; nondecisive observations remain recorded but cannot veto a positive whole anchor; all explicit findings, genuine duplicates and uncertainty remain blocking' });
-export const ANATOMY_AUDITION_POLICY = Object.freeze({ ...COVERAGE_AUDITION_POLICY, version: 'reviewed-audition-policy/v14',
+export const ANATOMY_AUDITION_POLICY = Object.freeze({ ...COVERAGE_AUDITION_POLICY, version: 'reviewed-audition-policy/v15',
   anatomy: AUDITION_ANATOMY_VERSION, recovery: 'bounded page correction; persistent structural failure changes pose, never story meaning' });
 export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true, topology?: LandmarkTopologyVersion, anatomy?: true) => {
   // The closed lineup diagnostics and this independently granted contract are not interchangeable.
@@ -395,11 +395,11 @@ export type AuditionReview = z.infer<typeof auditionReviewSchema> & {
 export function auditionAnatomyCast(context: unknown): string[] | undefined {
   const c = context && typeof context === 'object' ? context as Record<string, unknown> : {};
   if (c.anatomy === undefined) {
-    if (c.version === 'audition-page-context/v5') fail('audition_anatomy_contract');
+    if (c.version === 'audition-page-context/v5' || c.version === 'audition-page-context/v6') fail('audition_anatomy_contract');
     return undefined;
   }
   const parsed = z.object({ version: z.literal(AUDITION_ANATOMY_VERSION), castIds: z.array(z.string().min(1).max(80)).max(24) }).strict().safeParse(c.anatomy);
-  if (!parsed.success || c.version !== 'audition-page-context/v5' || c.landmarkTopology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION ||
+  if (!parsed.success || c.version !== 'audition-page-context/v6' || c.landmarkTopology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION ||
       new Set(parsed.data.castIds).size !== parsed.data.castIds.length) return fail('audition_anatomy_contract');
   const cast = (c.checks as { castIdentity?: { id: string }[] } | undefined)?.castIdentity;
   if (!cast || canonicalJson(cast.map(a => a.id)) !== canonicalJson(parsed.data.castIds)) fail('audition_anatomy_contract');
@@ -409,11 +409,11 @@ export function auditionAnatomyCast(context: unknown): string[] | undefined {
 export function auditionLandmarkTopology(context: unknown): LandmarkTopologyVersion | undefined {
   const c = context && typeof context === 'object' ? context as Record<string, unknown> : {};
   if (c.landmarkTopology === undefined) {
-    if (c.version === 'audition-page-context/v3' || c.version === 'audition-page-context/v4' || c.version === 'audition-page-context/v5' || c.landmarkCoverage !== undefined) fail('audition_landmark_contract');
+    if (c.version === 'audition-page-context/v3' || c.version === 'audition-page-context/v4' || c.version === 'audition-page-context/v5' || c.version === 'audition-page-context/v6' || c.landmarkCoverage !== undefined) fail('audition_landmark_contract');
     return undefined;
   }
   if (c.landmarkTopology === LANDMARK_COVERAGE_TOPOLOGY_VERSION) {
-    if (!(c.version === 'audition-page-context/v4' && c.anatomy === undefined || c.version === 'audition-page-context/v5' && auditionAnatomyCast(c)) || c.landmarkCoverage !== 'landmark-candidate-coverage/v1' ||
+    if (!(c.version === 'audition-page-context/v4' && c.anatomy === undefined || c.version === 'audition-page-context/v6' && auditionAnatomyCast(c)) || c.landmarkCoverage !== 'landmark-candidate-coverage/v1' ||
       c.landmarkDesignHead !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
     return LANDMARK_COVERAGE_TOPOLOGY_VERSION;
   }
@@ -933,7 +933,7 @@ export function auditionPageContext(book: PersonalStoryboard, packetContext: unk
   if (structuralAnatomy && topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION) fail('audition_anatomy_contract');
   if (structuralAnatomy) checks.requirementIds.push(...checks.castIdentity.map(a => `anatomy:${a.id}`));
   if (topology && checks.uniqueLandmarks.some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
-  const context = { version: structuralAnatomy ? 'audition-page-context/v5' : topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'audition-page-context/v4' : topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
+  const context = { version: structuralAnatomy ? 'audition-page-context/v6' : topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'audition-page-context/v4' : topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
     ...(structuralAnatomy ? { anatomy: { version: AUDITION_ANATOMY_VERSION, castIds: checks.castIdentity.map(a => a.id) } } : {}),
     ...(designHead ? { landmarkDesignHead: designHead } : {}),
     ...(topology ? { landmarkTopology: topology } : {}),

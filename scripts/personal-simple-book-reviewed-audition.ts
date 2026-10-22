@@ -749,7 +749,7 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
       ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
     max_output_tokens: 12000, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
-      auditionAnatomyCast(args.context) ? 'personal_audition_pixels_anatomy_v1'
+      auditionAnatomyCast(args.context) ? 'personal_audition_pixels_anatomy_v2'
         : auditionLandmarkTopology(args.context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'personal_audition_pixels_topology_v2'
         : auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };

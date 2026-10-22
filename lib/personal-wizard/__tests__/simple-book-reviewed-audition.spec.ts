@@ -118,9 +118,9 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
       } } : inventory;
       const anatomy = (context as any).anatomy ? {
         version: AUDITION_ANATOMY_VERSION, actors: (context as any).anatomy.castIds.map((actorId: string) => ({ actorId,
-          region: 'synthetic actor body, not pixel proof', parts: [{ part: 'limbs', condition: 'intact', expectedTotal: 4,
+          region: 'synthetic actor body, not pixel proof', limbs: { part: 'limbs', condition: 'intact', expectedTotal: 4,
             expectationBasis: 'canonical_design', expectationEvidence: 'Synthetic four-limbed design', visibleDistinct: 3,
-            unseen: 'occluded', evidence: 'Three attached paths; fourth naturally hidden', correction: '' }] })) } : undefined;
+            unseen: 'occluded', evidence: 'Three attached paths; fourth naturally hidden', correction: '' }, otherParts: [] })) } : undefined;
       return { ...review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {}),
         ...(kind === 'page' ? { landmarkInventory: typed } : {}),
         ...(anatomy ? { anatomy: opts.anatomy ? opts.anatomy(step, context, anatomy) : anatomy } : {}) };
@@ -132,20 +132,20 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
 }
 
 describe('prospective anatomy through the EXISTING assessment and bounded page loop', () => {
-  const bad = (normal: any) => { const n = structuredClone(normal); n.actors[0].parts[0].visibleDistinct = 6;
-    n.actors[0].parts[0].unseen = 'not_applicable'; n.actors[0].parts[0].evidence = 'Six visible attached paths for a four-limbed actor'; return n; };
+  const bad = (normal: any) => { const n = structuredClone(normal); n.actors[0].limbs.visibleDistinct = 6;
+    n.actors[0].limbs.unseen = 'not_applicable'; n.actors[0].limbs.evidence = 'Six visible attached paths for a four-limbed actor'; return n; };
   it('six limbs with all explicit checks and numeric identity passing still corrects instead of accepting detail', async () => {
     const h = harness({ book: typedFixture(), coverage: true,
       anatomy: (step, _context, n) => step === 'page_1_0_qa' ? bad(n) : n });
     const m = await illustrateReviewedAudition({ ...h.args, pages: [1], structuralAnatomy: true,
       landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
-    expect(m.policy.version).toBe('reviewed-audition-policy/v14');
+    expect(m.policy.version).toBe('reviewed-audition-policy/v15');
     const p = h.saved.get('page_1') as SavedPage;
     expect(p.attempts[0].status).toBe('held'); expect(p.status).toBe('qa_supported');
     expect(p.attempts[0].assessment!.counts.identity).toBe(1);
     expect(h.prompts.get('page_1_1')).toContain('anatomy:child');
     expect(h.prompts.get('page_1_1')).toContain('existing total');
-    expect(h.contexts.get('page_1_1_qa')).toMatchObject({ version: 'audition-page-context/v5' });
+    expect(h.contexts.get('page_1_1_qa')).toMatchObject({ version: 'audition-page-context/v6' });
   });
   it('two structural failures produce persisted diagnosis, different strategy, no fourth ordinary attempt', async () => {
     const h = harness({ book: typedFixture(), coverage: true, anatomy: (_s, _c, n) => bad(n) });
@@ -162,6 +162,29 @@ describe('prospective anatomy through the EXISTING assessment and bounded page l
     await expect(illustrateReviewedAudition({ ...h.args, pages: [1, 2], structuralAnatomy: true,
       landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION })).rejects.toThrow('audition_review_unusable');
     expect(h.args.identity).not.toHaveBeenCalled(); expect(h.prompts.has('page_2_0')).toBe(false);
+  });
+  it.each(['null-visible', 'not-counted'])('F1 full strict schema/assessment/status cannot support required unknown limbs: %s', kind => {
+    const h = harness({ book: typedFixture(), coverage: true });
+    return illustrateReviewedAudition({ ...h.args, pages: [1], structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, judge: async (...a) => {
+        const raw: any = await h.args.judge(...a), limb = raw.anatomy?.actors[0].limbs;
+        if (limb) Object.assign(limb, kind === 'null-visible' ? { visibleDistinct: null, unseen: 'not_applicable' }
+          : { expectedTotal: null, visibleDistinct: 6, expectationBasis: 'not_counted', unseen: 'not_applicable' });
+        return raw;
+      } }).then(m => {
+        expect(m.pages[0].status).toBe('held');
+        const p = h.saved.get('page_1') as SavedPage;
+        expect(p.attempts).toHaveLength(3); expect(p.attempts.every(a => a.assessment!.counts.identity > 0 && a.status === 'held')).toBe(true);
+      });
+  });
+  it('F1 full context-selected schema rejects fur-only actor before identity/any subsequent render', async () => {
+    const h = harness({ book: typedFixture(), coverage: true, anatomy: (_s, _c, n) => {
+      const a = n.actors[0]; a.otherParts.push({ ...a.limbs, part: 'fur', expectedTotal: null, visibleDistinct: null, expectationBasis: 'not_counted' });
+      delete a.limbs; return n;
+    } });
+    await expect(illustrateReviewedAudition({ ...h.args, pages: [1], structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION })).rejects.toThrow('audition_review_unusable');
+    expect(h.args.identity).not.toHaveBeenCalled(); expect(h.prompts.has('page_1_1')).toBe(false);
   });
   it('fresh sample anatomy hold stops before cover/downstream even when all model checks say pass', async () => {
     const h = harness({ book: typedFixture(), coverage: true, anatomy: (_s, _c, n) => bad(n) });
