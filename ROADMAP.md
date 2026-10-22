@@ -1,5 +1,21 @@
 # SmallHeroes — Roadmap
 
+## General evidence projection + bounded same-book sample calibration (c4b9cd3b), offline complete; independent QA next (2026-10-22)
+
+- Codex now implements/operates per Guy's direct takeover; ONE separate read-only reviewer explicitly approved while Claude is paused.
+- The actual last run ended `held_sample`, not a book: a material companion-mane finding and three derived landmark uncertainties;
+  no cover/pages 3–8. Both sheets remain held/diagnostic. Consumed re-review `125bb545…` is not reused or relabelled.
+- Fixed generally, opt-in only: declared-kind head evidence projection, prospective v11 context/instruction/policy, legacy defaults
+  unchanged; no weakening of safety/uncertainty/materiality or 0.70 and no manual story/canon patch.
+- Built one-use native calibration authority: verify all old sample evidence under its own context; fresh requalification of the first
+  saved sample (no redraw), at most ONE extra LOW correction for the held sample (attempt 4, not reset); fresh quality/identity for both,
+  then the same remainder and cover ONLY if both pass. Terminal hold/unknown/budget ends this line; no calibration retry/resume.
+- Verified: 197 focused tests and 11 native real-record controls passed, nonincremental tsc 0; original full check remains RED.
+- No new paid call. Book accounted 2953918/7000000 (1753918 known, 1200000 conservative debits; actual charges of those two remain
+  unknown); cycle accounted 3082848/8000000. Max separate, no invented zero.
+- Next: frozen docs-last range → independent adversarial review → fixes/re-gate if needed → exact unused grant/preflight → execute
+  only the bounded same-book line → cover-first viewer, all attempts/references, Hebrew/sequence/identity/style/cost report.
+
 ## The continuation stopped at page 2 (held, then a review lost to Node's 300 s transport limit); path A built offline (6c46f9af); next: Codex QA, then ONE re-review and the rest of the SAME book (2026-10-22)
 
 - **What happened.** The continuation ran: RSM-1 worked (`r1_page_2_1`). Page 2's second attempt was held; its third attempt's review

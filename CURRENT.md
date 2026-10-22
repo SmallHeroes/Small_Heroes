@@ -1,5 +1,45 @@
 # SmallHeroes — Current Technical State
 
+## Codex takeover: general landmark evidence projection and ONE bounded sample calibration built offline (c4b9cd3b); independent review pending; no new paid calls (2026-10-22)
+
+- **Actual prior outcome, not a successful book:** the consumed re-review grant `125bb545…` ran with two calls (98496 microUSD),
+  no images, and ended `held_sample`. The child identity passed; the companion mane remained a material identity defect, alongside
+  three derived landmark uncertainties. The cover and pages 3–8 have not been drawn. Both reference sheets remain diagnostic/held.
+- **Current authority:** Guy directly asked Codex to execute while Claude is usage-paused, then explicitly authorized ONE separate
+  read-only reviewer before further paid execution. Codex is the only writer/operator in this same worktree/branch. The earlier role
+  exception and every consumed grant/claim/outcome remain historical, not reset. No task, worktree, monitor or key was created.
+- **Verified engine cause:** the legacy free-text noun-tail heuristic drops decisive descriptors in a design such as
+  `big rounded boulder taller than the child`; `highest rounded hill` also loses its descriptors. The mane already was in the actual
+  render prompt: this is not a missing-instruction fix, and its real material defect is not reclassified as cosmetic.
+- **General opt-in `landmark-design-head/v1`, policy v11:** only explicit descriptors before the exact declared kind in the first
+  clause can become decisive; comparative/superlative size forms are recognized only in this contract. Suffix, part, nearby, negated
+  and unknown-prefix cues are not promoted. Named aspects keep their explicit authority. Legacy v9/v10 defaults stay unchanged.
+  The classifier, uncertainty, safety, materiality and 0.70 rules stay unchanged; prose never converts an observation into a verdict.
+- **General `audition-landmark-calibration/v1`:** re-derive every old sample under its ORIGINAL context (including its saved
+  re-review), before any new adapter call; then fresh reviews under the new context. Old raw answers, selections and files are not
+  rewritten. Only fresh evidence participates in the successor's selection; old attempts are explicit history, not new-policy PASS.
+- **Bounded operational interpretation disclosed to Guy, not a fabricated numerical owner quote:** requalify the saved first
+  representative sample without redrawing; at most ONE extra LOW candidate for the held second sample, explicitly attempt 4 total,
+  motivated by a bound material non-derived defect. Current consumed counts are 2 and 3. Both samples require fresh quality/identity
+  evidence. Any held fresh sample stops downstream immediately; no further calibration retry/resume. The same remaining pages and
+  cover retain their ordinary three-attempt ceiling and original cumulative meter. Held sheets cannot yield a fully supported book.
+- **Native one-use line:** `audition-calibration-plan` / `audition-calibration`, fixed claim and terminal outcome names. A genuine new
+  unused grant binds the consumed re-review/continuation, owner record, profile, entire original audition folder, earlier roots,
+  ledger/debits, all sample parents, first context, current clean head and 40 pins. Old grants are not repinned. The dry plan exercises
+  the same engine's parent validation and stops before its first judge call. Paid operation is forbidden before frozen independent QA.
+- **Evidence (artifact root `r1-general-landmark-calibration-20261022`):**
+  - 197/197 in three affected files, exit 0 (188 audition tests, 7 real-local-server transport tests, 2 adapter deadline tests).
+  - 11/11 native real-record controls, exit 0: actual counts/ledger, dirty source, reset and second-correction grant refusals, no claims.
+  - Nonincremental `tsc --noEmit`, exit 0. Earlier work-in-progress type errors were fixed; no provider call occurred.
+  - Dry plan on real data, exit 0; 340 old book files and 28 old fresh-book authority files captured for preservation.
+  - Historical broad full-check RED, stale assertions and prior timing failures remain RED/history; focused tests do not change them.
+- **Money before this unexecuted line:** book known 1753918 + two separately approved conservative debits of 600000 = 2953918 of
+  7000000 microUSD; remaining 4046082. The two actual charges remain UNKNOWN, not invoices or known costs. Diagnostic 128930 is
+  fully consumed; cycle accounted 3082848 of 8000000. Book Max 5502244/8 sessions is separate; engineering Max is not measured as zero.
+- **Next:** docs-last frozen handoff → the owner-approved independent read-only reviewer → validate/fix real findings and re-gate →
+  exact new plan/grant and fresh preflight → at most the bounded same-book run, then honest cover-first viewer and outcome report.
+  No push/merge/deploy, production/customer delivery, real-child assets, HIGH or manual story/canon repair.
+
 ## Path A built offline (6c46f9af): the client-scoped review transport, cause-keeping failure records, the step-successor re-review and the ONE re-review line, for Codex QA; the book is NOT done (2026-10-22)
 
 **What happened since 5e544d85.**
