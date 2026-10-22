@@ -687,7 +687,9 @@ const TOPOLOGY_JUDGE_RULES = `LANDMARK TOPOLOGY v1 (prospective context.landmark
   missing pairs/bindings and contradictory relations are unusable. Do not decide counts in prose. Unreadable relations matter per source:
   relations between decisively proven non-instances or independently established non-whole members/containers cannot alter that source's
   whole-instance count; a known member's exclusion depends on its visible path to the positive whole, not its relation to another known
-  member. Unreadable possible-whole or required-membership relations remain uncertain. Do not invent features or membership to dismiss a body.
+  member. The exact SAME canonical kind proposition cannot match and contradict on that body across source IDs; ownership alone is not a
+  kind contradiction. Distinct kinds and real distinguishing colour/shape evidence remain separate. Unreadable possible-whole or required-
+  membership relations remain uncertain. Do not invent features or membership to dismiss a body.
 - All original safety, age, visible identity, uncertain, materiality, reference and story requirements remain. No old answer is fresh evidence.`;
 
 /**

@@ -94,6 +94,21 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
       if (observations.has('matches') && observations.has('contradicted')) bad();
     }
   }
+  // A canonical owner is not a different physical kind. Identical declared-kind propositions must be
+  // consistent across source IDs for this same body; distinct kinds/colours are NOT equated or inferred.
+  for (const physical of groups) {
+    const observedKinds = new Map<string, Set<string>>();
+    for (const l of inventory.landmarks) {
+      const kind = kinds.get(l.landmarkId)!;
+      const observations = observedKinds.get(kind.text) ?? new Set<string>();
+      for (const c of l.candidates.filter(c => root(c.objectId) === physical)) {
+        const observed = c.featureChecks.find(x => x.featureId === kind.id)?.observed;
+        if (observed) observations.add(observed);
+      }
+      observedKinds.set(kind.text, observations);
+    }
+    if ([...observedKinds.values()].some(s => s.has('matches') && s.has('contradicted'))) bad();
+  }
   const uncertain = new Set<string>(), positive = new Set<string>(), owner = new Map<string, string>();
   for (const l of inventory.landmarks) for (const c of l.candidates) {
     const binding = bindings.get(key(l.landmarkId, c.objectId)) ?? bad();

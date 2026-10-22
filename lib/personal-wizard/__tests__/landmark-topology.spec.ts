@@ -243,6 +243,49 @@ describe('prospective typed landmark topology: no source-specific rules or legac
     const s = aggregate(); s.inventory.topology.relations = [relation('o1', 'o2', 'same_object')];
     expect(() => assess(s)).toThrow();
   });
+  const crossSource = () => {
+    const s = aggregate('building', 'building'); s.inventory.topology.relations = [relation('o1', 'o2')];
+    for (const l of s.inventory.landmarks) for (const c of l.candidates) if (c.association !== 'this_landmark') {
+      c.association = 'different_object'; c.featureChecks[0].observed = 'contradicted';
+      s.inventory.topology.bindings.find(b => b.landmarkId === l.landmarkId && b.objectId === c.objectId)!.extent = 'not_instance';
+    }
+    return s;
+  };
+  it.each([false, true])('rejects identical-kind cross-source contradiction on the same body (aliases=%s)', aliases => {
+    const s = crossSource();
+    if (aliases) {
+      s.inventory.objects.push(object('o3'));
+      for (const l of s.inventory.landmarks) {
+        const c = candidate('o3', l.landmarkId === 'a' ? 'possible_copy' : 'different_object');
+        if (l.landmarkId === 'b') c.featureChecks[0].observed = 'contradicted';
+        l.candidates.push(c);
+        s.inventory.topology.bindings.push(binding(l.landmarkId, 'o3', 'building', l.landmarkId === 'a' ? 'whole_instance' : 'not_instance'));
+      }
+      s.inventory.topology.relations.push(relation('o1', 'o3', 'same_object'), relation('o2', 'o3'));
+    }
+    expect(() => assess(s)).toThrow();
+  });
+  it.each(['different_kinds', 'different_colours', 'unknown_kind_with_colour_evidence', 'matching_wholes'])(
+    'equal-kind consistency preserves bounded negative controls: %s', control => {
+      const s = crossSource();
+      if (control === 'different_kinds') {
+        s.landmarks[1].features[0].text = 'tower'; s.landmarks[1].features[0].clause = 'tower';
+        s.inventory.topology.bindings.filter(b => b.landmarkId === 'b').forEach(b => b.sourceKind = 'tower');
+      } else {
+        if (control !== 'matching_wholes') {
+          s.landmarks[0].features[1].text = 'red'; s.landmarks[1].features[1].text = 'blue';
+        }
+        for (const l of s.inventory.landmarks) for (const c of l.candidates) if (c.association !== 'this_landmark') {
+          c.featureChecks[0].observed = control === 'unknown_kind_with_colour_evidence' ? 'not_visible' : 'matches';
+          if (control !== 'matching_wholes') c.featureChecks[1].observed = 'contradicted';
+          else {
+            c.association = 'possible_copy';
+            s.inventory.topology.bindings.find(b => b.landmarkId === l.landmarkId && b.objectId === c.objectId)!.extent = 'whole_instance';
+          }
+        }
+      }
+      expect(assess(s).assessment.counts.continuity > 0).toBe(control === 'matching_wholes');
+    });
   it('requires every object/source comparison; neither an orphan nor one missing source row can hide a duplicate', () => {
     const s = aggregate();
     s.inventory.landmarks[0].candidates.pop();
