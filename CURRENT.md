@@ -1,5 +1,19 @@
 # SmallHeroes — Current Technical State
 
+## Remaining topology F2 final correction round2: known memberships precede uncertainty relevance (2026-10-22)
+
+- Round1 independent HOLD is retained (`INDEPENDENT-QA-TOPOLOGY-ROUND1-20261022.txt`): F1 and the original not-instance F2 case closed,
+  but an unreadable relation between two already-proved non-whole components/containers still cancelled their valid exclusions.
+- Final targeted correction computes exclusions from known component DAG paths to positive same-source anchors FIRST, then asks whether
+  an uncertain pair can affect that source's remaining potential whole instances. An irrelevant sibling/containing-aggregate relation does
+  not create copies. Unknown required membership has no known DAG path and still holds; labels alone never exclude; genuine wholes block.
+- Added direct component, both mirror variants, all four definite pair-completion controls, weak-anchor HOLD and one relation that is
+  irrelevant to a forest but material to its whole tree members. First F1/group contradiction safeguards remain unchanged.
+- Final **250/250 focused tests exit0**,38.526s; nonincremental tsc0,38.603s. Initial and round1 HOLDs, historical REDs remain immutable.
+  Code commit immediately precedes this docs-last entry; same sole reviewer receives final round2. No provider/key/claim/book writes.
+- Paid full-book approval remains recorded prospectively, within existing same-book LOW/.70/$7/$8/89-call meter. New native code, exact
+  one-use plan/grant and preflight still required after this re-gate; no old consumed grant or render-count reset, no new child/sheets.
+
 ## Topology QA F1/F2 corrected offline (a76d8cf0); same reviewer re-gate next; paid full-book test prospectively authorized (2026-10-22)
 
 - Initial independent review of `19b049e0..37e6c334` is **HOLD**, retained unchanged in

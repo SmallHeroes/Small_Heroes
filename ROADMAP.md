@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Final F2 round2: source-relevant uncertainty after justified exclusions; independent re-gate next (2026-10-22)
+
+- Round1 closed F1/original F2 but exposed known component/container sibling uncertainty overblocking. Final focused correction derives
+  known membership exclusions before relevance; true unknown membership/matching whole uncertainty and duplicate gates remain blocking.
+- 250/250 focused tests, nonincremental tsc0; no paid calls. Both previous HOLDs and fullcheckRED preserved; same sole reviewer round2 next.
+- On PASS, implement/QA the new exact one-use native same-book continuation, then execute the owner-approved full LOW test automatically
+  inside unchanged $7/$8/.70 and all old attempts/costs. No second book, reset, held-sheet PASS, production, new task/agent or push.
+
 ## Topology F1/F2 correction round1 complete (a76d8cf0), re-gate then authorized same-book full LOW test (2026-10-22)
 
 - Initial independent HOLD retained: conflicting same-body source evidence could fail open; irrelevant non-instance uncertainty could
