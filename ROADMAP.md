@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Topology code independently PASS; one-use native full same-book LOW test route ready for separate QA (2026-10-22)
+
+- General topology F1/F2/F3 independently closed atc73f7254. New native continuation code b60515ad follows, never reopens, spent4856710d.
+- Exact parent replay/real receipt-wire verification, old roots/full audition baseline/ledger, expanded pins, current head and prospective
+  first v12 wire bind a fixed new one-use claim. First sample zero drawings, second only carried fourth render, then same cover/pages3–8.
+- 264 focused tests and nonincremental tsc0;13 actual native controls passed; no key/provider/claim/book writes. Original counts2/3,
+  $7/$8/.70/89calls and two OLD unknown charges with approved1.2m debits preserved. Historical REDs/HOLDs and held sheets stay honest.
+- SAME sole independent reviewer exact frozen native code/plan/grant next, then fresh preflight and automatic already-approved paid run.
+  Full illustrated viewer/evidence/engine report desired; no self-PASS, manual canon/image fix, new book/child/sheets, HIGH or push.
+
 ## F1/F2 closed; bounded NEW F3 exact-kind evidence correction ready for independent re-gate (2026-10-22)
 
 - Final F2 accepted independently at2efba482. New cross-source exact-kind contradiction found in a separate bounded control, not residualF2.

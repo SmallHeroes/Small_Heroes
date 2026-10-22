@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## General topology independently PASS; new native same-book continuation built offline (b60515ad), separate QA next (2026-10-22)
+
+- SAME owner-approved independent reviewer issued PASS at `c73f7254` in artifact `INDEPENDENT-QA-TOPOLOGY-F3-20261022.txt`:
+  F1/F2/F3 closed, exact original controls and legacy evidence preserved. This is code QA, not a pixel verdict or native-run authorization.
+- Under Guy's DIRECT paid full-book test approval, added explicit `audition-topology-plan` / `audition-topology` stage and fixed NEW
+  one-use claim/outcome. It follows consumed calibration4856710d / re-review125bb545 / continuation, never repins or reopens them.
+  Old calibration/default resume remains closed; no new ordinary CLI flag, book, story, child, sheets, Max call or production default.
+- Provider-free plan replays the SAME engine on all historical parents, exact old held manifest, real v11 quality/identity receipts and
+  original request bytes. Full current audition snapshot, prior roots/claims/grants/profile/assets, cumulative ledger, new code dependencies,
+  clean HEAD/branch and the exact FIRST prospective v12/context-v3 wire/context digest bind the new strict grant. Awaited changes refuse.
+- Core transition requires new quality+identity on the unchanged first sample (zero drawings), retaining its two historical render attempts.
+  Only on PASS, ONE LOW correction of sample2 at index3/fourth render (its three prior attempts remain); only both sample PASS unlock
+  cover/pages3–8 with ordinary three attempts and the ORIGINAL cumulative89-call meter. New sidecars/provenance retain full old parents.
+  No reuse of v11 prose as v12 evidence, retry/resume of this one-use line, count reset, HOLD conversion or sample redraw to hide geography.
+- Final **264/264 focused tests exit0**,31.505s; nonincremental tsc exit0,31.284s. Real native dryplan succeeded; **13/13 actual-data
+  native/negative controls passed**, zero provider/key/claim/book writes. Initial scratch control REDs were mistaken expected rejection
+  layer (count0 already schema-refused) and a source-race injected before both captures; corrected controls test valid count1 and a change
+  AFTER both captures. These harness REDs are retained, not source regressions or erased history. Historical full check remains RED.
+- Actual unused plan preserves bookknown1850772 + OLD approveddebits1200000 =3050772/7m, cycle3179702/8m; two OLD actual charges UNKNOWN.
+  Original audition25/89calls leaves64; nominal new26 fits, theoretical all-frame retries68 NOT guaranteed or a cap increase. No new costs.
+  Held sheets stay diagnostic and prevent fully-supported complete status even if every page/cover passes. Guy keeps product acceptance.
+- NEXT: docs-last frozen clean head + exact unused plan/grant to SAME separate reviewer; independent native code/plan PASS and fresh
+  preflight BEFORE any claim/provider. Then execute the owner-approved same-book LOW test automatically, reconcile, inspect actual images,
+  and deliver cover-first viewer/all8 pages, attempts/references/evidence and honest engine/cost report. No repeat owner question in scope.
+
 ## F1/F2 independently closed; new exact-kind cross-source F3 corrected offline, re-gate next (2026-10-22)
 
 - Same independent reviewer accepted final F1/F2 corrections at `2efba482`: 241 affected tests, original6 controls, residual5, both mirrors,
