@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## General durability and one-orphan successor code complete; frozen independent gate before payment (2026-10-22)
+
+- Owner's exact new600000 provision +ONE replacement exception recorded; earlier consumed grants/outcomes and UNKNOWN history unchanged.
+- Code3a9ce5e0 adds fsynced background job ID/raw checkpoints, same-ID GET-only reconciliation and distinct orphan budget provision;
+  no automatic generation retry, policy/model/threshold change, story/image patch, default-production change or claim reset.
+- Native successor replays original coverage plan, binds full current inventory and approval, retains28/89 and2/3renders. Bookaccounted
+ 3780874/7m,cycle3909804/8m; actual3chargesUNKNOWN (oneoutcomeUNKNOWN), knownbook1980874. No new paid operation at this milestone.
+- 240affected+10existingauthority tests,16realnativepreclaim controls and tsc0; originalREDs/fullcheckRED retained. Same reviewer frozen
+ code/native/unusedgrant gate -> exactpreflight -> same-first replacement quality/identity; onlyPASS one fourthsecond LOW; bothPASS downstream.
+ Temporary store=false retrieval is not permanent availability; newUNKNOWN still stops. Product acceptance remains Guy's.
+
 ## Actual paid coverage continuation orphaned; UNKNOWN recovery is now the general engine blocker (2026-10-22)
 
 - Code/native F1PASS23a499d3 -> exactpreflight0 -> claimed e83797ef at8eaa1aa2. Firstquality claim/wire exists, no response/usage/receipt/

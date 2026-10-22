@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Durable review jobs + explicitly approved one-orphan successor implemented OFFLINE; independent QA next (2026-10-22)
+
+- Guy directly approved the exact NEW600000 budget provision +ONE replacement review exception. Verbatim question/answer is ART
+  `r1-general-durable-review-20261022/OWNER-ORPHAN-ONE-TIME-EXCEPTION-20261022.txt`; earlier blocked reports are preserved, not superseded retroactively.
+- Code`3a9ce5e0` parent`d86b1c58`: prospective opt-in `durable-review-job/v1` background/store=false, fsynced create-entry/ID/terminalraw,
+  same-ID GET-only reconciliation, original one meter claim, no hidden re-POST. Lost-before-ID/expired/newunknown stay UNKNOWN and stop.
+  Temporary provider retention is about10minutes, not overnight durability. Legacy synchronous/default wire and semantic gates remain unchanged.
+- Distinct `audition-orphan-provision/v1` binds the exact still-resultless claim/wire; actual outcome AND charge stay UNKNOWN, never fakefailure.
+  Fixed native `audition-orphan-continuation/v1` follows consumed e83797ef, replays its exact prior plan/parents and immutable data, then pins
+  new source+full current inventory+approval/provision/backgroundwire. Original grant/admission/claims are NOT modified/repinned/reset.
+- Offline actual dry plan: first`r6_page_1_1_qa`, same contextdc76a58c, explicit backgroundwire9b308b3c;28/89old claims retained,61remaining.
+  Knownbook1980874 +OLDdebits1200000 +NEWapprovedorphanprovision600000=3780874/7m;cycle3909804/8m. Provision REPLACES existing reservation,
+  not another600000 or knowncharge. Original2/3renders unchanged. No provider/key/newbook/authority claim, image, Max or downstream yet.
+- Tests on final code:240/240 affected durability/transport/deadline/orchestrator +10/10 existing authority/ledger,16 native actual-data
+  preclaim controls, nonincremental tsc0. Initial local SDK-options mistake and tscREDs preserved in ART logs, corrected before final green.
+  Historical fullcheckRED remains; no unchanged hours-long suite was rerun. Local HTTP fixtures prove wiring/recovery, not pixel quality.
+- NEXT: docsLAST clean frozen handoff and SAME sole read-only reviewer code/native/grant PASS -> fresh exact unused plan/preflight ->
+  ONE replacement quality+required identity of same savedfirst; onlyPASS still-unused fourthLOWsecond; only bothPASS same cover/pages3-8
+  under original ordinary3 attempts/diagnosis/cumulativecaps. Newunknown stops. Heldsheets remain diagnostic; complete illustrations !=productPASS.
+
 ## Actual coverage run ORPHANED after first quality claim; NEW UNKNOWN stops payment, book NOT complete (2026-10-22)
 
 - Exact independent F1/native/UNUSED-grant PASS`23a499d3` at clean`8eaa1aa2`/grant`e83797ef`; fresh native preflight0 matched exactly.
