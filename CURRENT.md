@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Actual coverage run ORPHANED after first quality claim; NEW UNKNOWN stops payment, book NOT complete (2026-10-22)
+
+- Exact independent F1/native/UNUSED-grant PASS`23a499d3` at clean`8eaa1aa2`/grant`e83797ef`; fresh native preflight0 matched exactly.
+  Foreground wrapper started12:56:25.168Z. Fixed coverage grant is now CLAIMED/consumed, never repin/reset/retry. Code PASS stays technical.
+- Actual firstquality`r5_page_1_1_qa` seq27/wire59d1d556/contextdc76a58c was journaled, but NO response/usage/receipt/result/failure or native
+  exit/wrapper receipt exists. Tracked operator10336/native48868/descendants/matching scripts absent; tool session38435 became unknown.
+  Native exit UNKNOWN/null, not0or1. Remote dispatch/completion/charge unproven. This is NOT a newly returned semantic/identity/pixel HOLD.
+  Exact disappearance cause unknown; observed ScreenOff/ModernStandby events overlap the window but do NOT prove causality/provider fault.
+- No new image/identity/fourthpage2/cover/pages3-8. Original2/3renders and370oldbook+32oldauth hashes unchanged. Only4book files added
+  (admission,resume5,firstqualityclaim/wire) and1authoritycoverageclaim. No native outcome/failure/settlement was synthesized.
+- ORIGINAL meter:28/89claims,61slots arithmetically left; NEWunknownOutcome1 reserves600000. Bookknown1980874+OLDapproveddebits1200000+
+  NEWunsettledreservation600000=3780874/7m;cycle3909804/8m. TwoOLDactualcharges UNKNOWN plusONEnewoutcome/costUNKNOWN. Newknownincrement0
+  means no usage record, NOT0billing. No thirddebit or retry authorized/applied. Max historical5.502244 separate; no newMax/manual secret inspection.
+- SAME independent outcome ACCURACY-PASS`af6610a5`:1338assertions incl428snapshot entries/copies,402oldhashes, realwire/admission/meter,
+  currentprocessabsence and static8Hebrewtexts/11historyimages. Its reviewscript0 is NOT the unknown paid native exit or fullbookPASS.
+  ART`same-book-coverage-outcome-20261022/viewer/index-v2.html` is an honest diagnostic reader, not a completed illustrated book. Initial
+  index/inventory preserved; v2 only corrects overclaim of remote non-rejection to absence of local new judgment. No livebrowser/pixelPASS.
+- Recovery checks found no retained providerresponseID; installed SDK retrieval needs one. No request-log connector; official Platform
+  in temporary IAB required login, no credentials/account action performed. No safe local original-output recovery established.
+- Next engine target: crash-tolerant provider/job evidence, explicit orphan state and independently verified reconciliation, not manual
+  story/canon/pixel edits or more semantic retries. NO NEW PAYMENT until original result/usage is actually recovered/reconciled or precise
+  new authority changes the UNKNOWN boundary. Current scope does not auto-authorize a thirddebit/newgrant/wire by unused budget.
+  Source runtime/threshold/caps unchanged; fullcheckhistoricalRED retained. No push/deploy/delete/newtask/key. claude-r1 file absent, not recreated.
+
 ## Coverage F1 physical-alias scale corrected; same reviewer exact unused-grant re-gate next (2026-10-22)
 
 - Independent frozen review at`bd6dd938` found ONE P2: a witness's same_object alias was accepted as its independent size reference.

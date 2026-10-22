@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Actual paid coverage continuation orphaned; UNKNOWN recovery is now the general engine blocker (2026-10-22)
+
+- Code/native F1PASS23a499d3 -> exactpreflight0 -> claimed e83797ef at8eaa1aa2. Firstquality claim/wire exists, no response/usage/receipt/
+  result/failure/nativeexit; process absent. Exact cause unproven; power events overlap only. NOT a new returned pixel/semantic HOLD.
+- 0newimages/noidentity/no fourthsecond/no downstream; original2/3renders and402oldhashes preserved. Allbook8texts/all11oldimages archived
+  in diagnostic viewer index-v2, not a fullbook. Independent accuracyPASSaf6610a5/1338assertions does NOT make paid run or bookPASS.
+- Originalmeter28/89claims,NEWunknownOutcome1/reserve600000. Bookaccounted3780874/7m,cycle3909804/8m,knownbook1980874;OLDdebits1.2m separate.
+  New settledknown0 is not0charge. Fixed coverageclaim consumed; no reset/repin/retry/thirddebit/newpayment from remaining budget.
+- Next GENERAL work: durable request/job evidence and orphan reconciliation with exact original result/usage, preserving original claims.
+  No automatic quality retry or manualstory/image fix. Explicit UNKNOWN boundary must be resolved before further payment; no auth/key change.
+
 ## General coverage F1 corrected with existing physical graph; exact same-book re-gate next (2026-10-22)
 
 - Sole independent review317tests/502native-preservation assertions found ONE P2 self-scale via same_object alias. Original HOLD378c8d0c
