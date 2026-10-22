@@ -56,7 +56,8 @@ const bad = (): never => { throw new LandmarkTopologyError('Unusable typed landm
 const key = (landmarkId: string, id: string) => `${landmarkId}/${id}`;
 
 /** Bounded spatial accounting, not geometric pixel proof. Only fresh versioned judge evidence can assert coverage. */
-function assessCoverage(topology: z.infer<typeof landmarkCoverageTopologySchema>, inventory: Inventory, landmarks: readonly Landmark[]) {
+function assessCoverage(topology: z.infer<typeof landmarkCoverageTopologySchema>, inventory: Inventory, landmarks: readonly Landmark[],
+  physicalRoot: (id: string) => string) {
   const sources = new Map(landmarks.map(l => [l.id, l.features])), objects = new Map(inventory.objects.map(o => [o.objectId, o]));
   const unique = (xs: readonly string[]) => new Set(xs).size === xs.length;
   const equalSet = (a: readonly string[], b: readonly string[]) => unique(a) && a.length === b.length && a.every(x => b.includes(x));
@@ -88,7 +89,8 @@ function assessCoverage(topology: z.infer<typeof landmarkCoverageTopologySchema>
         if (grounding.relation === 'not_readable') uncertain.add(c.landmarkId);
         else {
           const reference = grounding.referenceObjectId ?? bad();
-          if (!objects.has(reference) || p.witnessObjectIds.includes(reference)) bad();
+          // Stable IDs can be aliases of the same visible body. Reuse the validated graph, not ID inequality.
+          if (!objects.has(reference) || p.witnessObjectIds.some(id => physicalRoot(id) === physicalRoot(reference))) bad();
         }
       } else if (c.grounding !== null) bad();
       // A population cannot hide a listed possible/positive whole or contradict its own visible witnesses.
@@ -183,7 +185,7 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     }
     if ([...observedKinds.values()].some(s => s.has('matches') && s.has('contradicted'))) bad();
   }
-  const uncertain = topology.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? assessCoverage(topology, inventory, landmarks) : new Set<string>();
+  const uncertain = topology.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? assessCoverage(topology, inventory, landmarks, root) : new Set<string>();
   const positive = new Set<string>(), owner = new Map<string, string>();
   for (const l of inventory.landmarks) for (const c of l.candidates) {
     const binding = bindings.get(key(l.landmarkId, c.objectId)) ?? bad();

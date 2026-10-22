@@ -139,6 +139,61 @@ describe('prospective whole-landmark candidate coverage, not incidental cue enum
     if (reason === 'wrong_aspect_basis') c.basis = 'visible_colour';
     expect(() => assess(s)).toThrow();
   });
+  function sizeOnlyFixture(aliases: number, reference: string, reverse = false) {
+    const s = fixture();
+    s.landmarks = [{ id: 's0', plannedVisible: true, features: [
+      { id: 'f1', aspect: 'kind', text: 'building', clause: 'building', decisive: true },
+      { id: 'f2', aspect: 'size', text: 'human height on the shared ground plane', clause: 'human height', decisive: true },
+    ] }];
+    const objects = Array.from({ length: 2 + aliases }, (_, i) => ({ objectId: `o${i + 1}`, region: `body ${i + 1}`,
+      quadrants: ['top_left'], description: 'visible whole matching-kind body, only size can exclude it' }));
+    s.raw.landmarkInventory.objects = objects;
+    s.raw.landmarkInventory.landmarks = [{ landmarkId: 's0', candidates: objects.map((o, i) => ({ objectId: o.objectId,
+      association: i === 0 ? 'this_landmark' : 'different_object', evidence: 'whole kind matches and only size is declared different',
+      featureChecks: [{ featureId: 'f1', observed: 'matches' }, { featureId: 'f2', observed: i === 0 ? 'matches' : 'contradicted' }],
+    })) }];
+    s.topology.bindings = objects.map((o, i) => ({ landmarkId: 's0', objectId: o.objectId, sourceKind: 'building',
+      extent: i === 0 ? 'whole_instance' : 'not_instance', evidence: 'size is the sole negative decisive feature' }));
+    s.topology.relations = objects.flatMap((a, i) => objects.slice(i + 1).map(b => ({
+      from: reverse ? b.objectId : a.objectId, to: reverse ? a.objectId : b.objectId,
+      relation: i > 0 ? 'same_object' : 'separate_objects', basis: i > 0 ? 'shared_visible_body' : 'visible_separation',
+      evidence: i > 0 ? 'these observations visibly share one physical body' : 'these are visibly separate physical bodies',
+    })));
+    s.topology.coverage.populations[0].witnessObjectIds = ['o2'];
+    s.topology.coverage.populations[0].negativeChecks = [{ landmarkId: 's0', featureId: 'f2', observed: 'contradicted',
+      basis: 'grounded_size', allMembersReadable: true, evidence: 'only the source size is claimed contradicted across the population',
+      grounding: { referenceObjectId: reference, relation: 'same_ground_plane', evidence: 'visible shared plane scale reference' } }];
+    s.topology.coverage.scans[0].objectIds = objects.map(o => o.objectId);
+    return s;
+  }
+  const assessSizeOnly = (s: ReturnType<typeof sizeOnlyFixture>) => assessAuditionReview(s.raw, sha('a'), sha('b'),
+    ['landmark_unique:s0'], s.landmarks, V).assessment;
+  it.each([
+    ['direct self', 0, 'o2', false], ['physical alias', 1, 'o3', false],
+    ['mirrored alias', 1, 'o3', true], ['transitive alias group', 2, 'o4', false],
+    ['mirrored transitive alias group', 2, 'o4', true],
+  ] as const)('refuses %s when size is the ONLY negative decisive evidence', (_name, aliases, reference, reverse) => {
+    expect(() => assessSizeOnly(sizeOnlyFixture(aliases, reference, reverse))).toThrow();
+  });
+  it('checks physical independence against every population witness, not only the first', () => {
+    const s = sizeOnlyFixture(2, 'o4');
+    for (const r of s.topology.relations) if (r.from === 'o2') Object.assign(r, { relation: 'separate_objects',
+      basis: 'visible_separation', evidence: 'the first witness is physically separate from the remaining body' });
+    s.topology.coverage.populations[0].witnessObjectIds = ['o2', 'o3'];
+    expect(() => assessSizeOnly(s)).toThrow();
+  });
+  it('keeps genuinely separate scale references supported with aliases elsewhere', () => {
+    expect(assessSizeOnly(sizeOnlyFixture(2, 'o1')).counts.continuity).toBe(0);
+    const s = sizeOnlyFixture(1, 'o3');
+    Object.assign(s.topology.relations[2], { relation: 'separate_objects', basis: 'visible_separation',
+      evidence: 'a different physical body supplies the visible scale reference' });
+    expect(assessSizeOnly(s).counts.continuity).toBe(0);
+  });
+  it('keeps unreadable size grounding held instead of treating it as an independent scale', () => {
+    const s = sizeOnlyFixture(2, 'o1');
+    s.topology.coverage.populations[0].negativeChecks[0].grounding.relation = 'not_readable';
+    expect(assessSizeOnly(s).counts.continuity).toBeGreaterThan(0);
+  });
   it('F1/F3 same-body ownership and identical kind contradictions remain unusable in v2', () => {
     const s = fixture(); Object.assign(s.topology.relations[0], { relation: 'same_object', basis: 'shared_visible_body' });
     expect(() => assess(s)).toThrow();
