@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Durable review F1 first focused correction: terminal failure-prefix reconciliation; exact independent re-gate next (2026-10-22)
+
+- Independent first frozen review of d86b1c58..674ef4b5 returned ONE verified P2 F1, not PASS: recover() rejected its OWN durable failure
+  record if a crash happened before the result write. Original report3451c6fb and intentional independent RED retained in ART.
+- Code`22adc507` (parent674ef4b5) permits only the exact typed actual-failure prefix; rechecks claim/wire/failure bytes across retrieval,
+  revalidates actual raw usage under the same rule and preserves the failure bytes, writing only the missing `completed:false` result.
+  Unrelated/truncated/changed/unknown evidence and conversion to success still refuse. No extra call/slot, price invention or generation retry.
+- Final code checks:252/252 affected (34 durable,209 orchestration,7 transport,2 deadline) +10/10 authority, all exit0; nonincremental tsc0.
+  Covers failed provider AND completed-but-application-rejected raw from local saved terminal data with ZERO additional POST/GET, same
+  one claim, known cost/failed disposition, repeat refusal and conflicting receipt/hash rejection. Synthetic evidence is not pixel proof.
+- First focused correction only (1 of maximum2 for same finding). No provider/key/image/Max/book/authority writes. Original407 book/auth
+  hashes,28/89slots,2/3renders and all consumed grants remain unchanged. UNUSED dd457fc0 stays historical; only the SAME unused successor
+  may be technically re-pinned to this corrected clean HEAD after docsLAST. Original e83797ef remains consumed and is never re-pinned.
+- Exact owner exception still approved: knownbook1980874+olddebits1200000+one orphanprovision600000=3780874/7m;cycle3909804/8m. Actual
+  three charges UNKNOWN and one outcome UNKNOWN stay explicit. No re-ask. Same sole independent reviewer must re-gate code/native/new
+  unused grant/wrapper before fresh native preflight and ONE same-first replacement quality review; only sample gates permit downstream.
+- Historical fullcheckRED/initialREDs unchanged. No unchanged hours-long suites. Fully illustrated does not equal fully-supported or
+  product accepted: held reference sheets remain diagnostic; Guy accepts the product. No push/deploy/production/default gate changes.
+
 ## Durable review jobs + explicitly approved one-orphan successor implemented OFFLINE; independent QA next (2026-10-22)
 
 - Guy directly approved the exact NEW600000 budget provision +ONE replacement review exception. Verbatim question/answer is ART

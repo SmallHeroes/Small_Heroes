@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Durable failure-prefix F1 corrected once; independent exact re-gate before approved same-book execution (2026-10-22)
+
+- First frozen review HOLD3451c6fb found one P2 crash prefix. Code22adc507 now reconciles only its own actual-failure record to the missing
+  failed result, with matching real usage and unchanged claim/wire/failure; never a PASS conversion, new slot or synthetic receipt.
+- 252affected+10authority tests and nonincremental tsc exit0. Local terminal-cache regressions add no network calls; oldREDs remain.
+- Zero providers/images/Max and old407hashes/28of89slots/2and3renders preserved. Owner's exact one600000 orphanprovision +ONE replacement
+  exception remains approved, cumulativecaps7m/8m unchanged. OldactualUNKNOWN stays UNKNOWN. Technical re-pin only the UNUSED new orphan
+  grant after docsLAST, same sole independent reviewer -> fresh preflight -> one first-sample review; only samplePASS permits downstream.
+
 ## General durability and one-orphan successor code complete; frozen independent gate before payment (2026-10-22)
 
 - Owner's exact new600000 provision +ONE replacement exception recorded; earlier consumed grants/outcomes and UNKNOWN history unchanged.
