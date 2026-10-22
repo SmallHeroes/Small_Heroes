@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## FULL visual cohort DELIVERED — eight body illustrations + cover; native QA failed honestly, independent accuracy PASS (2026-10-22)
+
+- Latest owner's request fulfilled as an explicit diagnostic cohort: real9distinct1024images, all8exactHebrewtexts, cover-first reader
+  with9thumbnail overview plus full pages/findings/all attempts/references. Artifact `same-book-full-diagnostic-outcome-20261022/viewer/index.html`.
+  Images complete does NOT mean approved quality/product/production. Held sheets/sample and unreviewed frames stay explicit.
+- Exact independent code/native/grant/operatorPASSff95f823 at clean673801f3 -> freshpreflight0 -> ONE real run20:11:18.697Z..20:23:53.933Z.
+  Consumed fixed grantc074428c; nativeexit1/signalnull, actualoutcomefailed_full_book_diagnostic/audition_review_unusable. Operator43608,
+  native14604/knownchild42532 ended. No new successmanifest/book-status/diagnostic_complete invented and no automatic retry/resume.
+- Render-first worked on realdata: missingbody3-8then0 eachONELOW, all7pricedimages before firstnewreview. Existing selectedp1/p2 images,
+  theirHOLD/attempts/history remain byteexact;0newsamplecalls, no newchild/sheets/story/Max. Originalsamplecounts2/6, live53/89claims.
+- Actual12newpricedcalls=7images481856 +3Solquality413746 +2gpt4oidentity11200 =906802microUSD; NEWunknown0/unsettled0. Bookknown3785304
+  +olddebits1200000+oldprovision600000=accounted5585304/7m; cycleknown3914234/accounted5714234/8m. Old3actualcharges/1outcomeUNKNOWN stay;
+  debits/provision are not invoices. Historical Max5502244/8sessions separate, no newMax. Remainingmoney/slots do not reopen consumedgrant.
+- Newp3held(story1/identity1/detail1);p4held(story1/identity2/continuity1/detail1). P4extra bellyappendage visually supported by independent
+  inspection; explicitanatomy/cast/derived entries are ONE underlyingstructural concern, not3independentbugs. Otherjudgments stayattributed.
+- p5reply strictJSONschemaVALID but internally inconsistent coverage: objecto5 declares top_left,bottom_left; top_leftscan lists onlyo1/o2,
+  omittingo5. ExistingassessCoverage:73 correctly throws audition_review_landmark_topology. Raw/cost retained, no manualIDrepair or newpixel
+  verdict. No p5identity/laterquality. Cover0/pages6/7/8 NOT_REVIEWED, not PASS/HOLDfromnewpixels. All their images are stillpresent/delivered.
+- Independent OUTCOME ACCURACY PASSa8240c43:3380assertions exit0, all612initialsnapshot sizes/hashes,465oldBOOK+43AUTH preserved/copied,
+  12usageprices/cumulativeledger/counters,3exactsourcecontext/qualitywire/schema replays,3/4assessment+identityreplays,5exactcoveragefailure,
+  9selectedimages/8texts/title/49localrefs verified. This is REPORT/ACCOUNTING/PRESERVATION PASS, NOT successful-engine/pixel/productPASS.
+  UIopen queued only; no livebrowserverification claimed. InitialreconciliationharnessREDwrongIDsfield preserved with correctedofflineexit0.
+- No morepayment/runtimechanges after nativeend. This closing milestone is CURRENT/ROADMAP ONLY, actualtsc0 beforelocaldocscommit,
+  runtime50pins unchanged, additivefinalinventory. FullcheckhistoricalRED preserved. No push/merge/deploy/customer/delete/newmonitor.
+- Next: Guy can judge the complete book now. Future GENERAL work: prospective materiality/provenance calibration, less redundant spatial
+  bookkeeping (single typed authority, never silently repair oldraw), and local image repair preservingalreadygoodcontent. These are NOT
+  implemented/paid by this closure or authority for consumedgrant reuse. No manual story/canon/image patch; finalproductacceptance Guy.
+
 ## Owner-requested FULL eight-page diagnostic cohort — implementation complete, frozen independent gate NEXT (2026-10-22)
 
 - NEW direct owner priority: see all8illustrations rather than keep repairing only2samples. Approved diagnostic purpose is separate from

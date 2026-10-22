@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Full8illustrations +cover DELIVERED for owner judgment; QA partial/nativefailed honestly, no morepaidrun (2026-10-22)
+
+- Real bounded diagnostic run at673801f3 after independentexactPASSff95f823/preflight0:7newLOWframes3-8then0 beforeQA,0samplecalls.
+  All9images/8originaltexts now in artifact `same-book-full-diagnostic-outcome-20261022/viewer/index.html`, overview+readingorder+allrefs/
+  attempts/findings. Existing2/6sample renders unchanged, samebook/child/story/sheets, no manualpixels or production. Nativeexit1 preserved.
+- 12knowncalls906802microUSD, bookaccounted5585304/7m/cycle5714234/8m,53/89slots, oldUNKNOWN/debits/provision/Maxseparate unchanged.
+  p3/4held, p5rawJSONvalidbuttypedscanomitso5top_left=>review_unusable;0/6/7/8notreviewed, allimagespresent. Not diagnostic_complete or
+  approvedbook. P4realextraappendage independentlyvisualsupported; otherrawseverity is not silentlyoverturned toPASS.
+- OutcomeaccuracyPASSa8240c43/3380assertions0 verifiesall612initialsnapshothashes/465BOOK+43AUTH preservation/12prices/9images/8texts/
+  49links/exactsourcewire+assessment+identityreplays/coveragefailure. NOTpixel/productPASS. Same reviewer released, docs-onlyclosure and
+  finaladditiveinventory, no newprovider/retry/consumedgrantreopen. CurrentfullcheckRED remains. Source/runtimepins unchanged by closure.
+- Owner can judge wholecohort now. Futuregeneralcalibration/typedspatialbookkeeping/localtargetedrepair needs its own prospectivegate,
+  no rewritingoldraw or story-specific patch. No furtherautomaticspend/newbook/agent/worktree/key/monitor/push/production/delete.
+
 ## Full diagnostic book requested NOW — general render-first route built, same independent gate then seven missing images (2026-10-22)
 
 - Code89f20a53 adds explicit diagnostic opt-in to the existing engine, NOT looser judges or a new QA engine: retain both exact v15
