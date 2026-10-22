@@ -889,7 +889,7 @@ export function durableReviewPayload(payload: Awaited<ReturnType<typeof audition
 }
 /** The EXACT renderer's pure dry plan, shared by native first-operation admission. No key, provider or image write. */
 export function auditionRenderPlan(directory: string, prompt: string, refs: AuditionImage[],
-  mode: 'book_identity' | 'book_design' | 'identity' | 'anchor_photo_style_only' | 'style',
+  mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'identity' | 'anchor_photo_style_only' | 'style',
   roles?: readonly BookDesignReferenceRole[], signal?: AbortSignal) {
   const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(directory, r.imageName)), referenceMode: mode,
     ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const,
@@ -950,7 +950,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   // 'identity' is the plain reference mode of a fictional child anchor (none or one rejected edit target); sheets and pages are unchanged.
   // 'anchor_photo_style_only' is production's real-photo anchor mode (photo first, then technique references), used only by the likeness probe.
   // 'style' is production's technique-reference mode, used only by the opt-in child-anchor-style/v1 anchor (pinned character-free references).
-  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'identity' | 'anchor_photo_style_only' | 'style',
+  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'identity' | 'anchor_photo_style_only' | 'style',
     roles?: readonly BookDesignReferenceRole[]) => {
     checkStep(step); const bytes = refs.map(bytesOf);
     const { input, wire, maximumMicroUsd } = auditionRenderPlan(args.directory, prompt, refs, mode, roles, args.signal);

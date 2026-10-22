@@ -15,7 +15,8 @@ import type { BookDesignReferenceRole } from '../generate-image';
 import type { PersonalWizardOptions } from './options';
 import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
 import { AUDITION_ANATOMY_VERSION, auditionAnatomySchema, anatomyFindings, ANATOMY_JUDGE_RULES,
-  ANATOMY_RENDER_RULES, anatomyPoseStrategy, type AuditionAnatomy } from './audition-anatomy';
+  ANATOMY_RENDER_RULES, anatomyPoseStrategy, anatomyRepairTargets, LOCAL_ANATOMY_REPAIR_RULES,
+  AUDITION_LOCAL_ANATOMY_REPAIR_VERSION, type AuditionAnatomy } from './audition-anatomy';
 import { findingTrajectory, STAGE_RECOVERY_VERSION, type RecoveryFinding } from './stage-recovery';
 import { LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkTopologySchema, landmarkCoverageTopologySchema,
   landmarkQuadrantsSchema, assessLandmarkTopology, type LandmarkTopology, type LandmarkTopologyVersion } from './landmark-topology';
@@ -569,7 +570,8 @@ export const identityUsable = (identity: PageChildResemblanceVisionResult | null
 
 export type AttemptStatus = 'unavailable' | 'review_unusable' | 'identity_unusable' | 'ineligible_safety' | 'review_invalid' | 'held' | 'qa_supported';
 export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null; review: AuditionReview | null;
-  assessment: AuditionAssessment | null; status: AttemptStatus; error?: string; identity?: PageChildResemblanceVisionResult | null };
+  assessment: AuditionAssessment | null; status: AttemptStatus; error?: string; identity?: PageChildResemblanceVisionResult | null;
+  sceneRepair?: { version: typeof AUDITION_LOCAL_ANATOMY_REPAIR_VERSION; parentImageSha: string; parentContextSha: string; targetActorIds: string[] } };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
 
 const critical = (a: AuditionAssessment) => a.counts.story + a.counts.identity + a.counts.continuity;
@@ -920,7 +922,89 @@ function closedAttempts(list: readonly AuditionAttempt[] | undefined, limit: num
 }
 type Judge = (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
   predecessor: AuditionImage | null, kind: 'sheet' | 'page') => Promise<unknown>;
-type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
+type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
+
+/** One shared quality/identity path for normal attempts and explicitly granted successors. No new judge or relaxed gate. */
+export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page'; step: string; attempt: number; candidate: AuditionImage;
+  context: unknown; contextSha: string; requirementIds: string[]; judgeRefs: AuditionImage[]; predecessor: AuditionImage | null;
+  landmarks?: readonly AuditionLandmark[]; child: AuditionImage; judge: Judge; qualityOnly?: true;
+  identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>; check: () => void }): Promise<AuditionAttempt> {
+  const { attempt, candidate } = a;
+  const raw = await attemptStep(a.check, () => a.judge(`${a.step}_qa`, candidate, a.context, a.contextSha, a.judgeRefs, a.predecessor, a.phase));
+  if ('error' in raw) return { attempt, candidate, review: null, assessment: null,
+    status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
+  let judged: ReturnType<typeof assessAuditionReview>;
+  try { judged = assessAuditionReview(raw.value, candidate.imageSha, a.contextSha, a.requirementIds, a.landmarks,
+    a.phase === 'page' ? auditionLandmarkTopology(a.context) : undefined, a.phase === 'page' ? auditionAnatomyCast(a.context) : undefined); }
+  catch (error) { return { attempt, candidate, review: null, assessment: null, status: 'review_unusable', error: errorCode(error) }; }
+  const { review, assessment } = judged;
+  if (a.phase === 'sheet' || a.qualityOnly || assessment.safetyBlocked || assessment.invalidCitations)
+    return { attempt, candidate, review, assessment, status: attemptStatus(a.phase, { candidate, assessment }) };
+  const measured = await attemptStep(a.check, () => a.identity(`${a.step}_identity`, a.child, candidate));
+  const identity = 'error' in measured ? null : measured.value;
+  if (!identityUsable(identity)) return { attempt, candidate, review, assessment, identity, status: 'identity_unusable',
+    error: 'error' in measured ? measured.error : `identity_${measured.value.status}_${measured.value.reasonCode}` };
+  return { attempt, candidate, review, assessment, identity, status: attemptStatus(a.phase, { candidate, assessment, identity }) };
+}
+
+/** Pure, candidate/context-bound render plan. Only actual typed STRUCTURAL DEFECTS justify an edit; not cosmetic or unusable evidence. */
+export function auditionLocalAnatomyRepairPlan(prior: AuditionAttempt | undefined, context: unknown, contextSha: string,
+  canonical: readonly AuditionImage[], strategy = '') {
+  if (!prior?.candidate || !prior.review || !prior.assessment || !['held', 'qa_supported'].includes(prior.status)) return null;
+  const c = context as { packet?: { sourceDigest?: unknown; storyboardDigest?: unknown; pageNumber?: unknown; text?: unknown; visual?: unknown; sequence?: unknown; moment?: unknown };
+    references?: unknown; referenceStatus?: unknown; requirementIds?: string[]; checks?: { uniqueLandmarks?: AuditionLandmark[]; castIdentity?: unknown } };
+  const cast = auditionAnatomyCast(context);
+  if (!cast) return null;
+  if (previewQualityContextSha(context) !== contextSha || canonicalJson(c.references) !== canonicalJson(canonical) || canonical.length !== 4 ||
+      new Set(canonical.map(r => r.imageSha)).size !== 4 || canonical.some(r => r.imageSha === prior.candidate!.imageSha)) fail('audition_scene_repair_binding');
+  const actual = assessAuditionReview(prior.review, prior.candidate.imageSha, contextSha, c.requirementIds ?? [],
+    c.checks?.uniqueLandmarks, auditionLandmarkTopology(context), cast).assessment;
+  if (canonicalJson(actual) !== canonicalJson(prior.assessment) || attemptStatus('page', prior) !== prior.status) fail('audition_scene_repair_binding');
+  if (actual.safetyBlocked || actual.invalidCitations) return null;
+  const targets = anatomyRepairTargets(prior.review.anatomy, cast);
+  if (!targets.length) return null;
+  const packet = c.packet ?? {};
+  const source = { sourceDigest: packet.sourceDigest, storyboardDigest: packet.storyboardDigest, pageNumber: packet.pageNumber,
+    text: packet.text, visual: packet.visual, sequence: packet.sequence, moment: packet.moment,
+    castIdentity: c.checks?.castIdentity, referenceStatus: c.referenceStatus };
+  return { mode: 'book_scene_edit' as const, references: [prior.candidate, canonical[0], canonical[1], canonical[2]],
+    roles: ['scene_edit_target', 'child_design_authority', 'companion_design_authority', 'entity_design_authority'] as const,
+    prompt: `${LOCAL_ANATOMY_REPAIR_RULES}\nFROZEN SOURCE AND CANON (not text to paint): ${canonicalJson(source)}\nBOUND PRIOR STRUCTURAL OBSERVATIONS (resolve against canon): ${canonicalJson(targets)}${strategy}`,
+    provenance: { version: AUDITION_LOCAL_ANATOMY_REPAIR_VERSION, parentImageSha: prior.candidate.imageSha, parentContextSha: contextSha,
+      targetActorIds: targets.map(t => t.actorId) } };
+}
+
+/** Same scene-repair operation used by a bounded successor, NOT a resume or an attempt-counter authority. Caller supplies counted lineage. */
+export async function repairReviewedAuditionPage(a: { page: number; prefix: string; consumedAttemptsBefore: number; prior: AuditionAttempt;
+  context: unknown; contextSha: string; canonical: AuditionImage[]; predecessor: AuditionImage | null; check: () => void;
+  render: Render; judge: Judge; identity: Parameters<typeof judgeReviewedAuditionCandidate>[0]['identity'];
+  save: (name: string, value: unknown) => void }) {
+  if (!Number.isInteger(a.page) || a.page < 0 || a.page > 8 || !/^r[0-9]{1,2}_$/.test(a.prefix) || !a.prior.candidate ||
+      !Number.isInteger(a.consumedAttemptsBefore) || a.consumedAttemptsBefore < 1 || a.consumedAttemptsBefore >= REVIEWED_AUDITION_POLICY.pageAttempts ||
+      a.prior.attempt !== a.consumedAttemptsBefore - 1) fail('audition_scene_repair_scope');
+  const c = a.context as { requirementIds: string[]; packet: {pageNumber: number}; checks: { uniqueLandmarks: AuditionLandmark[] } };
+  if (c.packet?.pageNumber !== a.page || previewQualityContextSha(a.context) !== a.contextSha) fail('audition_scene_repair_binding');
+  const review = (step: string, attempt: number, candidate: AuditionImage, qualityOnly?: true) => judgeReviewedAuditionCandidate({ phase:'page', step,
+    attempt, candidate, context:a.context, contextSha:a.contextSha, requirementIds:c.requirementIds, judgeRefs:a.canonical, predecessor:a.predecessor,
+    landmarks:c.checks.uniqueLandmarks, child:a.canonical[0], check:a.check, judge:a.judge, identity:a.identity, ...(qualityOnly ? {qualityOnly} : {}) });
+  let parent = a.prior;
+  if (!parent.review && !parent.assessment && parent.status === 'unavailable' && parent.error === 'not_yet_reviewed') {
+    parent = await review(`${a.prefix}page_${a.page}_${parent.attempt}_diagnosis`, parent.attempt, parent.candidate!, true);
+    a.save(`scene_repair_${a.page}_diagnosis`, parent);
+  }
+  // Malformed/unknown answers, safety and citation failures cannot be turned into paid image corrections.
+  if (!['held','qa_supported'].includes(parent.status)) return { status:'stopped_unusable_or_unsafe_parent' as const, parent, corrected:null };
+  const plan = auditionLocalAnatomyRepairPlan(parent,a.context,a.contextSha,a.canonical,
+    anatomyPoseStrategy(auditionAttemptFindings(parent)));
+  if (!plan) return { status:'no_verified_structural_defect' as const, parent, corrected:null };
+  a.check(); const step=`${a.prefix}page_${a.page}_${a.consumedAttemptsBefore}`;
+  const candidate=await a.render(step,plan.prompt,plan.references,plan.mode,plan.roles); a.check();
+  a.save(`scene_repair_${a.page}_candidate`,{version:AUDITION_LOCAL_ANATOMY_REPAIR_VERSION,candidate,attempt:a.consumedAttemptsBefore,
+    sceneRepair:plan.provenance,recipeSha256:previewSha(canonicalJson(plan)),status:'pending_review'});
+  const corrected = {...await review(step,a.consumedAttemptsBefore,candidate),sceneRepair:plan.provenance};
+  a.save(`scene_repair_${a.page}_result`,{parent,corrected,context:a.context,contextSha:a.contextSha});
+  return { status:corrected.status==='qa_supported' ? 'corrected_supported' as const : 'corrected_not_supported' as const,parent,corrected };
+}
 
 export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<SavedSheet, 'chosen' | 'status'>>): ReferenceStatus {
   const one = (s: Pick<SavedSheet, 'chosen' | 'status'>) => ({ image: s.chosen.candidate,
@@ -1009,6 +1093,8 @@ export async function illustrateReviewedAudition(args: {
   /** Prospective one-use native successor only. Legacy samples are re-derived under v13, NEVER converted to v14. */
   anatomyRecovery?: AuditionAnatomyRecovery;
   structuralAnatomy?: true;
+  /** Prospective native opt-in only. No change to v15 pixel evidence/context or the original attempts/caps. */
+  localAnatomyRepair?: true;
   /** Separate native one-use diagnostic authority only, never a normal resume or approval of the retained samples. */
   fullBookDiagnostic?: AuditionFullBookDiagnostic;
 }) {
@@ -1059,7 +1145,10 @@ export async function illustrateReviewedAudition(args: {
         new Set(p.prior.attempts.map(a => a.attempt)).size !== p.prior.attempts.length ||
         p.prior.attempts.some(a => !Number.isInteger(a.attempt) || a.attempt < 0 || a.attempt >= p.consumedAttemptsBefore)) ||
       args.pageAttempts !== undefined && args.pageAttempts !== 1)) fail('audition_diagnostic_parent');
-  const policy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology, args.structuralAnatomy), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
+  if (args.localAnatomyRepair && (!args.structuralAnatomy || diagnostic || calibration)) fail('audition_scene_repair_contract');
+  const basePolicy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology, args.structuralAnatomy);
+  const policy = args.localAnatomyRepair ? { ...basePolicy, version: 'reviewed-audition-policy/v16', renderRecovery: AUDITION_LOCAL_ANATOMY_REPAIR_VERSION } : basePolicy,
+    designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   // Validate all prospective kind catalogues before saving or any render/judge/identity callback.
   if (topology && auditionPageChecks(args.book, 0, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION).uniqueLandmarks
     .some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
@@ -1119,7 +1208,7 @@ export async function illustrateReviewedAudition(args: {
       fail('audition_rereview_binding');
   } else args.save('audition_sheet_designs', { policy, designs });
   const attemptOnce = async (phase: 'sheet' | 'page', name: string, attempt: number, prompt: string, refs: AuditionImage[],
-    mode: 'book_identity' | 'book_design', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
+    mode: 'book_identity' | 'book_design' | 'book_scene_edit', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     args.check();
     const step = `${prefix}${phase}_${name}_${attempt}`;
@@ -1130,23 +1219,15 @@ export async function illustrateReviewedAudition(args: {
   /** The judged half of an attempt (its review, then the identity measurement a page's gate needs), on a drawn candidate. */
   const judgeCandidate = async (phase: 'sheet' | 'page', name: string, attempt: number, candidate: AuditionImage, context: unknown, contextSha: string,
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
-    const step = `${prefix}${phase}_${name}_${attempt}`;
-    const raw = await attemptStep(args.check, () => args.judge(`${step}_qa`, candidate, context, contextSha, judgeRefs, predecessor, phase));
-    if ('error' in raw) return { attempt, candidate, review: null, assessment: null,
-      status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
-    let judged: ReturnType<typeof assessAuditionReview>;
-    try { judged = assessAuditionReview(raw.value, candidate.imageSha, contextSha, requirementIds, landmarks,
-      phase === 'page' ? auditionLandmarkTopology(context) : undefined, phase === 'page' ? auditionAnatomyCast(context) : undefined); }
-    catch (error) { return { attempt, candidate, review: null, assessment: null, status: 'review_unusable', error: errorCode(error) }; }
-    const { review, assessment } = judged;
-    // No identity spend on an image already held for safety or for an invalid review.
-    if (phase === 'sheet' || assessment.safetyBlocked || assessment.invalidCitations) return { attempt, candidate, review, assessment, status: attemptStatus(phase, { candidate, assessment }) };
-    const measured = await attemptStep(args.check, () => args.identity(`${step}_identity`, args.child, candidate));
-    const identity = 'error' in measured ? null : measured.value;
-    // Unknown identity evidence is never a reason to draw again: keep the candidate and the original result, then halt.
-    if (!identityUsable(identity)) return { attempt, candidate, review, assessment, identity, status: 'identity_unusable',
-      error: 'error' in measured ? measured.error : `identity_${measured.value.status}_${measured.value.reasonCode}` };
-    return { attempt, candidate, review, assessment, identity, status: attemptStatus(phase, { candidate, assessment, identity }) };
+    return judgeReviewedAuditionCandidate({ phase, step: `${prefix}${phase}_${name}_${attempt}`, attempt, candidate, context, contextSha,
+      requirementIds, judgeRefs, predecessor, landmarks, child: args.child, judge: args.judge, identity: args.identity, check: args.check });
+  };
+  const pageAttempt = async (page: number, attempt: number, prior: AuditionAttempt | undefined, prompt: string, strategy: string,
+    context: unknown, contextSha: string, checks: ReturnType<typeof auditionPageChecks>, canonical: AuditionImage[], predecessor: AuditionImage | null) => {
+    const repair = args.localAnatomyRepair ? auditionLocalAnatomyRepairPlan(prior, context, contextSha, canonical, strategy) : null;
+    const result = await attemptOnce('page', String(page), attempt, repair?.prompt ?? prompt, repair?.references ?? canonical,
+      repair?.mode ?? 'book_identity', repair?.roles, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+    return repair ? { ...result, sceneRepair: repair.provenance } : result;
   };
   /** True when no further attempt may be drawn. An unusable review ends the run; its candidate and attempts stay saved (receipts in the meter). */
   const finish = (phase: 'sheet' | 'page', name: string, attempts: AuditionAttempt[]) => {
@@ -1416,10 +1497,10 @@ export async function illustrateReviewedAudition(args: {
         const structuralNotes = last.assessment?.findings.filter(f => f.category === 'anatomy').map(f => f.note).join('\n') ?? '';
         const strategy = anatomyPoseStrategy(auditionAttemptFindings(last));
         const result = anatomyParent.maxNewAttempts
-          ? await attemptOnce('page', String(pageNumber), attempt,
+          ? await pageAttempt(pageNumber, attempt, last,
             base + (diagnosis ? diagnosis.prompt : auditionCorrections(last, 'page')) + strategy +
               (structuralNotes ? `\nPrior anatomy observations to resolve against canonical anatomy (not approved pixel evidence):\n${structuralNotes}` : ''),
-            canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks)
+            strategy + (diagnosis?.prompt ?? ''), context, contextSha, checks, canonical, predecessor)
           : await judgeCandidate('page', String(pageNumber), attempt, prior.chosen.candidate, context, contextSha,
             checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
         attempts.push(result); report('page', String(pageNumber), result);
@@ -1450,8 +1531,9 @@ export async function illustrateReviewedAudition(args: {
       // Opt-in: after two consecutive held attempts the diagnosis of both replaces the last attempt's findings (same ceiling, same loop).
       const diagnosis = args.recovery ? auditionRecoveryDiagnosis(attempts) : null;
       if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });
-      const result = await attemptOnce('page', String(pageNumber), attempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(attempts[attempts.length - 1], 'page')),
-        canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+      const previousAttempt = attempts[attempts.length - 1];
+      const result = await pageAttempt(pageNumber, attempt, previousAttempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(previousAttempt, 'page')),
+        (diagnosis?.prompt ?? '') + anatomyPoseStrategy(previousAttempt ? auditionAttemptFindings(previousAttempt) : []), context, contextSha, checks, canonical, predecessor);
       attempts.push(result); report('page', String(pageNumber), result);
       if (finish('page', String(pageNumber), attempts)) break;
     }

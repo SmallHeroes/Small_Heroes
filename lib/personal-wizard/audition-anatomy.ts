@@ -74,3 +74,28 @@ export function anatomyPoseStrategy(persistent: readonly { key: string }[]) {
   return persistent.some(f => f.key.startsWith('identity:anatomy:')) ?
     '\nCHANGED STRATEGY — SIMPLER ANATOMICALLY VALID POSE: replace the failed tangled pose with a clear side/three-quarter silhouette and fewer overlapping limb paths. Use the same canonical body plan; perform each source-required gesture with ONE existing limb, with a visibly readable attachment, and no duplicate limb in its former support position. Other limbs support the body naturally. Change only transient pose/viewpoint needed for clarity, not canonical identity, story action, location, cast, meaning or continuity. Do not merely repeat the previous pose with new wording.' : '';
 }
+
+/** Render-recovery contract only; v2 pixel evidence and every legacy verdict keep their original meaning. */
+export const AUDITION_LOCAL_ANATOMY_REPAIR_VERSION = 'audition-local-anatomy-repair/v1' as const;
+export function anatomyRepairTargets(raw: unknown, castIds: readonly string[]) {
+  const facts = auditionAnatomySchema.parse(raw), findings = anatomyFindings(facts, castIds);
+  return facts.actors.flatMap(actor => {
+    const defects = findings.filter(f => f.requirement === `anatomy:${actor.actorId}` && f.verdict === 'defect');
+    return defects.length ? [{ actorId: actor.actorId, region: actor.region, limbs: actor.limbs,
+      otherParts: actor.otherParts, observations: defects.map(d => d.note) }] : [];
+  });
+}
+
+export const LOCAL_ANATOMY_REPAIR_RULES = `LOCAL STRUCTURAL REPAIR, NOT A NEW COMPOSITION:
+Correct the specified actor inside image 1. Preserve every unaffected actor, identity, face, clothing, relative size, prop, landmark,
+palette, camera and source-required action. Change only the faulty anatomy and the smallest transient pose adjustment needed to connect it.
+Allocate each physical limb to ONE canonical anatomical slot before painting. For a canonical quadruped this means two forelegs and two
+hind legs, not four support legs plus a gesture. When lying on its back the SAME four legs point upwards; do not add a resting set under
+the torso. This example does not force a canonical zero-, six- or other-limbed design to have four limbs. Follow the actual reference body.
+Trace each retained limb from its own shoulder/hip to ONE paw/hand/foot. Distinguish the far-side limb from a repeated near-side limb.
+Remove a confirmed extra path, including its root and paw, and restore coherent torso fur in that place. Tails, horns and shadows are not
+limbs. Natural occlusion is allowed, never force hidden limbs into view. If a pose must be simplified, preserve the text's action: lying
+on the back stays lying on the back; a required raised limb stays raised. Do not solve it by hiding the whole actor or changing the story.
+The prior reviewer can be wrong; reconcile its counts and correction with the canonical body, not with the defective pixels. Do not copy
+an error merely because it appears in image 1. Do not change anything else just to improve an unrelated detail. No labels, arrows or text.
+The output will receive a fresh FULL quality and identity review; an instruction to preserve content is not proof it was preserved.`;

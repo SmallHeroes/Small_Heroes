@@ -244,11 +244,14 @@ export type GPTImageReferenceMode =
   /** Explicit personal-book roles; never infer a particular companion from reference count. */
   | 'book_identity'
   /** Explicit, individually bound reference-sheet/edit roles, not full-page positions. */
-  | 'book_design';
+  | 'book_design'
+  /** Prospective full-scene repair: first image is the rejected scene, never an identity authority. */
+  | 'book_scene_edit';
 
-export type BookDesignReferenceRole = 'rejected_edit_target' | 'child_design_authority' |
+export type BookDesignReferenceRole = 'rejected_edit_target' | 'scene_edit_target' | 'child_design_authority' |
   'companion_design_authority' | 'entity_design_authority' | 'landmark_subset_design_authority';
 const BOOK_DESIGN_ROLES: Record<BookDesignReferenceRole, string> = {
+  scene_edit_target: 'Rejected full scene to edit, not canonical design authority.',
   rejected_edit_target: 'REJECTED reference sheet to edit, never canonical authority. Preserve its layout and unaffected designs; change only the named defects.',
   child_design_authority: 'Accepted child design and owned clothing authority. Preserve specified identity, anatomy, hair, colors and clothing; not a real-child photo and not an actor to add to this sheet.',
   companion_design_authority: 'Accepted selected companion design authority. Preserve its actual species, anatomy, silhouette, colors and accessories; never substitute another companion or add its body unless requested.',
@@ -282,7 +285,7 @@ export interface GenerateGPTImageInput {
   referenceImages?: string[];
   /** How reference images are interpreted when using images.edit. Default: identity. */
   referenceMode?: GPTImageReferenceMode;
-  /** Mandatory exactly once per image in book_design; forbidden in legacy/page modes. */
+  /** Mandatory per image in explicit book_design/book_scene_edit; forbidden in legacy modes. */
   referenceRoles?: readonly BookDesignReferenceRole[];
   /** Fail if referenceImages were requested but images.edit cannot run. */
   requireReferenceEdit?: boolean;
@@ -497,6 +500,12 @@ function resolveReferencePrefix(
   referenceCount: number,
   roles?: readonly BookDesignReferenceRole[]
 ): string {
+  if (mode === 'book_scene_edit') return '[LOCAL SCENE REPAIR - EXPLICIT ROLES]\n' +
+    'Image 1: rejected FULL PAGE EDIT TARGET. Preserve its camera, composition, setting and unaffected content; correct only the specified structural defects. Never copy its anatomical mistake.\n' +
+    'Image 2: canonical fictional child identity, owned clothing and watercolor technique ONLY. Never copy its pose or background.\n' +
+    'Image 3: canonical companion design, species, anatomy and colors ONLY. Never copy its pose or background.\n' +
+    'Image 4: diagnostic supporting-cast/prop design atlas, NOT an approved scene or layout. Written canonical design wins over known flaws. Never add its offscreen actors or labels.\n' +
+    'Return ONE coherent corrected full page, not a sheet, collage, annotation or diagram.\n[SCENE REPAIR TASK]\n';
   if (mode === 'book_design') return '[BOOK DESIGN REFERENCES - EXPLICIT ROLES]\n' +
     roles!.map((role, i) => `Image ${i + 1}: ${BOOK_DESIGN_ROLES[role]}`).join('\n') +
     '\nThese are the individual image roles. Follow the reference-design task below, not a photo/companion-count heuristic or a finished story scene. Do not add unrequested actors.\n[REFERENCE DESIGN TASK]\n';
@@ -537,9 +546,12 @@ export function planGPTImageRequest(
   const referenceCountCap = resolved.maxReferences;
   const orderedReferenceSources = references.slice(0, referenceCountCap);
   const roles = input.referenceRoles;
-  if (referenceMode === 'book_design' ? (!Array.isArray(roles) || roles.length !== referenceCountRequested ||
+  const explicitRoles = referenceMode === 'book_design' || referenceMode === 'book_scene_edit';
+  if (explicitRoles ? (!Array.isArray(roles) || roles.length !== referenceCountRequested ||
       roles.length === 0 || referenceCountRequested !== orderedReferenceSources.length ||
-      new Set(roles).size !== roles.length || Array.from(roles).some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r))) : roles !== undefined) {
+      new Set(roles).size !== roles.length || Array.from(roles).some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r)) ||
+      (referenceMode === 'book_design' ? roles.includes('scene_edit_target') :
+        roles.join('|') !== 'scene_edit_target|child_design_authority|companion_design_authority|entity_design_authority')) : roles !== undefined) {
     throw new Error('Invalid explicit book design reference roles.');
   }
   const apiMode = orderedReferenceSources.length > 0 ? 'images.edit' : 'images.generate';
@@ -617,7 +629,7 @@ export function planGPTImageRequest(
     referenceCountPassed: orderedReferenceSources.length,
     referenceCountCap,
     orderedReferenceSources,
-    ...(referenceMode === 'book_design' ? { referenceRoles: [...roles!] } : {}),
+    ...(explicitRoles ? { referenceRoles: [...roles!] } : {}),
     bodyWithoutBinaryImage: {
       model,
       prompt: finalPrompt,

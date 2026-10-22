@@ -29,7 +29,9 @@ import { previewSha } from '../../local-story-preview';
 import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { canonicalJson } from '../request-acceptance';
-import { AUDITION_ANATOMY_VERSION } from '../audition-anatomy';
+import { AUDITION_ANATOMY_VERSION, AUDITION_LOCAL_ANATOMY_REPAIR_VERSION } from '../audition-anatomy';
+import { auditionLocalAnatomyRepairPlan, repairReviewedAuditionPage } from '../simple-book-reviewed-audition';
+import { planGPTImageRequest } from '../../generate-image';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
@@ -131,6 +133,109 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
   };
   return { args, prompts, saved, contexts };
 }
+
+describe('local anatomical scene repair through the EXISTING bounded loop', () => {
+  const bad = (normal: any) => { const n = structuredClone(normal); n.actors[0].limbs.visibleDistinct = 5; return n; };
+  const run = async (changes: Record<string, unknown> = {}) => {
+    const h = harness({ book: typedFixture(), coverage: true,
+      anatomy: (step, _context, n) => step === 'page_1_0_qa' ? bad(n) : n });
+    const result = await illustrateReviewedAudition({ ...h.args, pages: [1], structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, localAnatomyRepair: true, ...changes });
+    return { h, result, page: h.saved.get('page_1') as SavedPage };
+  };
+  it('edits the actual failed candidate; exact roles, full four canonical judge refs, no reset or pose copying', async () => {
+    const { h, result, page } = await run(), call = h.args.render.mock.calls.find(c => c[0] === 'page_1_1')!;
+    expect(result.policy.version).toBe('reviewed-audition-policy/v16');
+    expect(call[2]).toEqual([page.attempts[0].candidate, image('child'), image('companion'), image('sheet_entities_0')]);
+    expect(call[3]).toBe('book_scene_edit');
+    expect(call[4]).toEqual(['scene_edit_target','child_design_authority','companion_design_authority','entity_design_authority']);
+    expect(h.args.judge.mock.calls.find(c => c[0] === 'page_1_1_qa')![4]).toHaveLength(4);
+    expect(page.attempts.map(a => a.attempt)).toEqual([0,1]); expect(page.attempts[0].status).toBe('held');
+    expect(page.attempts[1].sceneRepair).toMatchObject({ version: AUDITION_LOCAL_ANATOMY_REPAIR_VERSION,
+      parentImageSha: page.attempts[0].candidate!.imageSha, parentContextSha: page.contextSha, targetActorIds:['child'] });
+    expect(page.status).toBe('qa_supported');
+    expect(call[1].replace(/\s+/g,' ')).toContain('lying on the back stays lying on the back');
+    expect(call[1]).toContain('ONE canonical anatomical slot');
+    const dry = auditionRenderPlan('/scratch', call[1], call[2] as any, 'book_scene_edit', call[4] as any);
+    expect(dry.wire.mode).toBe('images.edit'); expect(dry.wire.references).toHaveLength(4);
+    expect(dry.wire.body.prompt).toContain('Image 1: rejected FULL PAGE EDIT TARGET');
+    expect(dry.wire.body.prompt).not.toContain('[PERSONAL BOOK REFERENCE ROLES]');
+    expect(dry.wire.body.prompt).not.toContain('REJECTED reference sheet to edit');
+  });
+  it('without opt-in existing render/pixel contract is unchanged', async () => {
+    const { h, result, page } = await run({localAnatomyRepair:undefined});
+    expect(result.policy.version).toBe('reviewed-audition-policy/v15');
+    expect(h.args.render.mock.calls.find(c=>c[0]==='page_1_1')![3]).toBe('book_identity');
+    expect(page.attempts[1].sceneRepair).toBeUndefined();
+  });
+  it('new structural defect on every attempt uses its immediate parent and never draws a fourth', async () => {
+    const h=harness({book:typedFixture(),coverage:true,anatomy:(_s,_c,n)=>bad(n)});
+    await illustrateReviewedAudition({...h.args,pages:[1],structuralAnatomy:true,localAnatomyRepair:true,recovery:true,
+      landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    const p=h.saved.get('page_1') as SavedPage;
+    expect(p.attempts).toHaveLength(3); expect(p.status).toBe('held');
+    expect(p.attempts[2].sceneRepair!.parentImageSha).toBe(p.attempts[1].candidate!.imageSha);
+    expect(h.prompts.get('page_1_2')).toContain('DIAGNOSIS AFTER TWO HELD');
+    expect(h.prompts.has('page_1_3')).toBe(false);
+  });
+  it.each(['candidate','context','assessment','canonical','status'])('rejects a changed %s binding before an edit plan exists',async kind=>{
+    const {h,page}=await run(), p=structuredClone(page.attempts[0]);
+    const c=structuredClone(h.contexts.get('page_1_0_qa')), refs=structuredClone(c.references);
+    if(kind==='candidate')p.candidate!.imageSha=sha('foreign');
+    if(kind==='context')c.packet.pageNumber=9;
+    if(kind==='assessment')p.assessment!.counts.identity=0;
+    if(kind==='canonical')refs.reverse();
+    if(kind==='status')p.status='qa_supported';
+    expect(()=>auditionLocalAnatomyRepairPlan(p,c,page.contextSha,refs)).toThrow();
+  });
+  it('no typed defect, unusable result or cosmetic-only concern cannot produce a local edit',async()=>{
+    const {h,page}=await run(); const c=h.contexts.get('page_1_1_qa');
+    expect(auditionLocalAnatomyRepairPlan(page.attempts[1],c,page.contextSha,c.references)).toBeNull();
+    expect(auditionLocalAnatomyRepairPlan({...page.attempts[0],status:'review_unusable'},c,page.contextSha,c.references)).toBeNull();
+  });
+  it('bounded successor reviews an unreviewed parent once, edits once, then FULL review and identity on the exact new candidate',async()=>{
+    const {h,page}=await run(),context=h.contexts.get('page_1_0_qa'),calls:string[]=[],candidate=image('new_edit');
+    const result=await repairReviewedAuditionPage({page:1,prefix:'r9_',consumedAttemptsBefore:1,
+      prior:{attempt:0,candidate:page.attempts[0].candidate,review:null,assessment:null,status:'unavailable',error:'not_yet_reviewed'},
+      context,contextSha:page.contextSha,canonical:context.references,predecessor:null,check:()=>{},save:()=>{},
+      render:async(step,_prompt,refs,mode)=>{calls.push(step);expect(refs[0]).toEqual(page.attempts[0].candidate);expect(mode).toBe('book_scene_edit');return candidate;},
+      judge:async(step,c)=>{calls.push(step);const raw=structuredClone(page.attempts[step.endsWith('diagnosis_qa')?0:1].review!);raw.candidateSha=c.imageSha;return raw;},
+      identity:async(step,_child,c)=>{calls.push(step);expect(c).toEqual(candidate);return identity(.9);}});
+    expect(calls).toEqual(['r9_page_1_0_diagnosis_qa','r9_page_1_1','r9_page_1_1_qa','r9_page_1_1_identity']);
+    expect(result.status).toBe('corrected_supported');expect(result.parent.status).toBe('held');
+    expect(result.parent.identity).toBeUndefined();expect(result.corrected!.sceneRepair!.parentImageSha).toBe(page.attempts[0].candidate!.imageSha);
+  });
+  it.each(['unusable','uncertain','safety'])('parent %s does not authorize an image edit',async kind=>{
+    const {h,page}=await run(),context=h.contexts.get('page_1_0_qa'),render=vi.fn();
+    const result=await repairReviewedAuditionPage({page:1,prefix:'r9_',consumedAttemptsBefore:1,
+      prior:{attempt:0,candidate:page.attempts[0].candidate,review:null,assessment:null,status:'unavailable',error:'not_yet_reviewed'},
+      context,contextSha:page.contextSha,canonical:context.references,predecessor:null,check:()=>{},save:()=>{},render,
+      judge:async()=>{if(kind==='unusable')return {};
+        const r=structuredClone(page.attempts[0].review!);
+        if(kind==='uncertain'){r.anatomy!.actors[0].limbs.visibleDistinct=null;r.anatomy!.actors[0].limbs.unseen='unreadable';}
+        if(kind==='safety'){const c=r.checks.find(x=>x.category==='safety')!;c.verdict='defect';c.issues=[{impact:'safety',requirement:'safety',note:'Synthetic unsafe observation'}];}
+        return r;},identity:vi.fn()});
+    expect(render).not.toHaveBeenCalled();expect(result.corrected).toBeNull();
+  });
+  it.each([0,3,4])('a bounded successor refuses exhausted or reset count %i before any callback',async count=>{
+    const {h,page}=await run(),context=h.contexts.get('page_1_0_qa'),judge=vi.fn();
+    await expect(repairReviewedAuditionPage({page:1,prefix:'r9_',consumedAttemptsBefore:count,prior:page.attempts[0],
+      context,contextSha:page.contextSha,canonical:context.references,predecessor:null,check:()=>{},save:()=>{},render:vi.fn(),judge,identity:vi.fn()})).rejects.toThrow('audition_scene_repair_scope');
+    expect(judge).not.toHaveBeenCalled();
+  });
+  it.each([0,6])('canonical %i is not forced into four (synthetic evidence only)',async n=>{
+    const h=harness({book:typedFixture(),coverage:true,anatomy:(_s,_c,normal)=>{
+      normal.actors[0].limbs.expectedTotal=n;normal.actors[0].limbs.visibleDistinct=n; return normal;}});
+    await illustrateReviewedAudition({...h.args,pages:[1],structuralAnatomy:true,localAnatomyRepair:true,
+      landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    expect(h.args.render.mock.calls.filter(c=>c[0].startsWith('page_'))).toHaveLength(1);
+  });
+  it.each([['scene_edit_target'],['child_design_authority','scene_edit_target','companion_design_authority','entity_design_authority']].map(roles=>({roles})))(
+    'planner rejects incomplete or reordered explicit scene roles: %j',({roles})=>{
+      expect(()=>planGPTImageRequest({finalPrompt:'repair',referenceImages:['a','b','c','d'],referenceMode:'book_scene_edit',
+        referenceRoles:roles as any,quality:'low',size:'1024x1024'},{defaultQuality:'low',defaultModel:'gpt-image-2',maxReferences:4})).toThrow();
+  });
+});
 
 describe('prospective anatomy through the EXISTING assessment and bounded page loop', () => {
   const bad = (normal: any) => { const n = structuredClone(normal); n.actors[0].limbs.visibleDistinct = 6;
