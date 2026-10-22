@@ -45,6 +45,7 @@ import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, audi
   AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, AUDITION_ATTEMPT_INTERRUPTED,
   AUDITION_CALIBRATION_VERSION, AUDITION_TOPOLOGY_CONTINUATION_VERSION, LANDMARK_TOPOLOGY_VERSION,
   AUDITION_COVERAGE_CONTINUATION_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+  AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, type AuditionFullBookDiagnostic,
   type AuditionAnatomyRecovery, type AuditionCoverageContinuation, type AuditionTopologyContinuation, type AuditionCalibration, type ReferenceStatus, type SavedSheet, type SavedPage, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
@@ -886,6 +887,21 @@ export function durableReviewPayload(payload: Awaited<ReturnType<typeof audition
   return { ...payload, background: true as const, store: false,
     metadata: { semantic_request_sha256: previewSha(canonicalJson(digestImages(payload))) } };
 }
+/** The EXACT renderer's pure dry plan, shared by native first-operation admission. No key, provider or image write. */
+export function auditionRenderPlan(directory: string, prompt: string, refs: AuditionImage[],
+  mode: 'book_identity' | 'book_design' | 'identity' | 'anchor_photo_style_only' | 'style',
+  roles?: readonly BookDesignReferenceRole[], signal?: AbortSignal) {
+  const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(directory, r.imageName)), referenceMode: mode,
+    ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const,
+    modelOverride: 'gpt-image-2', signal, requestTimeoutMs: 180000 };
+  const plan = planGPTImageRequest(input, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
+  if (plan.referenceCountPassed !== refs.length) fail('audition_reference_truncated');
+  if (plan.bodyWithoutBinaryImage.model !== 'gpt-image-2' || plan.bodyWithoutBinaryImage.quality !== 'low' ||
+      plan.bodyWithoutBinaryImage.size !== '1024x1024' || plan.bodyWithoutBinaryImage.n !== 1) fail('audition_image_price_contract');
+  const wire = { body: plan.bodyWithoutBinaryImage, mode: plan.apiMode, references: refs, ...(plan.referenceRoles ? { referenceRoles: plan.referenceRoles } : {}),
+    retries: 0, deadlineMs: 180000, pricing: RENDER_PRICING, outputReservationTokens: 8192 };
+  return { input, wire, maximumMicroUsd: renderMaximum(plan.finalPrompt, refs.length) };
+}
 /**
  * A failure's cause chain for its record (2026-10-22: a lost call must say which layer ended it): the transport's own failure when the
  * adapter attached one, else the error's `cause`; each link's class, code and message (at most 4 links, 200 characters, key-like text redacted).
@@ -907,12 +923,17 @@ export function causeChain(error: unknown) {
 export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void;
   /** Opt-in: steps whose request must be exactly a known one (a re-review re-sends the lost request): checked before the claim. */
   expectedWire?: Readonly<Record<string, string>>;
+  /** Fixed native diagnostic operations only, each still atomically single-use in the ORIGINAL cumulative meter. */
+  allowedSteps?: readonly string[];
   /** Native grant opt-in, never a CLI/default switch. Reconciliation names just ONE existing job and cannot claim a new generation. */
   durableReviews?: { version: typeof DURABLE_REVIEW_VERSION; resumeStep?: string } }) {
   if (args.durableReviews && args.durableReviews.version !== DURABLE_REVIEW_VERSION) fail('audition_durable_policy');
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
   const check = () => { cancelled(); args.guard?.(); };
+  const allowed = args.allowedSteps ? new Set(args.allowedSteps) : null;
+  if (allowed && (!allowed.size || allowed.size !== args.allowedSteps!.length)) fail('audition_diagnostic_scope');
+  const checkStep = (step: string) => { check(); if (allowed && !allowed.has(step)) fail('audition_diagnostic_scope'); };
   const writeImage = async (name: string, bytes: Buffer) => {
     if (!/^[a-z0-9_]+\.png$/.test(name)) fail('audition_image_path');
     const meta = await sharp(bytes).metadata();
@@ -931,17 +952,10 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   // 'style' is production's technique-reference mode, used only by the opt-in child-anchor-style/v1 anchor (pinned character-free references).
   const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'identity' | 'anchor_photo_style_only' | 'style',
     roles?: readonly BookDesignReferenceRole[]) => {
-    check(); const bytes = refs.map(bytesOf);
-    const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(args.directory, r.imageName)), referenceMode: mode,
-      ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const,
-      modelOverride: 'gpt-image-2', signal: args.signal, requestTimeoutMs: 180000 };
-    const plan = planGPTImageRequest(input, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
-    if (plan.referenceCountPassed !== refs.length) fail('audition_reference_truncated');
-    if (plan.bodyWithoutBinaryImage.model !== 'gpt-image-2' || plan.bodyWithoutBinaryImage.quality !== 'low' ||
-        plan.bodyWithoutBinaryImage.size !== '1024x1024' || plan.bodyWithoutBinaryImage.n !== 1) fail('audition_image_price_contract');
-    const wire = { body: plan.bodyWithoutBinaryImage, mode: plan.apiMode, references: refs, ...(plan.referenceRoles ? { referenceRoles: plan.referenceRoles } : {}),
-      retries: 0, deadlineMs: 180000, pricing: RENDER_PRICING, outputReservationTokens: 8192 };
-    const maximumMicroUsd = renderMaximum(plan.finalPrompt, refs.length);
+    checkStep(step); const bytes = refs.map(bytesOf);
+    const { input, wire, maximumMicroUsd } = auditionRenderPlan(args.directory, prompt, refs, mode, roles, args.signal);
+    const expected = args.expectedWire?.[step];
+    if (expected !== undefined && previewSha(canonicalJson(wire)) !== expected) fail('audition_rereview_wire');
     return args.meter.run(step, wire, maximumMicroUsd, async () => {
       let raw: unknown = null;
       try {
@@ -962,11 +976,11 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   };
   const judge = async (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
     predecessor: AuditionImage | null, kind: 'sheet' | 'page') => {
-    check();
+    checkStep(step);
     const payload = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha, refs: refs.map(r => bytesOf(r)),
       predecessor: predecessor ? bytesOf(predecessor) : null, kind });
     // The crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
-    check();
+    checkStep(step);
     const wire = digestImages(args.durableReviews ? durableReviewPayload(payload) : payload), expected = args.expectedWire?.[step];
     if (expected !== undefined && previewSha(canonicalJson(wire)) !== expected) fail('audition_rereview_wire');
     // The call's own transport, made before the claim: an unavailable one refuses here, with nothing claimed or sent.
@@ -994,11 +1008,11 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     } finally { await transport.release(); }
   };
   const identity = async (step: string, reference: AuditionImage, candidate: AuditionImage) => {
-    check(); let transportError: unknown = null;
+    checkStep(step); let transportError: unknown = null;
     const result = await evaluatePageChildResemblanceVision({ referenceImageUrl: dataUrl(bytesOf(reference)), candidateImageUrl: dataUrl(bytesOf(candidate)),
       threshold: .7, model: IDENTITY_MODEL, apiKey: 'credential-is-injected-only-after-claim', maxRetries: 0, shouldStartAttempt: () => !args.signal.aborted,
       fetchImpl: async (url, init) => {
-        check(); const wire = JSON.parse(String(init!.body));
+        checkStep(step); const wire = JSON.parse(String(init!.body));
         return args.meter.run(step, digestImages(wire), IDENTITY_MAXIMUM_MICRO_USD, async () => {
           const response = await fetch(url, { ...init, signal: AbortSignal.any([args.signal, init!.signal!]),
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.key()}` } });
@@ -1147,12 +1161,21 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   /** New one-use native successor only: old ID-less orphan stays UNKNOWN and its original admission remains immutable. */
   coverageOrphanRecovery?: { version: 'audition-orphan-continuation/v1'; parentAdmissionSha256: string; provision: OrphanProvision };
   anatomyRecovery?: { grantSha256: string; contract: AuditionAnatomyRecovery; provision: OrphanProvision;
-    firstReview: { step: string; wireDigest: string } } }) {
+    firstReview: { step: string; wireDigest: string } };
+  fullBookDiagnostic?: { grantSha256: string; parentAdmissionSha256: string; contract: AuditionFullBookDiagnostic; provision: OrphanProvision;
+    firstOperation: { step: string; wireDigest: string } } }) {
+  const diagnostic = args.fullBookDiagnostic;
+  if (diagnostic && (!args.resume || !args.experiment || args.calibration || args.topologyContinuation || args.coverageContinuation ||
+      args.coverageOrphanRecovery || args.anatomyRecovery || args.rereview?.length || !/^[a-f0-9]{64}$/.test(diagnostic.grantSha256) ||
+      diagnostic.contract.version !== AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION ||
+      !existsSync(path.join(args.out, 'admission-anatomy.json')) ||
+      previewSha(readFileSync(path.join(args.out, 'admission-anatomy.json'))) !== diagnostic.parentAdmissionSha256)) fail('audition_diagnostic_parent');
+  if (existsSync(path.join(args.out, 'admission-full-book-diagnostic.json'))) fail('audition_diagnostic_used');
   if (args.anatomyRecovery && (!args.resume || !args.experiment || args.calibration || args.topologyContinuation || args.coverageContinuation ||
       args.coverageOrphanRecovery || args.rereview?.length || !/^[a-f0-9]{64}$/.test(args.anatomyRecovery.grantSha256) ||
       args.anatomyRecovery.contract.version !== AUDITION_ANATOMY_VERSION ||
       !existsSync(path.join(args.out, 'admission-coverage-orphan.json')))) fail('audition_anatomy_parent');
-  if (existsSync(path.join(args.out, 'admission-anatomy.json'))) fail('audition_anatomy_used');
+  if (existsSync(path.join(args.out, 'admission-anatomy.json')) && !diagnostic) fail('audition_anatomy_used');
   if (args.debits?.length && !args.resume) fail('audition_meter_debit');
   if (args.rereview?.length && !args.resume) fail('audition_rereview_binding');
   if (args.calibration && (!args.resume || !args.experiment || args.rereview?.length ||
@@ -1169,10 +1192,10 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (args.coverageOrphanRecovery && (!args.coverageContinuation || args.coverageOrphanRecovery.version !== 'audition-orphan-continuation/v1' ||
       previewSha(readFileSync(path.join(args.out, 'admission-coverage.json'))) !== args.coverageOrphanRecovery.parentAdmissionSha256 ||
       canonicalJson(read(path.join(args.out, 'admission-coverage.json')).contract) !== canonicalJson(args.coverageContinuation.contract))) fail('audition_orphan_parent');
-  if (existsSync(path.join(args.out, 'admission-coverage.json')) && !args.coverageOrphanRecovery && !args.anatomyRecovery) fail('audition_coverage_used');
-  if (existsSync(path.join(args.out, 'admission-coverage-orphan.json')) && !args.anatomyRecovery) fail('audition_orphan_used');
-  if (existsSync(path.join(args.out, 'admission-topology.json')) && !args.coverageContinuation && !args.anatomyRecovery) fail('audition_topology_used');
-  if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation && !args.coverageContinuation && !args.anatomyRecovery) fail('audition_calibration_used');
+  if (existsSync(path.join(args.out, 'admission-coverage.json')) && !args.coverageOrphanRecovery && !args.anatomyRecovery && !diagnostic) fail('audition_coverage_used');
+  if (existsSync(path.join(args.out, 'admission-coverage-orphan.json')) && !args.anatomyRecovery && !diagnostic) fail('audition_orphan_used');
+  if (existsSync(path.join(args.out, 'admission-topology.json')) && !args.coverageContinuation && !args.anatomyRecovery && !diagnostic) fail('audition_topology_used');
+  if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation && !args.coverageContinuation && !args.anatomyRecovery && !diagnostic) fail('audition_calibration_used');
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
@@ -1197,15 +1220,27 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   // every claim, resume and spend record: opted in exactly here. Every other run sums its saved records as before.
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
     grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined, args.debits ?? [],
-    args.coverageOrphanRecovery ? [args.coverageOrphanRecovery.provision] : args.anatomyRecovery ? [args.anatomyRecovery.provision] : []);
+    args.coverageOrphanRecovery ? [args.coverageOrphanRecovery.provision] : args.anatomyRecovery ? [args.anatomyRecovery.provision] : diagnostic ? [diagnostic.provision] : []);
   if (args.coverageOrphanRecovery) meter.snapshot();
   // A re-review's step must send exactly its lost request (filled below on a resume, before anything is dispatched).
   const expectedWire: Record<string, string> = {};
   if (args.topologyContinuation) expectedWire[args.topologyContinuation.firstReview.step] = args.topologyContinuation.firstReview.wireDigest;
   if (args.coverageContinuation) expectedWire[args.coverageContinuation.firstReview.step] = args.coverageContinuation.firstReview.wireDigest;
   if (args.anatomyRecovery) expectedWire[args.anatomyRecovery.firstReview.step] = args.anatomyRecovery.firstReview.wireDigest;
+  if (diagnostic) expectedWire[diagnostic.firstOperation.step] = diagnostic.firstOperation.wireDigest;
+  let diagnosticSteps: string[] | undefined;
+  if (diagnostic) {
+    const diagnosticScope = renderScope ?? fail('audition_diagnostic_scope');
+    if (canonicalJson(diagnostic.contract.pages.map(p => p.page)) !== canonicalJson(diagnosticScope.sample) ||
+        canonicalJson(diagnosticScope.pages) !== canonicalJson([0, 1, 2, 3, 4, 5, 6, 7, 8])) fail('audition_diagnostic_scope');
+    const prefix = `r${readdirSync(args.out).filter(n => /^resume-[0-9]+\.json$/.test(n)).length + 1}_`;
+    const frames = [...diagnosticScope.pages.filter(n => n > 0 && !diagnostic.contract.pages.some(p => p.page === n)).sort((a, b) => a - b), 0];
+    if (frames.length !== 7 || diagnostic.firstOperation.step !== `${prefix}page_${frames[0]}_0`) fail('audition_diagnostic_scope');
+    diagnosticSteps = frames.flatMap(n => ['', '_qa', '_identity'].map(s => `${prefix}page_${n}_0${s}`));
+  }
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}),
-    expectedWire, ...(args.coverageOrphanRecovery || args.anatomyRecovery ? { durableReviews: { version: DURABLE_REVIEW_VERSION } } : {}) });
+    expectedWire, ...(diagnosticSteps ? { allowedSteps: diagnosticSteps } : {}),
+    ...(args.coverageOrphanRecovery || args.anatomyRecovery || diagnostic ? { durableReviews: { version: DURABLE_REVIEW_VERSION } } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
   const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
@@ -1244,6 +1279,9 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     if (args.anatomyRecovery) save('admission-anatomy', { ...args.anatomyRecovery,
       parentAdmissionSha256: previewSha(readFileSync(path.join(args.out, 'admission-coverage-orphan.json'))),
       policy: reviewedAuditionPolicy(undefined, true, LANDMARK_COVERAGE_TOPOLOGY_VERSION, true), durableReview: DURABLE_REVIEW_VERSION });
+    if (diagnostic) save('admission-full-book-diagnostic', { ...diagnostic,
+      policy: reviewedAuditionPolicy(undefined, true, LANDMARK_COVERAGE_TOPOLOGY_VERSION, true),
+      diagnosticOnly: true, runtimeEligible: false, productAccepted: false, durableReview: DURABLE_REVIEW_VERSION });
     const optional = (name: string) => existsSync(path.join(args.out, `${name}.json`)) ? read(path.join(args.out, `${name}.json`)) : undefined;
     const markers = readdirSync(args.out).filter(n => /^resume-[0-9]+\.json$/.test(n)).length + 1;
     const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => [n, optional(`page_${n}`)]).filter(([, p]) => p));
@@ -1256,16 +1294,19 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       .map(n => [n, interruptedAttempts(paid, directory, 'page', String(n))] as const).filter(([, a]) => a.length));
     const interrupted = Object.keys(closedSheets).length || Object.keys(closedPages).length
       ? { ...(Object.keys(closedSheets).length ? { sheets: closedSheets } : {}), ...(Object.keys(closedPages).length ? { pages: closedPages } : {}) } : null;
+    if (diagnostic && interrupted) fail('audition_diagnostic_parent');
     // Re-reviews: every saved successor is re-bound (by the orchestrator, from its raw review); an allowance judges its attempt once, now.
     const stepPrefix = `r${markers}_`;
     const rebound = Object.fromEntries(Object.keys(pages).map(Number).filter(n => existsSync(path.join(args.out, `page_${n}_rereview.json`)))
       .map(n => [n, { attempt: read(path.join(args.out, `page_${n}_rereview.json`)).attempt as number, saved: read(path.join(args.out, `page_${n}_rereview.json`)) }]));
     const allowed = rereviewAllowance(args.rereview ?? [], { paid, pages, rebound, debits: args.debits ?? [], stepPrefix });
     for (const a of allowed) expectedWire[a.step] = a.wireDigest;
-    const rereview = args.anatomyRecovery ? null : Object.keys(rebound).length || allowed.length
+    const rereview = args.anatomyRecovery || diagnostic ? null : Object.keys(rebound).length || allowed.length
       ? { pages: { ...rebound, ...Object.fromEntries(allowed.map(a => [a.page, { attempt: a.attempt }])) } } : null;
     resume = { designs: read(path.join(args.out, 'audition_sheet_designs.json')), sheets, pages, stepPrefix, ...(interrupted ? { interrupted } : {}),
       ...(rereview ? { rereview } : {}) };
+    // Native diagnostic parents carry their own fully bound v15 attempts; legacy root page records cannot reset/adopt them.
+    if (diagnostic) resume = { designs: resume.designs, sheets: resume.sheets, pages: {}, stepPrefix };
     const counts = (closed: Record<string, AuditionAttempt[]>) => Object.fromEntries(Object.entries(closed).map(([k, a]) => [k, a.length]));
     save(`resume-${markers}`, { resumedPages: Object.keys(pages).map(Number),
       // Absent when nothing was interrupted (every earlier resume record's shape, unchanged).
@@ -1321,6 +1362,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     ...(args.topologyContinuation ? { topologyContinuation: args.topologyContinuation.contract, landmarkTopology: LANDMARK_TOPOLOGY_VERSION } : {}),
     ...(args.coverageContinuation ? { coverageContinuation: args.coverageContinuation.contract, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION } : {}),
     ...(args.anatomyRecovery ? { anatomyRecovery: args.anatomyRecovery.contract, structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION } : {}),
+    ...(diagnostic ? { fullBookDiagnostic: diagnostic.contract, structuralAnatomy: true,
       landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save: engineSave, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });

@@ -76,6 +76,10 @@ export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttem
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
 export type AuditionAnatomyRecovery = { version: typeof AUDITION_ANATOMY_VERSION; pages: { page: number; prior: SavedPage;
   consumedAttemptsBefore: number; maxNewAttempts: number }[] };
+/** A full visual diagnostic is NOT admission: retain saved HOLDs, create missing frames once, then review the complete cohort. */
+export const AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION = 'audition-full-book-diagnostic/v1' as const;
+export type AuditionFullBookDiagnostic = { version: typeof AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION;
+  pages: { page: number; prior: SavedPage; consumedAttemptsBefore: number }[] };
 type Impact = typeof AUDITION_IMPACTS[number];
 
 export class ReviewedAuditionError extends Error { constructor(readonly code: string) { super(code); } }
@@ -823,7 +827,7 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
   'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable',
   'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost', 'audition_meter_debit', 'audition_rereview_wire', 'audition_transport_unavailable',
-  'audition_transport_policy']);
+  'audition_transport_policy', 'audition_diagnostic_scope']);
 /** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
 export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';
@@ -1005,6 +1009,8 @@ export async function illustrateReviewedAudition(args: {
   /** Prospective one-use native successor only. Legacy samples are re-derived under v13, NEVER converted to v14. */
   anatomyRecovery?: AuditionAnatomyRecovery;
   structuralAnatomy?: true;
+  /** Separate native one-use diagnostic authority only, never a normal resume or approval of the retained samples. */
+  fullBookDiagnostic?: AuditionFullBookDiagnostic;
 }) {
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
@@ -1043,12 +1049,22 @@ export async function illustrateReviewedAudition(args: {
       args.anatomyRecovery.pages.length !== 2 || args.anatomyRecovery.pages.some((p, i) =>
         p.page !== p.prior.pageNumber || p.consumedAttemptsBefore < p.prior.chosen.attempt + 1 ||
         p.maxNewAttempts !== (i === 0 ? 0 : 2) || p.prior.status !== (i === 0 ? 'qa_supported' : 'held')))) fail('audition_anatomy_parent');
+  const diagnostic = args.fullBookDiagnostic;
+  if (diagnostic && (diagnostic.version !== AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION || !args.structuralAnatomy ||
+      topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || calibration || args.anatomyRecovery || !args.resume || args.resume.interrupted ||
+      args.resume.rereview || Object.keys(args.resume.pages).length || !args.sample ||
+      canonicalJson(diagnostic.pages.map(p => p.page)) !== canonicalJson(args.sample) ||
+      diagnostic.pages.some(p => p.page !== p.prior.pageNumber || !['qa_supported', 'held'].includes(p.prior.status) ||
+        !Number.isInteger(p.consumedAttemptsBefore) || !p.prior.attempts.length ||
+        new Set(p.prior.attempts.map(a => a.attempt)).size !== p.prior.attempts.length ||
+        p.prior.attempts.some(a => !Number.isInteger(a.attempt) || a.attempt < 0 || a.attempt >= p.consumedAttemptsBefore)) ||
+      args.pageAttempts !== undefined && args.pageAttempts !== 1)) fail('audition_diagnostic_parent');
   const policy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology, args.structuralAnatomy), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   // Validate all prospective kind catalogues before saving or any render/judge/identity callback.
   if (topology && auditionPageChecks(args.book, 0, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION).uniqueLandmarks
     .some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
   const prefix = args.resume?.stepPrefix ?? '', suffix = args.scaleLineup ? AUDITION_SCALE_LINEUP_PAGE_SUFFIX : AUDITION_PAGE_SUFFIX;
-  const pageAttempts = args.pageAttempts ?? policy.pageAttempts;
+  const pageAttempts = diagnostic ? 1 : args.pageAttempts ?? policy.pageAttempts;
   if (!Number.isInteger(pageAttempts) || pageAttempts < 1 || pageAttempts > policy.pageAttempts) fail('audition_page_attempts');
   const reusedRoles = (['entities', 'locations'] as const).filter(role => args.reuseSheets?.[role] !== undefined);
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
@@ -1056,7 +1072,11 @@ export async function illustrateReviewedAudition(args: {
   const sample = args.sample ? [...args.sample] : null;
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
-  const order = sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
+  if (diagnostic && (frames.length !== args.book.narrativeSpreads + 1 || diagnostic.pages.length !== 2 ||
+      diagnostic.pages.some(p => !frames.includes(p.page)))) fail('audition_diagnostic_scope');
+  // Diagnostic drawing is body-first, cover last; the final reader remains cover-first. Ordinary sample admission is unchanged.
+  const order = diagnostic ? [...frames.filter(n => n > 0), ...(frames.includes(0) ? [0] : [])]
+    : sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
   if (calibration && (!args.resume || calibration.version !== (coverage ? AUDITION_COVERAGE_CONTINUATION_VERSION : continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION) || !sample ||
       canonicalJson(calibration.pages.map(p => p.page)) !== canonicalJson(sample) ||
       calibration.pages.filter(p => p.action === 'correct_once').length !== 1 ||
@@ -1092,7 +1112,7 @@ export async function illustrateReviewedAudition(args: {
     try { return [role, resumed('sheet', saved, derived.contextSha, derived.requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
   }));
   if (args.resume) {
-    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration || args.anatomyRecovery ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
+    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration || args.anatomyRecovery || diagnostic ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
       Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
     // A re-review names a saved page of this scope and one of its attempts (the attempt itself is checked where the page is re-bound).
     if (Object.entries(args.resume.rereview?.pages ?? {}).some(([n, re]) => !re || !Number.isInteger(re.attempt) || !args.resume!.pages[Number(n)]))
@@ -1173,6 +1193,32 @@ export async function illustrateReviewedAudition(args: {
   }
   const refs = referenceStatus(sheets);
   const canonical = [args.child, args.companion, refs.entities.image, refs.locations.image];
+  const diagnosticParents = new Map<number, SavedPage>();
+  // The same v15 evidence is reused under its EXACT unchanged context, never upgraded by this mode's different purpose.
+  for (const [i, spec] of (diagnostic?.pages ?? []).entries()) {
+    const prior = spec.prior, packet = args.ownerAcceptance === undefined
+      ? currentPersonalStoryboardFrame(args.book, args.rawReview, spec.page, args.current)
+      : currentPersonalStoryboardFrame(args.book, args.rawReview, spec.page, args.current, args.ownerAcceptance);
+    const seq = args.book.sequence.pages, previous = diagnostic!.pages[i - 1]?.prior;
+    const predecessor = spec.page >= 2 && previous?.pageNumber === spec.page - 1 &&
+      seq[spec.page - 1].sceneId === seq[spec.page - 2].sceneId ? previous.chosen.candidate : null;
+    const old = auditionPageContext(args.book, packet.context, spec.page, args.companionDescription, canonical, refs, predecessor,
+      LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, true);
+    if (prior.contextSha !== old.contextSha || canonicalJson(prior.requirementIds) !== canonicalJson(old.checks.requirementIds) ||
+        !prior.attempts.length) fail('audition_diagnostic_parent');
+    const attempts = prior.attempts.map(a => {
+      if (!a.candidate || !a.review || !a.assessment || !identityUsable(a.identity)) return fail('audition_diagnostic_parent');
+      const assessment = assessAuditionReview(a.review, a.candidate.imageSha, old.contextSha, old.checks.requirementIds,
+        old.checks.uniqueLandmarks, LANDMARK_COVERAGE_TOPOLOGY_VERSION, auditionAnatomyCast(old.context)).assessment;
+      if (assessment.safetyBlocked || canonicalJson(assessment) !== canonicalJson(a.assessment) ||
+          attemptStatus('page', { ...a, assessment }) !== a.status) fail('audition_diagnostic_parent');
+      return { ...a, assessment };
+    });
+    const chosen = selectAuditionAttempt('page', attempts);
+    if (!chosen || canonicalJson(chosen) !== canonicalJson(prior.chosen) || attemptStatus('page', chosen) !== prior.status)
+      fail('audition_diagnostic_parent');
+    diagnosticParents.set(spec.page, prior);
+  }
   // Validate BOTH terminal v13 sample parents before the first new provider callback. Do not migrate their raw evidence.
   for (const [i, spec] of (args.anatomyRecovery?.pages ?? []).entries()) {
     const prior = spec.prior, packet = args.ownerAcceptance === undefined
@@ -1304,10 +1350,27 @@ export async function illustrateReviewedAudition(args: {
           consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } }) };
   };
   const pages: SavedPage[] = [];
+  const diagnosticCandidates = new Map<number, AuditionImage>();
+  if (diagnostic) for (const pageNumber of order) {
+    if (diagnosticParents.has(pageNumber)) continue;
+    args.check();
+    const packet = args.ownerAcceptance === undefined ? currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current)
+      : currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current, args.ownerAcceptance);
+    const checks = auditionPageChecks(args.book, pageNumber, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION);
+    const prompt = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${ANATOMY_RENDER_RULES}`;
+    const rendered = await attemptStep(args.check, () => args.render(`${prefix}page_${pageNumber}_0`, prompt, canonical, 'book_identity'));
+    if ('error' in rendered) {
+      args.save(`halted_${prefix}diagnostic_render_${pageNumber}`, { version: diagnostic.version, pageNumber, attempt: 0, error: rendered.error });
+      return fail('audition_diagnostic_render');
+    }
+    diagnosticCandidates.set(pageNumber, rendered.value);
+    args.save(`diagnostic_render_${pageNumber}`, { version: diagnostic.version, pageNumber, attempt: 0, candidate: rendered.value,
+      recipeSha256: previewSha(canonicalJson({ prompt, references: canonical, mode: 'book_identity' })), status: 'pending_review' });
+  }
   let heldSample = false;
   for (const pageNumber of order) {
     // The early sample gates the rest: continue only when every sample page is qa_supported.
-    if (sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) { heldSample = true; break; }
+    if (!diagnostic && sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) { heldSample = true; break; }
     args.check();
     const packet = args.ownerAcceptance === undefined ? currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current)
       : currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current, args.ownerAcceptance);
@@ -1316,6 +1379,21 @@ export async function illustrateReviewedAudition(args: {
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
     const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor,
       calibration || topology ? LANDMARK_DESIGN_HEAD_VERSION : undefined, topology, args.structuralAnatomy);
+    const diagnosticParent = diagnosticParents.get(pageNumber);
+    if (diagnosticParent) {
+      if (diagnosticParent.contextSha !== contextSha) fail('audition_diagnostic_parent');
+      pages.push(diagnosticParent); continue;
+    }
+    if (diagnostic) {
+      const candidate = diagnosticCandidates.get(pageNumber) ?? fail('audition_diagnostic_render');
+      const result = await judgeCandidate('page', String(pageNumber), 0, candidate, context, contextSha, checks.requirementIds,
+        canonical, predecessor, checks.uniqueLandmarks);
+      report('page', String(pageNumber), result); finish('page', String(pageNumber), [result]);
+      const chosen = selectAuditionAttempt('page', [result]) ?? fail(`audition_page_${pageNumber}_unavailable`);
+      const saved: SavedPage = { pageNumber, contextSha, requirementIds: checks.requirementIds, attempts: [result], chosen,
+        status: attemptStatus('page', chosen) };
+      pages.push(saved); args.save(`page_${pageNumber}_diagnostic`, saved); continue;
+    }
     const spec = calibration?.pages.find(s => s.page === pageNumber);
     if (spec) {
       pages.push(await calibrated(legacySamples.get(pageNumber)!, spec, `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`,
@@ -1383,7 +1461,7 @@ export async function illustrateReviewedAudition(args: {
     args.save(`page_${pageNumber}`, pages[pages.length - 1]);
   }
   args.check();
-  if (sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) heldSample = true;
+  if (!diagnostic && sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) heldSample = true;
   const complete = !heldSample && frames.length === args.book.narrativeSpreads + 1;
   const allSupported = pages.every(p => p.status === 'qa_supported') && refs.entities.status === 'approved_reference' && refs.locations.status === 'approved_reference';
   // The reader's order is the book's order (cover, then pages); a sample changes only the drawing order, which is recorded separately.
@@ -1391,10 +1469,14 @@ export async function illustrateReviewedAudition(args: {
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
     ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}), ...(args.scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}),
     ...(args.recovery ? { recovery: STAGE_RECOVERY_VERSION } : {}),
+    ...(diagnostic ? { diagnostic: { version: diagnostic.version, purpose: 'whole-book visual evaluation, not admission',
+      retainedPages: diagnostic.pages.map(p => ({ page: p.page, priorSha256: previewSha(canonicalJson(p.prior)),
+        consumedAttemptsBefore: p.consumedAttemptsBefore, status: p.prior.status })),
+      newFrameAttempts: 1, renderThenReview: true, renderOrder: order.filter(n => !diagnosticParents.has(n)) } } : {}),
     scope: { frames: heldSample ? presented.map(p => p.pageNumber) : frames, complete,
       ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}),
       ...(args.pageAttempts !== undefined ? { pageAttempts } : {}), ...(reusedRoles.length ? { reusedSheets: reusedRoles } : {}) },
-    status: heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
+    status: diagnostic ? 'diagnostic_audition' : heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },
     pageDeferred: designs.pageDeferred,
@@ -1463,6 +1545,7 @@ export function reviewedAuditionHTML(manifest: Awaited<ReturnType<typeof illustr
     s ? ` · ${s.referenceStatus === 'approved_reference' ? 'רפרנס נתמך' : 'מועמד אבחוני עם פגמים ידועים'}` : ''}</figcaption>${s ? findings(s.findings) : ''}</figure>`;
   // Explicit per status; anything unrecognised reads as held, never as supported. A partial scope says what was drawn.
   const BOOK_STATUS_HE: Record<string, string> = { qa_supported_audition: 'נתמך בבדיקה האוטומטית בלבד',
+    diagnostic_audition: 'עותק אבחון מלא — הממצאים נשמרים, לא אישור מוצר או ייצור',
     qa_supported_sample: 'דגימה חלקית — נתמכת בבדיקה האוטומטית בלבד', held_audition_with_findings: 'מוחזק — יש ממצאים שגיא צריך לראות',
     held_sample: 'מוחזק — הדגימה המוקדמת לא עברה, ושאר הספר לא צויר' };
   const bookStatus = BOOK_STATUS_HE[manifest.status] ?? 'מוחזק — מצב לא מוכר';

@@ -16,9 +16,10 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   auditionCorrections, landmarkFeatureCatalogue, assessLandmarkInventory, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
   sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
-  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED } from '../simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
-  readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
+  readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
+  type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { AUDITION_REREVIEW_VERSION, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_TOPOLOGY_VERSION, auditionPageContext,
   AUDITION_TOPOLOGY_CONTINUATION_VERSION, calibrationRequalificationParent,
   AUDITION_COVERAGE_CONTINUATION_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, topologyRequalificationParent,
@@ -248,6 +249,102 @@ const typedFixture = () => {
     }
     return b;
 };
+
+describe('explicit diagnostic cohort: existing engine, truthful HOLDs, no sample regeneration or approval', () => {
+  const successor = async (opts: Parameters<typeof harness>[0] = {}) => {
+    const book = typedFixture(), old = harness({ book, coverage: true, judge: step => step.startsWith('page_2_')
+      ? { scene: { issues: [issue('story', 'scene_plan')] } } : {} });
+    await illustrateReviewedAudition({ ...old.args, sample: [1, 2], structuralAnatomy: true, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    const h = harness({ book, coverage: true, ...opts });
+    const pages = [1, 2].map(page => ({ page, prior: old.saved.get(`page_${page}`) as SavedPage, consumedAttemptsBefore: page === 1 ? 2 : 6 }));
+    return { h, old, args: { ...h.args, sample: [1, 2], recovery: true as const, structuralAnatomy: true as const,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+      fullBookDiagnostic: { version: AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, pages },
+      resume: { designs: { ...(old.saved.get('audition_sheet_designs') as any), policy: reviewedAuditionPolicy() },
+        sheets: { entities: old.saved.get('sheet_entities') as any, locations: old.saved.get('sheet_locations') as any },
+        pages: {} as Record<number, SavedPage>, stepPrefix: 'r8_' } } };
+  };
+  it('renders six missing bodies THEN cover BEFORE all reviews; retains held sample, every new HOLD, all nine frames and no product PASS', async () => {
+    const events: string[] = [], { h, args } = await successor({
+      judge: () => ({ scene: { issues: [issue('story', 'scene_plan', 'synthetic visible story issue')] } }),
+      wrap: async (step, work) => { events.push(step); return work(); } });
+    const parentsBefore = canonicalJson(args.fullBookDiagnostic.pages), m = await illustrateReviewedAudition(args);
+    const rendered = [3, 4, 5, 6, 7, 8, 0].map(n => `r8_page_${n}_0`);
+    expect(events.slice(0, 7)).toEqual(rendered);
+    expect(events).toHaveLength(21);
+    expect(h.args.render.mock.calls.map(c => c[0])).toEqual(rendered);
+    expect(events.some(s => /^r8_page_[12]_/.test(s))).toBe(false);
+    expect(m.status).toBe('diagnostic_audition'); expect(m.runtimeEligible).toBe(false); expect(m.productionQualified).toBe(false);
+    expect(m.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(m.pages.filter(p => p.pageNumber !== 1).every(p => p.status === 'held')).toBe(true);
+    expect(canonicalJson(args.fullBookDiagnostic.pages)).toBe(parentsBefore);
+    expect(m.diagnostic).toMatchObject({ version: AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, newFrameAttempts: 1,
+      renderThenReview: true, renderOrder: [3, 4, 5, 6, 7, 8, 0] });
+    for (const n of [0, 3, 4, 5, 6, 7, 8]) {
+      expect(h.saved.get(`diagnostic_render_${n}`)).toMatchObject({ pageNumber: n, attempt: 0, status: 'pending_review', recipeSha256: expect.stringMatching(/^[a-f0-9]{64}$/) });
+      expect(h.saved.get(`page_${n}_diagnostic`)).toMatchObject({ pageNumber: n, status: 'held', attempts: [expect.objectContaining({ attempt: 0, status: 'held' })] });
+      expect(h.saved.has(`page_${n}`)).toBe(false);
+    }
+    expect(reviewedAuditionHTML(m, { title: 'Synthetic diagnostic', pages: texts.map(text => ({ text })) }, i => `image:${i.imageName}`)).toContain('אבחון');
+  });
+  it('all new checks passing still cannot promote the retained HOLD or held reference sheets into an approved book', async () => {
+    const { args } = await successor(), m = await illustrateReviewedAudition(args);
+    expect(m.status).toBe('diagnostic_audition'); expect(m.pages.find(p => p.pageNumber === 2)!.status).toBe('held');
+    expect(m.pages.filter(p => p.pageNumber !== 2).every(p => p.status === 'qa_supported')).toBe(true);
+    expect(m.policy.version).toBe('reviewed-audition-policy/v15'); expect(reviewedAuditionPolicy().version).toBe('reviewed-audition-policy/v9');
+  });
+  it('ordinary sample gate is unchanged: same held sample stops cover and pages3–8', async () => {
+    const { old } = await successor();
+    expect(old.saved.get('reviewed_audition_manifest')).toMatchObject({ status: 'held_sample' });
+    expect(old.args.render.mock.calls.some(c => /page_(0|[3-8])_/.test(c[0]))).toBe(false);
+  });
+  it.each(['context', 'raw', 'assessment', 'status', 'duplicates', 'count', 'scope', 'version', 'multiple-attempts', 'mixed', 'interrupted', 'unsafe'])
+    ('rejects invalid authority/evidence before any new callback: %s', async kind => {
+      const { h, args } = await successor(), p = args.fullBookDiagnostic.pages[1].prior, a = p.attempts[0];
+      if (kind === 'context') p.contextSha = sha('edited context');
+      if (kind === 'raw') (a.review as any).checks = [];
+      if (kind === 'assessment') a.assessment!.counts.story++;
+      if (kind === 'status') p.status = 'qa_supported';
+      if (kind === 'duplicates') p.attempts.push(structuredClone(a));
+      if (kind === 'count') args.fullBookDiagnostic.pages[1].consumedAttemptsBefore = 0;
+      if (kind === 'scope') (args as any).pages = [1, 2, 3];
+      if (kind === 'version') (args.fullBookDiagnostic as any).version = 'unreviewed';
+      if (kind === 'multiple-attempts') (args as any).pageAttempts = 2;
+      if (kind === 'mixed') (args as any).calibration = {};
+      if (kind === 'interrupted') (args.resume as any).interrupted = { pages: {} };
+      if (kind === 'unsafe') (a.review as any).checks.find((c: any) => c.category === 'safety').verdict = 'uncertain';
+      await expect(illustrateReviewedAudition(args)).rejects.toThrow();
+      expect(h.args.render).not.toHaveBeenCalled(); expect(h.args.judge).not.toHaveBeenCalled(); expect(h.args.identity).not.toHaveBeenCalled();
+    });
+  it('new unknown aborts without retry; prior priced diagnostic images and pending recipes survive; no reviews have started', async () => {
+    const { h, args } = await successor({ renderFail: step => step === 'r8_page_4_0' ? new ReviewedAuditionError('audition_unknown_cost') : null });
+    await expect(illustrateReviewedAudition(args)).rejects.toThrow('audition_unknown_cost');
+    expect(h.args.render.mock.calls.map(c => c[0])).toEqual(['r8_page_3_0', 'r8_page_4_0']);
+    expect(h.saved.get('diagnostic_render_3')).toMatchObject({ status: 'pending_review' });
+    expect(h.saved.has('diagnostic_render_4')).toBe(false); expect(h.args.judge).not.toHaveBeenCalled(); expect(h.args.identity).not.toHaveBeenCalled();
+  });
+  it('diagnostic scope rejects every unlisted operation before image reads, key reads, meter or provider', async () => {
+    const meter = { run: vi.fn() } as unknown as AuditionMeter, key = vi.fn(() => { throw new Error('must not read key'); });
+    const io = auditionAdapters({ directory: 'does-not-exist', meter, key, signal: new AbortController().signal,
+      allowedSteps: ['r8_page_3_0', 'r8_page_3_0_qa', 'r8_page_3_0_identity'] });
+    for (const step of ['r8_page_1_0', 'r8_page_3_1', 'r9_page_3_0', 'r8_sheet_entities_0', 'r8_page_3_0_extra']) {
+      await expect(io.render(step, 'prompt', [image('missing')], 'book_identity')).rejects.toThrow('audition_diagnostic_scope');
+      await expect(io.judge(step, image('missing'), {}, sha('context'), [], null, 'page')).rejects.toThrow('audition_diagnostic_scope');
+      await expect(io.identity(step, image('missing'), image('candidate'))).rejects.toThrow('audition_diagnostic_scope');
+    }
+    expect(key).not.toHaveBeenCalled(); expect(meter.run).not.toHaveBeenCalled();
+    for (const allowedSteps of [[], ['same', 'same']]) expect(() => auditionAdapters({ directory: '', meter, key,
+      signal: new AbortController().signal, allowedSteps })).toThrow('audition_diagnostic_scope');
+  });
+  it('pure first-render plan fixes LOW/model/reference edit/no retries and does not require a key or existing files', () => {
+    const refs = ['child', 'companion', 'entities', 'locations'].map(image), p = auditionRenderPlan('not-opened', 'generic full-page scene', refs, 'book_identity');
+    expect(p.wire).toMatchObject({ mode: 'images.edit', body: { model: 'gpt-image-2', quality: 'low', size: '1024x1024', n: 1 },
+      references: refs, retries: 0, deadlineMs: 180000, outputReservationTokens: 8192 });
+    expect(p.maximumMicroUsd).toBeGreaterThan(0); expect(canonicalJson(p.wire)).not.toContain('apiKey');
+    expect(() => auditionRenderPlan('', 'prompt', [...refs, image('fifth')], 'book_identity')).toThrow('audition_reference_truncated');
+  });
+});
+
 describe('topology opt-in through the real existing audition orchestrator (synthetic pixels, no provider)', () => {
   const typedBook = typedFixture;
   it('binds v12/page-context-v3 and fresh topology on every sample/downstream frame; default stays v9', async () => {
