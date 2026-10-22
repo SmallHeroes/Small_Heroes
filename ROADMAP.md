@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Anatomy F1/F2 focused round1 complete — SAME independent re-gate then already-approved native continuation (2026-10-22)
+
+- First independent HOLD32fabd6d preserved. Code9d00bfec requires named readable limb evidence (structuralv2/policy15/context6), covers all3
+  falsified false-PASS paths, preserves canonical0/6 and natural occlusion; first unsafe unusedv1 draft never executed. F2 exact operator
+  wrapper now checks registry ownership/no-activeQA before spawn. No name/page patch, model/threshold/quality/default-production change.
+- Local306focused/tsc0/native9read-only/19VM-wrapper controls PASS, not pixel/book/productPASS; fullcheck historicalRED unchanged. Next is
+  same read-only reviewer against final clean range and exact unused F1 grant/wrapper, then sole Codex native preflight and same-book render.
+  Money/UNKNOWN/history2/4renders33/89 preserved, maximum2 NEW failed-sample candidates, original sample gate and remaining frame attempts.
+
 ## General structural-anatomy and bounded same-book recovery — implementation done, independent gate NEXT (2026-10-22)
 
 - New explicit owner authority after actual extra-limb observation; code9e0855b3 adds prospective v14 typed anatomy, action/limb binding and

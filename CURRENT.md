@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Focused independent F1/F2 correction round1 — code complete, exact re-gate required before provider (2026-10-22)
+
+- SAME reviewer first pass `32fabd6d` HOLD at3fdee8c5: F1/P1 required limb evidence could be omitted as fur, not_counted or null count and
+  falsely supported; F2/P2 operator wrapper omitted registry/sole-writer/no-activeQA gate. Independent298tests and76native/pin/replay controls
+  passed but did NOT override the three intentional F1 REDs/VM F2 RED. All initial source/grant/wrapper/HOLD/probes preserved; zero providers.
+- Focused code `9d00bfec` (parent3fdee8c5): prospective structural-anatomy/v2, policy/v15 and page-context/v6, strict schema/instruction agree.
+  Every actor has REQUIRED named limbs evidence and separate otherParts. Unknown expected limb total or unreadable visible count derives
+  material uncertainty; fur cannot replace limbs. Readable0 with natural occlusion remains allowed, and canonical0/6/etc is not forced to4.
+  First unexecuted unsafe v1/v14 draft stays withheld; no paid review ever used it and none is relabelled. Legacy v9-v13 unchanged.
+- F2 prospective wrapper `run-anatomy-native-f1.cjs` requires parsable registry, activeQA=null and exact sole Codex native writer bound to
+  frozen head/branch/grant/wrapper/worktree/dispatch/current execution prompt, checked before child spawn. Exact FIRST-LINE independentPASS,
+  sourcepins/fresh preflight/unused fixed AA claim guards stay. Source/native authority and original allowed counts/caps are unchanged.
+- Validation:306/306 focused tests exit0; 33pure anatomy and220existing-orchestrator tests include ALL3 independent counterexamples through
+  context-selected schema/assessment/status.19VM-only exact-wrapper controls PASS (all spawn/writes stubbed), including proper positive and
+  activeQA/missing/malformed/stale/foreign/wrong ownership plus prior guards. Native read-only9controls exit0, tsc-code0. FullcheckRED retained.
+  A VM rerun refused overwriting an earlier immutable result (EEXIST); then a new diagnostic result label preserved both outputs, not authority.
+- Next: docsLAST after actual tsc exit, same source branch frozen; F1 technically rebound UNUSED grant/freeze/wrapper follows same consumed3dd4
+  and same AA fixed claim. Initial a1de5133 unused draft remains history, not repinned consumed authority or new attempts. SAME independent
+  reviewer re-gates exact new pins/wrapper/native plan before sole-operator preflight/execute. No repeat owner approval needed for this correction.
+- Book/cycle money and2/4renders33/89calls unchanged:4107418/7m and4236348/8m, old3actualcharges/1outcomeUNKNOWN retained. No new API/Max/image.
+
 ## Owner-approved GENERAL anatomy/recovery engine milestone — offline code complete, independent QA pending (2026-10-22)
 
 - Guy's NEW direct instruction explicitly requests engine/judge/order fixes and same-book continuation. It supersedes the prior terminal stop
