@@ -748,12 +748,30 @@ export type SavedPage = { pageNumber: number; contextSha: string; requirementIds
   /** Present only on the effective page a re-review produced (never on a saved page record): the attempt that was re-reviewed. */
   rereview?: { version: typeof AUDITION_REREVIEW_VERSION; attempt: number };
   calibration?: { version: typeof AUDITION_CALIBRATION_VERSION; priorContextSha: string; consumedAttemptsBefore: number;
-    priorAttempts: AuditionAttempt[]; action: 'requalify' | 'correct_once' } };
+    priorAttempts: AuditionAttempt[]; action: 'requalify' | 'correct_once' };
+  topologyContinuation?: { version: typeof AUDITION_TOPOLOGY_CONTINUATION_VERSION; priorSha256: string;
+    consumedAttemptsBefore: number; action: 'requalify' | 'correct_once'; prior: SavedPage } };
 export const AUDITION_CALIBRATION_VERSION = 'audition-landmark-calibration/v1' as const;
 export type SavedCalibration = { version: typeof AUDITION_CALIBRATION_VERSION; priorSha256: string; contextSha: string;
   action: 'requalify' | 'correct_once'; consumedAttemptsBefore: number; reviewed: AuditionAttempt; status: AttemptStatus };
 export type AuditionCalibration = { version: typeof AUDITION_CALIBRATION_VERSION;
   pages: { page: number; action: 'requalify' | 'correct_once'; priorSha256: string; consumedAttemptsBefore: number; saved?: SavedCalibration }[] };
+export const AUDITION_TOPOLOGY_CONTINUATION_VERSION = 'audition-topology-continuation/v1' as const;
+export type AuditionTopologyContinuation = { version: typeof AUDITION_TOPOLOGY_CONTINUATION_VERSION;
+  /** Consumed v1 calibration replayed provider-free; ONLY its first sample has a saved requalification and is held. */
+  parentCalibration: AuditionCalibration; pages: AuditionCalibration['pages'] };
+export type SavedTopologyContinuation = Omit<SavedCalibration, 'version'> & { version: typeof AUDITION_TOPOLOGY_CONTINUATION_VERSION };
+/** Compose the already-validated v1 requalification without replacing its raw or losing its actual render-count history. */
+export function calibrationRequalificationParent(prior: SavedPage, s: SavedCalibration): SavedPage {
+  if (s.version !== AUDITION_CALIBRATION_VERSION || s.action !== 'requalify' ||
+      s.priorSha256 !== previewSha(canonicalJson(prior)) || s.consumedAttemptsBefore !== prior.attempts.length ||
+      s.reviewed.attempt !== prior.chosen.attempt || canonicalJson(s.reviewed.candidate) !== canonicalJson(prior.chosen.candidate) ||
+      s.reviewed.status !== s.status) fail('audition_topology_parent');
+  return { pageNumber: prior.pageNumber, contextSha: s.contextSha, requirementIds: prior.requirementIds,
+    attempts: [s.reviewed], chosen: s.reviewed as Chosen, status: s.status,
+    calibration: { version: AUDITION_CALIBRATION_VERSION, priorContextSha: prior.contextSha, consumedAttemptsBefore: s.consumedAttemptsBefore,
+      priorAttempts: prior.attempts, action: s.action } };
+}
 /**
  * A re-review (2026-10-22; owner-approved and opt-in, ONE per allowance, never a default): a page attempt that was DRAWN but whose review was
  * lost (unavailable, its candidate kept, never judged or measured) is judged once more, the same image and the same request, as a step
@@ -862,10 +880,27 @@ export async function illustrateReviewedAudition(args: {
   calibration?: AuditionCalibration;
   /** Prospective engine contract only. No CLI flag, grant allowance or migration of a consumed calibration is implied. */
   landmarkTopology?: typeof LANDMARK_TOPOLOGY_VERSION;
+  /** A NEW one-use native authority following consumed v1; NEVER an opt-in on that old grant or an ordinary resume. */
+  topologyContinuation?: AuditionTopologyContinuation;
 }) {
-  const calibration = args.calibration;
+  const continuation = args.topologyContinuation, calibration = args.calibration ?? continuation;
   const topology = args.landmarkTopology;
-  if (topology && (calibration || args.book.landmarkKind !== LANDMARK_KIND_CONTRACT_VERSION)) fail('audition_landmark_contract');
+  if (topology && (args.calibration || args.book.landmarkKind !== LANDMARK_KIND_CONTRACT_VERSION)) fail('audition_landmark_contract');
+  if (continuation) {
+    const parent = continuation.parentCalibration;
+    if (!topology || args.calibration || !args.resume || continuation.version !== AUDITION_TOPOLOGY_CONTINUATION_VERSION ||
+        parent.version !== AUDITION_CALIBRATION_VERSION || parent.pages.length !== 2 || !parent.pages[0].saved || parent.pages[1].saved ||
+        parent.pages[0].action !== 'requalify' || parent.pages[1].action !== 'correct_once' ||
+        continuation.pages.some(p => p.saved) || canonicalJson(parent.pages.map(p => p.page)) !== canonicalJson(continuation.pages.map(p => p.page)))
+      fail('audition_topology_parent');
+    // The SAME engine validates ALL old-context parents and the consumed saved v11 judgment before any fresh callback.
+    // Its early held requalification must stop it before the unused correction. These are receipt replays, not fresh pixel evidence.
+    const old = await illustrateReviewedAudition({ ...args, topologyContinuation: undefined, landmarkTopology: undefined, calibration: parent,
+      render: async () => fail('audition_topology_parent'), judge: async () => fail('audition_topology_parent'),
+      identity: async () => fail('audition_topology_parent'), progress: undefined,
+      save: name => { if (name !== 'reviewed_audition_manifest') fail('audition_topology_parent'); } });
+    if (old.status !== 'held_sample' || old.pages.length !== 1 || old.pages[0].pageNumber !== parent.pages[0].page) fail('audition_topology_parent');
+  }
   const policy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   // Validate all prospective kind catalogues before saving or any render/judge/identity callback.
   if (topology && auditionPageChecks(args.book, 0, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION).uniqueLandmarks
@@ -880,7 +915,7 @@ export async function illustrateReviewedAudition(args: {
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
   const order = sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
-  if (calibration && (!args.resume || calibration.version !== AUDITION_CALIBRATION_VERSION || !sample ||
+  if (calibration && (!args.resume || calibration.version !== (continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION) || !sample ||
       canonicalJson(calibration.pages.map(p => p.page)) !== canonicalJson(sample) ||
       calibration.pages.filter(p => p.action === 'correct_once').length !== 1 ||
       calibration.pages.some(p => !['requalify', 'correct_once'].includes(p.action) || !args.resume!.pages[p.page]) ||
@@ -1051,10 +1086,16 @@ export async function illustrateReviewedAudition(args: {
     const prior = resumed('page', args.resume!.pages[n], old.contextSha, old.checks.requirementIds, old.checks.uniqueLandmarks)!;
     const re = args.resume!.rereview?.pages?.[n];
     if (re && !re.saved) fail('audition_calibration_binding');
-    const effective = re ? await rereviewed(prior, re, old.context, old.contextSha, old.checks, predecessor) : prior;
-    if (previewSha(canonicalJson(effective)) !== spec.priorSha256 || effective.attempts.length !== spec.consumedAttemptsBefore ||
-        effective.attempts.some((a, i) => a.attempt !== i) ||
-        (spec.action === 'requalify' ? effective.status !== 'qa_supported'
+    let effective = re ? await rereviewed(prior, re, old.context, old.contextSha, old.checks, predecessor) : prior;
+    const oldRequalification = continuation?.parentCalibration.pages.find(p => p.page === n)?.saved;
+    if (oldRequalification) effective = calibrationRequalificationParent(effective, oldRequalification);
+    const consumed = continuation && effective.calibration ? effective.calibration.consumedAttemptsBefore : effective.attempts.length;
+    const requalifiable = effective.status === 'qa_supported' || !!continuation && effective.status === 'held' &&
+      identityPassed(effective.chosen.identity) && effective.chosen.assessment.findings.every(f => f.impact === 'detail' ||
+        f.derived && f.verdict === 'uncertain' && f.impact === 'continuity');
+    if (previewSha(canonicalJson(effective)) !== spec.priorSha256 || consumed !== spec.consumedAttemptsBefore ||
+        (!oldRequalification && effective.attempts.some((a, i) => a.attempt !== i)) ||
+        (spec.action === 'requalify' ? !requalifiable
           : effective.status !== 'held' || effective.attempts.length !== policy.pageAttempts ||
             !effective.chosen.assessment.findings.some(f => f.verdict === 'defect' && f.bound && !f.derived && impactIsMaterial(f.impact))))
       fail('audition_calibration_binding');
@@ -1066,7 +1107,7 @@ export async function illustrateReviewedAudition(args: {
     let result: AuditionAttempt;
     if (spec.saved) {
       const s = spec.saved, r = s.reviewed;
-      if (s.version !== AUDITION_CALIBRATION_VERSION || s.priorSha256 !== spec.priorSha256 || s.contextSha !== contextSha || s.action !== spec.action ||
+      if (continuation || s.version !== AUDITION_CALIBRATION_VERSION || s.priorSha256 !== spec.priorSha256 || s.contextSha !== contextSha || s.action !== spec.action ||
           s.consumedAttemptsBefore !== spec.consumedAttemptsBefore || r.attempt !== attempt || !r.candidate || !r.review ||
           (spec.action === 'requalify' && canonicalJson(r.candidate) !== canonicalJson(prior.chosen.candidate))) fail('audition_calibration_binding');
       const candidate = r.candidate ?? fail('audition_calibration_binding');
@@ -1082,16 +1123,19 @@ export async function illustrateReviewedAudition(args: {
           canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks)
         : await judgeCandidate('page', String(prior.pageNumber), attempt, prior.chosen.candidate, context, contextSha, checks.requirementIds,
           canonical, predecessor, checks.uniqueLandmarks);
-      args.save(`page_${prior.pageNumber}_calibration`, { version: AUDITION_CALIBRATION_VERSION, priorSha256: spec.priorSha256,
-        contextSha, action: spec.action, consumedAttemptsBefore: spec.consumedAttemptsBefore, reviewed: result, status: result.status } satisfies SavedCalibration);
+      args.save(`page_${prior.pageNumber}_${continuation ? 'topology' : 'calibration'}`, {
+        version: continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION, priorSha256: spec.priorSha256,
+        contextSha, action: spec.action, consumedAttemptsBefore: spec.consumedAttemptsBefore, reviewed: result, status: result.status } satisfies SavedCalibration | SavedTopologyContinuation);
       report('page', String(prior.pageNumber), result);
       finish('page', String(prior.pageNumber), [result]);
     }
     const chosen = selectAuditionAttempt('page', [result]) ?? fail('audition_calibration_unavailable');
     // Only FRESH evidence participates in selection. Historical attempts remain explicit and never gain the new policy's verdict.
     return { pageNumber: prior.pageNumber, contextSha, requirementIds: checks.requirementIds, attempts: [result], chosen,
-      status: attemptStatus('page', chosen), calibration: { version: AUDITION_CALIBRATION_VERSION, priorContextSha: prior.contextSha,
-        consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } };
+      status: attemptStatus('page', chosen), ...(continuation ? { topologyContinuation: { version: AUDITION_TOPOLOGY_CONTINUATION_VERSION,
+        priorSha256: spec.priorSha256, consumedAttemptsBefore: spec.consumedAttemptsBefore, action: spec.action, prior } } : {
+        calibration: { version: AUDITION_CALIBRATION_VERSION, priorContextSha: prior.contextSha,
+          consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } }) };
   };
   const pages: SavedPage[] = [];
   let heldSample = false;
@@ -1158,7 +1202,8 @@ export async function illustrateReviewedAudition(args: {
     pageDeferred: designs.pageDeferred,
     pages: presented.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
       identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity),
-      ...(p.rereview ? { rereview: p.rereview } : {}), ...(p.calibration ? { calibration: p.calibration } : {}) })),
+      ...(p.rereview ? { rereview: p.rereview } : {}), ...(p.calibration ? { calibration: p.calibration } : {}),
+      ...(p.topologyContinuation ? { topologyContinuation: p.topologyContinuation } : {}) })),
     approval: 'none: qa_supported is an automated audition label, not product acceptance or production qualification' as const,
     runtimeEligible: false as const, productionQualified: false as const, ownerReviewRequired: true as const };
   args.save('reviewed_audition_manifest', manifest);
