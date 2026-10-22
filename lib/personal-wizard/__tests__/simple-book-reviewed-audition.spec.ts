@@ -136,6 +136,42 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
 }
 
 describe('local anatomical scene repair through the EXISTING bounded loop', () => {
+  const clarityFixture=async()=>{
+    const h=harness({book:typedFixture(),coverage:true});
+    await illustrateReviewedAudition({...h.args,pages:[1],structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    const p=h.saved.get('page_1') as SavedPage,c=h.contexts.get('page_1_0_qa'),prior=p.attempts[0];
+    const request={version:'audition-anatomy-clarity/v1' as const,source:'owner_visual_feedback' as const,candidateSha:prior.candidate!.imageSha,
+      contextSha:p.contextSha,actorId:'child',ownerApprovalSha:sha('owner'),observation:'Owner asks for clearer visible limb attachment; this is not a new pixel verdict.'};
+    return {h,p,c,prior,request};
+  };
+  it('explicit clarity asks for readability without changing intact prior evidence; absent is still no edit',async()=>{
+    const {c,p,prior,request}=await clarityFixture(),before=canonicalJson(prior);
+    expect(auditionLocalAnatomyRepairPlan(prior,c,p.contextSha,c.references)).toBeNull();
+    const plan=auditionLocalAnatomyRepairPlan(prior,c,p.contextSha,c.references,'',request)!;
+    expect(plan.references[0]).toEqual(prior.candidate);expect(plan.prompt).toContain('not a new pixel verdict');
+    expect(plan.prompt).toContain('do NOT presume a fifth limb exists or merely delete a haunch');
+    expect(plan.provenance.clarity).toMatchObject(request);expect(plan.provenance.clarity!.requestSha).toBe(previewSha(canonicalJson(request)));
+    expect(canonicalJson(prior)).toBe(before);
+  });
+  it.each(['candidateSha','contextSha','actorId','ownerApprovalSha','source'])('explicit clarity rejects foreign/invalid %s',async field=>{
+    const {c,p,prior,request}=await clarityFixture(),bad:any={...request,[field]:field==='actorId'?'unknown':field==='source'?'model_guess':field==='ownerApprovalSha'?'':sha('foreign')};
+    expect(()=>auditionLocalAnatomyRepairPlan(prior,c,p.contextSha,c.references,'',bad)).toThrow('audition_scene_clarity_binding');
+  });
+  it('clarity uses one counted edit then full regular QA/identity; old record is untouched',async()=>{
+    const {c,p,prior,request}=await clarityFixture(),calls:string[]=[],before=canonicalJson(prior),candidate=image('clarified');
+    const result=await repairReviewedAuditionPage({page:1,prefix:'r9_',consumedAttemptsBefore:1,prior,context:c,contextSha:p.contextSha,canonical:c.references,
+      predecessor:null,clarity:request,check:()=>{},save:()=>{},render:async step=>{calls.push(step);return candidate;},
+      judge:async(step,im)=>{calls.push(step);return {...structuredClone(prior.review),candidateSha:im.imageSha};},
+      identity:async step=>{calls.push(step);return identity(.9);}});
+    expect(calls).toEqual(['r9_page_1_1','r9_page_1_1_qa','r9_page_1_1_identity']);expect(result.corrected!.sceneRepair!.clarity).toMatchObject(request);
+    expect(result.status).toBe('corrected_supported');expect(canonicalJson(prior)).toBe(before);
+  });
+  it.each(['review_unusable','review_invalid','ineligible_safety'])('clarity cannot bypass %s',async status=>{
+    const {c,p,prior,request}=await clarityFixture(),render=vi.fn();
+    const result=await repairReviewedAuditionPage({page:1,prefix:'r9_',consumedAttemptsBefore:1,prior:{...prior,status:status as any},context:c,contextSha:p.contextSha,
+      canonical:c.references,predecessor:null,clarity:request,check:()=>{},save:()=>{},render,judge:vi.fn(),identity:vi.fn()});
+    expect(render).not.toHaveBeenCalled();expect(result.status).toBe('stopped_unusable_or_unsafe_parent');
+  });
   it.each(['review_invalid','review_unusable','identity_unusable','unavailable','ineligible_safety'])('native F1: %s stops before another page',status=>{
     expect(sceneRepairStops({status:'corrected_not_supported',corrected:{status}} as any)).toBe(true);
   });
