@@ -94,16 +94,6 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
       if (observations.has('matches') && observations.has('contradicted')) bad();
     }
   }
-  // Complete matrix coverage includes proven non-instances. Their mutual unreadable relation cannot change
-  // this source's count. Only uncertain relations between potential source participants affect this source.
-  const uncertainBindings = new Set<string>();
-  for (const l of inventory.landmarks) for (const r of topology.relations) if (r.relation === 'uncertain') {
-    const relevant = [r.from, r.to].every(id => bindings.get(key(l.landmarkId, id))!.extent !== 'not_instance');
-    if (relevant) for (const id of [r.from, r.to]) {
-      // Propagate to all aliases of either relevant body, not just the relation's observation IDs.
-      for (const alias of ids.filter(other => root(other) === root(id))) uncertainBindings.add(key(l.landmarkId, alias));
-    }
-  }
   const uncertain = new Set<string>(), positive = new Set<string>(), owner = new Map<string, string>();
   for (const l of inventory.landmarks) for (const c of l.candidates) {
     const binding = bindings.get(key(l.landmarkId, c.objectId)) ?? bad();
@@ -116,7 +106,7 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     } else if (c.association === 'different_object') bad();
     const supported = kindObserved === 'matches' && !c.featureChecks.some(x => x.observed === 'contradicted') &&
       new Set(matched.map(f => f.aspect)).size >= 2;
-    if (binding.extent === 'uncertain' || uncertainBindings.has(key(l.landmarkId, c.objectId))) uncertain.add(l.landmarkId);
+    if (binding.extent === 'uncertain') uncertain.add(l.landmarkId);
     if (binding.extent === 'whole_instance' && c.association !== 'different_object' && !supported) uncertain.add(l.landmarkId);
     if (c.association !== 'this_landmark') continue;
     if (binding.extent !== 'whole_instance' || kindObserved === 'contradicted') bad();
@@ -135,9 +125,17 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     const anchors = groups.filter(g => positive.has(key(l.landmarkId, g)) &&
       (binding.extent === 'component_only' ? ancestor(physical, g) : ancestor(g, physical)));
     // A containing aggregate may include multiple member instances; exclude ONLY the aggregate, never merge those members.
-    if ((binding.extent === 'component_only' ? anchors.length === 1 : anchors.length > 0) && !uncertainBindings.has(key(l.landmarkId, c.objectId)))
+    if (binding.extent === 'component_only' ? anchors.length === 1 : anchors.length > 0)
       exclusions.add(key(l.landmarkId, c.objectId));
     else uncertain.add(l.landmarkId);
+  }
+  // Decide relevance AFTER independently justified exclusions. A part's exclusion needs its KNOWN path to
+  // its own positive whole, never the unreadable relation to another already-proved part/containing aggregate.
+  // If the required path is unreadable it did not enter the DAG above, so the exclusion already failed/held.
+  for (const l of inventory.landmarks) for (const r of topology.relations) if (r.relation === 'uncertain') {
+    const canCount = (id: string) => bindings.get(key(l.landmarkId, id))!.extent !== 'not_instance' &&
+      !exclusions.has(key(l.landmarkId, id));
+    if (canCount(r.from) && canCount(r.to)) uncertain.add(l.landmarkId);
   }
   return { topology, objectGroup: (id: string) => groups.indexOf(root(id)),
     knownDistinct: (a: number, b: number) => {

@@ -124,6 +124,52 @@ describe('prospective typed landmark topology: no source-specific rules or legac
     s.inventory.topology.relations[0] = relation('o2', 'o1', 'uncertain');
     expect(assess(s).assessment.counts.continuity).toBeGreaterThan(0);
   });
+  it.each(['components', 'containers', 'component_and_container'])(
+    'known %s stay excluded when only their mutual relation is unreadable', variant => {
+      const s = single();
+      s.inventory.objects.push(object('o3'));
+      s.inventory.landmarks[0].candidates.push(candidate('o3'));
+      s.inventory.topology.bindings.push(binding('a', 'o3', 'building'));
+      for (const c of s.inventory.landmarks[0].candidates.slice(1)) c.featureChecks[0].observed = 'contradicted';
+      const extents = variant === 'components' ? ['component_only', 'component_only'] : variant === 'containers'
+        ? ['containing_aggregate', 'containing_aggregate'] : ['component_only', 'containing_aggregate'];
+      s.inventory.topology.bindings[1].extent = extents[0]; s.inventory.topology.bindings[2].extent = extents[1];
+      s.inventory.topology.relations = extents.map((extent, i) => extent === 'component_only'
+        ? relation(`o${i + 2}`, 'o1', 'component_of') : relation('o1', `o${i + 2}`, 'component_of'));
+      s.inventory.topology.relations.push(relation('o2', 'o3', 'uncertain'));
+      const a = assess(s as any).assessment;
+      expect(a.landmarks?.[0]).toMatchObject({ instances: 1, strong: 1, excluded: 2, topologyUncertain: false });
+      expect(a.counts.continuity).toBe(0);
+      // An unreadable REQUIRED path to the positive anchor is still material; labels never establish membership.
+      s.inventory.topology.relations[0] = relation('o1', 'o2', 'uncertain');
+      expect(assess(s as any).assessment.counts.continuity).toBeGreaterThan(0);
+    });
+  it('all definite completions of an irrelevant component-pair preserve the one whole count', () => {
+    const s = single(); s.inventory.objects.push(object('o3')); s.inventory.landmarks[0].candidates.push(candidate('o3'));
+    s.inventory.topology.bindings[1].extent = 'component_only';
+    s.inventory.topology.bindings.push(binding('a', 'o3', 'building', 'component_only'));
+    s.inventory.topology.relations = [relation('o2', 'o1', 'component_of'), relation('o3', 'o1', 'component_of'), relation('o2', 'o3', 'uncertain')];
+    for (const r of [relation('o2', 'o3', 'uncertain'), relation('o2', 'o3'), relation('o2', 'o3', 'same_object'),
+      relation('o2', 'o3', 'component_of'), relation('o3', 'o2', 'component_of')]) {
+      s.inventory.topology.relations[2] = r;
+      expect(assess(s as any).assessment.landmarks?.[0]).toMatchObject({ instances: 1, strong: 1, excluded: 2, topologyUncertain: false });
+    }
+    // Without a positive whole anchor, even the same known component paths do not justify exclusion.
+    s.inventory.landmarks[0].candidates[0].featureChecks[0].observed = 'not_visible';
+    expect(assess(s as any).assessment.counts.continuity).toBeGreaterThan(0);
+  });
+  it('an uncertain pair can be irrelevant for the aggregate but material for its whole member instances', () => {
+    const s = aggregate('forest', 'tree'); s.inventory.objects.push(object('o3'));
+    for (const l of s.inventory.landmarks) l.candidates.push(candidate('o3'));
+    s.inventory.topology.bindings.push(binding('a', 'o3', 'forest', 'component_only'), binding('b', 'o3', 'tree'));
+    s.inventory.topology.relations.push(relation('o3', 'o1', 'component_of'), relation('o2', 'o3', 'uncertain'));
+    const a = assess(s).assessment;
+    expect(a.landmarks?.[0]).toMatchObject({ instances: 1, excluded: 2, topologyUncertain: false });
+    expect(a.landmarks?.[1]).toMatchObject({ instances: 2, topologyUncertain: true });
+    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:b', verdict: 'uncertain' })]);
+    s.inventory.topology.relations[2] = relation('o2', 'o3');
+    expect(assess(s).assessment.findings).toContainEqual(expect.objectContaining({ requirement: 'landmark_unique:b', verdict: 'defect' }));
+  });
   it('does not merge two whole members just because both belong to one aggregate', () => {
     const s = aggregate('forest', 'tree');
     s.inventory.objects.push(object('o3'));
