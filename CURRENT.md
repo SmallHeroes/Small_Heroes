@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Real local repair p4 improved; p7 count disputed — general explicit clarity gate NEXT (2026-10-23)
+
+- Actual1e7f recovery at47c2a535 native0,22:23:07.820Z..22:30:09.420Z;4knowncalls381790microUSD/ONELOWp4. Original591book+authority
+  files preserved. P4 freshanatomy4/childidentity~1.0, remainsheld onlygolden-ground continuity1. P7 FIRSTreview counts4/intact/central
+  haunch, not5; remainsheld for5OTHERfindings. NO p7edit ran. Owner/initialCodex5reading vsjudge4 is unresolvedreadability, not proved fifth.
+- General opt-in owner_visual_feedback clarityrecord bindsactor/image/context/ownerSHA/requestSHA, separatefromtypeddefectobservations.
+  Requests readable canonical limb paths/minimalpose, sourceactionunchanged; notanotherpixeljudge or fakeintact->defect/PASS. Default
+  typed-defect-only behavior unchanged. Safety/invalid/unusable/foreign/unknownactor binding cannotauthorizeedit. Fullfreshquality/v2/.70.
+- New fixedONEUSE successor follows consumed1e7f grant/claim/finishedoutcome +validp7diagnosis; exactnativeguard no p7edit record,57calls,
+  oldcountersp1=2/p2=6/p4=2/p7=1. Carries ONLYunusedONELOW/THREEcalls r9_page_7_1{,_qa,_identity}, totalsincludingparent2LOW/7calls.
+  No p4retry/newdiagnosis/Max/story/child/sheets/book/reset, no oldgrantrepin. Original7mbook/8mcycle/89/600k andUNKNOWN retained.
+- Bookknown4167094 +old1200000debits+600000provision=5967094; cycle6096024;0newunknown,3oldactualchargesUNKNOWN/1oldoutcomeUNKNOWN.
+- 39targetedtests0,23native/REAL first-render metercontrols0,tsc0 at22:38:45.789Z beforecodecommit. Earlierclarity-tsc-code RED2 was
+  TypeScriptnullable narrowing in newrunner, fixed viaexplicitnonnullableguards; logsretained, not a runtime/providerfailure.
+- Q=r1-anatomy-clarity-20261023. NextdocsLAST/cleanfrozenexactunusedgrant/operator/SAMEindependentreadonlyPASS/freshpreflight,
+  thenalreadyapprovedp7clarityedit, FULLquality/identity/pixelrecheck, complete8page+coverbeforeafterviewer andindependentoutcomeaudit.
+  FullcheckhistoricalRED unchanged; no broadhourlongsuite. No production/push/merge/deploy/delete/cleanup/newtask/agent/worktree/key.
+
 ## Local scene attempt aborted BEFORE provider — strict-meter routing fixed; exact recovery gate NEXT (2026-10-23)
 
 - Real native run after exactF1PASS9d9a2e92/preflight0 atd5db901d:22:03:39.239Z..22:03:50.772Z native1/audition_meter_rule. Actualscene

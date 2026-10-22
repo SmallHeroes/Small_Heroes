@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Same book anatomy readability — corrected p4, explicit p7 clarity remainder gate (2026-10-23)
+
+- Real1e7f native0/4calls381790/ONELOWp4:actual4limbs,identity~1.0,heldonlygolden-ground1. P7firstreviewcounts4/haunch, noimage; human
+  fivevsjudgefour isnotsettled. Do not invent fifth-proof or completedrepair. Alloriginals/actualfailedmeterabort preserved.
+- General explicit candidate/context/actor/owner-bound clarity request, separatedfromvalidoldpixelverdict, fullfreshQA/.70afteredit.
+  SameunusedremainderONELOW/3calls, total2LOW/7includingcompletedparent; no p4retry/newbudget/story/sheet/book/reset/unknownexception.
+- 39targetedtests/23nativeREALmetercontrols0,tsc0; docsLAST/exactSAMEindependentreview/freshpreflightthenactualp7editandfullviewer/outcome.
+
 ## Diagnosed zero-API meter-route abort — general first-review routing fixed, one-use successor gate next (2026-10-23)
 
 - Real01acnative failedBEFOREprovider at22:03:50.772Z/audition_meter_rule;0newpaidclaims/images/key,53/89/costsunchanged. Preserveactual
