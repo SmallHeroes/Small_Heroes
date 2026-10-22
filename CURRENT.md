@@ -1,6 +1,39 @@
 # SmallHeroes — Current Technical State
 
-## Codex takeover: general landmark evidence projection and ONE bounded sample calibration built offline (c4b9cd3b); independent review pending; no new paid calls (2026-10-22)
+## General calibration executed and closed: first sample HELD; independent outcome-accuracy PASS, NOT a complete book (2026-10-22)
+
+- **Current result:** code `c4b9cd3b`, frozen docs head `781a12d2`, independently reviewed range `47898d1e..781a12d2` and exact grant
+  `4856710d…` passed the technical gate. Fresh preflight passed. The real native run finished at 08:19:49 UTC with exit 0 and terminal
+  `held_sample`; exit 0 is orderly completion, NOT book success. This ONE grant is now consumed and cannot be repinned/retried.
+- **Exactly two calls, no new images:** quality review 91254 + numeric identity 5600 = 96854 microUSD. The unchanged first saved
+  image was requalified prospectively under v11 and held. The planned fourth correction of page 2 did NOT happen, nor any downstream
+  page or cover. Old page-1 PASS and page-2 HOLD remain historical under their original contexts; neither is a new-policy approval.
+- **What blocks:** the raw environment check passes, identity passes at approximately 1.0 against 0.70, and the framing finding is
+  `detail`/nonblocking. Two continuity uncertainties are DERIVED from `possible_copy` associations for the enclosing walls and their
+  prominent cliff, while their evidence describes a joined system rather than a separate enclosing ring/landmark. The flat inventory
+  schema has no part/whole, containment or shared physical-system relation. Existing region/ownership checks do not supply that relation.
+  This confirms a representation gap and supports the topology diagnosis, not proof that no duplicate concern exists in the pixels
+  or that this is the sole cause. Free prose must not silently override typed uncertainty or turn this old HOLD into PASS.
+- **Independent evidence:** the owner-approved separate read-only reviewer first passed code/grant (188 engine tests, 442 controls,
+  75 baseline/payload controls, nonincremental tsc 0), then independently rebuilt the actual paid wire and raw-to-assessment result.
+  Outcome verification: 470 focused controls, exit 0, mostly hashes/preservation rather than 470 semantic tests. Its first verifier
+  invocation failed on the reviewer's own uppercase/wording regex, not the product; original failure retained, assertion corrected,
+  actual viewer unchanged, final run green. No heavy suite/typecheck was repeated by outcome QA. Historical full check stays RED.
+- **Preservation:** all 340 old book files and 28 old authority files unchanged; exactly 15 book + 2 authority files added, zero
+  images added. The audit-only delivery snapshot equals all 355 current book files and 30 current relevant authority records.
+- **Money now:** book known 1850772 + approved conservative debits 1200000 = 3050772/7000000 microUSD; remaining 3949228.
+  Two OLD actual charges remain UNKNOWN, not invoices; no new unknown/pending/reservation. Book calls 43 (41 known + 2 old unknown),
+  audition 25, cycle 51 including 8 consumed diagnostic calls. Cycle known 1979702, accounted 3179702/8000000. No new Max invocation;
+  historical book Max 5502244/8 sessions remains separate, and unmeasured engineering Max is not zero.
+- **Delivery:** `same-book-calibration-outcome-20261022` under the existing Codex artifact root contains the honest cover-first viewer,
+  all 8 exact Hebrew texts, references/attempts/raw snapshots, detailed report and QA verdicts. Missing illustrations are explicitly
+  not drawn; both sheets stay held/diagnostic. Product acceptance remains Guy's; this is NOT a finished illustrated book.
+- **Next gate, not execution:** versioned general part/whole topology evidence, adversarial countertests and independent QA, then
+  genuine new applicable evidence/explicit bounded continuation authority if approved. Do not redraw solely to hide representational
+  uncertainty, parse prose into PASS, whitelist names, reopen this grant or run an unchanged wire to fish for PASS. No further provider
+  run/automatic dispatch is active; no source/default-production gate, 0.70, cap, attempt history or old record was weakened.
+
+## Historical pre-execution handoff: general landmark evidence projection and ONE bounded calibration built offline (c4b9cd3b); superseded by terminal outcome above (2026-10-22)
 
 - **Actual prior outcome, not a successful book:** the consumed re-review grant `125bb545…` ran with two calls (98496 microUSD),
   no images, and ended `held_sample`. The child identity passed; the companion mane remained a material identity defect, alongside

@@ -1,6 +1,26 @@
 # SmallHeroes — Roadmap
 
-## General evidence projection + bounded same-book sample calibration (c4b9cd3b), offline complete; independent QA next (2026-10-22)
+## General calibration completed as HELD_SAMPLE; book incomplete; topology evidence is the separate next gate (2026-10-22)
+
+- Code/grant passed independent read-only QA at `781a12d2` (code `c4b9cd3b`); exact preflight then native execution finished exit 0
+  with terminal `held_sample`. Grant `4856710d…` is consumed, not a reusable allowance. No automatic provider run is active.
+- The first unchanged saved sample received 2 fresh reviews (96854 microUSD). No image was drawn; page-2 attempt 4 and all downstream
+  illustrations/cover were NOT performed. Prior contexts, raw, attempts, holds, grants and both held sheets remain unchanged.
+- Current blocker is not money, identity or cosmetic framing: two derived inventory uncertainties remain because typed `possible_copy`
+  coexists with evidence describing one joined landscape. Schema lacks part/whole/containment; region and ownership logic do not model
+  it. General representation gap confirmed; no claim of a uniquely proven sole cause or a new pixel PASS.
+- Independent outcome-accuracy PASS: actual wire and raw-derived HOLD reproduced; 470 focused controls (mostly hashes), exit 0.
+  Initial reviewer's wording-regex assertion error preserved and corrected without changing product. Old 340 book + 28 authority files
+  byte-identical; audit snapshot matches current 355 + 30. Full check stays RED, and outcome PASS is NOT book/product PASS.
+- Book accounted 3050772/7000000 (1850772 known + 1200000 approved conservative debits, two actual OLD charges still unknown).
+  Cycle accounted 3179702/8000000; 43 book calls / 51 cycle calls; no new unknown. Max historical/separate; no new Max call.
+- Honest cover-first viewer, exact 8 Hebrew texts, attempts/references/raw and detailed report are in the existing artifact root's
+  `same-book-calibration-outcome-20261022`. Missing images remain labelled missing; no finished-book claim.
+- Next: a separate versioned general topology contract, counterexamples for false containment/disconnected duplicates/uncertainty,
+  independent QA and genuine fresh bound evidence/continuation gate. Not a prose heuristic, per-landmark patch, old HOLD conversion,
+  redrawing to conceal uncertainty, retry on the consumed grant or invented higher cap. Owner product acceptance still required.
+
+## Historical pre-execution handoff: general evidence projection + bounded calibration (c4b9cd3b), offline stage; superseded above (2026-10-22)
 
 - Codex now implements/operates per Guy's direct takeover; ONE separate read-only reviewer explicitly approved while Claude is paused.
 - The actual last run ended `held_sample`, not a book: a material companion-mane finding and three derived landmark uncertainties;
