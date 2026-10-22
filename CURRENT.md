@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Actual v12 topology trial HELD; new F4/P2 and inventory-coverage contract block full book (2026-10-22)
+
+- General topology F1/F2/F3 and exact native route had genuine independent code/unused-grant PASS. Actual foreground run at clean
+  `0321844a`/grant`a1db1f82` completed native0,11:15:02.982Z..11:18:47.738Z, but **held_sample**, NOT full-book completion.
+  Only first existing image was newly judged:2calls/130102microUSD,0images. Its two historical renders and page2's three remain unchanged;
+  no fourth page2 drawing, cover or pages3–8. The fixed new claim is consumed; unused remaining budget/calls cannot reopen it.
+- New raw correctly supplies o2 component_of o1 / visible_attachment. New **F4/P2 independently VERIFIED**: positive-anchor support rejects
+  ANY contradicted feature even decisive:false. Here a listed-only 'sand' cue cancels otherwise positive decisive kind+current-gray anchor,
+  preventing known-component exclusion. Generic building/window witness and exact isolated causal probe reproduce it. This is a general
+  cue-semantics contract inconsistency, not a missing-topology representation or parser/arithmetic failure. Legacy cross-source conservative
+  identity is a separate rule; do not silently rewrite it or consumed v12's historical assessor. No real raw/assessment was edited.
+- Separate EXPLICIT judge uncertainty remains: exhaustive every-ANY-shared-cue coverage of numerous stones cannot be certified under10
+  observed objects/fullmatrix. Six listed principal objects do not establish exhaustive coverage or prove actual >10 relevant objects.
+  No true duplicated boulder was established. F4-only counterfactual removes only derived wall uncertainty, NOT this explicit hold.
+  Framing~59% child vs25% planned is still nonblocking detail; numeric identity~1.0/.70 passes, not standalone age/product acceptance.
+- SAME independent actual outcome QA: accuracyPASS, bookNOTPASS;30/30 controls exit0, actual quality/identity wire/receipt/meter replay,
+  generic causal/negative controls, all420 initial delivery entries and355old book+30old authority hashes preserved. Initial scratch usage
+  normalization RED retained as harness error, not runtimeprice change. Author reconciliation17/staticviewer21/17localimages pass.
+- Bookknown1980874 +OLD approveddebits1200000 =3180874/7m (remaining3819126), cycle3309804/8m; audition27/89calls; TWO OLD actual charges
+  stay UNKNOWN, no new unknown/reserve/Max. Usage-derived figures are not verified invoices. Historical unmeasured engineering Max not0.
+- Delivery ART`same-book-topology-outcome-20261022/viewer/index-v2.html`: cover slot/all8 exact Hebrew texts, explicit missing NEW pictures,
+  all old attempts/refs/raw/ledger; old index/inventory unchanged. Page2 says not reviewed under NEWcontract, not falsely never drawn.
+  File URL browser navigation security-refused, no bypass; static/image inspection only, NOT live browser/full-book visual QA.
+- Engine is still NOT autonomously full-book ready. Next safe work is a bounded PROSPECTIVE general F4/coverage contract repair with
+  explicit candidate/relevance/negative-coverage semantics, tests and separate QA; preserve old v12/claims/counts and require genuinely
+  fresh exact successor evidence/authority before providers. No blind cap increase/model retry/manual story or pixel fix/HOLD conversion.
+  Current code stays unchanged; this entry is docs-only AFTER actual-outcome QA, not repinning any consumed grant. No push/production.
+
 ## General topology independently PASS; new native same-book continuation built offline (b60515ad), separate QA next (2026-10-22)
 
 - SAME owner-approved independent reviewer issued PASS at `c73f7254` in artifact `INDEPENDENT-QA-TOPOLOGY-F3-20261022.txt`:

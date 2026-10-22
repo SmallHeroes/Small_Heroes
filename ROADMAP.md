@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Full-book trial stopped at first fresh sample; NEW F4/P2 and capacity contract exposed (2026-10-22)
+
+- Actual exact native run0321844a/a1db1f82CONSUMED:2knowncalls130102microUSD,0images,held_sample. No page2fourth/cover/pages3–8.
+- Independent outcome accuracyPASS30controls; actual typedcomponent is correct. Nondecisive contradiction cancels positiveanchor (F4/P2),
+  and separate explicit inventory-coverage uncertainty still blocks. No duplicate/actual>10geometry claim. Oldv12 result remains HOLD.
+- Current book NOTcomplete/NOTproductPASS; sourcecode frozen, all385oldhashes/420snapshot preserved,21staticviewerchecks/no livebrowserQA.
+  Bookaccounted3180874/7m,cycle3309804/8m,27/89auditioncalls,2OLDunknownactualcharges/debits unchanged, no newunknown/Max.
+- Next: bounded prospective GENERALcue-authority/coverage contract, preserving legacy identity/v12 replay and true duplicates/uncertainty;
+  exact new code/allowance/successor QA required, never oldgrantretry, manualstory/pixels or blanketcap/model enlargement. No push.
+
 ## Topology code independently PASS; one-use native full same-book LOW test route ready for separate QA (2026-10-22)
 
 - General topology F1/F2/F3 independently closed atc73f7254. New native continuation code b60515ad follows, never reopens, spent4856710d.
