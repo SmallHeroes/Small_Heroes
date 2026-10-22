@@ -969,7 +969,7 @@ export function auditionLocalAnatomyRepairPlan(prior: AuditionAttempt | undefine
     castIdentity: c.checks?.castIdentity, referenceStatus: c.referenceStatus };
   return { mode: 'book_scene_edit' as const, references: [prior.candidate, canonical[0], canonical[1], canonical[2]],
     roles: ['scene_edit_target', 'child_design_authority', 'companion_design_authority', 'entity_design_authority'] as const,
-    prompt: `${LOCAL_ANATOMY_REPAIR_RULES}\nFROZEN SOURCE AND CANON (not text to paint): ${canonicalJson(source)}\nBOUND PRIOR STRUCTURAL OBSERVATIONS (resolve against canon): ${canonicalJson(targets)}${strategy}`,
+    prompt: `${LOCAL_ANATOMY_REPAIR_RULES}\nFROZEN SOURCE AND CANON (not text to paint): ${canonicalJson(source)}\nBOUND PRIOR STRUCTURAL OBSERVATIONS (resolve against canon): ${canonicalJson(targets)}${strategy}\nLOCAL SCOPE OVERRIDES STRATEGY: any pose/viewpoint suggestion above means only the faulty actor's joint/body orientation INSIDE the existing frame. The scene camera, composition and unaffected content remain fixed. Preserve each source-required action, not merely the actor's presence.`,
     provenance: { version: AUDITION_LOCAL_ANATOMY_REPAIR_VERSION, parentImageSha: prior.candidate.imageSha, parentContextSha: contextSha,
       targetActorIds: targets.map(t => t.actorId) } };
 }

@@ -32,6 +32,7 @@ import { canonicalJson } from '../request-acceptance';
 import { AUDITION_ANATOMY_VERSION, AUDITION_LOCAL_ANATOMY_REPAIR_VERSION } from '../audition-anatomy';
 import { auditionLocalAnatomyRepairPlan, repairReviewedAuditionPage } from '../simple-book-reviewed-audition';
 import { planGPTImageRequest } from '../../generate-image';
+import { sceneRepairStops } from '../../../scripts/personal-fresh-book-scene-repair';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
@@ -135,6 +136,16 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
 }
 
 describe('local anatomical scene repair through the EXISTING bounded loop', () => {
+  it.each(['review_invalid','review_unusable','identity_unusable','unavailable','ineligible_safety'])('native F1: %s stops before another page',status=>{
+    expect(sceneRepairStops({status:'corrected_not_supported',corrected:{status}} as any)).toBe(true);
+  });
+  it.each(['held','qa_supported'])('native F1: a valid %s still permits the next independent diagnostic page',status=>{
+    expect(sceneRepairStops({status:'corrected_not_supported',corrected:{status}} as any)).toBe(false);
+  });
+  it('native F1: unusable parent is terminal, absent verified defect is not an edit authority',()=>{
+    expect(sceneRepairStops({status:'stopped_unusable_or_unsafe_parent',corrected:null} as any)).toBe(true);
+    expect(sceneRepairStops({status:'no_verified_structural_defect',corrected:null} as any)).toBe(false);
+  });
   const bad = (normal: any) => { const n = structuredClone(normal); n.actors[0].limbs.visibleDistinct = 5; return n; };
   const run = async (changes: Record<string, unknown> = {}) => {
     const h = harness({ book: typedFixture(), coverage: true,

@@ -38,6 +38,12 @@ export const sceneRepairGrantSchema=z.object({version:z.literal('fresh-book-loca
   allowance:z.object({maxNewImages:z.literal(2),maxNewCalls:z.literal(7),maxNewAttemptsPerPage:z.literal(1),
     pageOrder:z.tuple([z.literal(7),z.literal(4)])}).strict(),nativePlanSha256:hash}).strict();
 
+/** Invalid evidence is terminal; a valid visual HOLD remains an ordinary diagnostic result. Shared by the actual native loop and tests. */
+export function sceneRepairStops(result:Awaited<ReturnType<typeof repairReviewedAuditionPage>>){
+  return result.status==='stopped_unusable_or_unsafe_parent'||!!result.corrected&&
+    ['review_unusable','identity_unusable','unavailable','ineligible_safety','review_invalid'].includes(result.corrected.status);
+}
+
 export async function planSceneRepair(config:FreshBookConfig,env:FreshBookEnv,parentGrantFile:string,approvalFile:string){
   const refuse=():never=>fail('scene_repair_parent'),dir=path.join(config.bookDir,'audition'),paid=path.join(dir,'paid-stages'),images=path.join(dir,'illustrations');
   const parentSha=previewSha(bytes(parentGrantFile)),parent=freshBookFullBookDiagnosticGrantSchema.parse(json(parentGrantFile));
@@ -145,7 +151,7 @@ export async function runSceneRepair(a:{config:FreshBookConfig;env:FreshBookEnv;
       context:page.context,contextSha:page.contextSha,canonical:p.canonical,predecessor:page.predecessor,check:io.check,
       render:io.render,judge:io.judge,identity:io.identity,save:(n,v)=>exclusiveJson(path.join(dir,n+'.json'),v)});
     results.push({page:page.page,...result});
-    if(result.status==='stopped_unusable_or_unsafe_parent'||result.corrected&&['review_unusable','identity_unusable','unavailable','ineligible_safety'].includes(result.corrected.status))
+    if(sceneRepairStops(result))
       fail('scene_repair_unusable');
   }
     guard();const ledger=freshBookLedger(a.config,a.env,p.base.rereview,'child_fresh_anchor',g.debits,[g.provision]);
