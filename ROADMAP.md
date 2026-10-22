@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Renewed owner-authorized full same-book route: prospective coverage/F4 engine built, independent QA next (2026-10-22)
+
+- General code1d481733 follows65b7b8e5: explicit v2/v13/v4/coverage-v1, no reinterpretation of consumed v12. Decisive-only anchor authority,
+  four exact global scans, all-source negative population witnesses and typed unresolved HOLD, true-whole/perspective/F1F2F3 defenses.
+- SAME approved read-only reviewer accepted design direction; final317focused/15native controls/tsc0,0providers/key/images/Max. Fullcheck
+  historicalRED remains. Exact fresh firstwire59d1d556 previewed at clean codehead, no new claim/admission/outcome yet.
+- New fixed native coverage successor preserves same book/child/sheets/story,2/3renders and old costs. Firstsaved quality+identity once,
+  only PASS secondstillunusedfourth LOW, bothsamplesPASS then cover/pages3–8 ordinary3attempts within remaining62/89 and7/8caps.
+- Next frozen independent code/native/grant QA then exact preflight/execute automatically under renewed DIRECT approval. No new permission
+  question in same scope, but no reset/repin of spentclaims or HOLD bypass either. Held refs stay diagnostic; product acceptance Guy's.
+
 ## Full-book trial stopped at first fresh sample; NEW F4/P2 and capacity contract exposed (2026-10-22)
 
 - Actual exact native run0321844a/a1db1f82CONSUMED:2knowncalls130102microUSD,0images,held_sample. No page2fourth/cover/pages3–8.

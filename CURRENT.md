@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## General F4/coverage v2 implemented; new same-book native successor offline, independent QA next (2026-10-22)
+
+- Guy directly renewed general-engine repair/full illustrated same-book authority after the actual v12 HOLD. Same chat/sole Codex writer,
+  same explicitly approved read-only reviewer (Claude usage-paused), no extra task/agent/worktree/monitor. Immutable design4ee7f998 and
+  independent DESIGN READY6cdaf790 +global-refinementb232c526 are ART`r1-general-landmark-coverage-20261022`; NOT code/paid/pixel PASS.
+- Code `1d481733` parent`65b7b8e5`: prospective topology/v2 +policy/v13 +page-context/v4 +coverage/v1 selected jointly. V1/v12's original
+  nondecisive veto, wire/schema/instruction/assessment and legacy identityConfirmed remain exact; old actual HOLD/claims/raw are preserved.
+  V2 positive-anchor strength ignores ONLY nondecisive contradictions, keeping observations and every explicit material/safety issue.
+- Candidate contract replaces inherited every-ANY-cue demand. Four GLOBAL quadrant scans exactly bind global oID/pID quadrant sets.
+  Negative populations require a full canonical-source matrix, decisive aspect/basis evidence, uniform readable membership and individually
+  listed non-instance witnesses. Mixed/unreadable/missing coverage or grounded-size uncertainty derives HOLD even rawcomplete/pass.
+  Size needs a different known visible scale reference; no pixel-smallness/prose ordinary/name exemption. Individual possible/whole objects
+  are never subtracted; original graph/F1F2F3, whole-copy, hidden connectivity, canonical kind/ownership and 0.70 remain protected.
+- Native fixed audition-coverage line follows consumed a1db1f82, replays old v12 and all original parents plus actual quality wire/identity
+  receipt before preview/claim. Dry preview at clean codeHEAD succeeded: fresh r5_page_1_1_qa/contextdc76a58c/wire59d1d556. Same firstimage,
+  zero firstdraws; only firstPASS permits still-unperformed page2index3/fourth LOW+quality/identity, then bothPASS same cover/pages3–8
+  ordinary3attempts/diagnosis. New claim/admission/outcome names are fixed, not a relabelled reset; ordinary resume stays refused.
+- Final focused317/317 (5files),15native actual-data/refusal controls, nonincremental tsc all exit0. Synthetic full-book path validates
+  first0draws/secondfourth/7remainingframes, not pixels. Historical fullcheck RED unchanged/not rerun. Retained initial syntax RED (fixed),
+  initial tsc narrowing/negative-fixture-type errors (fixed), and316/317 RED from a safety test wrongly expecting a held return instead of
+  existing no-eligible-candidate rejection (fixture expectation corrected, safety engine NOT weakened). No source changes during final run.
+- Bookknown1980874+OLDapproveddebits1200000=3180874/7m;cycle3309804/8m;audition27/89 consumed/62left. TWO OLD actual charges remain UNKNOWN,
+  no new API/image/Max/key read. Existing600000 review reservation/budget/call ceilings unchanged; nominal26newcalls, retries not guaranteed.
+  Held sheets remain diagnostic, so a future fully illustrated reader still does not imply fully-supported complete/product PASS.
+- Next: docs-LAST frozen clean handoff, same independent code/native/unused-grant QA and focused re-gate if required; ONLY then exact fresh
+  preflight and paid native run under renewed owner authority. No repeat owner question, oldgrant repin/reset, blind retry, manual story/pixel
+  fix, production/Wizard/customer delivery, HIGH, push/merge/deploy/delete or extra authority. Current real book remains held until fresh evidence.
+
 ## Actual v12 topology trial HELD; new F4/P2 and inventory-coverage contract block full book (2026-10-22)
 
 - General topology F1/F2/F3 and exact native route had genuine independent code/unused-grant PASS. Actual foreground run at clean
