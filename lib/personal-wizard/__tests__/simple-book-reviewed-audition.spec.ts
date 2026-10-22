@@ -28,6 +28,7 @@ import { previewSha } from '../../local-story-preview';
 import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { canonicalJson } from '../request-acceptance';
+import { AUDITION_ANATOMY_VERSION } from '../audition-anatomy';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
@@ -77,7 +78,8 @@ const singleInventory = (context: any) => {
 };
 function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) => number; renderFail?: (step: string) => Error | null;
   book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T>;
-  inventory?: (step: string, context: any) => unknown; topology?: true; coverage?: true } = {}) {
+  inventory?: (step: string, context: any) => unknown; topology?: true; coverage?: true;
+  anatomy?: (step: string, context: any, normal: any) => unknown } = {}) {
   const prompts = new Map<string, string>(), saved = new Map<string, unknown>(), contexts = new Map<string, any>();
   const wrap = opts.wrap ?? (<T>(_step: string, work: () => Promise<T>) => work());
   const args = {
@@ -114,14 +116,106 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
             objectIds: quadrant === 'top_left' ? (inventory as any).objects.map((o: any) => o.objectId) : [],
             evidence: 'synthetic complete quadrant witness, not pixel proof' })) } } : {}),
       } } : inventory;
+      const anatomy = (context as any).anatomy ? {
+        version: AUDITION_ANATOMY_VERSION, actors: (context as any).anatomy.castIds.map((actorId: string) => ({ actorId,
+          region: 'synthetic actor body, not pixel proof', parts: [{ part: 'limbs', condition: 'intact', expectedTotal: 4,
+            expectationBasis: 'canonical_design', expectationEvidence: 'Synthetic four-limbed design', visibleDistinct: 3,
+            unseen: 'occluded', evidence: 'Three attached paths; fourth naturally hidden', correction: '' }] })) } : undefined;
       return { ...review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {}),
-        ...(kind === 'page' ? { landmarkInventory: typed } : {}) };
+        ...(kind === 'page' ? { landmarkInventory: typed } : {}),
+        ...(anatomy ? { anatomy: opts.anatomy ? opts.anatomy(step, context, anatomy) : anatomy } : {}) };
     })),
     identity: vi.fn((step: string) => wrap(step, async () => identity(opts.score?.(step) ?? .82))),
     check: vi.fn(), save: (name: string, value: unknown) => { saved.set(name, JSON.parse(JSON.stringify(value))); },
   };
   return { args, prompts, saved, contexts };
 }
+
+describe('prospective anatomy through the EXISTING assessment and bounded page loop', () => {
+  const bad = (normal: any) => { const n = structuredClone(normal); n.actors[0].parts[0].visibleDistinct = 6;
+    n.actors[0].parts[0].unseen = 'not_applicable'; n.actors[0].parts[0].evidence = 'Six visible attached paths for a four-limbed actor'; return n; };
+  it('six limbs with all explicit checks and numeric identity passing still corrects instead of accepting detail', async () => {
+    const h = harness({ book: typedFixture(), coverage: true,
+      anatomy: (step, _context, n) => step === 'page_1_0_qa' ? bad(n) : n });
+    const m = await illustrateReviewedAudition({ ...h.args, pages: [1], structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    expect(m.policy.version).toBe('reviewed-audition-policy/v14');
+    const p = h.saved.get('page_1') as SavedPage;
+    expect(p.attempts[0].status).toBe('held'); expect(p.status).toBe('qa_supported');
+    expect(p.attempts[0].assessment!.counts.identity).toBe(1);
+    expect(h.prompts.get('page_1_1')).toContain('anatomy:child');
+    expect(h.prompts.get('page_1_1')).toContain('existing total');
+    expect(h.contexts.get('page_1_1_qa')).toMatchObject({ version: 'audition-page-context/v5' });
+  });
+  it('two structural failures produce persisted diagnosis, different strategy, no fourth ordinary attempt', async () => {
+    const h = harness({ book: typedFixture(), coverage: true, anatomy: (_s, _c, n) => bad(n) });
+    await illustrateReviewedAudition({ ...h.args, pages: [1], recovery: true, structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    const p = h.saved.get('page_1') as SavedPage;
+    expect(p.attempts).toHaveLength(3); expect(p.status).toBe('held'); expect(p.recovery!.diagnoses).toHaveLength(1);
+    expect(h.prompts.get('page_1_2')).toContain('SIMPLER ANATOMICALLY VALID POSE');
+    expect(h.prompts.get('page_1_2')).not.toBe(h.prompts.get('page_1_1'));
+    expect(h.prompts.has('page_1_3')).toBe(false);
+  });
+  it('missing prospective evidence stops before identity and further renders, not legacy-schema fallback', async () => {
+    const h = harness({ book: typedFixture(), coverage: true, anatomy: () => undefined });
+    await expect(illustrateReviewedAudition({ ...h.args, pages: [1, 2], structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION })).rejects.toThrow('audition_review_unusable');
+    expect(h.args.identity).not.toHaveBeenCalled(); expect(h.prompts.has('page_2_0')).toBe(false);
+  });
+  it('fresh sample anatomy hold stops before cover/downstream even when all model checks say pass', async () => {
+    const h = harness({ book: typedFixture(), coverage: true, anatomy: (_s, _c, n) => bad(n) });
+    const m = await illustrateReviewedAudition({ ...h.args, sample: [1, 2], structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    expect(m.status).toBe('held_sample'); expect(h.prompts.has('page_0_0')).toBe(false); expect(h.prompts.has('page_3_0')).toBe(false);
+  });
+  it('legacy v13 raw/context and policy remain legacy, not upgraded from free text', async () => {
+    const h = harness({ book: typedFixture(), coverage: true });
+    const m = await illustrateReviewedAudition({ ...h.args, pages: [1], landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    expect(m.policy.version).toBe('reviewed-audition-policy/v13');
+    expect(h.contexts.get('page_1_0_qa').version).toBe('audition-page-context/v4');
+    expect(h.contexts.get('page_1_0_qa').anatomy).toBeUndefined();
+    expect(h.prompts.get('page_1_0')).not.toContain('STRUCTURAL ANATOMY AND ACTION BINDING');
+  });
+  const successor = async (alwaysBad = false) => {
+    const old = harness({ book: typedFixture(), coverage: true, pages: [1, 2],
+      judge: step => step.startsWith('page_2_') ? { identity: { issues: [issue('identity', 'cast:companion')] } } : {} });
+    await illustrateReviewedAudition({ ...old.args, sample: [1, 2], landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    const parents = [1, 2].map((n, i) => { const p = old.saved.get(`page_${n}`) as SavedPage;
+      return { page: n, consumedAttemptsBefore: i === 0 ? 2 : 4, maxNewAttempts: i === 0 ? 0 : 2,
+        prior: { ...p, attempts: [p.chosen] } }; });
+    const h = harness({ book: typedFixture(), coverage: true,
+      anatomy: (step, _c, normal) => step.startsWith('r9_page_2_4') || alwaysBad && step.startsWith('r9_page_2_') ? bad(normal) : normal });
+    const args = { ...h.args, pages: [0, 1, 2, 3, 4, 5, 6, 7, 8], sample: [1, 2], recovery: true as const, structuralAnatomy: true as const,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, anatomyRecovery: { version: AUDITION_ANATOMY_VERSION, pages: parents },
+      resume: { designs: { ...(old.saved.get('audition_sheet_designs') as any), policy: reviewedAuditionPolicy() },
+        sheets: { entities: old.saved.get('sheet_entities'), locations: old.saved.get('sheet_locations') } as any,
+        pages: {}, stepPrefix: 'r9_' } };
+    return { h, args, parents };
+  };
+  it('same-book successor retains2/4 counts and historic raw, requalifies without drawing, corrects4then5 then continues cover/rest', async () => {
+    const { h, args, parents } = await successor(), before = canonicalJson(parents);
+    const m = await illustrateReviewedAudition(args);
+    const p = h.saved.get('page_2_anatomy') as SavedPage;
+    expect(p.attempts.map(a => a.attempt)).toEqual([4, 5]); expect(p.status).toBe('qa_supported');
+    expect(p.anatomyRecovery!.consumedAttemptsBefore).toBe(4); expect(canonicalJson(parents)).toBe(before);
+    expect(h.prompts.has('r9_page_1_0')).toBe(false); expect(h.args.judge.mock.calls.some(c => c[0] === 'r9_page_1_0_qa')).toBe(true);
+    expect(h.prompts.get('r9_page_2_5')).toContain('SIMPLER ANATOMICALLY VALID POSE');
+    expect(h.prompts.has('r9_page_2_6')).toBe(false); expect(h.prompts.has('r9_page_0_0')).toBe(true); expect(h.prompts.has('r9_page_8_0')).toBe(true);
+    expect(m.pages).toHaveLength(9);
+  });
+  it('two new correction candidates are a real ceiling, not another ordinary3 on top', async () => {
+    const { h, args } = await successor(true);
+    const m = await illustrateReviewedAudition(args);
+    expect(m.status).toBe('held_sample'); expect((h.saved.get('page_2_anatomy') as SavedPage).attempts).toHaveLength(2);
+    expect(h.prompts.has('r9_page_2_6')).toBe(false); expect(h.prompts.has('r9_page_0_0')).toBe(false);
+  });
+  it('bad second historical parent refuses before first fresh paid callback', async () => {
+    const { h, args } = await successor(); args.anatomyRecovery.pages[1].prior.contextSha = 'f'.repeat(64);
+    await expect(illustrateReviewedAudition(args)).rejects.toThrow('audition_anatomy_parent');
+    expect(h.args.render).not.toHaveBeenCalled(); expect(h.args.judge).not.toHaveBeenCalled(); expect(h.args.identity).not.toHaveBeenCalled();
+  });
+});
 
 const typedFixture = () => {
     const b = fixture(); b.landmarkKind = LANDMARK_KIND_CONTRACT_VERSION;

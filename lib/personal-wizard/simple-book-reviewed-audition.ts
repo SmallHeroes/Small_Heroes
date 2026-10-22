@@ -14,6 +14,8 @@ import type { PageChildResemblanceVisionResult } from '../generation-pipeline/pa
 import type { BookDesignReferenceRole } from '../generate-image';
 import type { PersonalWizardOptions } from './options';
 import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
+import { AUDITION_ANATOMY_VERSION, auditionAnatomySchema, anatomyFindings, ANATOMY_JUDGE_RULES,
+  ANATOMY_RENDER_RULES, anatomyPoseStrategy, type AuditionAnatomy } from './audition-anatomy';
 import { findingTrajectory, STAGE_RECOVERY_VERSION, type RecoveryFinding } from './stage-recovery';
 import { LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkTopologySchema, landmarkCoverageTopologySchema,
   landmarkQuadrantsSchema, assessLandmarkTopology, type LandmarkTopology, type LandmarkTopologyVersion } from './landmark-topology';
@@ -55,17 +57,25 @@ export const TOPOLOGY_AUDITION_POLICY = Object.freeze({ ...DESIGN_HEAD_AUDITION_
 export const COVERAGE_AUDITION_POLICY = Object.freeze({ ...TOPOLOGY_AUDITION_POLICY, version: 'reviewed-audition-policy/v13',
   landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkCoverage: 'landmark-candidate-coverage/v1',
   landmarks: 'prospective whole-candidate coverage with four exact spatial scans and source-bound decisive negative population evidence; nondecisive observations remain recorded but cannot veto a positive whole anchor; all explicit findings, genuine duplicates and uncertainty remain blocking' });
-export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true, topology?: LandmarkTopologyVersion) => {
+export const ANATOMY_AUDITION_POLICY = Object.freeze({ ...COVERAGE_AUDITION_POLICY, version: 'reviewed-audition-policy/v14',
+  anatomy: AUDITION_ANATOMY_VERSION, recovery: 'bounded page correction; persistent structural failure changes pose, never story meaning' });
+export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true, topology?: LandmarkTopologyVersion, anatomy?: true) => {
   // The closed lineup diagnostics and this independently granted contract are not interchangeable.
   if (scaleLineup && designHead) throw new ReviewedAuditionError('audition_landmark_contract');
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || !designHead || scaleLineup))
     throw new ReviewedAuditionError('audition_landmark_contract');
+  if (anatomy) {
+    if (topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || !designHead || scaleLineup) throw new ReviewedAuditionError('audition_anatomy_contract');
+    return ANATOMY_AUDITION_POLICY;
+  }
   if (topology) return topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_AUDITION_POLICY : TOPOLOGY_AUDITION_POLICY;
   return designHead ? DESIGN_HEAD_AUDITION_POLICY : scaleLineup ? SCALE_LINEUP_AUDITION_POLICY : REVIEWED_AUDITION_POLICY;
 };
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
 export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
+export type AuditionAnatomyRecovery = { version: typeof AUDITION_ANATOMY_VERSION; pages: { page: number; prior: SavedPage;
+  consumedAttemptsBefore: number; maxNewAttempts: number }[] };
 type Impact = typeof AUDITION_IMPACTS[number];
 
 export class ReviewedAuditionError extends Error { constructor(readonly code: string) { super(code); } }
@@ -380,16 +390,30 @@ export const coverageLandmarkInventorySchema = landmarkInventorySchema.extend({
 });
 export const coverageAuditionPageReviewSchema = auditionReviewSchema.extend({ landmarkInventory: coverageLandmarkInventorySchema });
 export type AuditionReview = z.infer<typeof auditionReviewSchema> & {
-  landmarkInventory?: z.infer<typeof landmarkInventorySchema> & { topology?: LandmarkTopology } };
+  landmarkInventory?: z.infer<typeof landmarkInventorySchema> & { topology?: LandmarkTopology }; anatomy?: AuditionAnatomy };
+/** The caller's bound context selects the schema, never a field smuggled into a legacy raw answer. */
+export function auditionAnatomyCast(context: unknown): string[] | undefined {
+  const c = context && typeof context === 'object' ? context as Record<string, unknown> : {};
+  if (c.anatomy === undefined) {
+    if (c.version === 'audition-page-context/v5') fail('audition_anatomy_contract');
+    return undefined;
+  }
+  const parsed = z.object({ version: z.literal(AUDITION_ANATOMY_VERSION), castIds: z.array(z.string().min(1).max(80)).max(24) }).strict().safeParse(c.anatomy);
+  if (!parsed.success || c.version !== 'audition-page-context/v5' || c.landmarkTopology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION ||
+      new Set(parsed.data.castIds).size !== parsed.data.castIds.length) return fail('audition_anatomy_contract');
+  const cast = (c.checks as { castIdentity?: { id: string }[] } | undefined)?.castIdentity;
+  if (!cast || canonicalJson(cast.map(a => a.id)) !== canonicalJson(parsed.data.castIds)) fail('audition_anatomy_contract');
+  return parsed.data.castIds;
+}
 /** Selection is from an explicit prospective context, never presence of a field in an old answer. */
 export function auditionLandmarkTopology(context: unknown): LandmarkTopologyVersion | undefined {
   const c = context && typeof context === 'object' ? context as Record<string, unknown> : {};
   if (c.landmarkTopology === undefined) {
-    if (c.version === 'audition-page-context/v3' || c.version === 'audition-page-context/v4' || c.landmarkCoverage !== undefined) fail('audition_landmark_contract');
+    if (c.version === 'audition-page-context/v3' || c.version === 'audition-page-context/v4' || c.version === 'audition-page-context/v5' || c.landmarkCoverage !== undefined) fail('audition_landmark_contract');
     return undefined;
   }
   if (c.landmarkTopology === LANDMARK_COVERAGE_TOPOLOGY_VERSION) {
-    if (c.version !== 'audition-page-context/v4' || c.landmarkCoverage !== 'landmark-candidate-coverage/v1' ||
+    if (!(c.version === 'audition-page-context/v4' && c.anatomy === undefined || c.version === 'audition-page-context/v5' && auditionAnatomyCast(c)) || c.landmarkCoverage !== 'landmark-candidate-coverage/v1' ||
       c.landmarkDesignHead !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
     return LANDMARK_COVERAGE_TOPOLOGY_VERSION;
   }
@@ -397,9 +421,12 @@ export function auditionLandmarkTopology(context: unknown): LandmarkTopologyVers
       c.landmarkDesignHead !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
   return LANDMARK_TOPOLOGY_VERSION;
 }
-export const auditionPageReviewSchemaForContext = (context: unknown) =>
-  auditionLandmarkTopology(context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
-    : auditionLandmarkTopology(context) ? topologyAuditionPageReviewSchema : auditionPageReviewSchema;
+export const auditionPageReviewSchemaForContext = (context: unknown) => {
+  const topology = auditionLandmarkTopology(context), anatomy = auditionAnatomyCast(context);
+  return anatomy ? coverageAuditionPageReviewSchema.extend({ anatomy: auditionAnatomySchema })
+    : topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
+    : topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema;
+};
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean; derived?: true };
 export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number; excluded: number; topologyUncertain?: boolean;
   candidates: { objectId: string; region: string; object: number; association: string; counted: boolean; strong: boolean; reclassified: boolean;
@@ -491,15 +518,17 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
 
 /** Binding, coverage and correction rules of the existing judge, plus impact/requirement checks; pages also bind the landmark inventory. */
 export function assessAuditionReview(raw: unknown, candidateSha: string, contextSha: string, requirementIds: readonly string[],
-  landmarks?: readonly AuditionLandmark[], topology?: LandmarkTopologyVersion) {
+  landmarks?: readonly AuditionLandmark[], topology?: LandmarkTopologyVersion, anatomyCast?: readonly string[]) {
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || !landmarks)) fail('audition_landmark_contract');
-  const review: AuditionReview = landmarks ? (topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
+  if (anatomyCast && (topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || !landmarks || anatomyCast.some(id => !requirementIds.includes(`anatomy:${id}`)))) fail('audition_anatomy_contract');
+  const review: AuditionReview = anatomyCast ? coverageAuditionPageReviewSchema.extend({ anatomy: auditionAnatomySchema }).parse(raw) : landmarks ? (topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
     : topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema).parse(raw) : auditionReviewSchema.parse(raw);
   if (review.checks.some(c => (c.verdict === 'pass') !== (c.issues.length === 0))) fail('audition_review_issue_coverage');
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
   const known = new Set(requirementIds);
   const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => ({ category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
     impact: i.impact, requirement: i.requirement, note: i.note, bound: known.has(i.requirement) })));
+  if (anatomyCast) findings.push(...anatomyFindings(review.anatomy, anatomyCast));
   const landmarkAssessment = landmarks ? assessLandmarkInventory(review.landmarkInventory!, landmarks, topology ? review.landmarkInventory!.topology : undefined) : undefined;
   for (const l of landmarkAssessment ?? []) {
     const requirement = `landmark_unique:${l.landmarkId}`;
@@ -605,7 +634,8 @@ export function auditionRecoveryDiagnosis(attempts: readonly AuditionAttempt[]) 
     + (persistent.length ? `\nPERSISTENT (held in both attempts):\n${persistent.map(f => `${line(f)}${words.get(f.key) !== f.observation ? ` (earlier: ${words.get(f.key)})` : ''}`).join('\n')}` : '')
     + (fresh.length ? `\nNEW in the last attempt:\n${fresh.map(line).join('\n')}` : '')
     + (resolved.length ? `\nRESOLVED by the last attempt (keep it exactly as it now is):\n${resolved.map(f => `- [${f.key.split(':')[0]}] ${f.key.slice(f.key.indexOf(':') + 1)}`).join('\n')}` : '')
-    + '\nFor each persistent finding, satisfy it differently than before: change how the picture shows that element (its size, position, visibility and what surrounds it) within the planned framing, remove whatever competes with it or hides it, and follow its written design and the references literally. Keep everything else that was already correct.';
+    + '\nFor each persistent finding, satisfy it differently than before: change how the picture shows that element (its size, position, visibility and what surrounds it) within the planned framing, remove whatever competes with it or hides it, and follow its written design and the references literally. Keep everything else that was already correct.'
+    + anatomyPoseStrategy(persistent);
   return { version: STAGE_RECOVERY_VERSION, afterAttempts: [previous.attempt, latest.attempt], trajectory: moves, prompt };
 }
 
@@ -766,7 +796,8 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
     const base = topology ? source.replace('each is ONE physical object,', 'each is ONE canonical landmark identity (possibly an aggregate),')
       : AUDITION_JUDGE_INSTRUCTIONS.page;
     return base + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '') +
-      (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '');
+      (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '') +
+      (auditionAnatomyCast(context) ? `\n${ANATOMY_JUDGE_RULES}` : '');
   }
   if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
@@ -804,6 +835,7 @@ async function attemptStep<T>(check: () => void, work: () => Promise<T>): Promis
 export type ReferenceStatus = Record<'entities' | 'locations', { image: AuditionImage; status: 'approved_reference' | 'diagnostic_candidate'; knownFlaws: AuditionFinding[] }>;
 export type SavedSheet = { context: unknown; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus };
 export type SavedPage = { pageNumber: number; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus;
+  anatomyRecovery?: { version: typeof AUDITION_ANATOMY_VERSION; consumedAttemptsBefore: number; priorSha256: string; prior: SavedPage };
   /** Opt-in stage-recovery/v1 only: every diagnosis an attempt of this page carried (the attempt it preceded and the diagnosis). */
   recovery?: { version: typeof STAGE_RECOVERY_VERSION; diagnoses: { beforeAttempt: number; diagnosis: NonNullable<ReturnType<typeof auditionRecoveryDiagnosis>> }[] };
   /** Present only on the effective page a re-review produced (never on a saved page record): the attempt that was re-reviewed. */
@@ -895,11 +927,14 @@ export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<Sa
 
 export function auditionPageContext(book: PersonalStoryboard, packetContext: unknown, pageNumber: number, companionDescription: string,
   references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION,
-  topology?: LandmarkTopologyVersion) {
+  topology?: LandmarkTopologyVersion, structuralAnatomy?: true) {
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
   const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);
+  if (structuralAnatomy && topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION) fail('audition_anatomy_contract');
+  if (structuralAnatomy) checks.requirementIds.push(...checks.castIdentity.map(a => `anatomy:${a.id}`));
   if (topology && checks.uniqueLandmarks.some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
-  const context = { version: topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'audition-page-context/v4' : topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
+  const context = { version: structuralAnatomy ? 'audition-page-context/v5' : topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'audition-page-context/v4' : topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
+    ...(structuralAnatomy ? { anatomy: { version: AUDITION_ANATOMY_VERSION, castIds: checks.castIdentity.map(a => a.id) } } : {}),
     ...(designHead ? { landmarkDesignHead: designHead } : {}),
     ...(topology ? { landmarkTopology: topology } : {}),
     ...(topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? { landmarkCoverage: 'landmark-candidate-coverage/v1' } : {}),
@@ -967,6 +1002,9 @@ export async function illustrateReviewedAudition(args: {
   topologyContinuation?: AuditionTopologyContinuation;
   /** Follows the consumed v1 topology exactly; prospective v2 evidence, no legacy grant/ordinary resume opt-in. */
   coverageContinuation?: AuditionCoverageContinuation;
+  /** Prospective one-use native successor only. Legacy samples are re-derived under v13, NEVER converted to v14. */
+  anatomyRecovery?: AuditionAnatomyRecovery;
+  structuralAnatomy?: true;
 }) {
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
@@ -999,7 +1037,13 @@ export async function illustrateReviewedAudition(args: {
       save: name => { if (name !== 'reviewed_audition_manifest') fail('audition_topology_parent'); } });
     if (old.status !== 'held_sample' || old.pages.length !== 1 || old.pages[0].pageNumber !== parent.pages[0].page) fail('audition_topology_parent');
   }
-  const policy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
+  if (args.anatomyRecovery && (!args.structuralAnatomy || topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || calibration ||
+      !args.resume || args.resume.interrupted || args.resume.rereview || args.anatomyRecovery.version !== AUDITION_ANATOMY_VERSION ||
+      canonicalJson(args.anatomyRecovery.pages.map(p => p.page)) !== canonicalJson(args.sample) ||
+      args.anatomyRecovery.pages.length !== 2 || args.anatomyRecovery.pages.some((p, i) =>
+        p.page !== p.prior.pageNumber || p.consumedAttemptsBefore < p.prior.chosen.attempt + 1 ||
+        p.maxNewAttempts !== (i === 0 ? 0 : 2) || p.prior.status !== (i === 0 ? 'qa_supported' : 'held')))) fail('audition_anatomy_parent');
+  const policy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology, args.structuralAnatomy), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   // Validate all prospective kind catalogues before saving or any render/judge/identity callback.
   if (topology && auditionPageChecks(args.book, 0, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION).uniqueLandmarks
     .some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
@@ -1048,7 +1092,7 @@ export async function illustrateReviewedAudition(args: {
     try { return [role, resumed('sheet', saved, derived.contextSha, derived.requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
   }));
   if (args.resume) {
-    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
+    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration || args.anatomyRecovery ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
       Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
     // A re-review names a saved page of this scope and one of its attempts (the attempt itself is checked where the page is re-bound).
     if (Object.entries(args.resume.rereview?.pages ?? {}).some(([n, re]) => !re || !Number.isInteger(re.attempt) || !args.resume!.pages[Number(n)]))
@@ -1072,7 +1116,7 @@ export async function illustrateReviewedAudition(args: {
       status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
     let judged: ReturnType<typeof assessAuditionReview>;
     try { judged = assessAuditionReview(raw.value, candidate.imageSha, contextSha, requirementIds, landmarks,
-      phase === 'page' ? auditionLandmarkTopology(context) : undefined); }
+      phase === 'page' ? auditionLandmarkTopology(context) : undefined, phase === 'page' ? auditionAnatomyCast(context) : undefined); }
     catch (error) { return { attempt, candidate, review: null, assessment: null, status: 'review_unusable', error: errorCode(error) }; }
     const { review, assessment } = judged;
     // No identity spend on an image already held for safety or for an invalid review.
@@ -1129,6 +1173,23 @@ export async function illustrateReviewedAudition(args: {
   }
   const refs = referenceStatus(sheets);
   const canonical = [args.child, args.companion, refs.entities.image, refs.locations.image];
+  // Validate BOTH terminal v13 sample parents before the first new provider callback. Do not migrate their raw evidence.
+  for (const [i, spec] of (args.anatomyRecovery?.pages ?? []).entries()) {
+    const prior = spec.prior, packet = args.ownerAcceptance === undefined
+      ? currentPersonalStoryboardFrame(args.book, args.rawReview, spec.page, args.current)
+      : currentPersonalStoryboardFrame(args.book, args.rawReview, spec.page, args.current, args.ownerAcceptance);
+    const seq = args.book.sequence.pages, previous = args.anatomyRecovery!.pages[i - 1]?.prior;
+    const predecessor = spec.page >= 2 && previous && previous.pageNumber === spec.page - 1 &&
+      seq[spec.page - 1].sceneId === seq[spec.page - 2].sceneId ? previous.chosen.candidate : null;
+    const old = auditionPageContext(args.book, packet.context, spec.page, args.companionDescription, canonical, refs, predecessor,
+      LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION);
+    if (prior.contextSha !== old.contextSha || canonicalJson(prior.requirementIds) !== canonicalJson(old.checks.requirementIds) ||
+        prior.attempts.length !== 1 || canonicalJson(prior.attempts[0]) !== canonicalJson(prior.chosen)) fail('audition_anatomy_parent');
+    const assessment = assessAuditionReview(prior.chosen.review, prior.chosen.candidate.imageSha, old.contextSha,
+      old.checks.requirementIds, old.checks.uniqueLandmarks, LANDMARK_COVERAGE_TOPOLOGY_VERSION).assessment;
+    if (canonicalJson(assessment) !== canonicalJson(prior.chosen.assessment) || !identityUsable(prior.chosen.identity) ||
+        attemptStatus('page', { ...prior.chosen, assessment }) !== prior.status) fail('audition_anatomy_parent');
+  }
   /**
    * The effective page of a saved page with ONE re-reviewed attempt (AUDITION_REREVIEW_VERSION). Only a drawn attempt whose review was lost
    * qualifies: unavailable, its candidate kept, never judged or measured. A saved successor is re-bound (its judgment re-derived from its raw
@@ -1254,13 +1315,45 @@ export async function illustrateReviewedAudition(args: {
     const seq = args.book.sequence.pages, previous = pages.find(p => p.pageNumber === pageNumber - 1);
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
     const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor,
-      calibration || topology ? LANDMARK_DESIGN_HEAD_VERSION : undefined, topology);
+      calibration || topology ? LANDMARK_DESIGN_HEAD_VERSION : undefined, topology, args.structuralAnatomy);
     const spec = calibration?.pages.find(s => s.page === pageNumber);
     if (spec) {
       pages.push(await calibrated(legacySamples.get(pageNumber)!, spec, `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`,
         context, contextSha, checks, predecessor));
       // A held requalification must stop before correcting or drawing anything else.
       if (pages[pages.length - 1].status !== 'qa_supported') { heldSample = true; break; }
+      continue;
+    }
+    const anatomyParent = args.anatomyRecovery?.pages.find(p => p.page === pageNumber);
+    if (anatomyParent) {
+      const prior = anatomyParent.prior, attempts: AuditionAttempt[] = [];
+      const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${ANATOMY_RENDER_RULES}`;
+      const diagnoses: NonNullable<SavedPage['recovery']>['diagnoses'] = [];
+      for (let offset = 0; offset < Math.max(1, anatomyParent.maxNewAttempts); offset++) {
+        const attempt = anatomyParent.maxNewAttempts ? anatomyParent.consumedAttemptsBefore + offset : prior.chosen.attempt;
+        const history = [prior.chosen, ...attempts], last = history[history.length - 1];
+        const diagnosis = auditionRecoveryDiagnosis(history);
+        if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });
+        // Historic notes inform a NEW render, not a changed old verdict. Typed findings select a simpler pose on the next correction.
+        const structuralNotes = last.assessment?.findings.filter(f => f.category === 'anatomy').map(f => f.note).join('\n') ?? '';
+        const strategy = anatomyPoseStrategy(auditionAttemptFindings(last));
+        const result = anatomyParent.maxNewAttempts
+          ? await attemptOnce('page', String(pageNumber), attempt,
+            base + (diagnosis ? diagnosis.prompt : auditionCorrections(last, 'page')) + strategy +
+              (structuralNotes ? `\nPrior anatomy observations to resolve against canonical anatomy (not approved pixel evidence):\n${structuralNotes}` : ''),
+            canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks)
+          : await judgeCandidate('page', String(pageNumber), attempt, prior.chosen.candidate, context, contextSha,
+            checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+        attempts.push(result); report('page', String(pageNumber), result);
+        if (finish('page', String(pageNumber), attempts)) break;
+      }
+      const chosen = selectAuditionAttempt('page', attempts) ?? fail('audition_anatomy_unavailable');
+      const effective: SavedPage = { pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen,
+        status: attemptStatus('page', chosen), anatomyRecovery: { version: AUDITION_ANATOMY_VERSION,
+          consumedAttemptsBefore: anatomyParent.consumedAttemptsBefore, priorSha256: previewSha(canonicalJson(prior)), prior },
+        ...(diagnoses.length ? { recovery: { version: STAGE_RECOVERY_VERSION, diagnoses } } : {}) };
+      pages.push(effective); args.save(`page_${pageNumber}_anatomy`, effective);
+      if (effective.status !== 'qa_supported') { heldSample = true; break; }
       continue;
     }
     const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks, topology);
@@ -1273,7 +1366,7 @@ export async function illustrateReviewedAudition(args: {
     }
     // RSM-1: the page's closed paid attempts first; its next attempt continues after them, inside the same ceiling.
     const attempts = closedAttempts(closed, pageAttempts);
-    const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`;
+    const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${args.structuralAnatomy ? ANATOMY_RENDER_RULES : ''}`;
     const diagnoses: NonNullable<SavedPage['recovery']>['diagnoses'] = [];
     for (let attempt = attempts.length; attempt < pageAttempts; attempt++) {
       // Opt-in: after two consecutive held attempts the diagnosis of both replaces the last attempt's findings (same ceiling, same loop).
@@ -1309,7 +1402,8 @@ export async function illustrateReviewedAudition(args: {
       identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity),
       ...(p.rereview ? { rereview: p.rereview } : {}), ...(p.calibration ? { calibration: p.calibration } : {}),
       ...(p.topologyContinuation ? { topologyContinuation: p.topologyContinuation } : {}),
-      ...(p.coverageContinuation ? { coverageContinuation: p.coverageContinuation } : {}) })),
+      ...(p.coverageContinuation ? { coverageContinuation: p.coverageContinuation } : {}),
+      ...(p.anatomyRecovery ? { anatomyRecovery: p.anatomyRecovery } : {}) })),
     approval: 'none: qa_supported is an automated audition label, not product acceptance or production qualification' as const,
     runtimeEligible: false as const, productionQualified: false as const, ownerReviewRequired: true as const };
   args.save('reviewed_audition_manifest', manifest);
