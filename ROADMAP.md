@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## General coverage F1 corrected with existing physical graph; exact same-book re-gate next (2026-10-22)
+
+- Sole independent review317tests/502native-preservation assertions found ONE P2 self-scale via same_object alias. Original HOLD378c8d0c
+  and all old records preserved. Code4ed4e9fd reuses validated physical groups, no prompt/schema/threshold/model/budget change.
+- 325focused tests/two original independent counterexamples/nonincremental tsc all exit0; zero new provider/key/claim/book writes.
+- Docs-LAST/new UNUSED technical repin -> SAME sole reviewer exact code/native/grant re-gate -> onlyPASS freshpreflight/nativeONCE,
+  savedfirst review, onlyPASS one fourthsecond sample, bothPASS cover/pages3-8 ordinary3, fullreader/evidence/report. Caps/counts unchanged.
+- FullcheckhistoricalRED remains; heldrefs remain diagnostic and productacceptance is Guy's, not codeQA or nine-image existence.
+
 ## Renewed owner-authorized full same-book route: prospective coverage/F4 engine built, independent QA next (2026-10-22)
 
 - General code1d481733 follows65b7b8e5: explicit v2/v13/v4/coverage-v1, no reinterpretation of consumed v12. Decisive-only anchor authority,

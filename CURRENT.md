@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Coverage F1 physical-alias scale corrected; same reviewer exact unused-grant re-gate next (2026-10-22)
+
+- Independent frozen review at`bd6dd938` found ONE P2: a witness's same_object alias was accepted as its independent size reference.
+  Report ART`r1-general-landmark-coverage-20261022/INDEPENDENT-QA-NATIVE-COVERAGE-20261022.txt` SHA378c8d0c is preserved HOLD, not PASS.
+  Independent317tests/502native+preservation assertions exit0 otherwise, including actual old-context replay,402old hashes and46pins.
+- Focused code`4ed4e9fd` parent`bd6dd938` passes the EXISTING validated physical-root function into coverage assessment; any witness in
+  the reference's same physical group now refuses. No parallel graph, prompt/schema/version/model/cap/threshold/legacy change.
+  Eight added size-only/direct/mirrored/transitive/all-witness/separate/unreadable cases;325/325 five-file tests exit0. Both ORIGINAL
+  independent counterexamples now exit0, including the sole-negative-size case. Nonincremental tsc exit0,69.464s; runtime bytes unchanged.
+- No providers/key reads/new claims/book/authority writes. Bookaccounted3180874/7m,cycle3309804/8m,27/89calls and TWO OLD actual UNKNOWN
+  charges with1.2m approved budget debits unchanged. Old unusedfccb468f remains history; consumed topologya1db1f82 is NEVER repinned.
+- Next: docs-LAST frozen clean new head and technical-only UNUSED same fixed successor repin; SAME sole approved reviewer re-gates F1
+  and exact native plan/grant. ONLY independent PASS -> fresh exact preflight -> automatic savedfirst fresh quality+identity/no draw,
+  firstPASS -> still-unused single fourthpage2LOW; bothPASS -> same cover/pages3-8 ordinary3/diagnosis, then reader/evidence/engine report.
+  No repeat owner question, blind retry/reset or HOLD bypass. Held sheets prevent fully-supported complete/productPASS even if all9frames.
+  Historical fullcheckRED and all initial/independent assertionREDs remain; focused green is not fullcheck or pixel/product acceptance.
+
 ## General F4/coverage v2 implemented; new same-book native successor offline, independent QA next (2026-10-22)
 
 - Guy directly renewed general-engine repair/full illustrated same-book authority after the actual v12 HOLD. Same chat/sole Codex writer,
