@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Clarity F1 independent raw-binding HOLD — fixed, exact unused re-gate next (2026-10-23)
+
+- Actualnative overlaycounterexample acceptedcontradictorysaved5/paidraw4 at265d3f50, HOLDdf80fb9c/RED preserved;0paidcalls/claims.
+- Nativeplan nowuses sharedactualrawreview/assessment/status replay beforegrant/claim; new43regressions/23native/22VM/tsc0, exactcounter
+  rejects0. Source/pose/gates/remainingONEp7LOW+3calls unchanged. NextdocsLAST/SAMEfrozenunusedgrantrebind/independentPASS/preflight.
+
 ## Same book anatomy readability — corrected p4, explicit p7 clarity remainder gate (2026-10-23)
 
 - Real1e7f native0/4calls381790/ONELOWp4:actual4limbs,identity~1.0,heldonlygolden-ground1. P7firstreviewcounts4/haunch, noimage; human

@@ -1,5 +1,19 @@
 # SmallHeroes — Current Technical State
 
+## Clarity independent F1 raw lineage — focused correction complete, exact unused re-gate NEXT (2026-10-23)
+
+- Sameindependentreviewer HOLDdf80fb9c at265d3f50 verifiedP2: two derivativecopies couldcoherentlysay5 whileactualpaidrawsaid4.
+  Actualnativecounterexample intentionalRED1, virtualoverlaysonly/noactualroots/provider/key/claimwrites. Originalgrant4c0f/operator341a/
+  freeze/HOLD/RED remainunused/history, neverPASS. No p7edit or additionalproviderattempt yet.
+- NewsharedassertAnatomyClarityRawPrior replaysACTUALreceipt.raw.output_text with exactcandidate/context/cast/landmarks/requirements,
+  requirescanonicalrawreview/assessment/status matchprior beforeanynewgrant/claim/key/provider. Fullsourcefindings/raw4/intact/HOLDpreserved.
+- Permanentregressions43/43passed,238filtered; exactoriginalnativecounterexample nowrejectsanatomy_clarity_raw_binding/positiveplanaccepts,
+  isolatedexit0 at22:50:55.410Z.23actualnative/REALmetercontrols0;22updatedoperatorVM0. Nonincrementaltsc0 at22:50:44.176Zbeforecodecommit.
+  InitialnewregressionRED1 was missing correction in SYNTHETICsafetyfixture, corrected; initialtscRED2 extra review field in typedPick,
+  fixed. Those logsstay, no provider/runtimefailure/fullcheckgreenclaim. Earlierindependent17nativecontrols remainhistorical, notnewPASS.
+- Scopeunchanged: SAMEunspentONEp7LOW/3calls(total2LOW/7withconsumed1e7f), samefixednewclarityclaim, no parentreset/repin/newbudget/model.
+  NextdocsLAST/cleanfreshnativeplan andtechnicalrebindofSTILLUNUSEDclaritygrantONLY, SAMEindependentF1re-gate/freshpreflight/actualedit.
+
 ## Real local repair p4 improved; p7 count disputed — general explicit clarity gate NEXT (2026-10-23)
 
 - Actual1e7f recovery at47c2a535 native0,22:23:07.820Z..22:30:09.420Z;4knowncalls381790microUSD/ONELOWp4. Original591book+authority
