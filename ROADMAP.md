@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Local repair F1 focused round1 — invalid citation stop fixed, same exact re-gate next (2026-10-23)
+
+- Independentfirstpass HOLD0c8fa82c realnativeVM proved continuingp4 afterp7review_invalid. Other286tests/34VM/678preservationchecks0
+  didnotwaiveit. Focusedcode addsreview_invalid toactualsharednative stopdecision, retainsordinaryheldcontinuation andallraw/counters.
+  28localtests0 +actualnativeVMinvalidSTOP/heldCONTINUE0,realbaselineunchanged,nonincrementaltsc0. No API/image/claim yet.
+- Originalunusedc8f7grant/1fa55operator/HOLD/RED retained. TechnicalrebindONLYthatunusedfixedsuccessor tocleannewHEAD thenSAMEreviewer
+  exactre-gate; max2LOW/7calls/original89/7m/8m unchanged. No newauthority/reset, consumedc074 untouched. No broadunchangedsuite rerun.
+
 ## GENERAL local anatomical scene repair — code complete, same independent QA then bounded real check (2026-10-23)
 
 - Owner flagsreal5legs p7 in complete9imagecohort, asksgeneralenginefix/recheck. P4alsohasextraappendage; existing p7promptalready4legs,

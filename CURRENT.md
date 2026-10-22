@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Local scene repair independent F1 — focused correction complete, exact unused re-gate NEXT (2026-10-23)
+
+- SAME independent firstpass HOLD0c8fa82c at7a7f7b82: P2native loop omitted review_invalid, so a schema-valid but miscited posteditp7reply
+  reachedp4render. Realnative/sharedhelper VMcounterexample intentionallyRED, no provider/claim/sourcewrite. Independent286tests0,
+  34operatorVMcontrols0 and678bindings/preservationassertions0 didNOToverrideF1. All51pins/544BOOK/45AUTH andunusedc8f7grant preserved.
+- Focused correction: actualnative loop now calls a single tested terminal-evidence predicate includingreview_invalid. Ordinary validheld
+  still permits the next independentdiagnosticpage. Invalidcandidate/raw/assessment/result retained before stop, never convertedtoPASS.
+  Clarified localprompt: pose/viewpoint suggestions apply onlytofaultyactorjoints insideexistingframe, notcamera/action changes. The
+  reviewer classified that wording ambiguity NONBLOCKING, not another proved defect; no retroactivepixelclaim.
+- Proof:28localtests0 (8newterminalstatuscontrols), actualnative/sharedVM originalinvalidscenario nowSTOPbeforep4 and validheldcontrol
+  stillREACHESp4; both true, all realbook/authority unchanged. Syntheticcleansourceflag ONLYinVM whiletestinguncommittedfix, notruntime
+  bypass. Actualnonincrementaltsc0 beforefocusedcodecommit. Broaderunchanged286/334suites not repeated as a newgreenfullcheck.
+- No provider yet; originalunusedc8f7freeze/operator1fa55/HOLD/RED preserved. F1technicalrebind may update ONLYstillunusedsamefixed
+  scene-repair claim/cycle/pages/order/caps to thenewcleanHEAD/pins and exactoperator; consumedc074parent untouched. SAMEreviewer must
+  re-gate the originalcounterexample/heldcontrol plusnewexactunusedgrant/operator/bindings beforefreshpreflight/execution. Round1ofmax2.
+
 ## Owner-observed fifth leg in full cohort — GENERAL local scene repair code complete, independent QA NEXT (2026-10-23)
 
 - New direct owner request: inspect all images, fix GENERAL engine/prompt behavior, recheck. All9selectedimages inspected. P7reallyhas5paw/limb
