@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Full diagnostic book requested NOW — general render-first route built, same independent gate then seven missing images (2026-10-22)
+
+- Code89f20a53 adds explicit diagnostic opt-in to the existing engine, NOT looser judges or a new QA engine: retain both exact v15
+  samples/HOLD/history; render pages3-8 then cover first; save pending recipes; then existing Sol6.1/.70identity, truthful per-page QA.
+  One candidate per missing frame, fixed21operations,0samplecalls. Normal samplegate/production defaults unchanged. All9images in final
+  reader is diagnostic_complete, never product/fully-supportedPASS. Held reference sheets remain held, owner acceptance stays separate.
+- 324focusedtests/6files,26actual-nativecontrols,nonincrementaltsc exit0 before codecommit. New fixed successor binds50sourcepins/owner/
+  same consumed anatomy2c504f8e/claim/outcome/roots/ledger/exactfirstRENDER. Original2/6samplecounts41/89claims not reset. SAME independent
+  reviewer re-gates immutable range/nativeplan/unusedgrant/operator; only exactPASS+freshpreflight permits automatic authorized payment.
+- Current accountedbook4678502/7m/cycle4807432/8m; max7LOWimages/21newcalls, no new budget/provision/key/Max. Old3actualchargesUNKNOWN/
+  1outcomeUNKNOWN preserved; anyNEWunknown stops. No new story/child/sheets/book/task/agent/worktree/monitor or production/push/delete.
+- Actual prior anatomy run8calls571084/2LOW successfully corrected four legs, selecteda4 has1continuityHOLD, a5has3storyHOLDs. Native0,
+  independent outcomeaccuracy2837PASS, not bookPASS. Severity-calibration design remains reviewed but runtime deferred for full cohort.
+
 ## Anatomy F1/F2 focused round1 complete — SAME independent re-gate then already-approved native continuation (2026-10-22)
 
 - First independent HOLD32fabd6d preserved. Code9d00bfec requires named readable limb evidence (structuralv2/policy15/context6), covers all3

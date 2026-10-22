@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Owner-requested FULL eight-page diagnostic cohort — implementation complete, frozen independent gate NEXT (2026-10-22)
+
+- NEW direct owner priority: see all8illustrations rather than keep repairing only2samples. Approved diagnostic purpose is separate from
+  admission: all prior HOLD/raw/claims/history remain, normal sample gate and production defaults unchanged. Same sole Codex writer on
+  claude/book-render-20261009; same previously owner-approved independent read-only reviewer, no new agent/task/worktree or monitor.
+- Focused code `89f20a53` (parent7e577425): explicit opt-in `audition-full-book-diagnostic/v1` in EXISTING orchestrator/adapters/meter.
+  Replays and preserves BOTH exact v15 selected parents/contexts/attempts, then renders missing body pages3-8 followed by cover0 BEFORE
+  new per-page QA. Each priced candidate has immutable pending record, recipe/image hash. Existing quality and identity checks follow;
+  visual HOLDs stay visible without preventing the other diagnostic frames. Unknown output/cost, safety and unusable evidence still stop.
+- ONE candidate per new frame, ZERO new sample images/reviews; original2/6sample render counts and41/89claims remain. Adapter allowlist
+  blocks every operation except the exact7render/7quality/7identity steps BEFORE image/key/meter/provider. Fixed one-use native successor
+  follows ACTUALLY consumed anatomy2c504f8e; exact50runtime pins, same frozen story/profile/child/sheets/old provision and source roots.
+  First operation is the shared renderer's exact dry wire, not a duplicated prompt planner. Consumed grants are not repinned or reopened.
+- Output `diagnostic_audition` / native `diagnostic_complete` means all9images exist, NOT qa_supported/product/production acceptance.
+  Held reference sheets and retained p2HOLD remain explicit. Render-first pending reader is allowed; no production/Wizard/customer path.
+- Validation:324/324 relevant tests in6files exit0;26actual-data native replay/preservation/negative controls exit0; nonincremental tsc0
+  before codecommit. Initial development tsc3narrowing errors and synthetic-test2assertion errors are retained alongside corrected exits;
+  not runtime failures or discarded RED history. No repeated unchanged long suites, fullcheck historicalRED remains RED, not green.
+- Current money BEFORE this successor: knownbook2878502 +olddebits1200000 +oldorphanprovision600000 =4678502/7000000; cycle4807432/8000000.
+  Old3actualchargesUNKNOWN/1outcomeUNKNOWN persist. Allowance max7NEW LOWimages/max21NEW paidcalls inside original89, no increase/retry.
+  gpt-image-2LOW, Sol6.1 quality and gpt-4o numeric identity(.70) unchanged. Historical Max5502244microUSD/8sessions separate; no newMax.
+- Evidence/owner/DG/tests/native controls: artifact `r1-general-full-book-diagnostic-20261022`. Next: docsLAST after actual tsc0, immutable
+  range/grant/operator QA by SAME independent reviewer, fresh exact nativepreflight then already-approved execution automatically. No
+  provider in this code milestone. Materiality-calibration DESIGN READY is deferred, not silently implemented or oldHOLDs reclassified.
+
+## Actual anatomy successor closed — four legs fixed, remaining sample HOLD preserved, full book NOT yet drawn (2026-10-22)
+
+- Independent final exact code/native/operatorPASS2e7a2686 at clean7e577425 -> real preflight0 -> run19:10:53.623Z..19:21:44.391Z,
+  nativeexit0/signalnull, operator/native/knownchildren ended. Consumed anatomy grant2c504f8e is historical; no re-open/reset/new sample run.
+- Actual8calls571084microUSD /2LOWimages; first saved sample freshquality+identityPASS, no redraw. p2a4/a5 both show FOUR legs with
+  structuralv2PASS. a4 retains one continuity uncertainty about optional background landform; a5 has3story findings. Existing selector
+  correctly chosea4. Result `held_sample`, no cover/pages3-8. Actual2/6sample renders,41/89claims, costs as above; no new unknown/Max.
+- Independent OUTCOME ACCURACY PASS6a6dea70 verifies2837assertions: old411book+41authority files preserved,8calls/costs/raw schema/wire/
+  assessment/status replays, initial536snapshot hashes and22reader links. NOT technical/product approval of the book. Viewer at artifact
+  `same-book-anatomy-outcome-20261022/viewer/index.html` contains all8texts but only2illustrations, missingframes explicit.
+- Owner's newer request now explicitly chooses the diagnostic cohort route ABOVE; the terminal anatomy result is not converted toPASS.
+
 ## Focused independent F1/F2 correction round1 — code complete, exact re-gate required before provider (2026-10-22)
 
 - SAME reviewer first pass `32fabd6d` HOLD at3fdee8c5: F1/P1 required limb evidence could be omitted as fur, not_counted or null count and
