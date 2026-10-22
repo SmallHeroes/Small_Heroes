@@ -21,7 +21,8 @@ import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRul
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { AUDITION_REREVIEW_VERSION, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_TOPOLOGY_VERSION, auditionPageContext,
   AUDITION_TOPOLOGY_CONTINUATION_VERSION, calibrationRequalificationParent,
-  type AuditionTopologyContinuation,
+  AUDITION_COVERAGE_CONTINUATION_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, topologyRequalificationParent,
+  type AuditionCoverageContinuation, type SavedTopologyContinuation, type AuditionTopologyContinuation,
   type SavedRereview, type SavedPage, type AuditionCalibration, type SavedCalibration } from '../simple-book-reviewed-audition';
 import { previewSha } from '../../local-story-preview';
 import sharp from 'sharp';
@@ -76,7 +77,7 @@ const singleInventory = (context: any) => {
 };
 function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) => number; renderFail?: (step: string) => Error | null;
   book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T>;
-  inventory?: (step: string, context: any) => unknown; topology?: true } = {}) {
+  inventory?: (step: string, context: any) => unknown; topology?: true; coverage?: true } = {}) {
   const prompts = new Map<string, string>(), saved = new Map<string, unknown>(), contexts = new Map<string, any>();
   const wrap = opts.wrap ?? (<T>(_step: string, work: () => Promise<T>) => work());
   const args = {
@@ -91,21 +92,27 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
       kind?: 'sheet' | 'page') => wrap(step, async () => {
       contexts.set(step, context);
       const inventory = kind === 'page' ? opts.inventory?.(step, context) ?? singleInventory(context) : null;
-      if (opts.topology && inventory) for (const l of (inventory as any).landmarks) {
+      if ((opts.topology || opts.coverage) && inventory) for (const l of (inventory as any).landmarks) {
         const own = l.candidates[0], features = (context as any).checks.uniqueLandmarks.find((x: any) => x.id === l.landmarkId).features;
         l.candidates = (inventory as any).objects.map((o: any) => o.objectId === own.objectId ? own : {
           objectId: o.objectId, association: 'different_object', evidence: 'visible incompatible canonical kind',
           featureChecks: features.map((f: any) => ({ featureId: f.id, observed: f.aspect === 'kind' ? 'contradicted' : 'not_visible' })),
         });
       }
-      const typed = opts.topology && inventory ? { ...(inventory as any), topology: {
-        version: LANDMARK_TOPOLOGY_VERSION,
+      if (opts.coverage && inventory) (inventory as any).objects.forEach((o: any) => o.quadrants = ['top_left']);
+      const typed = (opts.topology || opts.coverage) && inventory ? { ...(inventory as any), topology: {
+        version: opts.coverage ? LANDMARK_COVERAGE_TOPOLOGY_VERSION : LANDMARK_TOPOLOGY_VERSION,
         relations: (inventory as any).objects.flatMap((o: any, i: number, list: any[]) => list.slice(i + 1).map(p => ({
           from: o.objectId, to: p.objectId, relation: 'separate_objects', basis: 'visible_separation', evidence: 'visible separate physical objects' }))),
         bindings: (inventory as any).landmarks.flatMap((l: any) => l.candidates.map((c: any) => ({ landmarkId: l.landmarkId,
           objectId: c.objectId, extent: c.association === 'different_object' ? 'not_instance' : 'whole_instance', sourceKind: (context as any).checks.uniqueLandmarks
             .find((x: any) => x.id === l.landmarkId).features.find((f: any) => f.aspect === 'kind').text,
           evidence: 'actual source-kind whole visible in the synthetic observation' }))),
+        ...(opts.coverage ? { coverage: { version: 'landmark-candidate-coverage/v1', populations: [],
+          scans: ['top_left', 'top_right', 'bottom_left', 'bottom_right'].map(quadrant => ({ quadrant, status: 'complete',
+            unresolvedReason: 'none', uncertainLandmarkIds: [], populationIds: [],
+            objectIds: quadrant === 'top_left' ? (inventory as any).objects.map((o: any) => o.objectId) : [],
+            evidence: 'synthetic complete quadrant witness, not pixel proof' })) } } : {}),
       } } : inventory;
       return { ...review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {}),
         ...(kind === 'page' ? { landmarkInventory: typed } : {}) };
@@ -371,7 +378,7 @@ describe('new topology continuation follows a consumed held calibration; synthet
       (c: AuditionTopologyContinuation) => { c.parentCalibration.pages[0].saved!.reviewed.candidate = image('other'); },
       (c: AuditionTopologyContinuation) => { c.parentCalibration.pages[0].saved!.reviewed.review = s.pages[1].chosen.review; },
       (c: AuditionTopologyContinuation) => { c.parentCalibration.pages[0].saved!.reviewed.assessment = s.pages[1].chosen.assessment; },
-      (c: AuditionTopologyContinuation) => { c.pages[0].saved = c.parentCalibration.pages[0].saved; },
+      (c: AuditionTopologyContinuation) => { (c.pages[0] as { saved?: unknown }).saved = c.parentCalibration.pages[0].saved; },
       (c: AuditionTopologyContinuation) => { c.parentCalibration.pages[1].saved = c.parentCalibration.pages[0].saved; },
     ];
     for (const mutate of mutations) {
@@ -400,6 +407,70 @@ describe('new topology continuation follows a consumed held calibration; synthet
     await expect(runReviewedAudition(args)).rejects.toThrow(test === 'legacy-after-calibration' ? 'audition_calibration_used' :
       test === 'topology-already-used' ? 'audition_topology_used' : 'audition_topology_parent');
     expect(guard).not.toHaveBeenCalled();
+  });
+  const coverageSetup = async () => {
+    const s = await setup(), h = harness({ book: s.book, topology: true,
+      judge: () => ({ environment: { verdict: 'uncertain', issues: [issue('continuity', 'landmark_unique:old_tree', 'coverage unreadable')] } }) });
+    await illustrateReviewedAudition({ ...h.args, sample: [1, 2], resume: s.resume,
+      topologyContinuation: s.contract, landmarkTopology: LANDMARK_TOPOLOGY_VERSION });
+    const savedTopology = h.saved.get('page_1_topology') as SavedTopologyContinuation;
+    const first = topologyRequalificationParent(calibrationRequalificationParent(s.pages[1], s.saved), savedTopology);
+    const contract: AuditionCoverageContinuation = { version: AUDITION_COVERAGE_CONTINUATION_VERSION,
+      parentTopology: s.contract, savedTopology, pages: [first, s.pages[2]].map((p, i) => ({ page: i + 1,
+        action: i === 0 ? 'requalify' : 'correct_once', priorSha256: previewSha(canonicalJson(p)), consumedAttemptsBefore: i === 0 ? 2 : 3 })) };
+    return { ...s, savedTopology, coverage: contract, resume: { ...s.resume, stepPrefix: 'r5_' } };
+  };
+  it('prospective coverage replays consumed v12, reviews identical first, draws only page2fourth then same full book', async () => {
+    const s = await coverageSetup(), before = canonicalJson([s.pages, s.saved, s.savedTopology]), h = harness({ book: s.book, coverage: true });
+    const m = await illustrateReviewedAudition({ ...h.args, sample: [1, 2], resume: s.resume,
+      coverageContinuation: s.coverage, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    expect(h.args.render.mock.calls.map(c => c[0])).toEqual(['r5_page_2_3', ...[0, 3, 4, 5, 6, 7, 8].map(n => `r5_page_${n}_0`)]);
+    expect(h.args.judge.mock.calls[0][0]).toBe('r5_page_1_1_qa');
+    expect(h.args.judge.mock.calls[0][1]).toEqual(s.pages[1].chosen.candidate);
+    expect(m.policy.version).toBe('reviewed-audition-policy/v13'); expect(m.status).toBe('qa_supported_audition');
+    expect(m.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    for (const [step, ctx] of h.contexts) if (step.includes('page_')) expect(ctx).toMatchObject({
+      version: 'audition-page-context/v4', landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkCoverage: 'landmark-candidate-coverage/v1' });
+    expect(m.pages.find(p => p.pageNumber === 1)?.coverageContinuation?.prior.topologyContinuation?.prior.calibration?.priorAttempts).toEqual(s.pages[1].attempts);
+    expect(m.pages.find(p => p.pageNumber === 2)?.coverageContinuation?.prior.attempts).toEqual(s.pages[2].attempts);
+    expect(h.saved.get('page_2_coverage')).toMatchObject({ consumedAttemptsBefore: 3, reviewed: { attempt: 3 } });
+    expect(canonicalJson([s.pages, s.saved, s.savedTopology])).toBe(before);
+    expect(h.saved.get('page_1_topology')).toBeUndefined(); expect(h.saved.get('page_2')).toBeUndefined();
+  });
+  it.each([1, 2])('v13 held sample%i ends the line without a retry/fifth or downstream drawings', async page => {
+    const s = await coverageSetup(), h = harness({ book: s.book, coverage: true,
+      judge: step => step.startsWith(`r5_page_${page}_`) ? heldSpec : {} });
+    const m = await illustrateReviewedAudition({ ...h.args, sample: [1, 2], resume: s.resume,
+      coverageContinuation: s.coverage, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    expect(m.status).toBe('held_sample'); expect(h.args.render.mock.calls.map(c => c[0])).toEqual(page === 1 ? [] : ['r5_page_2_3']);
+    expect(h.args.judge.mock.calls).toHaveLength(page === 1 ? 1 : 2);
+  });
+  it.each(['low_identity', 'safety', 'missing_new_schema'])('v13 %s cannot permit any downstream', async reason => {
+    const s = await coverageSetup(), h = harness({ book: s.book, ...(reason === 'missing_new_schema' ? { topology: true as const } : { coverage: true as const }),
+      score: () => reason === 'low_identity' ? .69 : .82,
+      judge: () => reason === 'safety' ? { safety: { issues: [issue('safety', 'safety', 'unsafe actual content')] } } : {} });
+    const run = illustrateReviewedAudition({ ...h.args, sample: [1, 2], resume: s.resume,
+      coverageContinuation: s.coverage, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION });
+    if (reason === 'missing_new_schema') await expect(run).rejects.toThrow('audition_review_unusable');
+    else if (reason === 'safety') { await expect(run).rejects.toThrow('audition_calibration_unavailable'); expect(h.args.identity).not.toHaveBeenCalled(); }
+    else expect((await run).status).toBe('held_sample');
+    expect(h.args.render).not.toHaveBeenCalled();
+  });
+  it('coverage rejects a changed consumed raw/assessment/context/candidate/attempt/prior and version before any new adapter', async () => {
+    const s = await coverageSetup();
+    const changes = [
+      (c: any) => c.savedTopology.contextSha = sha('changed'), (c: any) => c.savedTopology.reviewed.review = s.saved.reviewed.review,
+      (c: any) => c.savedTopology.reviewed.assessment = s.saved.reviewed.assessment, (c: any) => c.savedTopology.reviewed.candidate = image('changed'),
+      (c: any) => c.pages[0].priorSha256 = sha('changed'), (c: any) => c.pages[1].consumedAttemptsBefore = 0,
+      (c: any) => c.parentTopology.parentCalibration.pages[0].saved.reviewed.status = 'qa_supported',
+      (c: any) => c.version = AUDITION_TOPOLOGY_CONTINUATION_VERSION,
+    ];
+    for (const change of changes) {
+      const c = structuredClone(s.coverage); change(c); const h = harness({ book: s.book, coverage: true });
+      await expect(illustrateReviewedAudition({ ...h.args, sample: [1, 2], resume: s.resume,
+        coverageContinuation: c, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION })).rejects.toThrow();
+      expect([h.args.render.mock.calls.length, h.args.judge.mock.calls.length, h.args.identity.mock.calls.length]).toEqual([0, 0, 0]);
+    }
   });
 });
 

@@ -3,6 +3,10 @@ import { z } from 'zod';
 
 /** Prospective pixel evidence only. No legacy response, prose parser, source-name ontology or spend authority. */
 export const LANDMARK_TOPOLOGY_VERSION = 'landmark-topology/v1' as const;
+export const LANDMARK_COVERAGE_TOPOLOGY_VERSION = 'landmark-topology/v2' as const;
+export type LandmarkTopologyVersion = typeof LANDMARK_TOPOLOGY_VERSION | typeof LANDMARK_COVERAGE_TOPOLOGY_VERSION;
+export const LANDMARK_SCAN_REGIONS = ['top_left', 'top_right', 'bottom_left', 'bottom_right'] as const;
+export const landmarkQuadrantsSchema = z.array(z.enum(LANDMARK_SCAN_REGIONS)).min(1).max(4);
 const objectId = z.string().regex(/^o[1-9][0-9]?$/);
 const relationFields = { from: objectId, to: objectId, evidence: z.string().trim().min(8).max(300) };
 // Discriminated branches encode basis/type parity in the actual provider JSON schema, not only a post-response refinement.
@@ -20,19 +24,89 @@ export const landmarkTopologySchema = z.object({ version: z.literal(LANDMARK_TOP
     evidence: z.string().trim().min(8).max(300),
   }).strict()).max(160),
 }).strict();
-export type LandmarkTopology = z.infer<typeof landmarkTopologySchema>;
+const negativeCheck = z.object({ landmarkId: z.string().trim().min(1).max(60), featureId: z.string().trim().min(1).max(8),
+  observed: z.enum(['contradicted', 'not_visible']),
+  basis: z.enum(['visible_kind', 'visible_material', 'visible_colour', 'visible_shape', 'grounded_size', 'not_readable']),
+  allMembersReadable: z.boolean(), evidence: z.string().trim().min(8).max(180),
+  grounding: z.object({ referenceObjectId: objectId.nullable(), relation: z.enum(['same_ground_plane', 'anchored_depth_geometry', 'not_readable']),
+    evidence: z.string().trim().min(8).max(180) }).strict().nullable(),
+}).strict();
+export const landmarkCoverageTopologySchema = landmarkTopologySchema.extend({ version: z.literal(LANDMARK_COVERAGE_TOPOLOGY_VERSION),
+  coverage: z.object({ version: z.literal('landmark-candidate-coverage/v1'),
+    populations: z.array(z.object({ populationId: z.string().regex(/^p[1-9][0-9]?$/), quadrants: landmarkQuadrantsSchema,
+      description: z.string().trim().min(8).max(180),
+      membership: z.enum(['uniform_noninstances', 'mixed_possible_instance', 'unreadable']),
+      witnessObjectIds: z.array(objectId).min(1).max(10), negativeChecks: z.array(negativeCheck).max(16),
+    }).strict()).max(6),
+    scans: z.array(z.object({ quadrant: z.enum(LANDMARK_SCAN_REGIONS), status: z.enum(['complete', 'uncertain']),
+      unresolvedReason: z.enum(['none', 'unreadable', 'mixed_candidates', 'capacity_exceeded']),
+      objectIds: z.array(objectId).max(10), populationIds: z.array(z.string().regex(/^p[1-9][0-9]?$/)).max(6),
+      uncertainLandmarkIds: z.array(z.string().trim().min(1).max(60)).max(16), evidence: z.string().trim().min(8).max(180),
+    }).strict()).length(4),
+  }).strict(),
+}).strict();
+export type LandmarkTopology = z.infer<typeof landmarkTopologySchema> | z.infer<typeof landmarkCoverageTopologySchema>;
 type Feature = { id: string; text: string; aspect: string; decisive: boolean };
 type Landmark = { id: string; features: readonly Feature[]; plannedVisible?: boolean };
-type Inventory = { objects: { objectId: string }[]; landmarks: { landmarkId: string; candidates: {
+type Inventory = { objects: { objectId: string; quadrants?: string[] }[]; landmarks: { landmarkId: string; candidates: {
   objectId: string; association: string; featureChecks: { featureId: string; observed: string }[];
 }[] }[] };
 export class LandmarkTopologyError extends Error { readonly code = 'audition_review_landmark_topology'; }
 const bad = (): never => { throw new LandmarkTopologyError('Unusable typed landmark topology'); };
 const key = (landmarkId: string, id: string) => `${landmarkId}/${id}`;
 
+/** Bounded spatial accounting, not geometric pixel proof. Only fresh versioned judge evidence can assert coverage. */
+function assessCoverage(topology: z.infer<typeof landmarkCoverageTopologySchema>, inventory: Inventory, landmarks: readonly Landmark[]) {
+  const sources = new Map(landmarks.map(l => [l.id, l.features])), objects = new Map(inventory.objects.map(o => [o.objectId, o]));
+  const unique = (xs: readonly string[]) => new Set(xs).size === xs.length;
+  const equalSet = (a: readonly string[], b: readonly string[]) => unique(a) && a.length === b.length && a.every(x => b.includes(x));
+  for (const o of inventory.objects) if (!o.quadrants?.length || !unique(o.quadrants) ||
+    o.quadrants.some(q => !(LANDMARK_SCAN_REGIONS as readonly string[]).includes(q))) bad();
+  const { populations, scans } = topology.coverage, ids = populations.map(p => p.populationId), uncertain = new Set<string>();
+  if (!unique(ids) || !equalSet(scans.map(s => s.quadrant), LANDMARK_SCAN_REGIONS)) bad();
+  for (const s of scans) {
+    if (!equalSet(s.objectIds, inventory.objects.filter(o => o.quadrants!.includes(s.quadrant)).map(o => o.objectId)) ||
+      !equalSet(s.populationIds, populations.filter(p => p.quadrants.includes(s.quadrant)).map(p => p.populationId)) ||
+      !unique(s.uncertainLandmarkIds) || s.uncertainLandmarkIds.some(id => !sources.has(id)) ||
+      (s.status === 'complete') !== (s.uncertainLandmarkIds.length === 0) ||
+      (s.status === 'complete') !== (s.unresolvedReason === 'none')) bad();
+    s.uncertainLandmarkIds.forEach(id => uncertain.add(id));
+  }
+  for (const p of populations) {
+    if (!unique(p.quadrants) || !unique(p.witnessObjectIds) || p.witnessObjectIds.some(id => !objects.has(id)) ||
+      !equalSet(p.negativeChecks.map(c => c.landmarkId), [...sources.keys()])) bad();
+    if (p.witnessObjectIds.some(id => objects.get(id)!.quadrants!.some(q => !p.quadrants.includes(q as typeof LANDMARK_SCAN_REGIONS[number])))) bad();
+    for (const c of p.negativeChecks) {
+      const f = sources.get(c.landmarkId)!.find(f => f.id === c.featureId) ?? bad();
+      if (!f.decisive) bad();
+      const readable = c.observed === 'contradicted' && c.allMembersReadable && c.basis !== 'not_readable';
+      if (!readable || p.membership !== 'uniform_noninstances') { uncertain.add(c.landmarkId); continue; }
+      const basis = f.aspect === 'size' ? 'grounded_size' : `visible_${f.aspect}`;
+      if (c.basis !== basis) bad();
+      if (f.aspect === 'size') {
+        const grounding = c.grounding ?? bad();
+        if (grounding.relation === 'not_readable') uncertain.add(c.landmarkId);
+        else {
+          const reference = grounding.referenceObjectId ?? bad();
+          if (!objects.has(reference) || p.witnessObjectIds.includes(reference)) bad();
+        }
+      } else if (c.grounding !== null) bad();
+      // A population cannot hide a listed possible/positive whole or contradict its own visible witnesses.
+      for (const id of p.witnessObjectIds) {
+        const row = inventory.landmarks.find(l => l.landmarkId === c.landmarkId)?.candidates.find(x => x.objectId === id);
+        const binding = topology.bindings.find(b => b.landmarkId === c.landmarkId && b.objectId === id);
+        if (!row || row.association !== 'different_object' || binding?.extent !== 'not_instance' ||
+          row.featureChecks.find(x => x.featureId === c.featureId)?.observed !== 'contradicted') bad();
+      }
+    }
+  }
+  return uncertain;
+}
+
 /** Validate the physical graph separately from source ownership; never union component siblings. */
 export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Inventory, landmarks: readonly Landmark[]) {
-  const topology = landmarkTopologySchema.parse(raw), ids = inventory.objects.map(o => o.objectId), known = new Set(ids);
+  const topology = raw.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? landmarkCoverageTopologySchema.parse(raw) : landmarkTopologySchema.parse(raw);
+  const ids = inventory.objects.map(o => o.objectId), known = new Set(ids);
   if (known.size !== ids.length) bad();
   const catalogue = new Map(landmarks.map(l => [l.id, l.features]));
   const kinds = new Map(landmarks.map(l => {
@@ -109,7 +183,8 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     }
     if ([...observedKinds.values()].some(s => s.has('matches') && s.has('contradicted'))) bad();
   }
-  const uncertain = new Set<string>(), positive = new Set<string>(), owner = new Map<string, string>();
+  const uncertain = topology.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? assessCoverage(topology, inventory, landmarks) : new Set<string>();
+  const positive = new Set<string>(), owner = new Map<string, string>();
   for (const l of inventory.landmarks) for (const c of l.candidates) {
     const binding = bindings.get(key(l.landmarkId, c.objectId)) ?? bad();
     const features = catalogue.get(l.landmarkId) ?? bad(), kind = kinds.get(l.landmarkId) ?? bad();
@@ -119,7 +194,9 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
       if (c.association !== 'different_object' || !features.some(f => f.decisive &&
         c.featureChecks.some(x => x.featureId === f.id && x.observed === 'contradicted'))) bad();
     } else if (c.association === 'different_object') bad();
-    const supported = kindObserved === 'matches' && !c.featureChecks.some(x => x.observed === 'contradicted') &&
+    const veto = c.featureChecks.some(x => x.observed === 'contradicted' &&
+      (topology.version === LANDMARK_TOPOLOGY_VERSION || features.some(f => f.id === x.featureId && f.decisive)));
+    const supported = kindObserved === 'matches' && !veto &&
       new Set(matched.map(f => f.aspect)).size >= 2;
     if (binding.extent === 'uncertain') uncertain.add(l.landmarkId);
     if (binding.extent === 'whole_instance' && c.association !== 'different_object' && !supported) uncertain.add(l.landmarkId);

@@ -15,8 +15,9 @@ import type { BookDesignReferenceRole } from '../generate-image';
 import type { PersonalWizardOptions } from './options';
 import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
 import { findingTrajectory, STAGE_RECOVERY_VERSION, type RecoveryFinding } from './stage-recovery';
-import { LANDMARK_TOPOLOGY_VERSION, landmarkTopologySchema, assessLandmarkTopology, type LandmarkTopology } from './landmark-topology';
-export { LANDMARK_TOPOLOGY_VERSION } from './landmark-topology';
+import { LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkTopologySchema, landmarkCoverageTopologySchema,
+  landmarkQuadrantsSchema, assessLandmarkTopology, type LandmarkTopology, type LandmarkTopologyVersion } from './landmark-topology';
+export { LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION } from './landmark-topology';
 
 /**
  * Reviewed audition: bounded attempts per image, every image judged, findings published next to the picture.
@@ -51,12 +52,15 @@ export const DESIGN_HEAD_AUDITION_POLICY = Object.freeze({ ...REVIEWED_AUDITION_
   landmarkDesignHead: LANDMARK_DESIGN_HEAD_VERSION });
 export const TOPOLOGY_AUDITION_POLICY = Object.freeze({ ...DESIGN_HEAD_AUDITION_POLICY, version: 'reviewed-audition-policy/v12',
   landmarkTopology: LANDMARK_TOPOLOGY_VERSION });
-export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true, topology?: typeof LANDMARK_TOPOLOGY_VERSION) => {
+export const COVERAGE_AUDITION_POLICY = Object.freeze({ ...TOPOLOGY_AUDITION_POLICY, version: 'reviewed-audition-policy/v13',
+  landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, landmarkCoverage: 'landmark-candidate-coverage/v1',
+  landmarks: 'prospective whole-candidate coverage with four exact spatial scans and source-bound decisive negative population evidence; nondecisive observations remain recorded but cannot veto a positive whole anchor; all explicit findings, genuine duplicates and uncertainty remain blocking' });
+export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true, topology?: LandmarkTopologyVersion) => {
   // The closed lineup diagnostics and this independently granted contract are not interchangeable.
   if (scaleLineup && designHead) throw new ReviewedAuditionError('audition_landmark_contract');
-  if (topology !== undefined && (topology !== LANDMARK_TOPOLOGY_VERSION || !designHead || scaleLineup))
+  if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || !designHead || scaleLineup))
     throw new ReviewedAuditionError('audition_landmark_contract');
-  if (topology) return TOPOLOGY_AUDITION_POLICY;
+  if (topology) return topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_AUDITION_POLICY : TOPOLOGY_AUDITION_POLICY;
   return designHead ? DESIGN_HEAD_AUDITION_POLICY : scaleLineup ? SCALE_LINEUP_AUDITION_POLICY : REVIEWED_AUDITION_POLICY;
 };
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
@@ -370,21 +374,32 @@ export const topologyLandmarkInventorySchema = landmarkInventorySchema.extend({
   // Same ten-candidate ceiling per source; the new complete matrix therefore bounds observed objects to ten.
   objects: landmarkInventorySchema.shape.objects.max(10), topology: landmarkTopologySchema });
 export const topologyAuditionPageReviewSchema = auditionReviewSchema.extend({ landmarkInventory: topologyLandmarkInventorySchema });
+export const coverageLandmarkInventorySchema = landmarkInventorySchema.extend({
+  objects: z.array(landmarkInventorySchema.shape.objects.element.extend({ quadrants: landmarkQuadrantsSchema })).max(10),
+  topology: landmarkCoverageTopologySchema,
+});
+export const coverageAuditionPageReviewSchema = auditionReviewSchema.extend({ landmarkInventory: coverageLandmarkInventorySchema });
 export type AuditionReview = z.infer<typeof auditionReviewSchema> & {
   landmarkInventory?: z.infer<typeof landmarkInventorySchema> & { topology?: LandmarkTopology } };
 /** Selection is from an explicit prospective context, never presence of a field in an old answer. */
-export function auditionLandmarkTopology(context: unknown): typeof LANDMARK_TOPOLOGY_VERSION | undefined {
+export function auditionLandmarkTopology(context: unknown): LandmarkTopologyVersion | undefined {
   const c = context && typeof context === 'object' ? context as Record<string, unknown> : {};
   if (c.landmarkTopology === undefined) {
-    if (c.version === 'audition-page-context/v3') fail('audition_landmark_contract');
+    if (c.version === 'audition-page-context/v3' || c.version === 'audition-page-context/v4' || c.landmarkCoverage !== undefined) fail('audition_landmark_contract');
     return undefined;
   }
-  if (c.landmarkTopology !== LANDMARK_TOPOLOGY_VERSION || c.version !== 'audition-page-context/v3' ||
+  if (c.landmarkTopology === LANDMARK_COVERAGE_TOPOLOGY_VERSION) {
+    if (c.version !== 'audition-page-context/v4' || c.landmarkCoverage !== 'landmark-candidate-coverage/v1' ||
+      c.landmarkDesignHead !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
+    return LANDMARK_COVERAGE_TOPOLOGY_VERSION;
+  }
+  if (c.landmarkTopology !== LANDMARK_TOPOLOGY_VERSION || c.version !== 'audition-page-context/v3' || c.landmarkCoverage !== undefined ||
       c.landmarkDesignHead !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
   return LANDMARK_TOPOLOGY_VERSION;
 }
 export const auditionPageReviewSchemaForContext = (context: unknown) =>
-  auditionLandmarkTopology(context) ? topologyAuditionPageReviewSchema : auditionPageReviewSchema;
+  auditionLandmarkTopology(context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
+    : auditionLandmarkTopology(context) ? topologyAuditionPageReviewSchema : auditionPageReviewSchema;
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean; derived?: true };
 export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number; excluded: number; topologyUncertain?: boolean;
   candidates: { objectId: string; region: string; object: number; association: string; counted: boolean; strong: boolean; reclassified: boolean;
@@ -476,9 +491,10 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
 
 /** Binding, coverage and correction rules of the existing judge, plus impact/requirement checks; pages also bind the landmark inventory. */
 export function assessAuditionReview(raw: unknown, candidateSha: string, contextSha: string, requirementIds: readonly string[],
-  landmarks?: readonly AuditionLandmark[], topology?: typeof LANDMARK_TOPOLOGY_VERSION) {
-  if (topology !== undefined && (topology !== LANDMARK_TOPOLOGY_VERSION || !landmarks)) fail('audition_landmark_contract');
-  const review: AuditionReview = landmarks ? (topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema).parse(raw) : auditionReviewSchema.parse(raw);
+  landmarks?: readonly AuditionLandmark[], topology?: LandmarkTopologyVersion) {
+  if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || !landmarks)) fail('audition_landmark_contract');
+  const review: AuditionReview = landmarks ? (topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
+    : topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema).parse(raw) : auditionReviewSchema.parse(raw);
   if (review.checks.some(c => (c.verdict === 'pass') !== (c.issues.length === 0))) fail('audition_review_issue_coverage');
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
   const known = new Set(requirementIds);
@@ -692,6 +708,50 @@ const TOPOLOGY_JUDGE_RULES = `LANDMARK TOPOLOGY v1 (prospective context.landmark
   membership relations remain uncertain. Do not invent features or membership to dismiss a body.
 - All original safety, age, visible identity, uncertain, materiality, reference and story requirements remain. No old answer is fresh evidence.`;
 
+const COVERAGE_INVENTORY_RULE = `Fill landmarkInventory with every plausible WHOLE matching landmark, every uncertain-kind possible whole,
+  all parts/aggregates needed to judge topology, and readable witnesses of any excluded populations. Do NOT individually enumerate all
+  decorative bodies merely because of a shared incidental colour/shape cue. Their absence requires the source-bound negative population
+  evidence below, never the label ordinary or a decision in prose. Keep ONE objectId per observed body across every source. Each object has
+  quadrants: its nonempty unique subset of top_left/top_right/bottom_left/bottom_right (image split at horizontal and vertical midlines).
+  Check EVERY feature of EVERY source on every listed object; different_object needs an actually contradicted DECISIVE whole feature.
+  Occluded or unreadable kind, size, identity or membership stays not_visible/possible_copy. A matching whole cannot disappear into a group.`;
+const COVERAGE_JUDGE_RULES = TOPOLOGY_JUDGE_RULES.split('TOPOLOGY v1').join('TOPOLOGY v2').split('landmark-topology/v1').join('landmark-topology/v2')
+  .replace(/- For this NEW contract, candidate coverage[\s\S]*?(?=- Keep canonical ownership)/,
+    `- The complete object/source matrix and every unordered object pair remain required, with at most ten objects. All potential whole
+  matches/uncertain bodies stay individual. Decorative populations may use the strict negative coverage contract below instead of listing
+  every member. Overflow or unreadable coverage means uncertain, NEVER dropping a potential whole to fit.\n`) + `
+DECISIVE AUTHORITY v2: only decisive whole features can veto a positive whole anchor. A nondecisive contradiction remains recorded but
+does not negate kind+another decisive-aspect support. Never erase an explicit issue because of this rule; decisive contradictions still hold.
+SPATIAL CANDIDATE COVERAGE v1 (landmarkInventory.topology.coverage):
+- version landmark-candidate-coverage/v1. scans contains exactly FOUR global cells, one per quadrant. objectIds and populationIds are EXACTLY
+  all globally listed IDs whose quadrants include that cell. No partial scan, duplicate or missing quadrant. status complete means no
+  unresolved coverage and unresolvedReason none; uncertain requires a nonempty uncertainLandmarkIds list of the affected canonical source IDs
+  plus unresolvedReason unreadable/mixed_candidates/capacity_exceeded. Never silently drop bodies on overflow. evidence describes
+  the actual scanned pixels; a sky/empty cell still needs its scan. These declarations do not imply geometric certainty by themselves.
+- populations: at most six stable p1,p2,... IDs, description, nonempty unique quadrants, membership uniform_noninstances /
+  mixed_possible_instance / unreadable, and nonempty witnessObjectIds of actual LISTED visible representative bodies. Do not label a group
+  uniform when even one member may be a matching whole. Such a member must be individually listed or membership/coverage uncertain.
+- Each population has negativeChecks with EXACTLY ONE row for EVERY canonical source. It must give that source's DECISIVE whole featureId,
+  observed contradicted or not_visible, allMembersReadable, actual evidence applying to EVERY member, and basis on that feature's own aspect:
+  visible_kind/material/colour/shape or grounded_size. nondecisive, part, later-state or neighbour cues NEVER exclude a population.
+- grounded_size requires grounding.referenceObjectId of a DIFFERENT listed visible scale reference, relation same_ground_plane or
+  anchored_depth_geometry, and visible grounding evidence. Perspective alone, pixel smallness or a distant silhouette is NOT an exclusion.
+  If scale or any member is unreadable use not_visible/not_readable, allMembersReadable false, unresolved membership. A grounding object
+  cannot be one of the excluded witnesses. Non-size checks use grounding null. Unreadable grounding explicitly uses not_readable.
+- Every witness must be different_object/not_instance under EVERY source; the exact negative feature must be contradicted on the witness
+  as well. Never absorb an individually listed possible/positive whole. All listed individuals still participate in full matrix/topology.
+  Mixed membership, not_visible, unknown grounding or any unreadable member yields derived continuity uncertainty even if scans say complete
+  or the explicit checks say pass. Group labels, counts, prose or shared colour alone cannot justify exclusion. Keep genuine duplicate and
+  unknown connection/depth gates. All safety, age, visible cast identity, style, story and 0.70 requirements remain unchanged.`;
+
+function coveragePageInstruction() {
+  const text = AUDITION_JUDGE_INSTRUCTIONS.page, start = text.indexOf('Fill landmarkInventory: objects =');
+  const end = text.indexOf('\n- castIdentity:', start);
+  if (start < 0 || end < start) fail('audition_landmark_contract');
+  // Replace, do not append a contradictory inherited every-ANY-cue contract. Legacy instructions remain byte-identical.
+  return text.slice(0, start) + COVERAGE_INVENTORY_RULE + text.slice(end);
+}
+
 /**
  * The judge instruction for a judged context: a sheet whose entities design carries the opt-in lineup gets the lineup checks; every other
  * context gets exactly the existing instruction. Chosen from the judged context itself, so a request can never pair a lineup design with
@@ -702,10 +762,11 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
     const marker = context && typeof context === 'object' && 'landmarkDesignHead' in context ? context.landmarkDesignHead : undefined;
     if (marker !== undefined && marker !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
     const topology = auditionLandmarkTopology(context);
-    const base = topology ? AUDITION_JUDGE_INSTRUCTIONS.page.replace('each is ONE physical object,', 'each is ONE canonical landmark identity (possibly an aggregate),')
+    const source = topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coveragePageInstruction() : AUDITION_JUDGE_INSTRUCTIONS.page;
+    const base = topology ? source.replace('each is ONE physical object,', 'each is ONE canonical landmark identity (possibly an aggregate),')
       : AUDITION_JUDGE_INSTRUCTIONS.page;
     return base + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '') +
-      (topology ? `\n${TOPOLOGY_JUDGE_RULES}` : '');
+      (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '');
   }
   if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
@@ -750,6 +811,8 @@ export type SavedPage = { pageNumber: number; contextSha: string; requirementIds
   calibration?: { version: typeof AUDITION_CALIBRATION_VERSION; priorContextSha: string; consumedAttemptsBefore: number;
     priorAttempts: AuditionAttempt[]; action: 'requalify' | 'correct_once' };
   topologyContinuation?: { version: typeof AUDITION_TOPOLOGY_CONTINUATION_VERSION; priorSha256: string;
+    consumedAttemptsBefore: number; action: 'requalify' | 'correct_once'; prior: SavedPage };
+  coverageContinuation?: { version: typeof AUDITION_COVERAGE_CONTINUATION_VERSION; priorSha256: string;
     consumedAttemptsBefore: number; action: 'requalify' | 'correct_once'; prior: SavedPage } };
 export const AUDITION_CALIBRATION_VERSION = 'audition-landmark-calibration/v1' as const;
 export type SavedCalibration = { version: typeof AUDITION_CALIBRATION_VERSION; priorSha256: string; contextSha: string;
@@ -759,8 +822,15 @@ export type AuditionCalibration = { version: typeof AUDITION_CALIBRATION_VERSION
 export const AUDITION_TOPOLOGY_CONTINUATION_VERSION = 'audition-topology-continuation/v1' as const;
 export type AuditionTopologyContinuation = { version: typeof AUDITION_TOPOLOGY_CONTINUATION_VERSION;
   /** Consumed v1 calibration replayed provider-free; ONLY its first sample has a saved requalification and is held. */
-  parentCalibration: AuditionCalibration; pages: AuditionCalibration['pages'] };
+  parentCalibration: AuditionCalibration; pages: (Omit<AuditionCalibration['pages'][number], 'saved'> & { saved?: SavedTopologyContinuation })[] };
 export type SavedTopologyContinuation = Omit<SavedCalibration, 'version'> & { version: typeof AUDITION_TOPOLOGY_CONTINUATION_VERSION };
+export const AUDITION_COVERAGE_CONTINUATION_VERSION = 'audition-coverage-continuation/v1' as const;
+export type AuditionCoverageContinuation = { version: typeof AUDITION_COVERAGE_CONTINUATION_VERSION;
+  parentTopology: AuditionTopologyContinuation; savedTopology: SavedTopologyContinuation;
+  pages: (Omit<AuditionCalibration['pages'][number], 'saved'> & { saved?: never })[] };
+export type SavedCoverageContinuation = Omit<SavedCalibration, 'version'> & { version: typeof AUDITION_COVERAGE_CONTINUATION_VERSION };
+type CalibrationPage = Omit<AuditionCalibration['pages'][number], 'saved'> & {
+  saved?: SavedCalibration | SavedTopologyContinuation | SavedCoverageContinuation };
 /** Compose the already-validated v1 requalification without replacing its raw or losing its actual render-count history. */
 export function calibrationRequalificationParent(prior: SavedPage, s: SavedCalibration): SavedPage {
   if (s.version !== AUDITION_CALIBRATION_VERSION || s.action !== 'requalify' ||
@@ -771,6 +841,18 @@ export function calibrationRequalificationParent(prior: SavedPage, s: SavedCalib
     attempts: [s.reviewed], chosen: s.reviewed as Chosen, status: s.status,
     calibration: { version: AUDITION_CALIBRATION_VERSION, priorContextSha: prior.contextSha, consumedAttemptsBefore: s.consumedAttemptsBefore,
       priorAttempts: prior.attempts, action: s.action } };
+}
+/** v1's requalification as an immutable parent, never a replacement of its original raw/assessment or render history. */
+export function topologyRequalificationParent(prior: SavedPage, s: SavedTopologyContinuation): SavedPage {
+  const consumed = prior.calibration?.consumedAttemptsBefore ?? prior.attempts.length;
+  if (s.version !== AUDITION_TOPOLOGY_CONTINUATION_VERSION || s.action !== 'requalify' ||
+    s.priorSha256 !== previewSha(canonicalJson(prior)) || s.consumedAttemptsBefore !== consumed ||
+    s.reviewed.attempt !== prior.chosen.attempt || canonicalJson(s.reviewed.candidate) !== canonicalJson(prior.chosen.candidate) ||
+    s.reviewed.status !== s.status) fail('audition_coverage_parent');
+  return { pageNumber: prior.pageNumber, contextSha: s.contextSha, requirementIds: prior.requirementIds,
+    attempts: [s.reviewed], chosen: s.reviewed as Chosen, status: s.status,
+    topologyContinuation: { version: AUDITION_TOPOLOGY_CONTINUATION_VERSION, priorSha256: s.priorSha256,
+      consumedAttemptsBefore: consumed, action: s.action, prior } };
 }
 /**
  * A re-review (2026-10-22; owner-approved and opt-in, ONE per allowance, never a default): a page attempt that was DRAWN but whose review was
@@ -813,13 +895,14 @@ export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<Sa
 
 export function auditionPageContext(book: PersonalStoryboard, packetContext: unknown, pageNumber: number, companionDescription: string,
   references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION,
-  topology?: typeof LANDMARK_TOPOLOGY_VERSION) {
-  if (topology !== undefined && (topology !== LANDMARK_TOPOLOGY_VERSION || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
+  topology?: LandmarkTopologyVersion) {
+  if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
   const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);
   if (topology && checks.uniqueLandmarks.some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
-  const context = { version: topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
+  const context = { version: topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'audition-page-context/v4' : topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
     ...(designHead ? { landmarkDesignHead: designHead } : {}),
     ...(topology ? { landmarkTopology: topology } : {}),
+    ...(topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? { landmarkCoverage: 'landmark-candidate-coverage/v1' } : {}),
     referenceStatus: { entities: { status: refs.entities.status, knownFlaws: refs.entities.knownFlaws },
       locations: { status: refs.locations.status, knownFlaws: refs.locations.knownFlaws } },
     predecessor: predecessor ? { pageNumber: pageNumber - 1, ...predecessor, authority: 'comparison_only_not_canonical' } : null,
@@ -879,19 +962,34 @@ export async function illustrateReviewedAudition(args: {
   /** New, one-use authority supplied by the native caller, never a legacy grant/CLI flag. Both saved samples need fresh evidence. */
   calibration?: AuditionCalibration;
   /** Prospective engine contract only. No CLI flag, grant allowance or migration of a consumed calibration is implied. */
-  landmarkTopology?: typeof LANDMARK_TOPOLOGY_VERSION;
+  landmarkTopology?: LandmarkTopologyVersion;
   /** A NEW one-use native authority following consumed v1; NEVER an opt-in on that old grant or an ordinary resume. */
   topologyContinuation?: AuditionTopologyContinuation;
+  /** Follows the consumed v1 topology exactly; prospective v2 evidence, no legacy grant/ordinary resume opt-in. */
+  coverageContinuation?: AuditionCoverageContinuation;
 }) {
-  const continuation = args.topologyContinuation, calibration = args.calibration ?? continuation;
+  const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
   if (topology && (args.calibration || args.book.landmarkKind !== LANDMARK_KIND_CONTRACT_VERSION)) fail('audition_landmark_contract');
+  if (coverage) {
+    if (topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || continuation || args.calibration || !args.resume ||
+      coverage.version !== AUDITION_COVERAGE_CONTINUATION_VERSION || coverage.parentTopology.pages.some(p => p.saved) ||
+      coverage.savedTopology.action !== 'requalify' || coverage.parentTopology.pages.length !== 2 ||
+      canonicalJson(coverage.pages.map(p => p.page)) !== canonicalJson(coverage.parentTopology.pages.map(p => p.page))) fail('audition_coverage_parent');
+    const parent = coverage.parentTopology;
+    const old = await illustrateReviewedAudition({ ...args, coverageContinuation: undefined, landmarkTopology: LANDMARK_TOPOLOGY_VERSION,
+      topologyContinuation: { ...parent, pages: parent.pages.map((p, i) => i === 0 ? { ...p, saved: coverage.savedTopology } : p) },
+      render: async () => fail('audition_coverage_parent'), judge: async () => fail('audition_coverage_parent'),
+      identity: async () => fail('audition_coverage_parent'), progress: undefined,
+      save: name => { if (name !== 'reviewed_audition_manifest') fail('audition_coverage_parent'); } });
+    if (old.status !== 'held_sample' || old.pages.length !== 1 || old.pages[0].pageNumber !== parent.pages[0].page) fail('audition_coverage_parent');
+  }
   if (continuation) {
     const parent = continuation.parentCalibration;
-    if (!topology || args.calibration || !args.resume || continuation.version !== AUDITION_TOPOLOGY_CONTINUATION_VERSION ||
+    if (topology !== LANDMARK_TOPOLOGY_VERSION || args.calibration || !args.resume || continuation.version !== AUDITION_TOPOLOGY_CONTINUATION_VERSION ||
         parent.version !== AUDITION_CALIBRATION_VERSION || parent.pages.length !== 2 || !parent.pages[0].saved || parent.pages[1].saved ||
         parent.pages[0].action !== 'requalify' || parent.pages[1].action !== 'correct_once' ||
-        continuation.pages.some(p => p.saved) || canonicalJson(parent.pages.map(p => p.page)) !== canonicalJson(continuation.pages.map(p => p.page)))
+        continuation.pages.slice(1).some(p => p.saved) || canonicalJson(parent.pages.map(p => p.page)) !== canonicalJson(continuation.pages.map(p => p.page)))
       fail('audition_topology_parent');
     // The SAME engine validates ALL old-context parents and the consumed saved v11 judgment before any fresh callback.
     // Its early held requalification must stop it before the unused correction. These are receipt replays, not fresh pixel evidence.
@@ -915,13 +1013,13 @@ export async function illustrateReviewedAudition(args: {
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
   const order = sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
-  if (calibration && (!args.resume || calibration.version !== (continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION) || !sample ||
+  if (calibration && (!args.resume || calibration.version !== (coverage ? AUDITION_COVERAGE_CONTINUATION_VERSION : continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION) || !sample ||
       canonicalJson(calibration.pages.map(p => p.page)) !== canonicalJson(sample) ||
       calibration.pages.filter(p => p.action === 'correct_once').length !== 1 ||
       calibration.pages.some(p => !['requalify', 'correct_once'].includes(p.action) || !args.resume!.pages[p.page]) ||
       Object.keys(args.resume.pages).some(p => !sample.includes(Number(p))) || args.resume.interrupted)) fail('audition_calibration_binding');
   const resumed = <T extends SavedSheet | SavedPage>(phase: 'sheet' | 'page', prior: T | undefined, contextSha: string, requirementIds: string[],
-    landmarks?: readonly AuditionLandmark[], topologyVersion?: typeof LANDMARK_TOPOLOGY_VERSION): T | null => {
+    landmarks?: readonly AuditionLandmark[], topologyVersion?: LandmarkTopologyVersion): T | null => {
     if (!prior) return null;
     // Re-derive every saved judgement from its raw review; nothing saved is trusted as a verdict.
     const attempts = prior.attempts.map(a => a.candidate && a.review ? { ...a,
@@ -1087,12 +1185,15 @@ export async function illustrateReviewedAudition(args: {
     const re = args.resume!.rereview?.pages?.[n];
     if (re && !re.saved) fail('audition_calibration_binding');
     let effective = re ? await rereviewed(prior, re, old.context, old.contextSha, old.checks, predecessor) : prior;
-    const oldRequalification = continuation?.parentCalibration.pages.find(p => p.page === n)?.saved;
+    const oldRequalification = (continuation?.parentCalibration ?? coverage?.parentTopology.parentCalibration)?.pages.find(p => p.page === n)?.saved;
     if (oldRequalification) effective = calibrationRequalificationParent(effective, oldRequalification);
-    const consumed = continuation && effective.calibration ? effective.calibration.consumedAttemptsBefore : effective.attempts.length;
-    const requalifiable = effective.status === 'qa_supported' || !!continuation && effective.status === 'held' &&
+    if (coverage && n === coverage.parentTopology.pages[0].page) effective = topologyRequalificationParent(effective, coverage.savedTopology);
+    const consumed = coverage && effective.topologyContinuation ? effective.topologyContinuation.consumedAttemptsBefore
+      : continuation && effective.calibration ? effective.calibration.consumedAttemptsBefore : effective.attempts.length;
+    const requalifiable = effective.status === 'qa_supported' || !!(continuation || coverage) && effective.status === 'held' &&
       identityPassed(effective.chosen.identity) && effective.chosen.assessment.findings.every(f => f.impact === 'detail' ||
-        f.derived && f.verdict === 'uncertain' && f.impact === 'continuity');
+        f.verdict === 'uncertain' && f.impact === 'continuity' && (coverage
+          ? f.bound && f.category === 'environment' && f.requirement.startsWith('landmark_unique:') : f.derived));
     if (previewSha(canonicalJson(effective)) !== spec.priorSha256 || consumed !== spec.consumedAttemptsBefore ||
         (!oldRequalification && effective.attempts.some((a, i) => a.attempt !== i)) ||
         (spec.action === 'requalify' ? !requalifiable
@@ -1101,17 +1202,19 @@ export async function illustrateReviewedAudition(args: {
       fail('audition_calibration_binding');
     legacySamples.set(n, effective);
   }
-  const calibrated = async (prior: SavedPage, spec: AuditionCalibration['pages'][number], base: string, context: unknown, contextSha: string,
+  const calibrated = async (prior: SavedPage, spec: CalibrationPage, base: string, context: unknown, contextSha: string,
     checks: ReturnType<typeof auditionPageChecks>, predecessor: AuditionImage | null): Promise<SavedPage> => {
     const attempt = spec.action === 'correct_once' ? spec.consumedAttemptsBefore : prior.chosen.attempt;
     let result: AuditionAttempt;
     if (spec.saved) {
       const s = spec.saved, r = s.reviewed;
-      if (continuation || s.version !== AUDITION_CALIBRATION_VERSION || s.priorSha256 !== spec.priorSha256 || s.contextSha !== contextSha || s.action !== spec.action ||
+      if (s.version !== (coverage ? AUDITION_COVERAGE_CONTINUATION_VERSION : continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION) ||
+          s.priorSha256 !== spec.priorSha256 || s.contextSha !== contextSha || s.action !== spec.action ||
           s.consumedAttemptsBefore !== spec.consumedAttemptsBefore || r.attempt !== attempt || !r.candidate || !r.review ||
           (spec.action === 'requalify' && canonicalJson(r.candidate) !== canonicalJson(prior.chosen.candidate))) fail('audition_calibration_binding');
       const candidate = r.candidate ?? fail('audition_calibration_binding');
-      const assessment = assessAuditionReview(r.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks).assessment;
+      const assessment = assessAuditionReview(r.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks,
+        auditionLandmarkTopology(context)).assessment;
       if (canonicalJson(assessment) !== canonicalJson(r.assessment) || !identityUsable(r.identity) ||
           r.status !== attemptStatus('page', { ...r, assessment }) || s.status !== r.status) fail('audition_calibration_binding');
       result = { ...r, assessment };
@@ -1123,16 +1226,18 @@ export async function illustrateReviewedAudition(args: {
           canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks)
         : await judgeCandidate('page', String(prior.pageNumber), attempt, prior.chosen.candidate, context, contextSha, checks.requirementIds,
           canonical, predecessor, checks.uniqueLandmarks);
-      args.save(`page_${prior.pageNumber}_${continuation ? 'topology' : 'calibration'}`, {
-        version: continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION, priorSha256: spec.priorSha256,
-        contextSha, action: spec.action, consumedAttemptsBefore: spec.consumedAttemptsBefore, reviewed: result, status: result.status } satisfies SavedCalibration | SavedTopologyContinuation);
+      args.save(`page_${prior.pageNumber}_${coverage ? 'coverage' : continuation ? 'topology' : 'calibration'}`, {
+        version: coverage ? AUDITION_COVERAGE_CONTINUATION_VERSION : continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION, priorSha256: spec.priorSha256,
+        contextSha, action: spec.action, consumedAttemptsBefore: spec.consumedAttemptsBefore, reviewed: result, status: result.status } satisfies SavedCalibration | SavedTopologyContinuation | SavedCoverageContinuation);
       report('page', String(prior.pageNumber), result);
       finish('page', String(prior.pageNumber), [result]);
     }
     const chosen = selectAuditionAttempt('page', [result]) ?? fail('audition_calibration_unavailable');
     // Only FRESH evidence participates in selection. Historical attempts remain explicit and never gain the new policy's verdict.
     return { pageNumber: prior.pageNumber, contextSha, requirementIds: checks.requirementIds, attempts: [result], chosen,
-      status: attemptStatus('page', chosen), ...(continuation ? { topologyContinuation: { version: AUDITION_TOPOLOGY_CONTINUATION_VERSION,
+      status: attemptStatus('page', chosen), ...(coverage ? { coverageContinuation: { version: AUDITION_COVERAGE_CONTINUATION_VERSION,
+        priorSha256: spec.priorSha256, consumedAttemptsBefore: spec.consumedAttemptsBefore, action: spec.action, prior } }
+      : continuation ? { topologyContinuation: { version: AUDITION_TOPOLOGY_CONTINUATION_VERSION,
         priorSha256: spec.priorSha256, consumedAttemptsBefore: spec.consumedAttemptsBefore, action: spec.action, prior } } : {
         calibration: { version: AUDITION_CALIBRATION_VERSION, priorContextSha: prior.contextSha,
           consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } }) };
@@ -1203,7 +1308,8 @@ export async function illustrateReviewedAudition(args: {
     pages: presented.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
       identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity),
       ...(p.rereview ? { rereview: p.rereview } : {}), ...(p.calibration ? { calibration: p.calibration } : {}),
-      ...(p.topologyContinuation ? { topologyContinuation: p.topologyContinuation } : {}) })),
+      ...(p.topologyContinuation ? { topologyContinuation: p.topologyContinuation } : {}),
+      ...(p.coverageContinuation ? { coverageContinuation: p.coverageContinuation } : {}) })),
     approval: 'none: qa_supported is an automated audition label, not product acceptance or production qualification' as const,
     runtimeEligible: false as const, productionQualified: false as const, ownerReviewRequired: true as const };
   args.save('reviewed_audition_manifest', manifest);

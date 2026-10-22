@@ -43,7 +43,8 @@ import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, audi
   auditionReviewSchema, auditionPageReviewSchema, auditionPageReviewSchemaForContext, auditionLandmarkTopology, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, AUDITION_ATTEMPT_INTERRUPTED,
   AUDITION_CALIBRATION_VERSION, AUDITION_TOPOLOGY_CONTINUATION_VERSION, LANDMARK_TOPOLOGY_VERSION,
-  type AuditionTopologyContinuation, type AuditionCalibration, type ReferenceStatus, type SavedSheet, type SavedPage, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  AUDITION_COVERAGE_CONTINUATION_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+  type AuditionCoverageContinuation, type AuditionTopologyContinuation, type AuditionCalibration, type ReferenceStatus, type SavedSheet, type SavedPage, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -657,7 +658,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
       ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
     max_output_tokens: 12000, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
-      auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
+      auditionLandmarkTopology(args.context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'personal_audition_pixels_topology_v2'
+        : auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
 }
 
@@ -1008,7 +1010,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   rereview?: readonly { page: number; attempt: number; lostStep: string }[];
   /** Only a new native continuation claim may supply this; the consumed audition grant/admission remain immutable. */
   calibration?: { grantSha256: string; contract: AuditionCalibration };
-  topologyContinuation?: { grantSha256: string; contract: AuditionTopologyContinuation; firstReview: { step: string; wireDigest: string } } }) {
+  topologyContinuation?: { grantSha256: string; contract: AuditionTopologyContinuation; firstReview: { step: string; wireDigest: string } };
+  coverageContinuation?: { grantSha256: string; contract: AuditionCoverageContinuation; firstReview: { step: string; wireDigest: string } } }) {
   if (args.debits?.length && !args.resume) fail('audition_meter_debit');
   if (args.rereview?.length && !args.resume) fail('audition_rereview_binding');
   if (args.calibration && (!args.resume || !args.experiment || args.rereview?.length ||
@@ -1018,8 +1021,13 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       !/^[a-f0-9]{64}$/.test(args.topologyContinuation.grantSha256) ||
       args.topologyContinuation.contract.version !== AUDITION_TOPOLOGY_CONTINUATION_VERSION ||
       !existsSync(path.join(args.out, 'admission-calibration.json')))) fail('audition_topology_parent');
-  if (existsSync(path.join(args.out, 'admission-topology.json'))) fail('audition_topology_used');
-  if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation) fail('audition_calibration_used');
+  if (args.coverageContinuation && (!args.resume || !args.experiment || args.calibration || args.topologyContinuation || args.rereview?.length ||
+      !/^[a-f0-9]{64}$/.test(args.coverageContinuation.grantSha256) ||
+      args.coverageContinuation.contract.version !== AUDITION_COVERAGE_CONTINUATION_VERSION ||
+      !existsSync(path.join(args.out, 'admission-topology.json')))) fail('audition_coverage_parent');
+  if (existsSync(path.join(args.out, 'admission-coverage.json'))) fail('audition_coverage_used');
+  if (existsSync(path.join(args.out, 'admission-topology.json')) && !args.coverageContinuation) fail('audition_topology_used');
+  if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation && !args.coverageContinuation) fail('audition_calibration_used');
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
@@ -1047,6 +1055,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   // A re-review's step must send exactly its lost request (filled below on a resume, before anything is dispatched).
   const expectedWire: Record<string, string> = {};
   if (args.topologyContinuation) expectedWire[args.topologyContinuation.firstReview.step] = args.topologyContinuation.firstReview.wireDigest;
+  if (args.coverageContinuation) expectedWire[args.coverageContinuation.firstReview.step] = args.coverageContinuation.firstReview.wireDigest;
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}),
     expectedWire });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
@@ -1076,6 +1085,10 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       parentAdmissionSha256: previewSha(readFileSync(path.join(args.out, 'admission-calibration.json'))),
       grantSha256: args.topologyContinuation.grantSha256, contract: args.topologyContinuation.contract,
       firstReview: args.topologyContinuation.firstReview, policy: reviewedAuditionPolicy(scaleLineup, true, LANDMARK_TOPOLOGY_VERSION) });
+    if (args.coverageContinuation) save('admission-coverage', { version: AUDITION_COVERAGE_CONTINUATION_VERSION,
+      parentAdmissionSha256: previewSha(readFileSync(path.join(args.out, 'admission-topology.json'))),
+      grantSha256: args.coverageContinuation.grantSha256, contract: args.coverageContinuation.contract,
+      firstReview: args.coverageContinuation.firstReview, policy: reviewedAuditionPolicy(scaleLineup, true, LANDMARK_COVERAGE_TOPOLOGY_VERSION) });
     const optional = (name: string) => existsSync(path.join(args.out, `${name}.json`)) ? read(path.join(args.out, `${name}.json`)) : undefined;
     const markers = readdirSync(args.out).filter(n => /^resume-[0-9]+\.json$/.test(n)).length + 1;
     const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => [n, optional(`page_${n}`)]).filter(([, p]) => p));
@@ -1151,6 +1164,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}), ...(recovery ? { recovery } : {}),
     ...(args.calibration ? { calibration: args.calibration.contract } : {}),
     ...(args.topologyContinuation ? { topologyContinuation: args.topologyContinuation.contract, landmarkTopology: LANDMARK_TOPOLOGY_VERSION } : {}),
+    ...(args.coverageContinuation ? { coverageContinuation: args.coverageContinuation.contract, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save: engineSave, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();

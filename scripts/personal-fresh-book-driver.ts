@@ -98,8 +98,9 @@ import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrat
 import { GPT_IMAGE_PROMPT_MAX_CHARS, type BookDesignReferenceRole } from '../lib/generate-image';
 import { AUDITION_WORST_CASE_CALLS, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, illustrateReviewedAudition,
   AUDITION_TOPOLOGY_CONTINUATION_VERSION, LANDMARK_TOPOLOGY_VERSION, calibrationRequalificationParent, reviewedAuditionPolicy,
+  AUDITION_COVERAGE_CONTINUATION_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, topologyRequalificationParent,
   auditionPageReviewSchemaForContext, ReviewedAuditionError, AUDITION_REREVIEW_VERSION, type SavedPage, type SavedRereview,
-  type SavedCalibration, type AuditionCalibration, type AuditionTopologyContinuation } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  type SavedCalibration, type SavedTopologyContinuation, type AuditionCoverageContinuation, type AuditionCalibration, type AuditionTopologyContinuation } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
 import { previewQualityContextSha } from '../lib/local-preview-quality';
 import { CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_MATERIALITY_AMENDMENT, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique, childAnchorDescriptionRequest, childAnchorCorrectionPrompt,
@@ -5798,6 +5799,204 @@ export async function runFreshBookAuditionTopology(a: { config: FreshBookConfig;
   }
 }
 
+/** Prospective coverage/F4 successor: fixed names follow the consumed topology line; never repin it or reopen an old claim. */
+export const FRESH_BOOK_AUDITION_COVERAGE = Object.freeze({ version: AUDITION_COVERAGE_CONTINUATION_VERSION,
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.audition-coverage.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.audition-coverage.outcome.json',
+  approvalLine: 'קדימה רוץ - יש אישור' });
+const AV = FRESH_BOOK_AUDITION_COVERAGE;
+export const freshBookAuditionCoverageGrantSchema = freshBookAuditionTopologyGrantSchema.extend({
+  version: z.literal('fresh-book-audition-coverage-grant/v1'), contract: z.literal(LANDMARK_COVERAGE_TOPOLOGY_VERSION),
+  transition: z.object({ version: z.literal(AUDITION_COVERAGE_CONTINUATION_VERSION), pages: z.array(calibrationParentSchema).length(2) }).strict(),
+}).strict();
+function coverageRoots(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig) {
+  return { ...topologyRoots(config, env, rereview),
+    'book-status-topology.json': previewSha(fileBytes(path.join(config.bookDir, 'book-status-topology.json'))),
+    [`authority/${AT.claimName}`]: previewSha(fileBytes(path.join(env.authorityRoot, AT.claimName))),
+    [`authority/${AT.outcomeName}`]: previewSha(fileBytes(path.join(env.authorityRoot, AT.outcomeName))) };
+}
+/** Replay the actual consumed v12 pixels and all earlier context parents before deriving any prospective v13 operation. */
+export async function planFreshBookAuditionCoverage(config: FreshBookConfig, env: FreshBookEnv, parentGrantFile: string, approvalFile: string) {
+  const base = planFreshBook(config, env), approval = ownerApproval(approvalFile, AV.approvalLine, 'fresh_book_coverage_approval');
+  const refuse = (): never => fail('fresh_book_coverage_parent'), dir = path.join(config.bookDir, 'audition');
+  const at = (n: string) => path.join(env.authorityRoot, n), parentBytes = fileBytes(parentGrantFile);
+  const parent = freshBookAuditionTopologyGrantSchema.parse(JSON.parse(parentBytes.toString('utf8')));
+  const roots = coverageRoots(config, env, base.rereview), auditionFiles = folderBaseline(dir), engine = env.head();
+  const pins = Object.fromEntries(FRESH_BOOK_AUDITION_TOPOLOGY_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
+  const immutableFiles: [string, string][] = [[parentGrantFile, previewSha(parentBytes)], [approval.file, approval.sha256],
+    [parent.ownerApproval.file, parent.ownerApproval.sha256], [parent.parent.grantFile, parent.parent.grantSha256]];
+  const same = () => {
+    if (canonicalJson(roots) !== canonicalJson(coverageRoots(config, env, base.rereview)) ||
+      canonicalJson(auditionFiles) !== canonicalJson(folderBaseline(dir))) fail('fresh_book_roots_changed');
+    for (const [f, s] of immutableFiles) if (previewSha(fileBytes(f)) !== s) refuse();
+    const e = env.head();
+    if (e.head !== engine.head || e.branch !== engine.branch || e.clean !== engine.clean) fail('fresh_book_source_changed');
+    for (const [rel, s] of Object.entries(pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== s) fail('fresh_book_source_changed');
+  };
+  const expectedClaim = { cycle: FRESH_BOOK_CYCLE.id, version: AT.version, grantSha256: previewSha(parentBytes), parent: parent.parent,
+    ownerApproval: parent.ownerApproval, engine: parent.engine, bookDir: parent.bookDir, transition: parent.transition, allowance: parent.allowance };
+  const outcome = json(at(AT.outcomeName));
+  if (canonicalJson(json(at(AT.claimName))) !== canonicalJson(expectedClaim) || parent.profileSha256 !== base.plan.profileSha256 ||
+    path.resolve(parent.bookDir).toLowerCase() !== path.resolve(config.bookDir).toLowerCase() || outcome.cycle !== FRESH_BOOK_CYCLE.id ||
+    outcome.status !== 'held_sample' || outcome.manifestStatus !== 'held_sample' ||
+    previewSha(canonicalJson(topologyRoots(config, env, base.rereview))) !== parent.rootsSha256 ||
+    previewSha(fileBytes(at(AK.claimName))) !== parent.parent.claimSha256 || previewSha(fileBytes(at(AK.outcomeName))) !== parent.parent.outcomeSha256) refuse();
+  const calibrationBytes = fileBytes(parent.parent.grantFile);
+  const cg = freshBookAuditionCalibrationGrantSchema.parse(JSON.parse(calibrationBytes.toString('utf8')));
+  const reBytes = fileBytes(cg.parent.grantFile), re = freshBookAuditionRereviewGrantSchema.parse(JSON.parse(reBytes.toString('utf8')));
+  const contBytes = fileBytes(re.continuation.grantFile), cont = freshBookAuditionContinuationGrantSchema.parse(JSON.parse(contBytes.toString('utf8')));
+  immutableFiles.push([cg.ownerApproval.file, cg.ownerApproval.sha256], [cg.parent.grantFile, cg.parent.grantSha256],
+    [re.ownerApproval.file, re.ownerApproval.sha256], [re.continuation.grantFile, re.continuation.grantSha256], [cont.ownerApproval.file, cont.ownerApproval.sha256]);
+  if (previewSha(reBytes) !== cg.parent.grantSha256 || previewSha(contBytes) !== re.continuation.grantSha256 ||
+    previewSha(fileBytes(at(AR.claimName))) !== cg.parent.claimSha256 || previewSha(fileBytes(at(AR.outcomeName))) !== cg.parent.outcomeSha256 ||
+    previewSha(fileBytes(at(AC.claimName))) !== re.continuation.claimSha256 || previewSha(fileBytes(at(AC.outcomeName))) !== re.continuation.outcomeSha256 ||
+    canonicalJson(cg.debits) !== canonicalJson(parent.debits) || canonicalJson(re.debits) !== canonicalJson(parent.debits) ||
+    canonicalJson(cont.debit) !== canonicalJson(parent.debits[0])) refuse();
+  const first = parent.transition.pages[0], second = parent.transition.pages[1];
+  const saved = json(path.join(dir, `page_${first.page}_topology.json`)) as SavedTopologyContinuation;
+  const oldStep = parent.firstReview.step.replace(/_qa$/, ''), suffix = oldStep.split('_')[0];
+  const additions = new Set(['admission-topology.json', `resume-${suffix.slice(1)}.json`, `page_${first.page}_topology.json`,
+    `reviewed_audition_manifest-${suffix}.json`, `book-${suffix}.html`, `spend-${suffix}.json`,
+    ...['_qa', '_identity'].flatMap(s => ['wire', 'claim', 'receipt', 'result'].map(k => `paid-stages/${oldStep}${s}.${k}.json`))]);
+  if ([...additions].some(n => !auditionFiles[n]) || previewSha(canonicalJson(Object.fromEntries(Object.entries(auditionFiles)
+    .filter(([n]) => !additions.has(n))))) !== parent.auditionFolderSha256 ||
+    readdirSync(dir).filter(n => /^resume-[0-9]+\.json$/.test(n)).length !== 4 || existsSync(path.join(dir, 'admission-coverage.json')) ||
+    first.action !== 'requalify' || second.action !== 'correct_once' || first.consumedAttemptsBefore !== 2 || second.consumedAttemptsBefore !== 3) refuse();
+  const originalAdmission = path.join(dir, 'admission.json'), calibSaved = json(path.join(dir, `page_${first.page}_calibration.json`)) as SavedCalibration;
+  const parentCalibration: AuditionCalibration = { ...cg.calibration,
+    pages: cg.calibration.pages.map((p, i) => i === 0 ? { ...p, saved: calibSaved } : p) };
+  const parentTopology: AuditionTopologyContinuation = { ...parent.transition, parentCalibration };
+  if (canonicalJson(json(path.join(dir, 'admission-topology.json'))) !== canonicalJson({ version: AT.version,
+    parentAdmissionSha256: previewSha(fileBytes(path.join(dir, 'admission-calibration.json'))), grantSha256: previewSha(parentBytes),
+    contract: parentTopology, firstReview: parent.firstReview, policy: reviewedAuditionPolicy(undefined, true, LANDMARK_TOPOLOGY_VERSION) })) refuse();
+  await assertFreshBookAdmission(base.rereview, env); same();
+  const layout = readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json')), loaded = loadReviewedBook(config.bookDir, workspace(), undefined, layout);
+  const grant = auditionGrantSchema.parse(json(path.join(config.bookDir, 'audition.grant.json')));
+  if (grant.scope.mode !== 'render') return refuse();
+  const scope = grant.scope;
+  if (scope.scaleLineup || scope.pageAttempts !== undefined || scope.reuseSheets ||
+    canonicalJson(scope.pages) !== canonicalJson([0, 1, 2, 3, 4, 5, 6, 7, 8]) ||
+    canonicalJson(scope.sample) !== canonicalJson([first.page, second.page]) || grant.maxCalls !== AUDITION_WORST_CASE_CALLS ||
+    grant.book.requestId !== loaded.queued.requestId || grant.book.storyboardDigest !== loaded.book.storyboardDigest ||
+    previewSha(fileBytes(originalAdmission)) !== re.audition.admissionSha256 ||
+    previewSha(fileBytes(path.join(config.bookDir, 'audition.grant.json'))) !== re.audition.grantSha256) refuse();
+  const ledger = freshBookLedger(config, env, base.rereview, 'child_fresh_anchor', parent.debits);
+  if (canonicalJson(ledger) !== canonicalJson(outcome.ledger)) refuse();
+  const readImage = (imageName: string) => ({ imageName, imageSha: previewSha(fileBytes(path.join(dir, 'illustrations', imageName))) });
+  const bytesOf = (image: AuditionImage) => { const b = fileBytes(path.join(dir, 'illustrations', image.imageName));
+    if (previewSha(b) !== image.imageSha) refuse(); return b; };
+  const pages = Object.fromEntries([first, second].map(p => [p.page, json(path.join(dir, `page_${p.page}.json`)) as SavedPage]));
+  const rebound = Object.fromEntries([first, second].filter(p => existsSync(path.join(dir, `page_${p.page}_rereview.json`))).map(p => {
+    const s = json(path.join(dir, `page_${p.page}_rereview.json`)); return [p.page, { attempt: s.attempt, saved: s }]; }));
+  const resume = { designs: json(path.join(dir, 'audition_sheet_designs.json')), pages,
+    sheets: { entities: json(path.join(dir, 'sheet_entities.json')), locations: json(path.join(dir, 'sheet_locations.json')) }, stepPrefix: 'r5_', rereview: { pages: rebound } };
+  const engineArgs = { book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
+    child: readImage('reference_child.png'), companion: readImage('reference_companion.png'), companionDescription: loaded.companionDescription,
+    pages: scope.pages, sample: scope.sample, recovery: scope.recovery ? true as const : undefined, resume,
+    ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}), check: same,
+    render: async (): Promise<never> => refuse(), identity: async (): Promise<never> => refuse(), judge: async (): Promise<never> => refuse() };
+  let oldManifest: unknown;
+  await illustrateReviewedAudition({ ...engineArgs, landmarkTopology: LANDMARK_TOPOLOGY_VERSION,
+    topologyContinuation: { ...parentTopology, pages: parentTopology.pages.map((p, i) => i === 0 ? { ...p, saved } : p) },
+    save: (n, v) => { if (n !== 'reviewed_audition_manifest') refuse(); oldManifest = v; } });
+  if (canonicalJson(oldManifest) !== canonicalJson(json(path.join(dir, `reviewed_audition_manifest-${suffix}.json`)))) refuse();
+  const oldWire = json(path.join(dir, 'paid-stages', `${oldStep}_qa.wire.json`));
+  const oldContext = JSON.parse(oldWire.input[0].content.find((c: any) => c.type === 'input_text').text).context;
+  if (previewQualityContextSha(oldContext) !== saved.contextSha || saved.contextSha !== parent.firstReview.contextSha256 ||
+    previewSha(canonicalJson(oldWire)) !== parent.firstReview.wireDigest || !saved.reviewed.candidate) refuse();
+  const oldPayload = await auditionJudgePayload({ candidate: saved.reviewed.candidate!, candidateBytes: bytesOf(saved.reviewed.candidate!),
+    context: oldContext, contextSha: saved.contextSha, refs: oldContext.references.map(bytesOf), predecessor: oldContext.predecessor ? bytesOf(oldContext.predecessor) : null, kind: 'page' });
+  if (canonicalJson(digestImages(oldPayload)) !== canonicalJson(oldWire) || canonicalJson(saved.reviewed.review) !== canonicalJson(
+    auditionPageReviewSchemaForContext(oldContext).parse(JSON.parse(json(path.join(dir, 'paid-stages', `${oldStep}_qa.receipt.json`)).raw.output_text)))) refuse();
+  const idReceipt = json(path.join(dir, 'paid-stages', `${oldStep}_identity.receipt.json`));
+  const identity = await evaluatePageChildResemblanceVision({ referenceImageUrl: `data:image/png;base64,${bytesOf(engineArgs.child).toString('base64')}`,
+    candidateImageUrl: `data:image/png;base64,${bytesOf(saved.reviewed.candidate!).toString('base64')}`, threshold: .7, model: 'gpt-4o',
+    apiKey: 'offline-receipt-replay-not-a-key', maxRetries: 0, fetchImpl: async (_url, init) => {
+      if (canonicalJson(digestImages(JSON.parse(String(init!.body)))) !== canonicalJson(json(path.join(dir, 'paid-stages', `${oldStep}_identity.wire.json`)))) refuse();
+      return new Response(JSON.stringify(idReceipt.raw), { status: idReceipt.status });
+    } });
+  if (canonicalJson(identity) !== canonicalJson(saved.reviewed.identity)) refuse();
+  const effective = (n: number): SavedPage => { const prior = pages[n], re = rebound[n]?.saved as SavedRereview | undefined;
+    return re ? { ...prior, attempts: prior.attempts.map(a => a.attempt === re.attempt ? re.reviewed : a), chosen: re.chosen, status: re.status,
+      rereview: { version: AUDITION_REREVIEW_VERSION, attempt: re.attempt } } : prior; };
+  const firstParent = topologyRequalificationParent(calibrationRequalificationParent(effective(first.page), calibSaved), saved), secondParent = effective(second.page);
+  const transition = { version: AV.version, pages: [
+    { page: first.page, action: 'requalify' as const, priorSha256: previewSha(canonicalJson(firstParent)), consumedAttemptsBefore: first.consumedAttemptsBefore },
+    { page: second.page, action: 'correct_once' as const, priorSha256: previewSha(canonicalJson(secondParent)), consumedAttemptsBefore: secondParent.attempts.length }] };
+  const contract: AuditionCoverageContinuation = { ...transition, parentTopology, savedTopology: saved };
+  let preview: { step: string; candidate: AuditionImage; context: any; contextSha: string; refs: AuditionImage[]; predecessor: AuditionImage | null } | undefined;
+  try { await illustrateReviewedAudition({ ...engineArgs, coverageContinuation: contract, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+    save: () => refuse(), judge: async (step, candidate, context, contextSha, refs, predecessor) => {
+      preview = { step, candidate, context, contextSha, refs, predecessor }; throw new ReviewedAuditionError('fresh_book_coverage_preview_complete'); },
+    check: () => { same(); if (preview) fail('fresh_book_coverage_preview_complete'); } });
+  } catch (e) { if (!preview || codeOf(e, '') !== 'fresh_book_coverage_preview_complete') throw e; }
+  if (!preview) return refuse();
+  const payload = await auditionJudgePayload({ candidate: preview.candidate, candidateBytes: bytesOf(preview.candidate), context: preview.context,
+    contextSha: preview.contextSha, refs: preview.refs.map(bytesOf), predecessor: preview.predecessor ? bytesOf(preview.predecessor) : null, kind: 'page' });
+  same();
+  const firstReview = { step: preview.step, contextSha256: preview.contextSha, wireDigest: previewSha(canonicalJson(digestImages(payload))) };
+  const allowance = { firstSampleRenders: 0 as const, extraSecondSampleRenders: 1 as const, ordinaryPageAttempts: 3 as const,
+    maxNewCalls: grant.maxCalls - ledger.stages.find(s => s.name === 'audition')!.calls };
+  if (allowance.maxNewCalls < 26) fail('fresh_book_coverage_calls');
+  const plan = { version: AV.version, cycle: FRESH_BOOK_CYCLE.id, contract: LANDMARK_COVERAGE_TOPOLOGY_VERSION, ownerApproval: approval,
+    profileSha256: base.plan.profileSha256, bookDir: path.resolve(config.bookDir),
+    parent: { grantFile: path.resolve(parentGrantFile), grantSha256: previewSha(parentBytes),
+      claimSha256: roots[`authority/${AT.claimName}`], outcomeSha256: roots[`authority/${AT.outcomeName}`] },
+    auditionFolderSha256: previewSha(canonicalJson(auditionFiles)), rootsSha256: previewSha(canonicalJson(roots)), transition, firstReview, allowance, debits: parent.debits, ledger,
+    ceiling: 'ONE fresh v13 quality+identity of unchanged sample1; only onPASS ONE still-unused LOW sample2 index3/fourth with fresh quality+identity; only bothPASS same cover/pages3-8 ordinary3attempts/diagnosis. No line retry/resume, new story/child/sheets or old HOLD reinterpretation.',
+    callLimit: 'Original cumulative89 meter, current remaining calls/budget/reservations unchanged. Nominal26 calls, maximum retries NOT guaranteed. New unknown stops; held sheets diagnostic, not full productPASS.',
+    providerCalls: 0, keyRead: false };
+  const { ceiling: _c, callLimit: _l, providerCalls: _p, keyRead: _k, ...bound } = plan;
+  const grantDraft = freshBookAuditionCoverageGrantSchema.parse({ ...bound, version: 'fresh-book-audition-coverage-grant/v1',
+    engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
+  return { plan, grantDraft, state: { engine, claimExists: existsSync(at(AV.claimName)), outcomeExists: existsSync(at(AV.outcomeName)) },
+    roots, auditionFiles, base, parent, contract, cont, immutableFiles };
+}
+export async function runFreshBookAuditionCoverage(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string;
+  signal: AbortSignal; log: (line: string) => void }) {
+  const bytes = fileBytes(a.grantFile), refuse = (): never => fail('fresh_book_coverage_grant');
+  if (previewSha(bytes) !== a.grantSha) refuse();
+  const g = freshBookAuditionCoverageGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  const p = await planFreshBookAuditionCoverage(a.config, a.env, g.parent.grantFile, g.ownerApproval.file);
+  if (canonicalJson(g) !== canonicalJson(p.grantDraft)) refuse();
+  const at = (n: string) => path.join(a.env.authorityRoot, n), dir = path.join(a.config.bookDir, 'audition');
+  const same = () => {
+    if (a.signal.aborted) fail('fresh_book_cancelled');
+    const e = a.env.head(); if (!e.clean || e.head !== g.engine.head || e.branch !== g.engine.branch) fail('fresh_book_source_changed');
+    for (const [rel, s] of Object.entries(g.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== s) fail('fresh_book_source_changed');
+    for (const [f, s] of [[a.grantFile, a.grantSha], ...p.immutableFiles]) if (previewSha(fileBytes(f)) !== s) refuse();
+    if (canonicalJson(coverageRoots(a.config, a.env, p.base.rereview)) !== canonicalJson(p.roots)) fail('fresh_book_roots_changed');
+    for (const [rel, s] of Object.entries(p.auditionFiles)) if (previewSha(fileBytes(path.join(dir, rel))) !== s) fail('fresh_book_coverage_parent');
+  };
+  same();
+  if (p.state.claimExists || p.state.outcomeExists || existsSync(at(AV.claimName)) || existsSync(at(AV.outcomeName))) fail('fresh_book_coverage_used');
+  exclusiveJson(at(AV.claimName), { cycle: FRESH_BOOK_CYCLE.id, version: AV.version, grantSha256: a.grantSha, parent: g.parent,
+    ownerApproval: g.ownerApproval, engine: g.engine, bookDir: g.bookDir, transition: g.transition, allowance: g.allowance });
+  const claimSha256 = previewSha(fileBytes(at(AV.claimName)));
+  const guard = () => { same(); if (previewSha(fileBytes(at(AV.claimName))) !== claimSha256 || existsSync(at(AV.outcomeName))) fail('fresh_book_coverage_used'); };
+  try {
+    const result = await runReviewedAudition({ bookDir: a.config.bookDir, out: dir, keyFile: a.config.keyEnvFile,
+      grantFile: path.join(a.config.bookDir, 'audition.grant.json'), signal: a.signal, log: a.log, resume: true, debits: g.debits,
+      layout: readReviewedBookLayout(path.join(a.config.bookDir, 'book-layout.json')),
+      coverageContinuation: { grantSha256: a.grantSha, contract: p.contract, firstReview: g.firstReview },
+      experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256: p.cont.fresh.claimSha256, guard } });
+    if (result.mode !== 'render') return fail('fresh_book_audition_mode');
+    const gate = (s: unknown): PageGate['disposition'] => s === 'qa_supported' ? 'passed' : 'held_uncertain';
+    const cover = result.manifest.pages.find(x => x.pageNumber === 0), reading = freshBookReadingOrder(cover ? gate(cover.status) : null,
+      result.manifest.pages.filter(x => x.pageNumber > 0).map(x => ({ page: x.pageNumber, disposition: gate(x.status) })));
+    const status = result.manifest.status === 'held_sample' ? 'held_sample' : reading.status === 'complete' &&
+      result.manifest.status !== 'qa_supported_audition' ? 'partial' : reading.status;
+    const ledger = freshBookLedger(a.config, a.env, p.base.rereview, 'child_fresh_anchor', g.debits);
+    exclusiveJson(path.join(a.config.bookDir, 'book-status-coverage.json'), { status, manifestStatus: result.manifest.status,
+      order: reading.order, ledger, grantSha256: a.grantSha, runtimeEligible: false });
+    finish(a.env, status, { manifestStatus: result.manifest.status, ledger }, AV.outcomeName);
+    return { status, manifestStatus: result.manifest.status, order: reading.order, ledger };
+  } catch (e) {
+    if (!existsSync(at(AV.outcomeName))) finish(a.env, 'failed_audition_coverage', { code: codeOf(e, 'fresh_book_coverage_failed') }, AV.outcomeName);
+    throw e;
+  }
+}
+
 async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile, line: Line = ORIGINAL_LINE,
   recovered?: ChildRecoveryHeld): Promise<AuditionGrant> {
   const layout = readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json'));
@@ -5883,7 +6082,7 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const config = freshBookConfig(argValue('--config') ?? fail('fresh_book_arguments')), env = realFreshBookEnv();
-  const stage = ['audition-topology-plan', 'audition-topology', 'audition-calibration-plan', 'audition-calibration', 'audition-rereview-plan', 'audition-rereview', 'audition-continuation-plan', 'audition-continuation', 'child-fresh-anchor-plan', 'child-fresh-anchor',
+  const stage = ['audition-coverage-plan', 'audition-coverage', 'audition-topology-plan', 'audition-topology', 'audition-calibration-plan', 'audition-calibration', 'audition-rereview-plan', 'audition-rereview', 'audition-continuation-plan', 'audition-continuation', 'child-fresh-anchor-plan', 'child-fresh-anchor',
     'child-recovery-plan', 'child-recovery',
     'storyboard-presence-preview', 'storyboard-presence-plan', 'storyboard-presence',
     'storyboard-calibration-preview', 'storyboard-calibration-plan', 'storyboard-calibration',
@@ -5910,13 +6109,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
   const done = (p: Promise<unknown>) => p.then(r => console.log(JSON.stringify(r, null, 2)))
     .catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
   // The audition continuation and the audition re-review take no line flag: each is its own stage on the audition it follows.
-  if ((stage === 'audition-continuation' || stage === 'audition-rereview' || stage === 'audition-calibration' || stage === 'audition-topology' || stage === 'audition-topology-plan') && ['--recovery', '--storyboard-repair', '--storyboard-continuation',
+  if ((stage === 'audition-continuation' || stage === 'audition-rereview' || stage === 'audition-calibration' || stage === 'audition-topology' || stage === 'audition-topology-plan' || stage === 'audition-coverage' || stage === 'audition-coverage-plan') && ['--recovery', '--storyboard-repair', '--storyboard-continuation',
     '--storyboard-revalidation', '--storyboard-extension', '--storyboard-extension-revalidation', '--storyboard-calibration', '--storyboard-presence',
     '--child-recovery', '--child-fresh-anchor', '--resume'].some(f => process.argv.includes(f))) fail('fresh_book_arguments');
   // The audition re-review (dry): the consumed continuation and the audition it left re-derived, its two unknown-cost calls and their debits,
   // the ONE re-review (the saved page, its never-judged drawn attempt, the lost request and the new step), the ledger with both debits and the
   // grant draft (--continuation-grant: the consumed continuation grant file; --owner-approval: the owner's record). No key, provider, claim or write.
-  if (stage === 'audition-topology-plan' || (stage === 'audition-topology' && !execute)) done(Promise.resolve().then(async () => {
+  if (stage === 'audition-coverage-plan' || (stage === 'audition-coverage' && !execute)) done(Promise.resolve().then(async () => {
+    const { plan, grantDraft, state } = await planFreshBookAuditionCoverage(config, env, argValue('--topology-grant') ?? fail('fresh_book_arguments'),
+      argValue('--owner-approval') ?? fail('fresh_book_arguments')); return { plan, grantDraft, state }; }))
+  else if (stage === 'audition-topology-plan' || (stage === 'audition-topology' && !execute)) done(Promise.resolve().then(async () => {
     const { plan, grantDraft, state } = await planFreshBookAuditionTopology(config, env, argValue('--calibration-grant') ?? fail('fresh_book_arguments'),
       argValue('--owner-approval') ?? fail('fresh_book_arguments')); return { plan, grantDraft, state }; }))
   else if (stage === 'audition-calibration-plan' || (stage === 'audition-calibration' && !execute)) done(Promise.resolve().then(async () => {
@@ -6030,7 +6232,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const common = { config, env, grantFile: argValue('--grant') ?? fail('fresh_book_arguments'), grantSha: argValue('--grant-sha') ?? fail('fresh_book_arguments'),
       signal: controller.signal, log: (line: string) => console.log(line) };
-    done(stage === 'audition-topology' ? runFreshBookAuditionTopology(common) : stage === 'audition-calibration' ? runFreshBookAuditionCalibration(common) : stage === 'audition-rereview' ? runFreshBookAuditionRereview(common) : stage === 'audition-continuation' ? runFreshBookAuditionContinuation(common)
+    done(stage === 'audition-coverage' ? runFreshBookAuditionCoverage(common) : stage === 'audition-topology' ? runFreshBookAuditionTopology(common) : stage === 'audition-calibration' ? runFreshBookAuditionCalibration(common) : stage === 'audition-rereview' ? runFreshBookAuditionRereview(common) : stage === 'audition-continuation' ? runFreshBookAuditionContinuation(common)
       : stage === 'child-fresh-anchor' ? runFreshBookChildFreshAnchor(common) : stage === 'child-recovery' ? runFreshBookChildRecovery(common)
       : stage === 'storyboard-presence' ? runFreshBookStoryboardPresence(common)
       : stage === 'storyboard-calibration' ? runFreshBookStoryboardCalibration(common)
