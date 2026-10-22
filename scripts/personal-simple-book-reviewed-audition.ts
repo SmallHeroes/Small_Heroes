@@ -40,7 +40,7 @@ import { STAGE_RECOVERY_VERSION } from '../lib/personal-wizard/stage-recovery';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
-  auditionReviewSchema, auditionPageReviewSchema, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
+  auditionReviewSchema, auditionPageReviewSchema, auditionPageReviewSchemaForContext, auditionLandmarkTopology, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, AUDITION_ATTEMPT_INTERRUPTED,
   AUDITION_CALIBRATION_VERSION, type AuditionCalibration, type ReferenceStatus, type SavedSheet, type SavedPage, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
@@ -655,7 +655,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
   return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
       ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-    max_output_tokens: 12000, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchema, 'personal_audition_pixels_v4')
+    max_output_tokens: 12000, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
+      auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
 }
 
@@ -852,7 +853,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
         const estimatedMicroUsd = reviewCost(raw);
         const receipt = { raw, estimatedMicroUsd };
         if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
-        try { return { value: (kind === 'page' ? auditionPageReviewSchema : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
+        try { return { value: (kind === 'page' ? auditionPageReviewSchemaForContext(context) : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
         catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
       });
     } finally { await transport.release(); }

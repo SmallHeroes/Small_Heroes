@@ -15,6 +15,8 @@ import type { BookDesignReferenceRole } from '../generate-image';
 import type { PersonalWizardOptions } from './options';
 import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
 import { findingTrajectory, STAGE_RECOVERY_VERSION, type RecoveryFinding } from './stage-recovery';
+import { LANDMARK_TOPOLOGY_VERSION, landmarkTopologySchema, assessLandmarkTopology, type LandmarkTopology } from './landmark-topology';
+export { LANDMARK_TOPOLOGY_VERSION } from './landmark-topology';
 
 /**
  * Reviewed audition: bounded attempts per image, every image judged, findings published next to the picture.
@@ -47,9 +49,14 @@ export const SCALE_LINEUP_AUDITION_POLICY = Object.freeze({ ...REVIEWED_AUDITION
 export const LANDMARK_DESIGN_HEAD_VERSION = 'landmark-design-head/v1' as const;
 export const DESIGN_HEAD_AUDITION_POLICY = Object.freeze({ ...REVIEWED_AUDITION_POLICY, version: 'reviewed-audition-policy/v11',
   landmarkDesignHead: LANDMARK_DESIGN_HEAD_VERSION });
-export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true) => {
+export const TOPOLOGY_AUDITION_POLICY = Object.freeze({ ...DESIGN_HEAD_AUDITION_POLICY, version: 'reviewed-audition-policy/v12',
+  landmarkTopology: LANDMARK_TOPOLOGY_VERSION });
+export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true, topology?: typeof LANDMARK_TOPOLOGY_VERSION) => {
   // The closed lineup diagnostics and this independently granted contract are not interchangeable.
   if (scaleLineup && designHead) throw new ReviewedAuditionError('audition_landmark_contract');
+  if (topology !== undefined && (topology !== LANDMARK_TOPOLOGY_VERSION || !designHead || scaleLineup))
+    throw new ReviewedAuditionError('audition_landmark_contract');
+  if (topology) return TOPOLOGY_AUDITION_POLICY;
   return designHead ? DESIGN_HEAD_AUDITION_POLICY : scaleLineup ? SCALE_LINEUP_AUDITION_POLICY : REVIEWED_AUDITION_POLICY;
 };
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
@@ -254,7 +261,7 @@ export const auditionReviewSchema = z.object({ candidateSha: sha, contextSha: sh
  */
 export type LandmarkAspect = 'kind' | 'material' | 'colour' | 'shape' | 'size';
 export type LandmarkFeature = { id: string; aspect: LandmarkAspect; text: string; clause: string; decisive: boolean };
-export type AuditionLandmark = { id: string; features: readonly LandmarkFeature[] };
+export type AuditionLandmark = { id: string; features: readonly LandmarkFeature[]; plannedVisible?: boolean };
 const words = (...list: string[]): ReadonlySet<string> => new Set(list);
 const LANDMARK_LEXICON: Record<Exclude<LandmarkAspect, 'kind'>, ReadonlySet<string>> = {
   colour: words('red', 'orange', 'yellow', 'green', 'blue', 'purple', 'violet', 'pink', 'brown', 'black', 'white', 'gray', 'grey', 'beige',
@@ -359,12 +366,30 @@ export const landmarkInventorySchema = z.object({
   }).strict()).max(16),
 }).strict();
 export const auditionPageReviewSchema = auditionReviewSchema.extend({ landmarkInventory: landmarkInventorySchema });
-export type AuditionReview = z.infer<typeof auditionReviewSchema> & { landmarkInventory?: z.infer<typeof landmarkInventorySchema> };
+export const topologyLandmarkInventorySchema = landmarkInventorySchema.extend({
+  // Same ten-candidate ceiling per source; the new complete matrix therefore bounds observed objects to ten.
+  objects: landmarkInventorySchema.shape.objects.max(10), topology: landmarkTopologySchema });
+export const topologyAuditionPageReviewSchema = auditionReviewSchema.extend({ landmarkInventory: topologyLandmarkInventorySchema });
+export type AuditionReview = z.infer<typeof auditionReviewSchema> & {
+  landmarkInventory?: z.infer<typeof landmarkInventorySchema> & { topology?: LandmarkTopology } };
+/** Selection is from an explicit prospective context, never presence of a field in an old answer. */
+export function auditionLandmarkTopology(context: unknown): typeof LANDMARK_TOPOLOGY_VERSION | undefined {
+  const c = context && typeof context === 'object' ? context as Record<string, unknown> : {};
+  if (c.landmarkTopology === undefined) {
+    if (c.version === 'audition-page-context/v3') fail('audition_landmark_contract');
+    return undefined;
+  }
+  if (c.landmarkTopology !== LANDMARK_TOPOLOGY_VERSION || c.version !== 'audition-page-context/v3' ||
+      c.landmarkDesignHead !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
+  return LANDMARK_TOPOLOGY_VERSION;
+}
+export const auditionPageReviewSchemaForContext = (context: unknown) =>
+  auditionLandmarkTopology(context) ? topologyAuditionPageReviewSchema : auditionPageReviewSchema;
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean; derived?: true };
-export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number; excluded: number;
+export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number; excluded: number; topologyUncertain?: boolean;
   candidates: { objectId: string; region: string; object: number; association: string; counted: boolean; strong: boolean; reclassified: boolean;
     identifiedAs: string | null; identityConfirmed: boolean; excluded: boolean; conflict: boolean; contradictedCore: string[]; matchedCore: string[];
-    matchedCoreAspects: string[]; evidence: string }[] };
+    matchedCoreAspects: string[]; evidence: string; topology?: { extent: string; excludedAsNonWhole: boolean } }[] };
 export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<Impact, number>; safetyBlocked: boolean; invalidCitations: number; landmarks?: LandmarkAssessment[] };
 
 /**
@@ -384,7 +409,7 @@ export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<I
  * (then the conflict stays an uncertain count); an unconfirmed claim leaves it counted (uncertain), never dismissed. The link is the shared
  * objectId of the SAME observed object; a different object identified as that landmark never excuses this one.
  */
-export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInventorySchema>, landmarks: readonly AuditionLandmark[]) {
+export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInventorySchema>, landmarks: readonly AuditionLandmark[], topology?: LandmarkTopology) {
   const bad = (): never => fail('audition_review_landmark_inventory');
   const catalogue = new Map(landmarks.map(l => [l.id, l.features])), ids = inventory.landmarks.map(e => e.landmarkId);
   if (new Set(ids).size !== ids.length || ids.length !== landmarks.length || ids.some(id => !catalogue.has(id))) bad();
@@ -418,6 +443,8 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
   };
   for (const [landmarkId, entries] of evaluated) for (const [objectId, e] of entries)
     if (e.c.association === 'this_landmark') { if (owner.has(objectId)) bad(); owner.set(objectId, landmarkId); }
+  const physical = topology ? assessLandmarkTopology(topology, inventory, landmarks) : undefined;
+  const instanceIds = physical ? [...new Set(inventory.objects.map(o => physical.objectGroup(o.objectId)))] : places.map((_, i) => i);
   return inventory.landmarks.map(entry => {
     const candidates = [...evaluated.get(entry.landmarkId)!.values()].map(({ c, contradictedCore, matchedCore, matchedCoreAspects }) => {
       const reclassified = c.association === 'different_object' && !contradictedCore.length;
@@ -425,37 +452,45 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
       const supported = !contradictedCore.length && matchedCoreAspects.length >= 2;
       const claimedBy = owner.get(c.objectId), identifiedAs = claimedBy && claimedBy !== entry.landmarkId ? claimedBy : null;
       const confirmed = identifiedAs !== null && identityConfirmed(identifiedAs, c.objectId, entry.landmarkId);
-      const excluded = association === 'possible_copy' && confirmed && !supported;
+      const topologyExcluded = physical?.excluded(entry.landmarkId, c.objectId) ?? false;
+      const excluded = (association === 'possible_copy' && confirmed && !supported) || topologyExcluded;
       const conflict = association === 'possible_copy' && identifiedAs !== null && !excluded;
       const counted = association !== 'different_object' && !excluded;
-      const strong = association === 'this_landmark' || (counted && supported && !conflict);
+      const strong = (association === 'this_landmark' && (!physical || physical.positive(entry.landmarkId, c.objectId))) ||
+        (counted && supported && !conflict);
       const region = objects.get(c.objectId)!.region;
-      return { objectId: c.objectId, region, object: places.indexOf(place(region)), association, counted, strong, reclassified, identifiedAs,
-        identityConfirmed: confirmed, excluded, conflict, contradictedCore, matchedCore, matchedCoreAspects, evidence: c.evidence };
+      return { objectId: c.objectId, region, object: physical ? physical.objectGroup(c.objectId) : places.indexOf(place(region)), association,
+        counted, strong, reclassified, identifiedAs, identityConfirmed: confirmed, excluded, conflict, contradictedCore, matchedCore,
+        matchedCoreAspects, evidence: c.evidence,
+        ...(physical ? { topology: { extent: physical.binding(entry.landmarkId, c.objectId).extent, excludedAsNonWhole: topologyExcluded } } : {}) };
     });
     // One object per place: it counts if any record counts it, and is strong only if every counting record is strong.
-    const groups = places.map((_, i) => candidates.filter(c => c.object === i && c.counted)).filter(list => list.length);
-    return { landmarkId: entry.landmarkId, instances: groups.length, strong: groups.filter(list => list.every(c => c.strong)).length,
-      reclassified: candidates.filter(c => c.reclassified).length, excluded: candidates.filter(c => c.excluded).length, candidates } satisfies LandmarkAssessment;
+    const groups = instanceIds.map(i => candidates.filter(c => c.object === i && c.counted)).filter(list => list.length);
+    const strongGroups = groups.filter(list => list.every(c => c.strong));
+    const provenPair = !physical || strongGroups.some((a, i) => strongGroups.slice(i + 1).some(b => physical.knownDistinct(a[0].object, b[0].object)));
+    return { landmarkId: entry.landmarkId, instances: groups.length, strong: provenPair ? strongGroups.length : Math.min(1, strongGroups.length),
+      reclassified: candidates.filter(c => c.reclassified).length, excluded: candidates.filter(c => c.excluded).length, candidates,
+      ...(physical ? { topologyUncertain: physical.uncertain(entry.landmarkId) } : {}) } satisfies LandmarkAssessment;
   });
 }
 
 /** Binding, coverage and correction rules of the existing judge, plus impact/requirement checks; pages also bind the landmark inventory. */
 export function assessAuditionReview(raw: unknown, candidateSha: string, contextSha: string, requirementIds: readonly string[],
-  landmarks?: readonly AuditionLandmark[]) {
-  const review: AuditionReview = landmarks ? auditionPageReviewSchema.parse(raw) : auditionReviewSchema.parse(raw);
+  landmarks?: readonly AuditionLandmark[], topology?: typeof LANDMARK_TOPOLOGY_VERSION) {
+  if (topology !== undefined && (topology !== LANDMARK_TOPOLOGY_VERSION || !landmarks)) fail('audition_landmark_contract');
+  const review: AuditionReview = landmarks ? (topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema).parse(raw) : auditionReviewSchema.parse(raw);
   if (review.checks.some(c => (c.verdict === 'pass') !== (c.issues.length === 0))) fail('audition_review_issue_coverage');
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
   const known = new Set(requirementIds);
   const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => ({ category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
     impact: i.impact, requirement: i.requirement, note: i.note, bound: known.has(i.requirement) })));
-  const landmarkAssessment = landmarks ? assessLandmarkInventory(review.landmarkInventory!, landmarks) : undefined;
+  const landmarkAssessment = landmarks ? assessLandmarkInventory(review.landmarkInventory!, landmarks, topology ? review.landmarkInventory!.topology : undefined) : undefined;
   for (const l of landmarkAssessment ?? []) {
     const requirement = `landmark_unique:${l.landmarkId}`;
     // The inventory's fact is always kept: a model issue that merely shares this requirement can neither erase nor downgrade it.
-    if (l.instances < 2) continue;
+    if (l.instances < 2 && !l.topologyUncertain) continue;
     findings.push({ category: 'environment', verdict: l.strong >= 2 ? 'defect' : 'uncertain', impact: 'continuity', requirement, bound: known.has(requirement), derived: true,
-      note: `landmark inventory: ${l.instances} objects match ${l.landmarkId} (${l.candidates.filter(c => c.counted).map(c => c.region).join('; ')})${l.reclassified ? `; ${l.reclassified} dismissed without a contradicted material/colour/shape/size feature` : ''}`.slice(0, 600) });
+      note: `landmark inventory: ${l.instances} objects match ${l.landmarkId} (${l.candidates.filter(c => c.counted).map(c => c.region).join('; ')})${l.reclassified ? `; ${l.reclassified} dismissed without a contradicted material/colour/shape/size feature` : ''}${l.topologyUncertain ? '; typed topology or whole-instance evidence unresolved' : ''}`.slice(0, 600) });
   }
   const counts = Object.fromEntries(AUDITION_IMPACTS.map(i => [i, 0])) as Record<Impact, number>;
   // A citation error never downgrades a defect: a miscited critical issue keeps its impact and makes the review invalid,
@@ -627,6 +662,30 @@ export const AUDITION_PAGE_SUFFIX = pageSuffix(false);
 /** The opt-in lineup only: the same page suffix plus the relative-size rule. */
 export const AUDITION_SCALE_LINEUP_PAGE_SUFFIX = pageSuffix(true);
 
+const TOPOLOGY_JUDGE_RULES = `LANDMARK TOPOLOGY v1 (prospective context.landmarkTopology; replaces ONLY flat physical-instance counting):
+- A canonical landmark may be an aggregate. Observe distinct visible objects/whole systems/parts once each, with stable IDs shared by all entries.
+- landmarkInventory.topology must use landmark-topology/v1. Give exactly ONE relation for EVERY unordered pair of observed object IDs:
+  same_object/shared_visible_body ONLY for visibly the same physical body, not similar texture, perspective or overlapping silhouettes;
+  component_of/visible_attachment or visible_membership_boundary from child to aggregate ONLY when actual attachment/membership is visible;
+  separate_objects/visible_separation for independently observed objects; uncertain/not_readable when connection/identity is hidden or ambiguous.
+  Mere overlap, proximity, contact, matching colour or the source prose does not establish any identity or component relation. Describe actual pixels.
+- Exactly one binding per landmark/candidate: copy its canonical decisive kind as sourceKind and classify its extent with visible evidence:
+  whole_instance (the complete source-kind identity, even if naturally occluded), component_only (a part/member of that source-kind whole),
+  containing_aggregate (a larger system containing the member landmark, not another member), not_instance (different_object with an actual
+  contradicted decisive feature), uncertain. sourceKind names the comparison criterion, not permission to change an object's kind.
+- For this NEW contract, candidate coverage is the COMPLETE object/source matrix: check EVERY observed object under EVERY source landmark,
+  not just the likely matches. At most ten observed objects, as every source has at most ten candidates. Never omit a potentially matching
+  object to fit: an inventory that cannot cover the picture is uncertain/unusable, not permission to pass it. All bindings/pairs must be present.
+- Keep canonical ownership separate: this_landmark is an actual whole_instance of only its OWN canonical landmark with positive kind evidence.
+  A part/aggregate sharing cues uses possible_copy plus its typed extent, never this_landmark for the wrong canonical identity.
+  Check every source feature on its own aspect. Hidden kind/shape/size stays not_visible, not contradicted. A positive whole anchor needs kind
+  plus another decisive aspect; uncertainty remains blocking. A non-whole label without its visible relation/whole anchor is not an exclusion.
+- A known aggregate and its known constituent are not automatically independent copies of that aggregate. Equally, two independent member
+  landmarks remain TWO even inside one aggregate; never group siblings as one, hide a second whole in a component label, or omit a candidate.
+  Regions are descriptions, not physical IDs: two distinct matching objects in the same region still count twice. Same-object groups with
+  conflicting canonical owners, cycles, missing pairs/bindings and contradictory relations are unusable. Do not decide counts in prose.
+- All original safety, age, visible identity, uncertain, materiality, reference and story requirements remain. No old answer is fresh evidence.`;
+
 /**
  * The judge instruction for a judged context: a sheet whose entities design carries the opt-in lineup gets the lineup checks; every other
  * context gets exactly the existing instruction. Chosen from the judged context itself, so a request can never pair a lineup design with
@@ -636,8 +695,13 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
   if (kind === 'page') {
     const marker = context && typeof context === 'object' && 'landmarkDesignHead' in context ? context.landmarkDesignHead : undefined;
     if (marker !== undefined && marker !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
-    return AUDITION_JUDGE_INSTRUCTIONS.page + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '');
+    const topology = auditionLandmarkTopology(context);
+    const base = topology ? AUDITION_JUDGE_INSTRUCTIONS.page.replace('each is ONE physical object,', 'each is ONE canonical landmark identity (possibly an aggregate),')
+      : AUDITION_JUDGE_INSTRUCTIONS.page;
+    return base + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '') +
+      (topology ? `\n${TOPOLOGY_JUDGE_RULES}` : '');
   }
+  if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
   return sheetScaleLineup(c.role, c.design) ? AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION : AUDITION_JUDGE_INSTRUCTIONS.sheet;
 }
@@ -724,10 +788,14 @@ export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<Sa
 }
 
 export function auditionPageContext(book: PersonalStoryboard, packetContext: unknown, pageNumber: number, companionDescription: string,
-  references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION) {
+  references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION,
+  topology?: typeof LANDMARK_TOPOLOGY_VERSION) {
+  if (topology !== undefined && (topology !== LANDMARK_TOPOLOGY_VERSION || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
   const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);
-  const context = { version: 'audition-page-context/v2', packet: packetContext, references,
+  if (topology && checks.uniqueLandmarks.some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
+  const context = { version: topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
     ...(designHead ? { landmarkDesignHead: designHead } : {}),
+    ...(topology ? { landmarkTopology: topology } : {}),
     referenceStatus: { entities: { status: refs.entities.status, knownFlaws: refs.entities.knownFlaws },
       locations: { status: refs.locations.status, knownFlaws: refs.locations.knownFlaws } },
     predecessor: predecessor ? { pageNumber: pageNumber - 1, ...predecessor, authority: 'comparison_only_not_canonical' } : null,
@@ -786,9 +854,16 @@ export async function illustrateReviewedAudition(args: {
   recovery?: true;
   /** New, one-use authority supplied by the native caller, never a legacy grant/CLI flag. Both saved samples need fresh evidence. */
   calibration?: AuditionCalibration;
+  /** Prospective engine contract only. No CLI flag, grant allowance or migration of a consumed calibration is implied. */
+  landmarkTopology?: typeof LANDMARK_TOPOLOGY_VERSION;
 }) {
   const calibration = args.calibration;
-  const policy = reviewedAuditionPolicy(args.scaleLineup, calibration ? true : undefined), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
+  const topology = args.landmarkTopology;
+  if (topology && (calibration || args.book.landmarkKind !== LANDMARK_KIND_CONTRACT_VERSION)) fail('audition_landmark_contract');
+  const policy = reviewedAuditionPolicy(args.scaleLineup, calibration || topology ? true : undefined, topology), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
+  // Validate all prospective kind catalogues before saving or any render/judge/identity callback.
+  if (topology && auditionPageChecks(args.book, 0, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION).uniqueLandmarks
+    .some(l => l.features.filter(f => f.decisive && f.aspect === 'kind').length !== 1)) fail('audition_landmark_contract');
   const prefix = args.resume?.stepPrefix ?? '', suffix = args.scaleLineup ? AUDITION_SCALE_LINEUP_PAGE_SUFFIX : AUDITION_PAGE_SUFFIX;
   const pageAttempts = args.pageAttempts ?? policy.pageAttempts;
   if (!Number.isInteger(pageAttempts) || pageAttempts < 1 || pageAttempts > policy.pageAttempts) fail('audition_page_attempts');
@@ -805,11 +880,11 @@ export async function illustrateReviewedAudition(args: {
       calibration.pages.some(p => !['requalify', 'correct_once'].includes(p.action) || !args.resume!.pages[p.page]) ||
       Object.keys(args.resume.pages).some(p => !sample.includes(Number(p))) || args.resume.interrupted)) fail('audition_calibration_binding');
   const resumed = <T extends SavedSheet | SavedPage>(phase: 'sheet' | 'page', prior: T | undefined, contextSha: string, requirementIds: string[],
-    landmarks?: readonly AuditionLandmark[]): T | null => {
+    landmarks?: readonly AuditionLandmark[], topologyVersion?: typeof LANDMARK_TOPOLOGY_VERSION): T | null => {
     if (!prior) return null;
     // Re-derive every saved judgement from its raw review; nothing saved is trusted as a verdict.
     const attempts = prior.attempts.map(a => a.candidate && a.review ? { ...a,
-      assessment: assessAuditionReview(a.review, a.candidate.imageSha, contextSha, requirementIds, landmarks).assessment } : a);
+      assessment: assessAuditionReview(a.review, a.candidate.imageSha, contextSha, requirementIds, landmarks, topologyVersion).assessment } : a);
     const again = selectAuditionAttempt(phase, attempts);
     // A measured page attempt without usable identity evidence would have halted the run; it is never trusted from a save.
     const unknownIdentity = phase === 'page' && attempts.some(a => a.status === 'identity_unusable' ||
@@ -857,7 +932,8 @@ export async function illustrateReviewedAudition(args: {
     if ('error' in raw) return { attempt, candidate, review: null, assessment: null,
       status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
     let judged: ReturnType<typeof assessAuditionReview>;
-    try { judged = assessAuditionReview(raw.value, candidate.imageSha, contextSha, requirementIds, landmarks); }
+    try { judged = assessAuditionReview(raw.value, candidate.imageSha, contextSha, requirementIds, landmarks,
+      phase === 'page' ? auditionLandmarkTopology(context) : undefined); }
     catch (error) { return { attempt, candidate, review: null, assessment: null, status: 'review_unusable', error: errorCode(error) }; }
     const { review, assessment } = judged;
     // No identity spend on an image already held for safety or for an invalid review.
@@ -932,7 +1008,8 @@ export async function illustrateReviewedAudition(args: {
       if (s.version !== AUDITION_REREVIEW_VERSION || s.pageNumber !== prior.pageNumber || s.attempt !== re.attempt || s.priorSha256 !== priorSha256 ||
           s.contextSha !== contextSha || s.reviewed?.attempt !== re.attempt || canonicalJson(s.reviewed.candidate) !== canonicalJson(candidate)) fail('audition_rereview_binding');
       // Nothing saved is trusted as a verdict: the judgment is re-derived from its raw review; an unusable identity would have halted.
-      const assessment = s.reviewed.review ? assessAuditionReview(s.reviewed.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks).assessment : null;
+      const assessment = s.reviewed.review ? assessAuditionReview(s.reviewed.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks,
+        auditionLandmarkTopology(context)).assessment : null;
       reviewed = { ...s.reviewed, assessment };
       const measured = !!assessment && !assessment.safetyBlocked && !assessment.invalidCitations;
       if (canonicalJson(assessment) !== canonicalJson(s.reviewed.assessment) || (measured && !identityUsable(reviewed.identity)) ||
@@ -1022,7 +1099,7 @@ export async function illustrateReviewedAudition(args: {
     const seq = args.book.sequence.pages, previous = pages.find(p => p.pageNumber === pageNumber - 1);
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
     const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor,
-      calibration ? LANDMARK_DESIGN_HEAD_VERSION : undefined);
+      calibration || topology ? LANDMARK_DESIGN_HEAD_VERSION : undefined, topology);
     const spec = calibration?.pages.find(s => s.page === pageNumber);
     if (spec) {
       pages.push(await calibrated(legacySamples.get(pageNumber)!, spec, `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`,
@@ -1031,7 +1108,7 @@ export async function illustrateReviewedAudition(args: {
       if (pages[pages.length - 1].status !== 'qa_supported') { heldSample = true; break; }
       continue;
     }
-    const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks);
+    const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks, topology);
     const closed = args.resume?.interrupted?.pages?.[pageNumber];
     if (prior && closed) fail('audition_resume_binding');
     if (prior) {

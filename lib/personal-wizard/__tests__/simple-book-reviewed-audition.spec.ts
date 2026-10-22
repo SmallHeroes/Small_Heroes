@@ -19,7 +19,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
-import { AUDITION_REREVIEW_VERSION, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, auditionPageContext,
+import { AUDITION_REREVIEW_VERSION, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_TOPOLOGY_VERSION, auditionPageContext,
   type SavedRereview, type SavedPage, type AuditionCalibration, type SavedCalibration } from '../simple-book-reviewed-audition';
 import { previewSha } from '../../local-story-preview';
 import sharp from 'sharp';
@@ -74,7 +74,7 @@ const singleInventory = (context: any) => {
 };
 function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) => number; renderFail?: (step: string) => Error | null;
   book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T>;
-  inventory?: (step: string, context: any) => unknown } = {}) {
+  inventory?: (step: string, context: any) => unknown; topology?: true } = {}) {
   const prompts = new Map<string, string>(), saved = new Map<string, unknown>(), contexts = new Map<string, any>();
   const wrap = opts.wrap ?? (<T>(_step: string, work: () => Promise<T>) => work());
   const args = {
@@ -88,14 +88,110 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
     judge: vi.fn((step: string, candidate: { imageSha: string }, context: unknown, contextSha: string, _refs?: unknown, _predecessor?: { imageName: string } | null,
       kind?: 'sheet' | 'page') => wrap(step, async () => {
       contexts.set(step, context);
+      const inventory = kind === 'page' ? opts.inventory?.(step, context) ?? singleInventory(context) : null;
+      if (opts.topology && inventory) for (const l of (inventory as any).landmarks) {
+        const own = l.candidates[0], features = (context as any).checks.uniqueLandmarks.find((x: any) => x.id === l.landmarkId).features;
+        l.candidates = (inventory as any).objects.map((o: any) => o.objectId === own.objectId ? own : {
+          objectId: o.objectId, association: 'different_object', evidence: 'visible incompatible canonical kind',
+          featureChecks: features.map((f: any) => ({ featureId: f.id, observed: f.aspect === 'kind' ? 'contradicted' : 'not_visible' })),
+        });
+      }
+      const typed = opts.topology && inventory ? { ...(inventory as any), topology: {
+        version: LANDMARK_TOPOLOGY_VERSION,
+        relations: (inventory as any).objects.flatMap((o: any, i: number, list: any[]) => list.slice(i + 1).map(p => ({
+          from: o.objectId, to: p.objectId, relation: 'separate_objects', basis: 'visible_separation', evidence: 'visible separate physical objects' }))),
+        bindings: (inventory as any).landmarks.flatMap((l: any) => l.candidates.map((c: any) => ({ landmarkId: l.landmarkId,
+          objectId: c.objectId, extent: c.association === 'different_object' ? 'not_instance' : 'whole_instance', sourceKind: (context as any).checks.uniqueLandmarks
+            .find((x: any) => x.id === l.landmarkId).features.find((f: any) => f.aspect === 'kind').text,
+          evidence: 'actual source-kind whole visible in the synthetic observation' }))),
+      } } : inventory;
       return { ...review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {}),
-        ...(kind === 'page' ? { landmarkInventory: opts.inventory?.(step, context) ?? singleInventory(context) } : {}) };
+        ...(kind === 'page' ? { landmarkInventory: typed } : {}) };
     })),
     identity: vi.fn((step: string) => wrap(step, async () => identity(opts.score?.(step) ?? .82))),
     check: vi.fn(), save: (name: string, value: unknown) => { saved.set(name, JSON.parse(JSON.stringify(value))); },
   };
   return { args, prompts, saved, contexts };
 }
+
+describe('topology opt-in through the real existing audition orchestrator (synthetic pixels, no provider)', () => {
+  const typedBook = () => {
+    const b = fixture(); b.landmarkKind = LANDMARK_KIND_CONTRACT_VERSION;
+    for (const e of b.plan.continuity!.entities.filter(e => e.kind === 'landmark')) {
+      e.invariants.unshift({ attribute: 'kind', value: e.id === 'old_tree' ? 'tree' : 'stone' });
+      e.invariants.push({ attribute: 'shape', value: e.id === 'old_tree' ? 'forked' : 'rounded' });
+    }
+    return b;
+  };
+  it('binds v12/page-context-v3 and fresh topology on every sample/downstream frame; default stays v9', async () => {
+    const h = harness({ book: typedBook(), topology: true });
+    const m = await illustrateReviewedAudition({ ...h.args, landmarkTopology: LANDMARK_TOPOLOGY_VERSION, sample: [1, 2] });
+    expect(m.status).toBe('qa_supported_audition');
+    expect((h.saved.get('audition_sheet_designs') as any).policy.version).toBe('reviewed-audition-policy/v12');
+    expect(h.args.render.mock.calls.map(x => x[0])).toContain('page_8_0');
+    for (const [step, c] of h.contexts) if (step.startsWith('page_')) {
+      expect(c).toMatchObject({ version: 'audition-page-context/v3', landmarkDesignHead: LANDMARK_DESIGN_HEAD_VERSION,
+        landmarkTopology: LANDMARK_TOPOLOGY_VERSION });
+      const page = Number(step.split('_')[1]);
+      expect((h.saved.get(`page_${page}`) as SavedPage).chosen.review?.landmarkInventory?.topology?.version).toBe(LANDMARK_TOPOLOGY_VERSION);
+    }
+    expect(reviewedAuditionPolicy().version).toBe('reviewed-audition-policy/v9');
+  });
+  it('missing fresh topology is unusable, stops before identity or the next sample; no schema downgrade', async () => {
+    const h = harness({ book: typedBook() });
+    await expect(illustrateReviewedAudition({ ...h.args, landmarkTopology: LANDMARK_TOPOLOGY_VERSION, sample: [1, 2] }))
+      .rejects.toThrow('audition_review_unusable');
+    expect(h.args.identity).not.toHaveBeenCalled();
+    expect(h.args.render.mock.calls.map(x => x[0])).toEqual(['sheet_entities_0', 'sheet_locations_0', 'page_1_0']);
+  });
+  it('uncertain physical evidence holds the representative sample and prevents downstream', async () => {
+    const h = harness({ book: typedBook(), inventory: (_step, context) => {
+      const inv = singleInventory(context);
+      for (const l of inv.landmarks) {
+        const own = l.candidates[0], features = context.checks.uniqueLandmarks.find((x: any) => x.id === l.landmarkId).features;
+        l.candidates = inv.objects.map(o => o.objectId === own.objectId ? own : { objectId: o.objectId, association: 'different_object',
+          evidence: 'visible incompatible kind', featureChecks: features.map((f: any) => ({ featureId: f.id,
+            observed: f.aspect === 'kind' ? 'contradicted' : 'not_visible' })) });
+      }
+      return { ...inv, topology: { version: LANDMARK_TOPOLOGY_VERSION,
+        relations: [{ from: 'o1', to: 'o2', relation: 'uncertain', basis: 'not_readable', evidence: 'connection hidden behind another object' }],
+        bindings: inv.landmarks.flatMap(l => l.candidates.map(c => ({ landmarkId: l.landmarkId, objectId: c.objectId,
+          sourceKind: context.checks.uniqueLandmarks.find((x: any) => x.id === l.landmarkId).features.find((f: any) => f.aspect === 'kind').text,
+          extent: c.association === 'different_object' ? 'not_instance' : 'whole_instance', evidence: 'visible extent but relation remains unreadable' }))) } };
+    } });
+    const m = await illustrateReviewedAudition({ ...h.args, landmarkTopology: LANDMARK_TOPOLOGY_VERSION, sample: [1, 2] });
+    expect(m.status).toBe('held_sample');
+    // The existing engine evaluates BOTH representative samples, then gates all remaining frames (unchanged semantics).
+    expect(h.args.render.mock.calls.some(x => /^page_[0345678]_/.test(x[0]))).toBe(false);
+    expect((h.saved.get('page_1') as SavedPage).attempts).toHaveLength(3);
+  });
+  it('old saved policy/raw cannot resume as v12; rejects before any render/judge/identity', async () => {
+    const book = typedBook(), old = harness({ book, pages: [1] });
+    await illustrateReviewedAudition(old.args);
+    const h = harness({ book, topology: true });
+    await expect(illustrateReviewedAudition({ ...h.args, pages: [1], landmarkTopology: LANDMARK_TOPOLOGY_VERSION,
+      resume: { designs: old.saved.get('audition_sheet_designs'), stepPrefix: 'r4_', pages: { 1: old.saved.get('page_1') as SavedPage },
+        sheets: { entities: old.saved.get('sheet_entities') as any, locations: old.saved.get('sheet_locations') as any } } })).rejects.toThrow('audition_resume_binding');
+    expect(h.args.render).not.toHaveBeenCalled(); expect(h.args.judge).not.toHaveBeenCalled(); expect(h.args.identity).not.toHaveBeenCalled();
+  });
+  it('rebinds an actual v12 saved run without fresh calls, keeps each attempt and raw evidence unchanged', async () => {
+    const book = typedBook(), old = harness({ book, pages: [1, 2], topology: true });
+    await illustrateReviewedAudition({ ...old.args, landmarkTopology: LANDMARK_TOPOLOGY_VERSION });
+    const before = canonicalJson([...old.saved]), h = harness({ book, topology: true });
+    await illustrateReviewedAudition({ ...h.args, pages: [1, 2], landmarkTopology: LANDMARK_TOPOLOGY_VERSION,
+      resume: { designs: old.saved.get('audition_sheet_designs'), stepPrefix: 'r4_', pages: { 1: old.saved.get('page_1') as SavedPage, 2: old.saved.get('page_2') as SavedPage },
+        sheets: { entities: old.saved.get('sheet_entities') as any, locations: old.saved.get('sheet_locations') as any } } });
+    expect(h.args.render).not.toHaveBeenCalled(); expect(h.args.judge).not.toHaveBeenCalled(); expect(h.args.identity).not.toHaveBeenCalled();
+    expect(canonicalJson([...old.saved])).toBe(before);
+  });
+  it('cannot attach topology to the spent calibration contract or an untyped source', async () => {
+    const h = harness();
+    for (const args of [{ ...h.args, landmarkTopology: LANDMARK_TOPOLOGY_VERSION },
+      { ...h.args, book: typedBook(), landmarkTopology: LANDMARK_TOPOLOGY_VERSION, calibration: { version: AUDITION_CALIBRATION_VERSION, pages: [] } }])
+      await expect(illustrateReviewedAudition(args)).rejects.toThrow('audition_landmark_contract');
+    expect(h.args.render).not.toHaveBeenCalled(); expect(h.args.judge).not.toHaveBeenCalled();
+  });
+});
 
 describe('prospective landmark design-head contract (legacy default is unchanged)', () => {
   const catalogue = (design: string, kind = 'boulder', enabled = true) => landmarkFeatureCatalogue([
