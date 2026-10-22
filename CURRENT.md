@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## General typed landmark topology built offline (6d40d2e3); independent QA next; no new paid continuation (2026-10-22)
+
+- **Owner scope:** Guy pasted the general next-gate proposal and directly said "תטפל". Codex disclosed and implemented OFFLINE engine
+  treatment/QA only, not a new review/render allowance or permission to reopen consumed calibration `4856710d…`. Same task/worktree/branch,
+  sole writer Codex; the same one owner-approved separate read-only reviewer receives the frozen range. No extra agent/task/worktree/key.
+- **New opt-in:** `landmark-topology/v1`, policy v12 and page-context v3. Context, instructions and actual native payload/response schema
+  select the same version. Legacy v9/v10/v11 defaults and actual v11 request bytes are unchanged. New raw is not accepted by legacy schema;
+  old raw cannot be new topology evidence. The old calibration cannot be combined with this opt-in. No CLI/grant/native continuation added.
+- **Physical graph, separate source ownership:** complete pair relations (`same_object`, directional `component_of`, `separate_objects`,
+  `uncertain`) with typed visible bases and evidence, plus complete object/source matrix and exact canonical-kind/extent bindings. Extents
+  distinguish whole instance, component, containing aggregate, not-instance and uncertainty. Not-instance requires the existing explicit
+  decisive-feature contradiction. Wrong/missing IDs, coverage, pair duplication, cycles, self-links, transitive separation contradictions,
+  basis/type conflicts and incompatible canonical ownership refuse; hidden/unsupported evidence holds. No certainty inferred from prose.
+- **Counting:** only known same physical bodies share an instance ID; equal region text no longer merges distinct objects in this opt-in.
+  A component can be excluded from the whole count only through its evidenced ancestor and a positive same-source whole anchor. Excluding
+  a containing aggregate never unions its member siblings: two distinct whole trees/buildings/rings still block. Unknown connectivity is
+  uncertain, not a proven duplicate or a dismissal. Existing classifier, impact/selection, safety/identity/story and 0.70 remain in control.
+- **Limits / not proven:** new full matrix is bounded to 10 observed objects (existing 10 candidates/source); legacy stays at 24 objects.
+  Fixed 12000 output tokens / 104000 input bytes remain. Capacity/semantic incompleteness must hold/refuse, never omit objects to pass.
+  Typed visible evidence is a judge assertion, not deterministic proof of pixel truth. No actual new-contract pixel review occurred.
+- **Evidence in artifact root `r1-general-landmark-topology-20261022`:** final 239/239 tests, exit 0 in 43.03 s (194 existing+new
+  orchestrator tests, 36 topology tests, 7 transport, 2 deadline); final nonincremental tsc 0 in 53.672 s. Real-data controls 9/9 plus
+  385 preservation hashes: entire old paid wire/instruction/assessment equal, old held outcome preserved, old raw refused in new contract,
+  all 355 book + 30 authority files unchanged. Synthetic complete-book callbacks prove orchestration only, NOT pixels/product acceptance.
+  Two earlier affected runs were RED on new test assumptions (fixture lacked second positive aspect, both samples precede remainder,
+  manifest success is qa_supported_audition); logs retained, corrected fixtures/assertions, no production gate weakened. Full check stays RED.
+- **Next:** docs-last frozen range → same independent read-only reviewer, fix/re-gate verified findings. A FUTURE paid same-book route
+  still needs an explicitly bounded unused plan/grant/preflight after QA and fresh quality/identity for relevant samples, must pin the new
+  helper and all called dependencies, and must preserve all consumed claims/attempts/costs and both held sheets. None exists or ran here.
+  Original book remains held_sample/incomplete, cover/pages3–8 not drawn. Known API1850772 + approved conservative debits1200000 =
+  3050772/7000000; cycle3179702/8000000; two old actual charges UNKNOWN. Zero new provider/Max/image calls, no push/merge/deploy/delete.
+
 ## General calibration executed and closed: first sample HELD; independent outcome-accuracy PASS, NOT a complete book (2026-10-22)
 
 - **Current result:** code `c4b9cd3b`, frozen docs head `781a12d2`, independently reviewed range `47898d1e..781a12d2` and exact grant

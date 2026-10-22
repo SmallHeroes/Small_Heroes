@@ -1,5 +1,21 @@
 # SmallHeroes — Roadmap
 
+## General topology engine contract offline complete (6d40d2e3), independent QA next; book still held (2026-10-22)
+
+- Guy's "תטפל" on the general proposal was scoped visibly to offline implementation/QA, not invented paid allowance. Same sole writer
+  and same owner-approved separate read-only reviewer; no new task/agent/worktree/monitor or credential.
+- Built opt-in topology/v1, policyv12/contextv3 and actual payload/schema selection, using the existing classifier/impact/orchestrator.
+  Explicit same-object/component/separate/uncertain graph plus source-kind/extent matrix; validate coverage/references/cycles/contradictions.
+  Known components do not become duplicate aggregates; two independent whole members remain two even in one aggregate. No prose→PASS.
+- New maximum10 objects keeps the full matrix inside the existing10 candidates/source bound; legacy stays24. Fixed input/output bounds
+  unchanged. Pixel evidence truth is NOT proven offline. Legacy actual v11 request/assessment unchanged; old raw not new-contract evidence.
+- Final239 tests passed / tsc0; real-data9 controls +385 preservation hashes passed. Earlier test-harness expectation REDs retained;
+  historical full check RED unchanged. All355 book+30 authority files preserved. No providers, claims, key reads, images or Max calls.
+- Next: frozen docs-last handoff to independent QA, focused correction/re-gate if needed. FUTURE paid continuation needs new exact
+  allowance/grant/preflight with helper pinned and fresh applicable sample quality/identity, not consumed4856710d reset or extra attempts
+  inferred from a folder. No such native continuation/CLI/grant implemented here; held sheets and incomplete-book status remain.
+- Money unchanged: book1850772 known +1200000 conservative debits =3050772/7m, cycle3179702/8m; two old actual charges UNKNOWN.
+
 ## General calibration completed as HELD_SAMPLE; book incomplete; topology evidence is the separate next gate (2026-10-22)
 
 - Code/grant passed independent read-only QA at `781a12d2` (code `c4b9cd3b`); exact preflight then native execution finished exit 0
