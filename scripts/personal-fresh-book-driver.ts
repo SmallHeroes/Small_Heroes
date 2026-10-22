@@ -96,7 +96,8 @@ import { SIMPLE_STORYBOARD_INPUT_LIMIT, type SimpleStoryboardDiagnosticCall } fr
 import { generationTimeoutMs } from '../lib/personal-wizard/story-config';
 import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { GPT_IMAGE_PROMPT_MAX_CHARS, type BookDesignReferenceRole } from '../lib/generate-image';
-import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-reviewed-audition';
+import { AUDITION_WORST_CASE_CALLS, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, illustrateReviewedAudition,
+  ReviewedAuditionError, AUDITION_REREVIEW_VERSION, type SavedPage, type SavedRereview, type AuditionCalibration } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_MATERIALITY_AMENDMENT, CHILD_ANCHOR_CORRECTION_ROLES, resolveChildAnchorTechnique, childAnchorDescriptionRequest, childAnchorCorrectionPrompt,
   assertChildAnchorRenderPlan, childAnchorAttemptRecipe, childAnchorRecipeSha, childAnchorStyleDisposition, childAnchorDisposition,
   childAnchorInspectionContext, childAnchorInspectionContextSha, childAnchorInspectedDesignDisposition, childAnchorInspectedAdoptionRecord,
@@ -134,7 +135,7 @@ import { FRESH_BOOK_CYCLE, FreshBookError, freshBookProfileSchema, freshBookProf
   claimFreshBookChildFreshAnchor, assertFreshBookChildFreshAnchorPaid, type FreshBookChildFreshAnchorGrant, freshAnchorClaimFields,
   FRESH_BOOK_AUDITION_CONTINUATION, freshBookAuditionContinuationGrantSchema, claimFreshBookAuditionContinuation, assertFreshBookAuditionContinuationPaid,
   type FreshBookAuditionContinuationGrant, continuationClaimFields, FRESH_BOOK_AUDITION_REREVIEW, freshBookAuditionRereviewGrantSchema,
-  claimFreshBookAuditionRereview, assertFreshBookAuditionRereviewPaid, type FreshBookAuditionRereviewGrant } from './personal-fresh-book-authority';
+  claimFreshBookAuditionRereview, assertFreshBookAuditionRereviewPaid, rereviewClaimFields, type FreshBookAuditionRereviewGrant } from './personal-fresh-book-authority';
 import { STORYBOARD_ATTEMPT_EXTENSION_VERSION, STORYBOARD_ATTEMPT_EXTENSION_V2 } from '../lib/personal-wizard/storyboard-repair';
 import { STORYBOARD_CALIBRATION_VERSION, STORYBOARD_REVIEW_SEVERITY_VERSION, CALIBRATION_COMPONENTS, findingGroups } from '../lib/personal-wizard/storyboard-calibration';
 import { STORYBOARD_PRESENCE_VERSION, PRESENCE_COMPONENTS } from '../lib/personal-wizard/storyboard-presence';
@@ -5416,6 +5417,167 @@ export async function runFreshBookAuditionRereview(args: { config: FreshBookConf
 // ---------------------------------------------------------------------------------------------------------------
 export const FRESH_BOOK_AUDITION_SLOT = 'fresh-book-usd7' as const;
 const auditionStartFile = (env: FreshBookEnv) => path.join(env.authorityRoot, 'owner-cycle-20261017-fresh-book-usd7.audition.json');
+/** This ONE continuation follows the consumed re-review, not a relabelled original grant. Defaults/old lines remain closed. */
+export const FRESH_BOOK_AUDITION_CALIBRATION = Object.freeze({ version: AUDITION_CALIBRATION_VERSION,
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.audition-calibration.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.audition-calibration.outcome.json',
+  approvalLine: 'יאללה תמשיך! קלוד בהשהייה - הביצוע עליך' });
+const AK = FRESH_BOOK_AUDITION_CALIBRATION;
+const CALIBRATION_EARLIER = ['request.json', 'admission.json', 'text', FRESH_BOOK_RECOVERY.folder, FRESH_BOOK_STORYBOARD_REPAIR.folder,
+  CONT.folder, REVAL.folder, EXT.folder, XREVAL.folder, CAL.folder, PRS.folder, 'child', CR.folder, CF.folder, 'book-layout.json',
+  'audition.grant.json', 'book-status-rereview.json'];
+const calibrationParentSchema = z.object({ page: z.number().int().min(1).max(8), action: z.enum(['requalify', 'correct_once']),
+  priorSha256: z.string().regex(/^[a-f0-9]{64}$/), consumedAttemptsBefore: z.number().int().min(1).max(3) }).strict();
+export const freshBookAuditionCalibrationGrantSchema = z.object({ version: z.literal('fresh-book-audition-calibration-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), contract: z.literal(LANDMARK_DESIGN_HEAD_VERSION),
+  ownerApproval: z.object({ file: z.string(), sha256: z.string() }).strict(), profileSha256: z.string(), bookDir: z.string(),
+  parent: z.object({ grantFile: z.string(), grantSha256: z.string(), claimSha256: z.string(), outcomeSha256: z.string() }).strict(),
+  auditionFolderSha256: z.string(), rootsSha256: z.string(),
+  calibration: z.object({ version: z.literal(AUDITION_CALIBRATION_VERSION), pages: z.array(calibrationParentSchema).length(2) }).strict(),
+  debits: freshBookAuditionRereviewGrantSchema.shape.debits,
+  ledger: z.unknown(), engine: freshBookAuditionRereviewGrantSchema.shape.engine, pins: freshBookAuditionRereviewGrantSchema.shape.pins,
+  nativePlanSha256: z.string() }).strict();
+
+/** Offline plan: consumed authority, original admission, cumulative ledger and every sample parent, before a key/claim/provider. */
+export async function planFreshBookAuditionCalibration(config: FreshBookConfig, env: FreshBookEnv, parentGrantFile: string, approvalFile: string) {
+  const base = planFreshBook(config, env), approval = ownerApproval(approvalFile, AK.approvalLine, 'fresh_book_calibration_approval');
+  const refuse = (): never => fail('fresh_book_calibration_parent');
+  const parentBytes = fileBytes(parentGrantFile), parent = freshBookAuditionRereviewGrantSchema.parse(JSON.parse(parentBytes.toString('utf8')));
+  const at = (name: string) => path.join(env.authorityRoot, name), dir = path.join(config.bookDir, 'audition');
+  const claim = json(at(AR.claimName)), outcome = json(at(AR.outcomeName));
+  if (parent.profileSha256 !== base.plan.profileSha256 || path.resolve(parent.bookDir).toLowerCase() !== path.resolve(config.bookDir).toLowerCase() ||
+      claim.cycle !== FRESH_BOOK_CYCLE.id || claim.auditionRereview !== AR.version || claim.grantSha256 !== previewSha(parentBytes) ||
+      claim.ownerApprovalSha256 !== parent.ownerApproval.sha256 || claim.profileSha256 !== parent.profileSha256 || claim.engineHead !== parent.engine.head ||
+      path.resolve(claim.bookDir).toLowerCase() !== path.resolve(config.bookDir).toLowerCase() ||
+      canonicalJson(claim.named) !== canonicalJson(rereviewClaimFields(parent)) || outcome.cycle !== FRESH_BOOK_CYCLE.id || outcome.status !== 'held_sample' ||
+      outcome.manifestStatus !== 'held_sample' || previewSha(fileBytes(parent.ownerApproval.file)) !== parent.ownerApproval.sha256 ||
+      previewSha(fileBytes(path.join(dir, 'admission.json'))) !== parent.audition.admissionSha256 ||
+      previewSha(fileBytes(path.join(config.bookDir, 'audition.grant.json'))) !== parent.audition.grantSha256) refuse();
+  // Re-read the consumed continuation grant, its owner record and named claim/outcome: no relabelling the ancestry.
+  const contBytes = fileBytes(parent.continuation.grantFile), cont = freshBookAuditionContinuationGrantSchema.parse(JSON.parse(contBytes.toString('utf8')));
+  if (previewSha(contBytes) !== parent.continuation.grantSha256 || previewSha(fileBytes(at(AC.claimName))) !== parent.continuation.claimSha256 ||
+      previewSha(fileBytes(at(AC.outcomeName))) !== parent.continuation.outcomeSha256 ||
+      previewSha(fileBytes(cont.ownerApproval.file)) !== cont.ownerApproval.sha256 ||
+      canonicalJson(parent.debits[0]) !== canonicalJson(cont.debit)) refuse();
+  await assertFreshBookAdmission(base.rereview, env);
+  // loadReviewedBook binds the admitted storyboard and inspected final child to the frozen layout/profile, not cwd/env assets.
+  const loaded = loadReviewedBook(config.bookDir, workspace(), undefined, readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json')));
+  const auditionGrant = auditionGrantSchema.parse(json(path.join(config.bookDir, 'audition.grant.json')));
+  if (auditionGrant.scope.mode !== 'render') return refuse();
+  const scope = auditionGrant.scope;
+  if (scope.scaleLineup || scope.pageAttempts !== undefined || scope.sample?.length !== 2 ||
+      auditionGrant.book.requestId !== loaded.queued.requestId || auditionGrant.book.storyboardDigest !== loaded.book.storyboardDigest) refuse();
+  const ledger = freshBookLedger(config, env, base.rereview, 'child_fresh_anchor', parent.debits);
+  if (canonicalJson(ledger) !== canonicalJson(outcome.ledger)) refuse();
+  const manifest = json(path.join(dir, 'reviewed_audition_manifest-r2.json'));
+  if (manifest.status !== 'held_sample' || manifest.pages.length !== 2 || manifest.scope.sample?.join(',') !== scope.sample!.join(',')) refuse();
+  const parents = scope.sample!.map(page => {
+    const prior = json(path.join(dir, `page_${page}.json`)) as SavedPage;
+    const reFile = path.join(dir, `page_${page}_rereview.json`);
+    let effective = prior;
+    if (existsSync(reFile)) {
+      const re = json(reFile) as SavedRereview;
+      if (re.version !== AUDITION_REREVIEW_VERSION || re.priorSha256 !== previewSha(canonicalJson(prior))) refuse();
+      effective = { ...prior, attempts: prior.attempts.map(a => a.attempt === re.attempt ? re.reviewed : a), chosen: re.chosen, status: re.status,
+        rereview: { version: AUDITION_REREVIEW_VERSION, attempt: re.attempt } };
+    }
+    return { page, action: effective.status === 'qa_supported' ? 'requalify' as const : 'correct_once' as const,
+      priorSha256: previewSha(canonicalJson(effective)), consumedAttemptsBefore: effective.attempts.length };
+  });
+  const calibration: AuditionCalibration = { version: AUDITION_CALIBRATION_VERSION, pages: parents };
+  if (parents[0].action !== 'requalify' || parents[1].action !== 'correct_once' || parents[1].consumedAttemptsBefore !== FRESH_BOOK_CYCLE.pageAttempts ||
+      readdirSync(dir).filter(n => /^resume-[0-9]+\.json$/.test(n)).length !== 2 || existsSync(path.join(dir, 'admission-calibration.json'))) refuse();
+  // Exercise the SAME engine's old-context binding of ALL parents, then stop at its first new judge call. No side effect or provider.
+  let preview: { step: string; contextSha: string; context: unknown; candidate: AuditionImage } | null = null;
+  const readImage = (imageName: string) => ({ imageName, imageSha: previewSha(fileBytes(path.join(dir, 'illustrations', imageName))) });
+  const savedPages = Object.fromEntries(parents.map(p => [p.page, json(path.join(dir, `page_${p.page}.json`))]));
+  const rebound = Object.fromEntries(parents.filter(p => existsSync(path.join(dir, `page_${p.page}_rereview.json`))).map(p => {
+    const saved = json(path.join(dir, `page_${p.page}_rereview.json`)); return [p.page, { attempt: saved.attempt, saved }]; }));
+  try {
+    await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
+      child: readImage('reference_child.png'), companion: readImage('reference_companion.png'), companionDescription: loaded.companionDescription,
+      pages: scope.pages, sample: scope.sample, recovery: scope.recovery ? true : undefined, calibration,
+      ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
+      resume: { designs: json(path.join(dir, 'audition_sheet_designs.json')), sheets: { entities: json(path.join(dir, 'sheet_entities.json')),
+        locations: json(path.join(dir, 'sheet_locations.json')) }, pages: savedPages, stepPrefix: 'r3_', rereview: { pages: rebound } },
+      check: () => { if (preview) fail('fresh_book_calibration_preview_complete'); }, save: () => fail('fresh_book_calibration_preview_write'),
+      render: async () => fail('fresh_book_calibration_preview_render'), identity: async () => fail('fresh_book_calibration_preview_identity'),
+      judge: async (step, candidate, context, contextSha) => {
+        preview = { step, candidate, context, contextSha }; throw new ReviewedAuditionError('fresh_book_calibration_preview_complete'); } });
+  } catch (error) { if (!preview || codeOf(error, '') !== 'fresh_book_calibration_preview_complete') throw error; }
+  if (!preview) return refuse();
+  const roots = rootsOf(config, env, base.rereview, CALIBRATION_EARLIER), auditionFiles = folderBaseline(dir), engine = env.head();
+  const pins = Object.fromEntries(FRESH_BOOK_AUDITION_REREVIEW_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
+  const plan = { version: AK.version, cycle: FRESH_BOOK_CYCLE.id, contract: LANDMARK_DESIGN_HEAD_VERSION, ownerApproval: approval,
+    profileSha256: base.plan.profileSha256, bookDir: path.resolve(config.bookDir),
+    parent: { grantFile: path.resolve(parentGrantFile), grantSha256: previewSha(parentBytes), claimSha256: previewSha(fileBytes(at(AR.claimName))),
+      outcomeSha256: previewSha(fileBytes(at(AR.outcomeName))) }, auditionFolderSha256: previewSha(canonicalJson(auditionFiles)),
+    rootsSha256: previewSha(canonicalJson(roots)), calibration, debits: parent.debits, ledger,
+    firstContextSha256: previewSha(canonicalJson(preview)),
+    ceiling: 'requalify saved first sample (no render); ONE LOW correction of the held second sample as explicit attempt 4, fresh quality/identity evidence under v11 for both; downstream only after both PASS; no further calibration retry/resume',
+    downstream: 'SAME book, remaining pages and cover, existing 3 ordinary attempts each, gpt-image-2 LOW, Sol6.1 quality, gpt-4o numeric identity >=0.70; held sheets stay held; no budget/call reset',
+    providerCalls: 0, keyRead: false };
+  const { ceiling: _ceiling, downstream: _downstream, providerCalls: _calls, keyRead: _key, firstContextSha256: _context, ...bound } = plan;
+  const grantDraft = freshBookAuditionCalibrationGrantSchema.parse({ ...bound, version: 'fresh-book-audition-calibration-grant/v1',
+    engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
+  return { plan, grantDraft, state: { engine, claimExists: existsSync(at(AK.claimName)), outcomeExists: existsSync(at(AK.outcomeName)) },
+    roots, auditionFiles, base, parent, cont, calibration };
+}
+
+/** Native one-use continuation. No original grant, admission, image, raw review, claim, outcome or debit is overwritten. */
+export async function runFreshBookAuditionCalibration(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string;
+  signal: AbortSignal; log: (line: string) => void }) {
+  const bytes = fileBytes(a.grantFile), refuse = (): never => fail('fresh_book_calibration_grant');
+  if (previewSha(bytes) !== a.grantSha) refuse();
+  const g = freshBookAuditionCalibrationGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  const p = await planFreshBookAuditionCalibration(a.config, a.env, g.parent.grantFile, g.ownerApproval.file);
+  if (canonicalJson(g) !== canonicalJson(p.grantDraft)) refuse();
+  const at = (name: string) => path.join(a.env.authorityRoot, name), dir = path.join(a.config.bookDir, 'audition');
+  const frozen = [[a.grantFile, a.grantSha], [g.ownerApproval.file, g.ownerApproval.sha256], [g.parent.grantFile, g.parent.grantSha256],
+    [p.parent.ownerApproval.file, p.parent.ownerApproval.sha256], [p.parent.continuation.grantFile, p.parent.continuation.grantSha256],
+    [p.cont.ownerApproval.file, p.cont.ownerApproval.sha256]];
+  const same = () => {
+    if (a.signal.aborted) fail('fresh_book_cancelled');
+    const e = a.env.head();
+    if (!e.clean || e.head !== g.engine.head || e.branch !== g.engine.branch) fail('fresh_book_source_changed');
+    for (const [rel, digest] of Object.entries(g.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== digest) fail('fresh_book_source_changed');
+    for (const [file, digest] of frozen) if (previewSha(fileBytes(file)) !== digest) refuse();
+    if (canonicalJson(rootsOf(a.config, a.env, p.base.rereview, CALIBRATION_EARLIER)) !== canonicalJson(p.roots)) fail('fresh_book_roots_changed');
+    for (const [rel, digest] of Object.entries(p.auditionFiles)) if (previewSha(fileBytes(path.join(dir, rel))) !== digest) fail('fresh_book_calibration_parent');
+  };
+  same();
+  if (p.state.claimExists || p.state.outcomeExists || existsSync(at(AK.claimName)) || existsSync(at(AK.outcomeName))) fail('fresh_book_calibration_used');
+  const claim = { cycle: FRESH_BOOK_CYCLE.id, version: AK.version, grantSha256: a.grantSha, parent: g.parent,
+    ownerApproval: g.ownerApproval, engine: g.engine, bookDir: g.bookDir, calibration: g.calibration };
+  exclusiveJson(at(AK.claimName), claim);
+  const claimSha256 = previewSha(fileBytes(at(AK.claimName)));
+  const guard = () => {
+    same();
+    if (previewSha(fileBytes(at(AK.claimName))) !== claimSha256 || existsSync(at(AK.outcomeName))) fail('fresh_book_calibration_used');
+  };
+  try {
+    const result = await runReviewedAudition({ bookDir: a.config.bookDir, out: dir, keyFile: a.config.keyEnvFile,
+      grantFile: path.join(a.config.bookDir, 'audition.grant.json'), signal: a.signal, log: a.log,
+      layout: readReviewedBookLayout(path.join(a.config.bookDir, 'book-layout.json')), resume: true, debits: g.debits,
+      calibration: { grantSha256: a.grantSha, contract: p.calibration },
+      experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256: p.cont.fresh.claimSha256, guard } });
+    if (result.mode !== 'render') return fail('fresh_book_audition_mode');
+    const gate = (s: unknown): PageGate['disposition'] => s === 'qa_supported' ? 'passed' : 'held_uncertain';
+    const cover = result.manifest.pages.find(x => x.pageNumber === 0), reading = freshBookReadingOrder(cover ? gate(cover.status) : null,
+      result.manifest.pages.filter(x => x.pageNumber > 0).map(x => ({ page: x.pageNumber, disposition: gate(x.status) })));
+    const status = result.manifest.status === 'held_sample' ? 'held_sample' : reading.status === 'complete' &&
+      result.manifest.status !== 'qa_supported_audition' ? 'partial' : reading.status;
+    const ledger = freshBookLedger(a.config, a.env, p.base.rereview, 'child_fresh_anchor', g.debits);
+    exclusiveJson(path.join(a.config.bookDir, 'book-status-calibration.json'), { status, manifestStatus: result.manifest.status,
+      order: reading.order, ledger, grantSha256: a.grantSha, runtimeEligible: false });
+    finish(a.env, status, { manifestStatus: result.manifest.status, ledger }, AK.outcomeName);
+    return { status, manifestStatus: result.manifest.status, order: reading.order, ledger };
+  } catch (error) {
+    if (!existsSync(at(AK.outcomeName))) finish(a.env, 'failed_audition_calibration', { code: codeOf(error, 'fresh_book_calibration_failed') }, AK.outcomeName);
+    throw error;
+  }
+}
+
 async function freshAuditionGrant(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, profile: FreshBookProfile, line: Line = ORIGINAL_LINE,
   recovered?: ChildRecoveryHeld): Promise<AuditionGrant> {
   const layout = readReviewedBookLayout(path.join(config.bookDir, 'book-layout.json'));
@@ -5501,7 +5663,7 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const config = freshBookConfig(argValue('--config') ?? fail('fresh_book_arguments')), env = realFreshBookEnv();
-  const stage = ['audition-rereview-plan', 'audition-rereview', 'audition-continuation-plan', 'audition-continuation', 'child-fresh-anchor-plan', 'child-fresh-anchor',
+  const stage = ['audition-calibration-plan', 'audition-calibration', 'audition-rereview-plan', 'audition-rereview', 'audition-continuation-plan', 'audition-continuation', 'child-fresh-anchor-plan', 'child-fresh-anchor',
     'child-recovery-plan', 'child-recovery',
     'storyboard-presence-preview', 'storyboard-presence-plan', 'storyboard-presence',
     'storyboard-calibration-preview', 'storyboard-calibration-plan', 'storyboard-calibration',
@@ -5528,13 +5690,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
   const done = (p: Promise<unknown>) => p.then(r => console.log(JSON.stringify(r, null, 2)))
     .catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
   // The audition continuation and the audition re-review take no line flag: each is its own stage on the audition it follows.
-  if ((stage === 'audition-continuation' || stage === 'audition-rereview') && ['--recovery', '--storyboard-repair', '--storyboard-continuation',
+  if ((stage === 'audition-continuation' || stage === 'audition-rereview' || stage === 'audition-calibration') && ['--recovery', '--storyboard-repair', '--storyboard-continuation',
     '--storyboard-revalidation', '--storyboard-extension', '--storyboard-extension-revalidation', '--storyboard-calibration', '--storyboard-presence',
     '--child-recovery', '--child-fresh-anchor', '--resume'].some(f => process.argv.includes(f))) fail('fresh_book_arguments');
   // The audition re-review (dry): the consumed continuation and the audition it left re-derived, its two unknown-cost calls and their debits,
   // the ONE re-review (the saved page, its never-judged drawn attempt, the lost request and the new step), the ledger with both debits and the
   // grant draft (--continuation-grant: the consumed continuation grant file; --owner-approval: the owner's record). No key, provider, claim or write.
-  if (stage === 'audition-rereview-plan' || (stage === 'audition-rereview' && !execute)) done(Promise.resolve().then(async () => {
+  if (stage === 'audition-calibration-plan' || (stage === 'audition-calibration' && !execute)) done(Promise.resolve().then(async () => {
+    const { plan, grantDraft, state } = await planFreshBookAuditionCalibration(config, env, argValue('--rereview-grant') ?? fail('fresh_book_arguments'),
+      argValue('--owner-approval') ?? fail('fresh_book_arguments')); return { plan, grantDraft, state }; }))
+  else if (stage === 'audition-rereview-plan' || (stage === 'audition-rereview' && !execute)) done(Promise.resolve().then(async () => {
     const { plan, grantDraft, state } = await planFreshBookAuditionRereview(config, env, argValue('--continuation-grant') ?? fail('fresh_book_arguments'),
       argValue('--owner-approval') ?? fail('fresh_book_arguments'));
     return { plan, grantDraft, state }; }));
@@ -5642,7 +5807,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const common = { config, env, grantFile: argValue('--grant') ?? fail('fresh_book_arguments'), grantSha: argValue('--grant-sha') ?? fail('fresh_book_arguments'),
       signal: controller.signal, log: (line: string) => console.log(line) };
-    done(stage === 'audition-rereview' ? runFreshBookAuditionRereview(common) : stage === 'audition-continuation' ? runFreshBookAuditionContinuation(common)
+    done(stage === 'audition-calibration' ? runFreshBookAuditionCalibration(common) : stage === 'audition-rereview' ? runFreshBookAuditionRereview(common) : stage === 'audition-continuation' ? runFreshBookAuditionContinuation(common)
       : stage === 'child-fresh-anchor' ? runFreshBookChildFreshAnchor(common) : stage === 'child-recovery' ? runFreshBookChildRecovery(common)
       : stage === 'storyboard-presence' ? runFreshBookStoryboardPresence(common)
       : stage === 'storyboard-calibration' ? runFreshBookStoryboardCalibration(common)

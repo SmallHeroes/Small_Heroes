@@ -43,7 +43,15 @@ export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audit
 export const AUDITION_SCALE_LINEUP_VERSION = 'audition-scale-lineup/v1' as const;
 export const SCALE_LINEUP_AUDITION_POLICY = Object.freeze({ ...REVIEWED_AUDITION_POLICY, version: 'reviewed-audition-policy/v10',
   scaleLineup: 'opt-in (spend grant): the entities sheet adds one common-scale lineup (a plain child-height post, every supporting character on the sheet once as a flat silhouette, the companion outline at the plan\'s structured standing height); membership is structural (kind), never read from words, and each size stays in its own written design; the sheet judge compares heights only in the lineup and reports only clear contradictions; page prompts name the lineup as the relative-size authority, with perspective; tiles, the locations sheet and the page judge are unchanged' as const });
-export const reviewedAuditionPolicy = (scaleLineup?: boolean) => scaleLineup ? SCALE_LINEUP_AUDITION_POLICY : REVIEWED_AUDITION_POLICY;
+/** Prospective, explicitly granted evidence projection. Never applied to an existing review/context. */
+export const LANDMARK_DESIGN_HEAD_VERSION = 'landmark-design-head/v1' as const;
+export const DESIGN_HEAD_AUDITION_POLICY = Object.freeze({ ...REVIEWED_AUDITION_POLICY, version: 'reviewed-audition-policy/v11',
+  landmarkDesignHead: LANDMARK_DESIGN_HEAD_VERSION });
+export const reviewedAuditionPolicy = (scaleLineup?: boolean, designHead?: true) => {
+  // The closed lineup diagnostics and this independently granted contract are not interchangeable.
+  if (scaleLineup && designHead) throw new ReviewedAuditionError('audition_landmark_contract');
+  return designHead ? DESIGN_HEAD_AUDITION_POLICY : scaleLineup ? SCALE_LINEUP_AUDITION_POLICY : REVIEWED_AUDITION_POLICY;
+};
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
 export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
@@ -270,6 +278,9 @@ const DETERMINERS = words('a', 'an', 'the', 'one', 'two', 'three', 'four', 'five
   'each', 'this', 'that', 'very');
 const CLAUSE_BREAK = /[;,]|\s+(?:with|and|on|in|under|beneath|below|behind|beside|before|after|near|at|by|above|over|inside|around|against|along|across|between|of|from|to|into|onto)\s+/i;
 const LANDMARK_FEATURE_LIMIT = 16;
+// These forms are recognized only by the opt-in contract; legacy catalogues remain byte-identical.
+const HEAD_SIZE_FORMS = words('highest', 'tallest', 'largest', 'smallest', 'biggest', 'shortest', 'lowest', 'widest', 'narrowest',
+  'longest', 'broadest', 'taller', 'larger', 'smaller', 'bigger', 'shorter', 'lower', 'wider', 'narrower', 'longer', 'broader');
 const landmarkAspectOf = (word: string): LandmarkAspect | null => {
   if (/-sized?$/.test(word)) return 'size';
   if (/-shaped$/.test(word)) return 'shape';
@@ -277,7 +288,9 @@ const landmarkAspectOf = (word: string): LandmarkAspect | null => {
   for (const aspect of ['colour', 'material', 'size', 'shape'] as const) if (parts.some(p => LANDMARK_LEXICON[aspect].has(p))) return aspect;
   return null;
 };
-export function landmarkFeatureCatalogue(invariants: readonly { attribute: string; value: string }[], kindContract = false): LandmarkFeature[] {
+export function landmarkFeatureCatalogue(invariants: readonly { attribute: string; value: string }[], kindContract = false,
+  designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION): LandmarkFeature[] {
+  if (designHead !== undefined && (designHead !== LANDMARK_DESIGN_HEAD_VERSION || !kindContract)) fail('audition_landmark_contract');
   const out: Omit<LandmarkFeature, 'id'>[] = [];
   // Under the opt-in contract the declared kind is ONE decisive whole-object cue of its own aspect and is not re-read word by word.
   // Without the contract an invariant named "kind" is ordinary design text like any other.
@@ -288,9 +301,18 @@ export function landmarkFeatureCatalogue(invariants: readonly { attribute: strin
     out.push({ aspect: 'kind', text: declared[0].value.trim().toLowerCase(), clause: declared[0].value.trim(), decisive: true });
   }
   const add = (f: Omit<LandmarkFeature, 'id'>) => { if (!out.some(o => o.aspect === f.aspect && o.text === f.text && o.clause === f.clause)) out.push(f); };
-  const colourAt = (tokens: string[], i: number) => landmarkAspectOf(tokens[i] ?? '') === 'colour'
-    || (COLOUR_MODIFIERS.has(tokens[i] ?? '') && landmarkAspectOf(tokens[i + 1] ?? '') === 'colour');
-  const descriptor = (t: string) => !!landmarkAspectOf(t) || COLOUR_MODIFIERS.has(t);
+  const aspectOf = (word: string) => designHead && HEAD_SIZE_FORMS.has(word) ? 'size' as const : landmarkAspectOf(word);
+  const colourAt = (tokens: string[], i: number) => aspectOf(tokens[i] ?? '') === 'colour'
+    || (COLOUR_MODIFIERS.has(tokens[i] ?? '') && aspectOf(tokens[i + 1] ?? '') === 'colour');
+  const descriptor = (t: string) => !!aspectOf(t) || COLOUR_MODIFIERS.has(t);
+  const kindTokens = designHead ? out[0].text.split(/\s+/) : [];
+  // ONLY a clean descriptor prefix immediately before the exact declared kind is whole-object authority.
+  // A part/unknown noun before that head ("wooden seat of a bench") never qualifies. Suffix descriptors do not inherit it.
+  const declaredHeadAt = (tokens: string[]) => {
+    if (!designHead) return -1;
+    const at = tokens.findIndex((_, i) => kindTokens.every((t, j) => tokens[i + j] === t));
+    return at >= 0 && tokens.slice(0, at).every(t => DETERMINERS.has(t) || descriptor(t)) ? at : -1;
+  };
   // Free text describes the whole object only as "descriptors... noun" with at most two trailing noun words and no descriptor after them.
   const wholeObject = (tokens: string[]) => {
     const content = tokens.filter(t => t && !DETERMINERS.has(t)), head = content.findIndex(t => !descriptor(t));
@@ -303,15 +325,16 @@ export function landmarkFeatureCatalogue(invariants: readonly { attribute: strin
       const tokens = clause.split(/\s+/).map(t => t.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, ''));
       // A negated statement asserts nothing the picture must show: it yields no cue in either direction.
       if (tokens.some(t => NEGATIONS.has(t))) return;
-      const decisive = index === 0 && (!!named || wholeObject(tokens));
+      const head = index === 0 ? declaredHeadAt(tokens) : -1;
+      const decisive = index === 0 && (!!named || !designHead && wholeObject(tokens));
       if (named) { add({ aspect: named, text: clause, clause, decisive }); return; }
       for (let i = 0; i < tokens.length; i++) {
-        const aspect = colourAt(tokens, i) ? 'colour' : landmarkAspectOf(tokens[i]);
+        const aspect = colourAt(tokens, i) ? 'colour' : aspectOf(tokens[i]);
         if (!aspect) continue;
         // A run of colour words is ONE cue ("pale gray", "soft gray-brown"), never several supports.
         let end = i + 1;
         if (aspect === 'colour') while (end < tokens.length && colourAt(tokens, end)) end++;
-        add({ aspect, text: tokens.slice(i, end).join(' '), clause, decisive });
+        add({ aspect, text: tokens.slice(i, end).join(' '), clause, decisive: decisive || head >= 0 && end <= head });
         i = end - 1;
       }
     });
@@ -538,7 +561,8 @@ export function auditionRecoveryDiagnosis(attempts: readonly AuditionAttempt[]) 
 // ---------------------------------------------------------------------------------------------------------------
 // Page checks derived from the storyboard (no new model, no new data).
 // ---------------------------------------------------------------------------------------------------------------
-export function auditionPageChecks(book: PersonalStoryboard, pageNumber: number, companionDescription: string) {
+export function auditionPageChecks(book: PersonalStoryboard, pageNumber: number, companionDescription: string,
+  designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION) {
   const plan = book.plan, c = plan.continuity!;
   const design = (id: string) => c.entities.find(e => e.id === id)?.invariants.map(i => `${i.attribute}: ${i.value}`).join('; ')
     ?? plan.recurringProps.find(p => p.id === id)?.design ?? id;
@@ -559,7 +583,7 @@ export function auditionPageChecks(book: PersonalStoryboard, pageNumber: number,
   const kindContract = book.landmarkKind === LANDMARK_KIND_CONTRACT_VERSION;
   if (book.landmarkKind !== undefined && !kindContract) fail('audition_landmark_kind');
   const uniqueLandmarks = c.entities.filter(e => e.kind === 'landmark').map(e => ({ id: e.id, design: design(e.id), plannedVisible: visibleEntities.includes(e.id),
-    features: landmarkFeatureCatalogue(e.invariants, kindContract) }));
+    features: landmarkFeatureCatalogue(e.invariants, kindContract, designHead) }));
   const castIdentity = visibleCast.map(id => id === BOOK_SEQUENCE_ROLES.child
     ? { id, reference: 'canonical_child', design: `the reference child; clothing: ${plan.wardrobe}` }
     : id === BOOK_SEQUENCE_ROLES.companion ? { id, reference: 'canonical_companion', design: companionDescription }
@@ -609,7 +633,11 @@ export const AUDITION_SCALE_LINEUP_PAGE_SUFFIX = pageSuffix(true);
  * the old checks, or the reverse; a lineup outside the entities sheet, or a malformed one, refuses.
  */
 export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknown) {
-  if (kind === 'page') return AUDITION_JUDGE_INSTRUCTIONS.page;
+  if (kind === 'page') {
+    const marker = context && typeof context === 'object' && 'landmarkDesignHead' in context ? context.landmarkDesignHead : undefined;
+    if (marker !== undefined && marker !== LANDMARK_DESIGN_HEAD_VERSION) fail('audition_landmark_contract');
+    return AUDITION_JUDGE_INSTRUCTIONS.page + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '');
+  }
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
   return sheetScaleLineup(c.role, c.design) ? AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION : AUDITION_JUDGE_INSTRUCTIONS.sheet;
 }
@@ -648,7 +676,14 @@ export type SavedPage = { pageNumber: number; contextSha: string; requirementIds
   /** Opt-in stage-recovery/v1 only: every diagnosis an attempt of this page carried (the attempt it preceded and the diagnosis). */
   recovery?: { version: typeof STAGE_RECOVERY_VERSION; diagnoses: { beforeAttempt: number; diagnosis: NonNullable<ReturnType<typeof auditionRecoveryDiagnosis>> }[] };
   /** Present only on the effective page a re-review produced (never on a saved page record): the attempt that was re-reviewed. */
-  rereview?: { version: typeof AUDITION_REREVIEW_VERSION; attempt: number } };
+  rereview?: { version: typeof AUDITION_REREVIEW_VERSION; attempt: number };
+  calibration?: { version: typeof AUDITION_CALIBRATION_VERSION; priorContextSha: string; consumedAttemptsBefore: number;
+    priorAttempts: AuditionAttempt[]; action: 'requalify' | 'correct_once' } };
+export const AUDITION_CALIBRATION_VERSION = 'audition-landmark-calibration/v1' as const;
+export type SavedCalibration = { version: typeof AUDITION_CALIBRATION_VERSION; priorSha256: string; contextSha: string;
+  action: 'requalify' | 'correct_once'; consumedAttemptsBefore: number; reviewed: AuditionAttempt; status: AttemptStatus };
+export type AuditionCalibration = { version: typeof AUDITION_CALIBRATION_VERSION;
+  pages: { page: number; action: 'requalify' | 'correct_once'; priorSha256: string; consumedAttemptsBefore: number; saved?: SavedCalibration }[] };
 /**
  * A re-review (2026-10-22; owner-approved and opt-in, ONE per allowance, never a default): a page attempt that was DRAWN but whose review was
  * lost (unavailable, its candidate kept, never judged or measured) is judged once more, the same image and the same request, as a step
@@ -689,9 +724,10 @@ export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<Sa
 }
 
 export function auditionPageContext(book: PersonalStoryboard, packetContext: unknown, pageNumber: number, companionDescription: string,
-  references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null) {
-  const checks = auditionPageChecks(book, pageNumber, companionDescription);
+  references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION) {
+  const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);
   const context = { version: 'audition-page-context/v2', packet: packetContext, references,
+    ...(designHead ? { landmarkDesignHead: designHead } : {}),
     referenceStatus: { entities: { status: refs.entities.status, knownFlaws: refs.entities.knownFlaws },
       locations: { status: refs.locations.status, knownFlaws: refs.locations.knownFlaws } },
     predecessor: predecessor ? { pageNumber: pageNumber - 1, ...predecessor, authority: 'comparison_only_not_canonical' } : null,
@@ -748,8 +784,11 @@ export async function illustrateReviewedAudition(args: {
    * records it. Sheets and the child keep their own ceilings (two attempts: no further attempt to inform). Absent: every prompt as before.
    */
   recovery?: true;
+  /** New, one-use authority supplied by the native caller, never a legacy grant/CLI flag. Both saved samples need fresh evidence. */
+  calibration?: AuditionCalibration;
 }) {
-  const policy = reviewedAuditionPolicy(args.scaleLineup), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
+  const calibration = args.calibration;
+  const policy = reviewedAuditionPolicy(args.scaleLineup, calibration ? true : undefined), designs = auditionSheetDesigns(args.book, args.texts, args.scaleLineup);
   const prefix = args.resume?.stepPrefix ?? '', suffix = args.scaleLineup ? AUDITION_SCALE_LINEUP_PAGE_SUFFIX : AUDITION_PAGE_SUFFIX;
   const pageAttempts = args.pageAttempts ?? policy.pageAttempts;
   if (!Number.isInteger(pageAttempts) || pageAttempts < 1 || pageAttempts > policy.pageAttempts) fail('audition_page_attempts');
@@ -760,6 +799,11 @@ export async function illustrateReviewedAudition(args: {
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
   const order = sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
+  if (calibration && (!args.resume || calibration.version !== AUDITION_CALIBRATION_VERSION || !sample ||
+      canonicalJson(calibration.pages.map(p => p.page)) !== canonicalJson(sample) ||
+      calibration.pages.filter(p => p.action === 'correct_once').length !== 1 ||
+      calibration.pages.some(p => !['requalify', 'correct_once'].includes(p.action) || !args.resume!.pages[p.page]) ||
+      Object.keys(args.resume.pages).some(p => !sample.includes(Number(p))) || args.resume.interrupted)) fail('audition_calibration_binding');
   const resumed = <T extends SavedSheet | SavedPage>(phase: 'sheet' | 'page', prior: T | undefined, contextSha: string, requirementIds: string[],
     landmarks?: readonly AuditionLandmark[]): T | null => {
     if (!prior) return null;
@@ -790,7 +834,7 @@ export async function illustrateReviewedAudition(args: {
     try { return [role, resumed('sheet', saved, derived.contextSha, derived.requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
   }));
   if (args.resume) {
-    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||
+    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
       Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
     // A re-review names a saved page of this scope and one of its attempts (the attempt itself is checked where the page is re-bound).
     if (Object.entries(args.resume.rereview?.pages ?? {}).some(([n, re]) => !re || !Number.isInteger(re.attempt) || !args.resume!.pages[Number(n)]))
@@ -911,6 +955,61 @@ export async function illustrateReviewedAudition(args: {
       priorSha256, contextSha, reviewed, chosen, status } satisfies SavedRereview);
     return { ...prior, attempts, chosen, status, rereview: { version: AUDITION_REREVIEW_VERSION, attempt: re.attempt } };
   };
+  // Validate ALL legacy samples before any new paid operation. Re-derive them under their original context, including an existing step
+  // successor; never reinterpret their old raw review against the new feature catalogue. These exact effective parents are grant-bound.
+  const legacySamples = new Map<number, SavedPage>();
+  if (calibration) for (const spec of calibration.pages) {
+    const n = spec.page, packet = args.ownerAcceptance === undefined
+      ? currentPersonalStoryboardFrame(args.book, args.rawReview, n, args.current)
+      : currentPersonalStoryboardFrame(args.book, args.rawReview, n, args.current, args.ownerAcceptance);
+    const previous = legacySamples.get(n - 1), seq = args.book.sequence.pages;
+    const predecessor = n >= 2 && previous && seq[n - 1].sceneId === seq[n - 2].sceneId ? previous.chosen.candidate : null;
+    const old = auditionPageContext(args.book, packet.context, n, args.companionDescription, canonical, refs, predecessor);
+    const prior = resumed('page', args.resume!.pages[n], old.contextSha, old.checks.requirementIds, old.checks.uniqueLandmarks)!;
+    const re = args.resume!.rereview?.pages?.[n];
+    if (re && !re.saved) fail('audition_calibration_binding');
+    const effective = re ? await rereviewed(prior, re, old.context, old.contextSha, old.checks, predecessor) : prior;
+    if (previewSha(canonicalJson(effective)) !== spec.priorSha256 || effective.attempts.length !== spec.consumedAttemptsBefore ||
+        effective.attempts.some((a, i) => a.attempt !== i) ||
+        (spec.action === 'requalify' ? effective.status !== 'qa_supported'
+          : effective.status !== 'held' || effective.attempts.length !== policy.pageAttempts ||
+            !effective.chosen.assessment.findings.some(f => f.verdict === 'defect' && f.bound && !f.derived && impactIsMaterial(f.impact))))
+      fail('audition_calibration_binding');
+    legacySamples.set(n, effective);
+  }
+  const calibrated = async (prior: SavedPage, spec: AuditionCalibration['pages'][number], base: string, context: unknown, contextSha: string,
+    checks: ReturnType<typeof auditionPageChecks>, predecessor: AuditionImage | null): Promise<SavedPage> => {
+    const attempt = spec.action === 'correct_once' ? spec.consumedAttemptsBefore : prior.chosen.attempt;
+    let result: AuditionAttempt;
+    if (spec.saved) {
+      const s = spec.saved, r = s.reviewed;
+      if (s.version !== AUDITION_CALIBRATION_VERSION || s.priorSha256 !== spec.priorSha256 || s.contextSha !== contextSha || s.action !== spec.action ||
+          s.consumedAttemptsBefore !== spec.consumedAttemptsBefore || r.attempt !== attempt || !r.candidate || !r.review ||
+          (spec.action === 'requalify' && canonicalJson(r.candidate) !== canonicalJson(prior.chosen.candidate))) fail('audition_calibration_binding');
+      const candidate = r.candidate ?? fail('audition_calibration_binding');
+      const assessment = assessAuditionReview(r.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks).assessment;
+      if (canonicalJson(assessment) !== canonicalJson(r.assessment) || !identityUsable(r.identity) ||
+          r.status !== attemptStatus('page', { ...r, assessment }) || s.status !== r.status) fail('audition_calibration_binding');
+      result = { ...r, assessment };
+    } else {
+      const defects = prior.chosen.assessment.findings.filter(f => f.verdict === 'defect' && f.bound && !f.derived && impactIsMaterial(f.impact));
+      result = spec.action === 'correct_once'
+        ? await attemptOnce('page', String(prior.pageNumber), attempt,
+          base + auditionCorrections({ ...prior.chosen, assessment: { ...prior.chosen.assessment, findings: defects } }, 'page'),
+          canonical, 'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks)
+        : await judgeCandidate('page', String(prior.pageNumber), attempt, prior.chosen.candidate, context, contextSha, checks.requirementIds,
+          canonical, predecessor, checks.uniqueLandmarks);
+      args.save(`page_${prior.pageNumber}_calibration`, { version: AUDITION_CALIBRATION_VERSION, priorSha256: spec.priorSha256,
+        contextSha, action: spec.action, consumedAttemptsBefore: spec.consumedAttemptsBefore, reviewed: result, status: result.status } satisfies SavedCalibration);
+      report('page', String(prior.pageNumber), result);
+      finish('page', String(prior.pageNumber), [result]);
+    }
+    const chosen = selectAuditionAttempt('page', [result]) ?? fail('audition_calibration_unavailable');
+    // Only FRESH evidence participates in selection. Historical attempts remain explicit and never gain the new policy's verdict.
+    return { pageNumber: prior.pageNumber, contextSha, requirementIds: checks.requirementIds, attempts: [result], chosen,
+      status: attemptStatus('page', chosen), calibration: { version: AUDITION_CALIBRATION_VERSION, priorContextSha: prior.contextSha,
+        consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } };
+  };
   const pages: SavedPage[] = [];
   let heldSample = false;
   for (const pageNumber of order) {
@@ -922,7 +1021,16 @@ export async function illustrateReviewedAudition(args: {
     // Same-scene rule as sequencePredecessor; only a frame rendered in THIS run can be compared, never as authority.
     const seq = args.book.sequence.pages, previous = pages.find(p => p.pageNumber === pageNumber - 1);
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
-    const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor);
+    const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor,
+      calibration ? LANDMARK_DESIGN_HEAD_VERSION : undefined);
+    const spec = calibration?.pages.find(s => s.page === pageNumber);
+    if (spec) {
+      pages.push(await calibrated(legacySamples.get(pageNumber)!, spec, `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`,
+        context, contextSha, checks, predecessor));
+      // A held requalification must stop before correcting or drawing anything else.
+      if (pages[pages.length - 1].status !== 'qa_supported') { heldSample = true; break; }
+      continue;
+    }
     const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks);
     const closed = args.resume?.interrupted?.pages?.[pageNumber];
     if (prior && closed) fail('audition_resume_binding');
@@ -967,7 +1075,7 @@ export async function illustrateReviewedAudition(args: {
     pageDeferred: designs.pageDeferred,
     pages: presented.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
       identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity),
-      ...(p.rereview ? { rereview: p.rereview } : {}) })),
+      ...(p.rereview ? { rereview: p.rereview } : {}), ...(p.calibration ? { calibration: p.calibration } : {}) })),
     approval: 'none: qa_supported is an automated audition label, not product acceptance or production qualification' as const,
     runtimeEligible: false as const, productionQualified: false as const, ownerReviewRequired: true as const };
   args.save('reviewed_audition_manifest', manifest);

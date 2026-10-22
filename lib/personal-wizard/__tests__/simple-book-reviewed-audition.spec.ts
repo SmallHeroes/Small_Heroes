@@ -13,13 +13,14 @@ import type { PageChildResemblanceVisionResult } from '../../generation-pipeline
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
-  auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
+  auditionCorrections, landmarkFeatureCatalogue, assessLandmarkInventory, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
   sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
   AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
-import { AUDITION_REREVIEW_VERSION, type SavedRereview } from '../simple-book-reviewed-audition';
+import { AUDITION_REREVIEW_VERSION, AUDITION_CALIBRATION_VERSION, LANDMARK_DESIGN_HEAD_VERSION, auditionPageContext,
+  type SavedRereview, type SavedPage, type AuditionCalibration, type SavedCalibration } from '../simple-book-reviewed-audition';
 import { previewSha } from '../../local-story-preview';
 import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
@@ -95,6 +96,111 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
   };
   return { args, prompts, saved, contexts };
 }
+
+describe('prospective landmark design-head contract (legacy default is unchanged)', () => {
+  const catalogue = (design: string, kind = 'boulder', enabled = true) => landmarkFeatureCatalogue([
+    { attribute: 'kind', value: kind }, { attribute: 'design', value: design }], true, enabled ? LANDMARK_DESIGN_HEAD_VERSION : undefined);
+  it('recovers only explicit prefixes of the declared kind, despite a trailing comparison', () => {
+    const input = 'A big rounded boulder taller than the child, standing at the end of a trail';
+    expect(catalogue(input, 'boulder', false).filter(f => f.decisive).map(f => f.aspect)).toEqual(['kind']);
+    expect(catalogue(input).filter(f => f.decisive).map(f => [f.aspect, f.text])).toEqual([
+      ['kind', 'boulder'], ['size', 'big'], ['shape', 'rounded']]);
+    expect(catalogue(input).find(f => f.text === 'taller')?.decisive).toBe(false);
+    expect(catalogue('The highest rounded hill in a valley with a broad flat top', 'hill').filter(f => f.decisive).map(f => f.text))
+      .toEqual(['hill', 'highest', 'rounded']);
+  });
+  it.each(['A wooden seat of a bench', 'A red sign near a boulder', 'A boulder with a round mossy rim',
+    'No red rounded boulder', 'A rounded fake boulder', 'A very red marking on a boulder'])('does not promote parts, neighbours or negation: %s', design => {
+    expect(catalogue(design).filter(f => f.decisive).map(f => f.aspect)).toEqual(['kind']);
+  });
+  it('refuses missing/wrong contract, keeps the old instruction and context, binds the new one to its instruction', () => {
+    expect(() => landmarkFeatureCatalogue([], false, LANDMARK_DESIGN_HEAD_VERSION)).toThrow('audition_landmark_contract');
+    expect(() => landmarkFeatureCatalogue([], true, 'other' as any)).toThrow('audition_landmark_contract');
+    expect(auditionJudgeInstruction('page', {})).toBe(AUDITION_JUDGE_INSTRUCTIONS.page);
+    expect(auditionJudgeInstruction('page', { landmarkDesignHead: LANDMARK_DESIGN_HEAD_VERSION })).toContain('Perspective alone');
+    expect(() => auditionJudgeInstruction('page', { landmarkDesignHead: 'other' })).toThrow('audition_landmark_contract');
+    expect(reviewedAuditionPolicy().version).toBe('reviewed-audition-policy/v9');
+    expect(reviewedAuditionPolicy(false, true).version).toBe('reviewed-audition-policy/v11');
+    expect(() => reviewedAuditionPolicy(true, true)).toThrow('audition_landmark_contract');
+  });
+  it('newly decisive cues still expose genuine duplicates and hidden ambiguity; prose never dismisses an object', () => {
+    const features = catalogue('A big rounded boulder taller than a child'), landmarks = [{ id: 'marker', features }];
+    const objects = [1, 2].map(n => ({ objectId: `o${n}`, region: `region ${n}`, description: 'an object' }));
+    const one = (second: 'matches' | 'contradicted' | 'not_visible', association = 'possible_copy') => assessLandmarkInventory({ objects,
+      landmarks: [{ landmarkId: 'marker', candidates: objects.map((o, i) => ({ objectId: o.objectId, association: i ? association : 'this_landmark',
+        evidence: 'prose is not a typed verdict', featureChecks: features.map(f => ({ featureId: f.id,
+          observed: i && f.aspect !== 'kind' ? second : 'matches' })) })) }] } as any, landmarks);
+    expect(one('matches')).toMatchObject([{ instances: 2, strong: 2 }]);
+    expect(one('not_visible')).toMatchObject([{ instances: 2, strong: 1 }]);
+    expect(one('contradicted', 'different_object')).toMatchObject([{ instances: 1, strong: 1 }]);
+    expect(one('not_visible', 'different_object')).toMatchObject([{ instances: 2, strong: 1 }]);
+  });
+});
+
+describe('one-use sample calibration: new evidence, no legacy PASS conversion or attempt reset', () => {
+  const heldSpec: Spec = { identity: { issues: [issue('identity', 'cast:companion')] } };
+  const setup = async () => {
+    const book = fixture();
+    book.landmarkKind = LANDMARK_KIND_CONTRACT_VERSION;
+    for (const e of book.plan.continuity!.entities.filter(e => e.kind === 'landmark')) e.invariants.unshift({ attribute: 'kind', value: 'tree' });
+    const h = harness({ book, judge: s => s.startsWith('page_2_') ? heldSpec : {} });
+    await illustrateReviewedAudition({ ...h.args, sample: [1, 2] });
+    const pages = { 1: h.saved.get('page_1') as SavedPage, 2: h.saved.get('page_2') as SavedPage };
+    const calibration: AuditionCalibration = { version: AUDITION_CALIBRATION_VERSION, pages: [1, 2].map(page => ({ page,
+      action: page === 1 ? 'requalify' : 'correct_once', priorSha256: previewSha(canonicalJson(pages[page as 1 | 2])),
+      consumedAttemptsBefore: pages[page as 1 | 2].attempts.length })) };
+    const resume = { designs: h.saved.get('audition_sheet_designs'), sheets: { entities: h.saved.get('sheet_entities') as any,
+      locations: h.saved.get('sheet_locations') as any }, pages, stepPrefix: 'r1_' };
+    return { h, book, pages, calibration, resume };
+  };
+  it('requalifies first without render, adds exactly attempt 4 to held sample, only then draws downstream; parents immutable', async () => {
+    const s = await setup(), before = canonicalJson(s.pages), r = harness({ book: s.book });
+    const manifest = await illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: s.resume, calibration: s.calibration });
+    expect(r.args.render.mock.calls.map(c => c[0])).toEqual(['r1_page_2_3', ...[0, 3, 4, 5, 6, 7, 8].map(n => `r1_page_${n}_0`)]);
+    expect(r.args.judge.mock.calls[0][0]).toBe('r1_page_1_0_qa');
+    expect(r.contexts.get('r1_page_1_0_qa').landmarkDesignHead).toBe(LANDMARK_DESIGN_HEAD_VERSION);
+    expect(r.saved.get('page_1')).toBeUndefined();
+    expect(r.saved.get('page_2')).toBeUndefined();
+    expect(r.saved.get('page_2_calibration')).toMatchObject({ consumedAttemptsBefore: 3, reviewed: { attempt: 3 }, status: 'qa_supported' });
+    expect(manifest.pages.find(p => p.pageNumber === 2)).toMatchObject({ calibration: { consumedAttemptsBefore: 3, priorAttempts: s.pages[2].attempts } });
+    expect(canonicalJson(s.pages)).toBe(before);
+    expect(manifest.scope.complete).toBe(true);
+  });
+  it.each([1, 2])('a held fresh sample %i stops downstream, even though the old first sample passed', async page => {
+    const s = await setup(), r = harness({ book: s.book, judge: step => step.startsWith(`r1_page_${page}_`) ? heldSpec : {} });
+    const m = await illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: s.resume, calibration: s.calibration });
+    expect(m.status).toBe('held_sample');
+    expect(r.args.render.mock.calls.map(c => c[0])).toEqual(page === 1 ? [] : ['r1_page_2_3']);
+  });
+  it('refuses altered parent, reset attempt count, two corrections or missing sample BEFORE any paid adapter', async () => {
+    const s = await setup();
+    for (const mutation of [
+      (c: AuditionCalibration) => { c.pages[1].priorSha256 = sha('wrong'); },
+      (c: AuditionCalibration) => { c.pages[1].consumedAttemptsBefore = 0; },
+      (c: AuditionCalibration) => { c.pages[0].action = 'correct_once'; },
+      (c: AuditionCalibration) => { c.pages.shift(); },
+    ]) {
+      const c = structuredClone(s.calibration); mutation(c); const r = harness({ book: s.book });
+      await expect(illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: s.resume, calibration: c })).rejects.toThrow('audition_calibration_binding');
+      expect([r.args.render.mock.calls.length, r.args.judge.mock.calls.length, r.args.identity.mock.calls.length]).toEqual([0, 0, 0]);
+    }
+  });
+  it('rebinds saved successors without calls; rejects old-context review and forged verdict', async () => {
+    const s = await setup(), r = harness({ book: s.book });
+    await illustrateReviewedAudition({ ...r.args, pages: [1, 2], sample: [1, 2], resume: s.resume, calibration: s.calibration });
+    const c = structuredClone(s.calibration);
+    c.pages.forEach(p => { p.saved = r.saved.get(`page_${p.page}_calibration`) as SavedCalibration; });
+    const later = harness({ book: s.book });
+    await illustrateReviewedAudition({ ...later.args, pages: [1, 2], sample: [1, 2], resume: s.resume, calibration: c });
+    expect([later.args.render.mock.calls.length, later.args.judge.mock.calls.length]).toEqual([0, 0]);
+    for (const change of [(x: SavedCalibration) => { x.reviewed.review = s.pages[1].chosen.review; },
+      (x: SavedCalibration) => { x.reviewed.status = 'held'; }]) {
+      const bad = structuredClone(c); change(bad.pages[0].saved!);
+      await expect(illustrateReviewedAudition({ ...harness({ book: s.book }).args, pages: [1, 2], sample: [1, 2], resume: s.resume, calibration: bad }))
+        .rejects.toThrow();
+    }
+  });
+});
 
 describe('reference sheets: explicit, source-linked deferral', () => {
   it('defers only structured requirements and keeps every other fixed fact, including text that mentions the child', () => {

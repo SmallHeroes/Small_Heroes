@@ -1143,7 +1143,7 @@ export type FreshBookAuditionRereviewGrant = z.infer<typeof freshBookAuditionRer
 /** The named records a re-review grant stands on: the continuation's claim and its terminal outcome. */
 const rereviewNamed = (g: FreshBookAuditionRereviewGrant) => [[FRESH_BOOK_AUDITION_CONTINUATION.claimName, g.continuation.claimSha256],
   [FRESH_BOOK_AUDITION_CONTINUATION.outcomeName, g.continuation.outcomeSha256]] as const;
-const rereviewClaimFields = (g: FreshBookAuditionRereviewGrant) => ({ continuationGrantSha256: g.continuation.grantSha256,
+export const rereviewClaimFields = (g: FreshBookAuditionRereviewGrant) => ({ continuationGrantSha256: g.continuation.grantSha256,
   ...Object.fromEntries(rereviewNamed(g).map(([name, digest]) => [name, digest])),
   rereview: { page: g.rereview.page, attempt: g.rereview.attempt, lostStep: g.rereview.lostStep, step: g.rereview.step },
   debit: { step: g.debits[1].step, seq: g.debits[1].seq, wireDigest: g.debits[1].wireDigest, debitMicroUsd: g.debits[1].debitMicroUsd } });
