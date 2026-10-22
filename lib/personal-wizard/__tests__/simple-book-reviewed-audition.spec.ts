@@ -33,6 +33,7 @@ import { AUDITION_ANATOMY_VERSION, AUDITION_LOCAL_ANATOMY_REPAIR_VERSION } from 
 import { auditionLocalAnatomyRepairPlan, repairReviewedAuditionPage } from '../simple-book-reviewed-audition';
 import { planGPTImageRequest } from '../../generate-image';
 import { sceneRepairStops } from '../../../scripts/personal-fresh-book-scene-repair';
+import { assertAnatomyClarityRawPrior } from '../../../scripts/personal-fresh-book-anatomy-clarity';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
@@ -152,6 +153,20 @@ describe('local anatomical scene repair through the EXISTING bounded loop', () =
     expect(plan.prompt).toContain('do NOT presume a fifth limb exists or merely delete a haunch');
     expect(plan.provenance.clarity).toMatchObject(request);expect(plan.provenance.clarity!.requestSha).toBe(previewSha(canonicalJson(request)));
     expect(canonicalJson(prior)).toBe(before);
+  });
+  it('native clarity raw replay accepts the exact original paid answer',async()=>{
+    const {c,p,prior}=await clarityFixture();
+    expect(assertAnatomyClarityRawPrior(structuredClone(prior.review),prior,c,p.contextSha).review).toEqual(prior.review);
+  });
+  it.each(['derivative','raw','safety'])('native clarity raw replay rejects changed %s, not just two coherent derivative copies',async kind=>{
+    const {c,p,prior}=await clarityFixture(),raw=structuredClone(prior.review)!,copy=structuredClone(prior);
+    if(kind==='derivative'){
+      copy.review!.anatomy!.actors[0].limbs.visibleDistinct=5;copy.review!.anatomy!.actors[0].limbs.condition='extra';
+      copy.assessment=assessAuditionReview(copy.review,copy.candidate!.imageSha,p.contextSha,c.requirementIds,c.checks.uniqueLandmarks,LANDMARK_COVERAGE_TOPOLOGY_VERSION,c.anatomy.castIds).assessment;
+      copy.status=attemptStatus('page',copy);
+    }else if(kind==='raw'){raw.anatomy!.actors[0].limbs.visibleDistinct=5;raw.anatomy!.actors[0].limbs.condition='extra';}
+    else{const s=raw.checks.find(r=>r.category==='safety')!;s.verdict='defect';s.correction='Resolve the synthetic unsafe condition';s.issues=[{impact:'safety',requirement:'safety',note:'Synthetic changed raw safety finding'}];}
+    expect(()=>assertAnatomyClarityRawPrior(raw,copy,c,p.contextSha)).toThrow('anatomy_clarity_raw_binding');
   });
   it.each(['candidateSha','contextSha','actorId','ownerApprovalSha','source'])('explicit clarity rejects foreign/invalid %s',async field=>{
     const {c,p,prior,request}=await clarityFixture(),bad:any={...request,[field]:field==='actorId'?'unknown':field==='source'?'model_guess':field==='ownerApprovalSha'?'':sha('foreign')};

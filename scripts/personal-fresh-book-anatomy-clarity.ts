@@ -28,6 +28,17 @@ export const anatomyClarityGrantSchema=z.object({version:z.literal('fresh-book-a
   firstOperation:z.object({step:z.literal('r9_page_7_1'),wireDigest:hash,maximumMicroUsd:z.number().int().positive()}).strict(),
   allowance:z.object({maxNewImages:z.literal(1),maxNewCalls:z.literal(3),totalIncludingParentImages:z.literal(2),totalIncludingParentCalls:z.literal(7)}).strict(),nativePlanSha256:hash}).strict();
 
+/** Raw provider answer is the source; agreement between derivative copies is not sufficient evidence. */
+export function assertAnatomyClarityRawPrior(raw:unknown,prior:AuditionAttempt,context:any,contextSha:string){
+  const candidate=prior.candidate??fail('anatomy_clarity_raw_binding');
+  if(previewQualityContextSha(context)!==contextSha)fail('anatomy_clarity_raw_binding');
+  const paidAssessment=assessAuditionReview(raw,candidate.imageSha,contextSha,context.requirementIds,
+    context.checks.uniqueLandmarks,auditionLandmarkTopology(context),auditionAnatomyCast(context));
+  if(canonicalJson(paidAssessment.review)!==canonicalJson(prior.review)||canonicalJson(paidAssessment.assessment)!==canonicalJson(prior.assessment)||
+    attemptStatus('page',{...prior,assessment:paidAssessment.assessment})!==prior.status)fail('anatomy_clarity_raw_binding');
+  return paidAssessment;
+}
+
 export async function planAnatomyClarity(config:FreshBookConfig,env:FreshBookEnv,parentFile:string,approvalFile:string){
   const engine=env.head(),at=(n:string)=>path.join(env.authorityRoot,n),dir=path.join(config.bookDir,'audition'),paid=path.join(dir,'paid-stages'),images=path.join(dir,'illustrations');
   if(!engine.clean||previewSha(bytes(parentFile))!==A.parentSha)fail('anatomy_clarity_parent');
@@ -64,6 +75,9 @@ export async function planAnatomyClarity(config:FreshBookConfig,env:FreshBookEnv
   const canonical=context.references;canonical.forEach(imageBytes);imageBytes(candidate);const predecessor=context.predecessor?{imageName:context.predecessor.imageName,imageSha:context.predecessor.imageSha}:null;if(predecessor)imageBytes(predecessor);
   const assessment=assessAuditionReview(prior.review,candidate.imageSha,contextSha,context.requirementIds,context.checks.uniqueLandmarks,auditionLandmarkTopology(context),auditionAnatomyCast(context)).assessment;
   if(canonicalJson(assessment)!==canonicalJson(prior.assessment)||attemptStatus('page',prior)!==prior.status)fail('anatomy_clarity_binding');
+  // Derivative copies can agree while both contradict the paid answer. Rebind the actual RAW verdict, not merely its price or a duplicate.
+  const paidReceipt=json(path.join(paid,'r9_page_7_0_qa.receipt.json'));
+  assertAnatomyClarityRawPrior(JSON.parse(paidReceipt.raw.output_text),prior,context,contextSha);
   const request=anatomyClarityRequestSchema.parse({version:A.version,source:'owner_visual_feedback',candidateSha:candidate.imageSha,contextSha,actorId:'companion',ownerApprovalSha:ownerApproval.sha256,
     observation:'Owner reports five apparent legs. Saved reviewer counts four and interprets the central protrusion as a haunch. Clarify the canonical body paths without declaring either historical reading newly proved.'});
   const repair=auditionLocalAnatomyRepairPlan(prior,context,contextSha,canonical,'',request)??fail('anatomy_clarity_binding');
