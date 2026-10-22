@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Local scene repair diagnostic delivered WITH FINDINGS (2026-10-23)
+
+- Full8page+coverviewerindex-v2:adoptedp4fourlimbsbutheldgoldground; rejectednewp7threevisible/sourcefourrequired, oldp7retainedheld.
+  Notfullproductsuccess, no claimfiftholdlimbproved. Allraw/pixels/HOLD/provenanceandowninitialoverconfidencecorrection preserved.
+- Current7knowncalls615780/2LOW;book6201084/cycle6330014accountedunder7m/8m;oldUNKNOWNseparate;60/89,counts1=2/2=6/4=2/7=2.
+- Independentoutcomeaccuracy80bbad2b:872controls0+15copychecks+manualPNGinspection;codegate034fb24743/17/34/713green,fullcheckREDstays.
+- General improvementprovedp4; claritynotguarantee. Nextdesign:sourceVISIBLEcountvsphysicalcount/pose-changeplanning/worldcolourprecedence,
+  notmanualstoryfix orweakerjudge. Currenttwoimage/sevencallallowanceconsumed;docs-onlyclose/no production/push/cleanup/newmonitor.
+
 ## Clarity F1 independent raw-binding HOLD — fixed, exact unused re-gate next (2026-10-23)
 
 - Actualnative overlaycounterexample acceptedcontradictorysaved5/paidraw4 at265d3f50, HOLDdf80fb9c/RED preserved;0paidcalls/claims.

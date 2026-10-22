@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Local anatomy diagnostic CLOSED WITH FINDINGS — p4 improved; p7 clarity candidate rejected (2026-10-23)
+
+- FullreaderART/same-book-anatomy-clarity-outcome-20261023/viewer/index-v2.html:cover+8selectedimages/exact8Hebrewtexts, beforeafterp4/p7,
+  all4refs/history/report. P4newr9_page_4_1 selected, actual4limbs/identity~1.0, stillheldONLYgoldengroundcontinuity1. P7newr9_page_7_1
+  NOTADOPTED:3readablepaws/oneoccluded failsliteral4-in-air sourceaction, lessmane;story2/identity1/continuity4/detail1. Selectorretainsold7,
+  alsoheld. Originalraw4/intact/haunch vsowner/initialCodex5reading remainsdisputed; categoricalinitial5correctedadditively, notrewritten.
+- Actual1e7f parentat47c2a535 native0/4calls381790/ONELOWp4; actual3b3eclarityatcdba1290 native0/3calls233990/ONELOWp7,
+ 22:56:38.746Z..23:00:50.770Z, host85535exit0/PID52152+38240/directchildrenabsent. No provider remainsactive. Runtimepinsunchanged;
+  thisclosingdocscommit DOESNOTrepin anyconsumedgrant. No morecalls/imagesinthistwo-edit/seven-callallowance.
+- Totalcurrent7knowncalls615780microUSD:2LOWimages134672,3Solreviews469908,2gpt4oidentity11200. No newMax/unknown. Bookknown4401084
+  +old1200000debits+600000provision=6201084/7m,cycle6330014/8m;60/89;rendercounts0:1,1:2,2:6,3:1,4:2,5:1,6:1,7:2,8:1.
+  Old3actualchargesUNKNOWN/1oldoutcomeUNKNOWN preservedseparately, notinvoice/zero. Remaining798916budget isNOTnewattemptauthority.
+- SameindependentaccuracyPASS80bbad2b:872offlinecontrols0 +15exactimage/referencecopychecks; actualrawfullquality/context/wire/identity
+  replaysandselector, all7rawusagecosts,621oldBOOK+AUTHhashes/52runtimepins/39frozenoutputfiles/19locallinks/8texts/9selected1024images.
+  DirectoriginalPNGvisualauditagreesp4improved/p7unresolved. BrowserlayoutNOTverified. AccuracyPASS isNOTbook/product/productionPASS.
+- IndependentcodegatePASS034fb247:43focusedcases/17native/34operator/713bindingchecks0, tsc0beforecode/docs. OriginalHOLD/RED/zero-API
+  failedattempt andfullcheckhistoricalRED retained. Outcomereviewerfirstmapping/wordingharnessREDs wereinspectorerrors, v3fixedscratchonly.
+- Generalenginechanges:failedscenetarget+separatecanonrefs, typedlocalanatomyrepair, explicitboundownerreadabilityinputseparatefromverdict,
+  actualraw-priorreplay, samefullQA/.70selection/attemptcounter. Productiondefaults/source/story/child/sheetsunchanged, no manualpixelpatch.
+  Nextgeneraldesignopportunity:typed source-requiredVISIBLElimbcountdistinctfrombodycount, changedposeafterclarityfailure, stylevsworldcolour
+  precedence. Notimplemented/qualifiedbythisreport; no hidden4th-limbforcedvisibility or weakerjudge. Userp7repairgoalNOTclosed.
+- FinalreportandQAevidenceinQ=r1-anatomy-clarity-20261023 andOUT/evidence; alloriginals+failedalternativesretained. Solewriter/QA released
+  afterdocsclosure; existingpausedmonitorfieldspreserved, no newtask/agent/worktree/automation/key/push/merge/deploy/delete/cleanup.
+
 ## Clarity independent F1 raw lineage — focused correction complete, exact unused re-gate NEXT (2026-10-23)
 
 - Sameindependentreviewer HOLDdf80fb9c at265d3f50 verifiedP2: two derivativecopies couldcoherentlysay5 whileactualpaidrawsaid4.
