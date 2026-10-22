@@ -1,5 +1,25 @@
 # SmallHeroes — Roadmap
 
+## The continuation stopped at page 2 (held, then a review lost to Node's 300 s transport limit); path A built offline (6c46f9af); next: Codex QA, then ONE re-review and the rest of the SAME book (2026-10-22)
+
+- **What happened.** The continuation ran: RSM-1 worked (`r1_page_2_1`). Page 2's second attempt was held; its third attempt's review
+  was lost at ~300 s, because Node's built-in fetch cut it before the 600 s SDK deadline (my miss; shown by local probes). The sample
+  held, so the cover and pages 3–8 were not drawn. Codex verified it and recommended path A.
+- **Guy approved path A** ("מאשר מסלול A: …").
+- **Built (offline):**
+  - Each review call's own finite transport (limits above the deadline; Node's global dispatcher untouched), tested against a real local
+    server.
+  - Failure records keep the layer that ended a call.
+  - `audition-rereview/v1`: ONE re-review of a drawn attempt whose review was lost, with the identical request, as a step successor of the
+    saved page (no redraw, no new attempt).
+  - The ONE line `fresh-book-audition-rereview/v1`, with both debits (600000 each, actual cost unknown).
+  - Found on the way: a later run's manifest would have crashed on its exclusive name; it now writes its own.
+- **Tests:** transport 7/7, seam 2/2, engine 7/7, the line end to end 4/4, mutants 14/14. The 24 affected files: 719 passed, 3 failed
+  (the stale `:152`; two 60 s overruns that also overrun at the base in an A/B), 59 skipped by the focus. tsc 0. The full check stays RED.
+- **Money:** book 1655422 known + 2 debits = 2855422 of 7000000; Max 5502244 separate.
+- **Next:** Codex QA → a fresh preflight → the ONE re-review of the existing page-2 image → only if it passes, the cover and pages 3–8 →
+  the cover-first viewer and the reports.
+
 ## The fresh child PASSED; the book halted on ONE page review without a receipt; the same-book recovery built offline (bf830e5d, test c12a5e9c); next: Codex QA, then the SAME audition to the end (2026-10-22)
 
 - **What happened.** Codex PASSed the fresh-anchor line. The ONE fresh anchor passed (65944 microUSD). The book drew both sheets (held,

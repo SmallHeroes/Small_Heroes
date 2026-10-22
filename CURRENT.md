@@ -1,5 +1,98 @@
 # SmallHeroes — Current Technical State
 
+## Path A built offline (6c46f9af): the client-scoped review transport, cause-keeping failure records, the step-successor re-review and the ONE re-review line, for Codex QA; the book is NOT done (2026-10-22)
+
+**What happened since 5e544d85.**
+- Codex PASSed 95202726..5e544d85 and the continuation grant 10a8fc88…. The ONE continuation ran (5 calls; 250114 known + 1 unknown).
+  - RSM-1 worked on the real book: the first new claim was `r1_page_2_1`.
+  - Page 2's second attempt was held (4 findings). Its third attempt was drawn, but that review was lost at ~300 s with no receipt.
+  - Page 2 had no attempts left, so the sample held (`held_sample`); the cover and pages 3–8 were not drawn. The line ended
+    `failed_audition_continuation` / `fresh_book_ledger_unknown`.
+- The cause (my miss; Codex verified it locally and qualified it): the 600 s SDK deadline never took effect.
+  - Node 22's built-in fetch (undici 6.21.2) ends a request whose headers have not arrived within ITS default 300 s.
+  - Local probes (no provider, no key): at an SDK timeout of 600000 the call stopped at 303.8 s; with the dispatcher's limits lifted it
+    stopped at the SDK's own 330.0 s.
+  - The paid call's own low-level cause was not recorded (the SDK keeps none), so its attribution remains an inference.
+  - My Phase A test asserted the SDK option at a mocked seam.
+- Codex's outcome QA (`CODEX-SAME-BOOK-CONTINUATION-OUTCOME-QA-20261022.txt`): verified, an honest STOP, no further paid authority;
+  recommended path A with new explicit authority. Corrections: the pages are 49–61 words; the warm foreground sand is a region/context
+  hypothesis.
+- Guy approved path A directly in this Claude session ("מאשר מסלול A: …"; `OWNER-APPROVAL-SAME-BOOK-REREVIEW-20261022.txt`, e90ecb8d…,
+  recorded verbatim by Claude).
+
+**The engine change.**
+- **The review's own transport (general, client-scoped, finite).**
+  - Every pixel-review call gets its own dispatcher of the class Node's fetch uses, with header and body limits 30 s above the call's
+    deadline, so the 600 s deadline governs and a stalled body still ends.
+  - Node's process-wide dispatcher is never replaced. An unavailable transport refuses before the claim.
+  - One shared `sendReview` is what the paid judge calls and what the real local-server tests call.
+- **Failure records keep the layer that ended a call** (`cause`: class, code and message of each link; at most 4 links, 200
+  characters, key-like text redacted). Without a cause, the record is unchanged.
+- **`audition-rereview/v1`** (opt-in, owner-approved, ONE per allowance):
+  - Only a drawn page attempt whose review was lost qualifies: unavailable, its image kept, never judged or measured, on a saved page.
+    An arrived but unusable review does not qualify.
+  - It is judged once more as a step successor of the saved page, with the identical request. The wire digest is checked before the
+    claim, and a mismatch is fatal.
+  - The saved page stays untouched. The successor `page_N_rereview.json` is saved beside it and re-bound on every later resume.
+  - No image is drawn and no attempt is added.
+  - The runner binds each allowance to the journal: the lost review is debited by its own records, its render drew exactly that image,
+    and no other review of it was claimed.
+- **A later run of a finished audition writes its own manifest** (`reviewed_audition_manifest-rN.json`). Found while designing the
+  line: the exclusive name would have ended the re-review run in EEXIST after all its paid calls.
+
+**The line: `fresh-book-audition-rereview/v1`.**
+- Its grant binds:
+  - the owner's record;
+  - the consumed continuation: its grant (10a8fc88, never re-pinned), its claim and its failed outcome;
+  - the audition as the continuation left it: 21 calls, 941060 known, `held_sample`, one resume, the page-2 record;
+  - BOTH conservative debits: `page_2_0_qa` (approved 10-21) and `r1_page_2_2_qa` (approved now), each 600000, actual cost unknown;
+  - the ONE re-review: page 2, attempt index 2 (`r1_page_2_2.png`), lost step `r1_page_2_2_qa` (wire 7fa3b06c…), new step
+    `r2_page_2_2_qa`;
+  - the ledger, the new head and the 40 pins.
+- Admission re-derives all of it before the claim. Then the native audition resumes with both debits and the re-review.
+- Only if page 2 then passes do the cover and pages 3–8 follow. A held re-review stops at the sample (`held_sample`); a review lost
+  again fails the line.
+
+**Tests.**
+- The transport against a real 127.0.0.1 server: 7/7. Each call's own dispatcher, its limits above the deadline, Node's untouched.
+  - The header limit ends a withheld answer (cause `UND_ERR_HEADERS_TIMEOUT`).
+  - The deadline governs (no earlier cut), and a slow answer inside it is answered.
+  - A stalled body ends (`UND_ERR_BODY_TIMEOUT`); a reset connection is ONE request (`UND_ERR_SOCKET`); the caller's abort ends the call.
+  - The failure record keeps its cause; causes are bounded and redacted.
+- The adapter seam (mocked SDK): 2/2. The client gets the call's own fetch; a re-review step with another request or context refuses
+  before its claim.
+- The re-review engine contract: 7/7 — the start state, the positive path, held / lost again, refusals (including an arrived but
+  unusable review), the re-binding on a later resume, the journal-bound allowance, and the fatal mismatch.
+- The line end to end on fake providers: 4/4. It reproduces the real end state, then the positive path:
+  - the first claim `r2_page_2_2_qa`, with the lost wire;
+  - nothing of pages 1–2 redrawn, every earlier record byte-identical, then the cover and pages 3–8.
+  - Also: held / lost again, and 11 immutable inputs + 3 plan refusals, all before any claim.
+- Mutation checks: 14/14 killed (two test gaps found and fixed on the way: a judged-but-unmeasured attempt, and a `-t` regex with
+  parentheses that ran 0 tests).
+- The serial run of the 24 affected spec files at 6c46f9af (sources unchanged; `fresh-book-recovery` focused on the fresh-anchor line and
+  the two lines nested in it, 13/13): 719 passed, 3 failed, 59 skipped by the focus.
+  - `fresh-book-driver:152`: the known stale real-data check.
+  - `new-book-experiment:805` (61.1 s) and `:828` (60.6 s) of 60 s. Run alone they were not stable either, so I ran an A/B alone at HEAD
+    and at the base 5e544d85:
+    - HEAD: `:805` 60.3 s (timeout), `:828` 56.1 s (pass).
+    - Base: `:805` 55.7 s (pass), `:828` 61.4 s (timeout).
+    - Each test fails at one version and passes at the other, ±5 s around the limit. This supports a machine/timing cause; it does not
+      prove it is the exclusive one.
+- nonincremental tsc: 0. The full check stays RED.
+
+**Money.**
+- API, book: 1655422 known (37 calls) + 2 calls of unknown cost, each with a conservative debit of 600000: 2855422 budget-accounted of
+  7000000 (4144578 left). Not an invoice total.
+- Cycle: 1784352 known (including the diagnostic 128930); 2984352 accounted of 8000000.
+- Claude Max for the book: 5502244 in 8 sessions, separate; engineering Max unmeasured, not 0. This milestone: 0 paid calls, 0 Max sessions.
+
+**Next.**
+1. Codex QA of 5e544d85..this docs commit (code 6c46f9af) and the staged one-use re-review grant pinned to this docs commit.
+2. After a PASS and a fresh preflight: `audition-rereview --execute`.
+   - The re-review of `r1_page_2_2.png` (~0.11 USD) and its identity check.
+   - If it passes: the cover and pages 3–8 (~1.2 USD expected, worst case ~3.6).
+3. The cover-first viewer and the reports. With both sheets held, the result is at best `partial`; a held re-review is an honest stop.
+
 ## The fresh child PASSED; the book halted on ONE page review without a receipt; the owner-approved same-book recovery built offline (bf830e5d, test c12a5e9c), for Codex QA; the book is NOT done (2026-10-22)
 
 **What happened since 95202726.**
