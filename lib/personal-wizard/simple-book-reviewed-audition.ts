@@ -989,7 +989,8 @@ export async function repairReviewedAuditionPage(a: { page: number; prefix: stri
     landmarks:c.checks.uniqueLandmarks, child:a.canonical[0], check:a.check, judge:a.judge, identity:a.identity, ...(qualityOnly ? {qualityOnly} : {}) });
   let parent = a.prior;
   if (!parent.review && !parent.assessment && parent.status === 'unavailable' && parent.error === 'not_yet_reviewed') {
-    parent = await review(`${a.prefix}page_${a.page}_${parent.attempt}_diagnosis`, parent.attempt, parent.candidate!, true);
+    // This is the first quality review of the saved counted render, not a new paid namespace or another image attempt.
+    parent = await review(`${a.prefix}page_${a.page}_${parent.attempt}`, parent.attempt, parent.candidate!, true);
     a.save(`scene_repair_${a.page}_diagnosis`, parent);
   }
   // Malformed/unknown answers, safety and citation failures cannot be turned into paid image corrections.

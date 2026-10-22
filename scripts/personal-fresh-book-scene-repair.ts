@@ -44,6 +44,18 @@ export function sceneRepairStops(result:Awaited<ReturnType<typeof repairReviewed
     ['review_unusable','identity_unusable','unavailable','ineligible_safety','review_invalid'].includes(result.corrected.status);
 }
 
+/** ONE exact pre-provider abort, never a general retry/reset or a route for unknown/provider failures. */
+export const SCENE_REPAIR_PRECLAIM_RECOVERY=Object.freeze({version:'audition-local-anatomy-preclaim-recovery/v1',
+  failedGrantSha256:'01ac003889acedca2030973cb9c69e5b4fe8450ca2171edf2f1042aa95dd9cdb',
+  claimName:'owner-cycle-20261017-fresh-book-usd7.audition-local-anatomy-preclaim-recovery.claim.json',
+  outcomeName:'owner-cycle-20261017-fresh-book-usd7.audition-local-anatomy-preclaim-recovery.outcome.json'});
+export const sceneRepairRecoveryGrantSchema=sceneRepairGrantSchema.omit({version:true,parent:true,firstOperation:true}).extend({
+  version:z.literal('fresh-book-local-anatomy-preclaim-recovery-grant/v1'),authority:z.literal(SCENE_REPAIR_PRECLAIM_RECOVERY.version),
+  parent:z.object({grantFile:abs,grantSha256:z.literal(SCENE_REPAIR_PRECLAIM_RECOVERY.failedGrantSha256),claimSha256:hash,outcomeSha256:hash}).strict(),
+  sourceParent:sceneRepairGrantSchema.shape.parent,
+  firstOperation:z.object({step:z.literal('r9_page_7_0_qa'),wireDigest:hash}).strict(),meterFirstReservationMicroUsd:z.literal(600000),
+}).strict();
+
 export async function planSceneRepair(config:FreshBookConfig,env:FreshBookEnv,parentGrantFile:string,approvalFile:string){
   const refuse=():never=>fail('scene_repair_parent'),dir=path.join(config.bookDir,'audition'),paid=path.join(dir,'paid-stages'),images=path.join(dir,'illustrations');
   const parentSha=previewSha(bytes(parentGrantFile)),parent=freshBookFullBookDiagnosticGrantSchema.parse(json(parentGrantFile));
@@ -131,17 +143,22 @@ export async function planSceneRepair(config:FreshBookConfig,env:FreshBookEnv,pa
 
 export async function runSceneRepair(a:{config:FreshBookConfig;env:FreshBookEnv;grantFile:string;grantSha:string;signal:AbortSignal;log:(s:string)=>void}){
   if(previewSha(bytes(a.grantFile))!==a.grantSha)fail('scene_repair_grant');
-  const g=sceneRepairGrantSchema.parse(json(a.grantFile)),p=await planSceneRepair(a.config,a.env,g.parent.grantFile,g.ownerApproval.file);
+  const raw=json(a.grantFile),recovery=raw.version==='fresh-book-local-anatomy-preclaim-recovery-grant/v1';
+  const g=recovery?sceneRepairRecoveryGrantSchema.parse(raw):sceneRepairGrantSchema.parse(raw);
+  const authority=recovery?SCENE_REPAIR_PRECLAIM_RECOVERY:A;
+  const p=recovery?await planSceneRepairRecovery(a.config,a.env,g.parent.grantFile,g.ownerApproval.file):
+    await planSceneRepair(a.config,a.env,g.parent.grantFile,g.ownerApproval.file);
   if(canonicalJson(g)!==canonicalJson(p.grantDraft)||p.state.claimExists||p.state.outcomeExists)fail('scene_repair_used_or_changed');
   const at=(n:string)=>path.join(a.env.authorityRoot,n),dir=path.join(a.config.bookDir,'audition');
   const same=()=>{const e=a.env.head();if(a.signal.aborted||!e.clean||e.head!==g.engine.head||e.branch!==g.engine.branch)fail('scene_repair_source_changed');
     for(const[f,sha]of Object.entries(g.pins))if(previewSha(bytes(path.join(workspace,f)))!==sha)fail('scene_repair_source_changed');
     for(const[f,sha]of [[a.grantFile,a.grantSha],[g.ownerApproval.file,g.ownerApproval.sha256],[g.parent.grantFile,g.parent.grantSha256]])if(previewSha(bytes(f))!==sha)fail('scene_repair_grant');
+    if('sourceParent'in g&&previewSha(bytes(g.sourceParent.grantFile))!==g.sourceParent.grantSha256)fail('scene_repair_grant');
     for(const[f,sha]of Object.entries(p.roots.bookFiles))if(previewSha(bytes(path.join(a.config.bookDir,f)))!==sha)fail('scene_repair_parent');
     for(const[f,sha]of Object.entries(p.roots.authorityFiles))if(previewSha(bytes(at(f)))!==sha)fail('scene_repair_parent');};
-  same();exclusiveJson(at(A.claimName),{version:A.version,cycle:FRESH_BOOK_CYCLE.id,grantSha256:a.grantSha,parent:g.parent,transition:g.transition,allowance:g.allowance});
-  const claimSha=previewSha(bytes(at(A.claimName))),guard=()=>{same();if(previewSha(bytes(at(A.claimName)))!==claimSha||existsSync(at(A.outcomeName)))fail('scene_repair_used');};
-  const finish=(value:unknown)=>exclusiveJson(at(A.outcomeName),value),meter=new AuditionMeter(path.join(dir,'paid-stages'),p.original.capMicroUsd,p.original.maxCalls,
+  same();exclusiveJson(at(authority.claimName),{version:authority.version,cycle:FRESH_BOOK_CYCLE.id,grantSha256:a.grantSha,parent:g.parent,transition:g.transition,allowance:g.allowance});
+  const claimSha=previewSha(bytes(at(authority.claimName))),guard=()=>{same();if(previewSha(bytes(at(authority.claimName)))!==claimSha||existsSync(at(authority.outcomeName)))fail('scene_repair_used');};
+  const finish=(value:unknown)=>exclusiveJson(at(authority.outcomeName),value),meter=new AuditionMeter(path.join(dir,'paid-stages'),p.original.capMicroUsd,p.original.maxCalls,
     p.original.ledger.priorKnownApiMicroUsd,0,auditionMeterRules,g.debits,[g.provision]);
   const io=auditionAdapters({directory:path.join(dir,'illustrations'),meter,key:keyReader(a.config.keyEnvFile),signal:a.signal,guard,
     expectedWire:{[g.firstOperation.step]:g.firstOperation.wireDigest},allowedSteps:p.allowedSteps,durableReviews:{version:DURABLE_REVIEW_VERSION}});
@@ -157,8 +174,43 @@ export async function runSceneRepair(a:{config:FreshBookConfig;env:FreshBookEnv;
     guard();const ledger=freshBookLedger(a.config,a.env,p.base.rereview,'child_fresh_anchor',g.debits,[g.provision]);
     const value={version:A.version,status:'diagnostic_repairs_finished',results,ledger,grantSha256:a.grantSha,
       runtimeEligible:false,productAccepted:false,finishedAt:new Date().toISOString()};finish(value);return value;
-  }catch(e){if(!existsSync(at(A.outcomeName)))finish({version:A.version,status:'failed_scene_repair',code:e instanceof Error?e.message:String(e),results,
+  }catch(e){if(!existsSync(at(authority.outcomeName)))finish({version:A.version,status:'failed_scene_repair',code:e instanceof Error?e.message:String(e),results,
     grantSha256:a.grantSha,finishedAt:new Date().toISOString()});throw e;}
+}
+
+/** Reconcile exactly the consumed zero-provider abort and bind the SAME unspent paid allowance to a NEW fixed one-use successor. */
+export async function planSceneRepairRecovery(config:FreshBookConfig,env:FreshBookEnv,failedGrantFile:string,approvalFile:string){
+  const R=SCENE_REPAIR_PRECLAIM_RECOVERY,failedSha=previewSha(bytes(failedGrantFile));
+  if(failedSha!==R.failedGrantSha256)fail('scene_repair_recovery_parent');
+  const failed=sceneRepairGrantSchema.parse(json(failedGrantFile)),at=(n:string)=>path.join(env.authorityRoot,n);
+  const claim=json(at(A.claimName)),outcome=json(at(A.outcomeName));
+  if(canonicalJson(claim)!==canonicalJson({version:A.version,cycle:FRESH_BOOK_CYCLE.id,grantSha256:failedSha,parent:failed.parent,
+    transition:failed.transition,allowance:failed.allowance})||outcome.status!=='failed_scene_repair'||outcome.code!=='audition_meter_rule'||
+    outcome.grantSha256!==failedSha||canonicalJson(outcome.results)!=='[]')fail('scene_repair_recovery_parent');
+  const p=await planSceneRepair(config,env,failed.parent.grantFile,approvalFile);
+  const originalRoots=structuredClone(p.roots);delete originalRoots.authorityFiles[A.claimName];delete originalRoots.authorityFiles[A.outcomeName];
+  if(previewSha(canonicalJson(originalRoots))!==failed.rootsSha256||p.plan.profileSha256!==failed.profileSha256||
+    p.plan.configurationSha256!==failed.configurationSha256||canonicalJson(p.plan.transition)!==canonicalJson(failed.transition)||
+    canonicalJson(p.plan.allowance)!==canonicalJson(failed.allowance)||canonicalJson(p.plan.debits)!==canonicalJson(failed.debits)||
+    canonicalJson(p.plan.provision)!==canonicalJson(failed.provision)||p.plan.bookDir!==failed.bookDir||
+    readdirSync(path.join(config.bookDir,'audition/paid-stages')).some(n=>n.startsWith('r9_')))fail('scene_repair_recovery_paid_or_changed');
+  const first=p.pages[0],imageDir=path.join(config.bookDir,'audition/illustrations');
+  const imageBytes=(i:AuditionImage)=>{const b=bytes(path.join(imageDir,i.imageName));if(previewSha(b)!==i.imageSha)fail('scene_repair_recovery_binding');return b;};
+  const wire=digestImages(durableReviewPayload(await auditionJudgePayload({candidate:first.candidate,candidateBytes:imageBytes(first.candidate),
+    context:first.context,contextSha:first.contextSha,refs:p.canonical.map(imageBytes),predecessor:first.predecessor?imageBytes(first.predecessor):null,kind:'page'})));
+  const step='r9_page_7_0_qa' as const,reserve=auditionMeterRules(step)?.reserve(wire);
+  const allowedSteps=[step,...p.allowedSteps.slice(1)];
+  if(reserve!==600000||allowedSteps.some(s=>!auditionMeterRules(s))||
+    canonicalJson(folderBaseline(config.bookDir))!==canonicalJson(p.roots.bookFiles)||
+    canonicalJson(folderBaseline(env.authorityRoot))!==canonicalJson(p.roots.authorityFiles)||
+    Object.entries(p.grantDraft.pins).some(([f,sha])=>previewSha(bytes(path.join(workspace,f)))!==sha)||env.head().head!==p.grantDraft.engine.head||
+    previewSha(bytes(failedGrantFile))!==failedSha||previewSha(bytes(approvalFile))!==p.plan.ownerApproval.sha256)fail('scene_repair_recovery_binding');
+  const plan={...p.plan,authority:R.version,parent:{grantFile:path.resolve(failedGrantFile),grantSha256:R.failedGrantSha256,
+    claimSha256:previewSha(bytes(at(A.claimName))),outcomeSha256:previewSha(bytes(at(A.outcomeName)))},sourceParent:p.plan.parent,
+    firstOperation:{step,wireDigest:previewSha(canonicalJson(wire))},meterFirstReservationMicroUsd:600000 as const};
+  const grantDraft=sceneRepairRecoveryGrantSchema.parse({...plan,version:'fresh-book-local-anatomy-preclaim-recovery-grant/v1',
+    engine:p.grantDraft.engine,pins:p.grantDraft.pins,nativePlanSha256:previewSha(canonicalJson(plan))});
+  return {...p,plan,grantDraft,allowedSteps,state:{claimExists:existsSync(at(R.claimName)),outcomeExists:existsSync(at(R.outcomeName))}};
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(__filename)){
@@ -167,7 +219,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(__filename)){
   if(process.argv.includes('--resume'))fail('scene_repair_args');
   const task=process.argv.includes('--execute')?runSceneRepair({config,env,grantFile:arg('--grant')??fail('scene_repair_args'),
     grantSha:arg('--grant-sha')??fail('scene_repair_args'),signal:new AbortController().signal,log:console.log}):
-    planSceneRepair(config,env,arg('--parent-grant')??fail('scene_repair_args'),arg('--owner-approval')??fail('scene_repair_args'))
+    (process.argv.includes('--preclaim-recovery')?planSceneRepairRecovery:planSceneRepair)(config,env,arg('--parent-grant')??fail('scene_repair_args'),arg('--owner-approval')??fail('scene_repair_args'))
       .then(({plan,grantDraft,state,snapshot,allCounts})=>({plan,grantDraft,state,snapshot,allCounts}));
   task.then(r=>console.log(JSON.stringify(r,null,2))).catch(e=>{console.error(e instanceof Error?e.message:String(e));process.exitCode=1;});
 }

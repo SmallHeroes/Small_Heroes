@@ -210,11 +210,22 @@ describe('local anatomical scene repair through the EXISTING bounded loop', () =
       prior:{attempt:0,candidate:page.attempts[0].candidate,review:null,assessment:null,status:'unavailable',error:'not_yet_reviewed'},
       context,contextSha:page.contextSha,canonical:context.references,predecessor:null,check:()=>{},save:()=>{},
       render:async(step,_prompt,refs,mode)=>{calls.push(step);expect(refs[0]).toEqual(page.attempts[0].candidate);expect(mode).toBe('book_scene_edit');return candidate;},
-      judge:async(step,c)=>{calls.push(step);const raw=structuredClone(page.attempts[step.endsWith('diagnosis_qa')?0:1].review!);raw.candidateSha=c.imageSha;return raw;},
+      judge:async(step,c)=>{calls.push(step);const raw=structuredClone(page.attempts[step.endsWith('_0_qa')?0:1].review!);raw.candidateSha=c.imageSha;return raw;},
       identity:async(step,_child,c)=>{calls.push(step);expect(c).toEqual(candidate);return identity(.9);}});
-    expect(calls).toEqual(['r9_page_1_0_diagnosis_qa','r9_page_1_1','r9_page_1_1_qa','r9_page_1_1_identity']);
+    expect(calls).toEqual(['r9_page_1_0_qa','r9_page_1_1','r9_page_1_1_qa','r9_page_1_1_identity']);
     expect(result.status).toBe('corrected_supported');expect(result.parent.status).toBe('held');
     expect(result.parent.identity).toBeUndefined();expect(result.corrected!.sceneRepair!.parentImageSha).toBe(page.attempts[0].candidate!.imageSha);
+  });
+  it('F2 actual saved-candidate diagnosis name routes through the REAL strict meter before a provider; invented aliases stay forbidden',async()=>{
+    const {h,page}=await run(),context=h.contexts.get('page_1_0_qa'),calls:string[]=[];
+    const result=await repairReviewedAuditionPage({page:1,prefix:'r9_',consumedAttemptsBefore:1,
+      prior:{attempt:0,candidate:page.attempts[0].candidate,review:null,assessment:null,status:'unavailable',error:'not_yet_reviewed'},
+      context,contextSha:page.contextSha,canonical:context.references,predecessor:null,check:()=>{},save:()=>{},render:vi.fn(),identity:vi.fn(),
+      judge:async(step)=>{calls.push(step);expect(auditionMeterRules(step)).toBe(auditionReviewRule);
+        expect(auditionMeterRules(step)!.reserve({model:'gpt-6.1',service_tier:'default',max_output_tokens:12000})).toBe(600000);
+        return page.attempts[1].review;}});
+    expect(calls).toEqual(['r9_page_1_0_qa']);expect(result.corrected).toBeNull();
+    expect(auditionMeterRules('r9_page_1_0_diagnosis_qa')).toBeUndefined();
   });
   it.each(['unusable','uncertain','safety'])('parent %s does not authorize an image edit',async kind=>{
     const {h,page}=await run(),context=h.contexts.get('page_1_0_qa'),render=vi.fn();
