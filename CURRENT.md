@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Local scene attempt aborted BEFORE provider — strict-meter routing fixed; exact recovery gate NEXT (2026-10-23)
+
+- Real native run after exactF1PASS9d9a2e92/preflight0 atd5db901d:22:03:39.239Z..22:03:50.772Z native1/audition_meter_rule. Actualscene
+  authority01acclaimed/closedfailed_scene_repair. ZEROmeterclaims/results/receipts,newAPI/images/keyreads;53/89/costs/all544BOOKunchanged.
+  Original45AUTHpreserved +2honestabortrecords. Processes/directchildren absent withprivilegedCIM, hostsessionended. This isnotimagehold,
+  providerretry or unknowncost; oldrealfailure/consumedgrant stay. Reconciliationexit0 at22:06:14.553Z inoriginalQ, not resettoPASS.
+- Verified F2root: helper namedthefirstsaved-image review page_7_0_diagnosis_qa, butstrictactualmeter accepts page_N_attempt_qa. PriorVMs
+  stubbedadapters/meter and missedactualrouting. Generalhelper now usesordinary firstreview label r9_page_7_0_qa. Meter namespace NOT
+  widened; inventeddiagnosisalias remainsforbidden. Newdryplan testsrealsharedrouter/exactwire/reserve600k BEFOREauthorityclaim.
+- Single-usepreclaimrecovery follows EXACT consumed01acgrant/claim/outcome, onlyfailed_scene_repair/audition_meter_rule/results=[] and
+  NO r9meterfile. RootsminusONLYthose2abortrecords must equal01ac.rootsSha, allprofile/config/source/ledger/attempts/allowance unchanged.
+  Its sourceParentpreservesc074ancestor. Newfixedclaim/outcome distinct, no oldclaim/grantrepin/reset, no generalretry/unpricedexception.
+- Sameunspentboundedallowance2LOW/7calls, ONEeachp7/p4, same89/7m/8m/.70/600k/olddebits+provision+UNKNOWN. ZEROofthepaidallowance wasused
+  intheabort. Currentbookaccounted5585304/cycle5714234; no extraMax/story/child/sheets/newbook/production. Anewunknown stillstops.
+- Proof29focusedtests0;34nativeactual-data/metercontrols0 includingEXACTfirstwire throughREALAuditionMeter/router/reservation/settlement
+  inARTscratch withsyntheticprovidercallback ONLY; realkey/provider/claim0. This closes theknown VMgap, notproof ofrealpixels/network.
+  22operatorVMcontrols0; nonincrementaltsc0 beforecodecommit. FullcheckhistoricalRED unchanged; alloldHOLD/RED/PASS andabortpreserved.
+- Evidence/ownerDG Q=r1-local-anatomy-repair-recovery-20261023. SameCodexsolewriter/currenttask/branch, sameapprovedreadonlyreviewer.
+  NextdocsLAST/cleanfreeze, SAMEindependent code/native/exactunusedrecoverygrant/operator gate, thenfreshpreflight andalreadyapproved
+  actualcheck automatically. No blindCLIretry, newkey/envwrite/push/deploy/delete/cleanup/monitor/task/agent/worktree.
+
 ## Local scene repair independent F1 — focused correction complete, exact unused re-gate NEXT (2026-10-23)
 
 - SAME independent firstpass HOLD0c8fa82c at7a7f7b82: P2native loop omitted review_invalid, so a schema-valid but miscited posteditp7reply

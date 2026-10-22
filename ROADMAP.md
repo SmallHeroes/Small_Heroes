@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Diagnosed zero-API meter-route abort — general first-review routing fixed, one-use successor gate next (2026-10-23)
+
+- Real01acnative failedBEFOREprovider at22:03:50.772Z/audition_meter_rule;0newpaidclaims/images/key,53/89/costsunchanged. Preserveactual
+  consumedclaim/outcome. Rootcause diagnosticstepalias rejectedbystrictmeter; sharedhelper nowordinarypage_N_attempt_qa, no regexwidening.
+- Recovery ONLYforexact01aczero-providerabort, no r9meterfiles, rootsminus2abortrecordsmatchexactoldroots. Newfixedsuccessor followsit,
+  sourceParentc074frozen. Sameunspent2LOW/7calls/book/caps/counters, no reset/newbudget/unknownexception/providerretry.
+- 29focusedtests0,34native/REALmeter exactwirecontrols0(syntheticprovideronly),22operatorVM0,tsc0beforecodecommit. PriorVMgap documented,
+  historicalRED/PASS/actualfailednative retained. NextdocsLAST/SAMEexactindependentre-gate/freshpreflight/authorizedboundedrun, no newtask.
+
 ## Local repair F1 focused round1 — invalid citation stop fixed, same exact re-gate next (2026-10-23)
 
 - Independentfirstpass HOLD0c8fa82c realnativeVM proved continuingp4 afterp7review_invalid. Other286tests/34VM/678preservationchecks0
