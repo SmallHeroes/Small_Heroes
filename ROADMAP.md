@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## F1/F2 closed; bounded NEW F3 exact-kind evidence correction ready for independent re-gate (2026-10-22)
+
+- Final F2 accepted independently at2efba482. New cross-source exact-kind contradiction found in a separate bounded control, not residualF2.
+- Corrected within the prospective contract: equal kind propositions on the same physical body cannot carry opposite evidence across
+  canonical IDs. Distinct kinds, real colour distinctions and missing evidence semantics preserved; no ontology or name/story special case.
+- 256/256 focused tests and nonincremental tsc0, zero paid calls. Preserve every prior HOLD/counterexample and fullcheckRED.
+- SAME reviewer re-gates this narrow new finding, then exact native continuation implementation/QA/preflight and owner-approved full LOW
+  same-book test. No cap/.70/attempt reset, another book/child/sheets, extra task/reviewer/worktree, production or push.
+
 ## Final F2 round2: source-relevant uncertainty after justified exclusions; independent re-gate next (2026-10-22)
 
 - Round1 closed F1/original F2 but exposed known component/container sibling uncertainty overblocking. Final focused correction derives

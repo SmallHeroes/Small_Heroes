@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## F1/F2 independently closed; new exact-kind cross-source F3 corrected offline, re-gate next (2026-10-22)
+
+- Same independent reviewer accepted final F1/F2 corrections at `2efba482`: 241 affected tests, original6 controls, residual5, both mirrors,
+  four completions and392 actual legacy/preservation controls passed. No third F2 correction is needed or inferred. Initial/round1 HOLDs stay.
+- At Codex's separate bounded hypothesis check, NEW F3/P2 reproduced: identical declared-kind text on the SAME physical body could match
+  for one canonical source ID but contradict for another, falsely certifying not_instance. It is a general evidence consistency gap;
+  no impact on the current book's four different kinds was established. Full final-round2 report and its failed probe are retained.
+- Narrow correction: before anchors/dismissals, group kind observations by exact canonical kind text and physical group across source IDs.
+  Opposite matches/contradicted refuses. No ontology, synonym inference, ownership conflation, mismatch rewrite or blanket shared-kind ban.
+  Different kinds and same kind distinguished by real different-colour contradiction remain usable; true matching wholes remain held.
+- Final256/256 focused tests exit0,48.39s; nonincremental tsc0,51.705s. Six new F3 cases include physical aliases, legitimate kind/colour
+  negatives, missing-is-not-opposite and real matching wholes. Same source writer/task, same sole read-only reviewer re-gate next.
+- Zero paid/image/Max calls or key/claim/book/authority changes. Paid full LOW same-book authorization remains prospective inside unchanged
+  caps/history; native continuation still unimplemented and requires its separate exact code/plan/grant QA/preflight before execution.
+
 ## Remaining topology F2 final correction round2: known memberships precede uncertainty relevance (2026-10-22)
 
 - Round1 independent HOLD is retained (`INDEPENDENT-QA-TOPOLOGY-ROUND1-20261022.txt`): F1 and the original not-instance F2 case closed,
