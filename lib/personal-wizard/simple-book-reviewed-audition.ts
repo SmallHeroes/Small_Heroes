@@ -632,7 +632,8 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
  */
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
   'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable',
-  'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost', 'audition_meter_debit']);
+  'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost', 'audition_meter_debit', 'audition_rereview_wire', 'audition_transport_unavailable',
+  'audition_transport_policy']);
 /** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
 export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';
@@ -645,7 +646,19 @@ export type ReferenceStatus = Record<'entities' | 'locations', { image: Audition
 export type SavedSheet = { context: unknown; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus };
 export type SavedPage = { pageNumber: number; contextSha: string; requirementIds: string[]; attempts: AuditionAttempt[]; chosen: Chosen; status: AttemptStatus;
   /** Opt-in stage-recovery/v1 only: every diagnosis an attempt of this page carried (the attempt it preceded and the diagnosis). */
-  recovery?: { version: typeof STAGE_RECOVERY_VERSION; diagnoses: { beforeAttempt: number; diagnosis: NonNullable<ReturnType<typeof auditionRecoveryDiagnosis>> }[] } };
+  recovery?: { version: typeof STAGE_RECOVERY_VERSION; diagnoses: { beforeAttempt: number; diagnosis: NonNullable<ReturnType<typeof auditionRecoveryDiagnosis>> }[] };
+  /** Present only on the effective page a re-review produced (never on a saved page record): the attempt that was re-reviewed. */
+  rereview?: { version: typeof AUDITION_REREVIEW_VERSION; attempt: number } };
+/**
+ * A re-review (2026-10-22; owner-approved and opt-in, ONE per allowance, never a default): a page attempt that was DRAWN but whose review was
+ * lost (unavailable, its candidate kept, never judged or measured) is judged once more, the same image and the same request, as a step
+ * successor of the saved page. The saved page record stays exactly as it was; the successor is saved beside it and re-bound on every later
+ * resume, and the effective page is the saved one with that attempt judged, its choice and status re-derived. No image is drawn and no
+ * attempt is added, so the page's ceiling is unchanged.
+ */
+export const AUDITION_REREVIEW_VERSION = 'audition-rereview/v1' as const;
+export type SavedRereview = { version: typeof AUDITION_REREVIEW_VERSION; pageNumber: number; attempt: number; priorSha256: string; contextSha: string;
+  reviewed: AuditionAttempt; chosen: Chosen; status: AttemptStatus };
 /** The diagnoses a page's attempts carried under the opt-in recovery rule, re-derived from those attempts (each from the ones before it). */
 export const pageRecoveryDiagnoses = (attempts: readonly AuditionAttempt[]) => attempts.flatMap((a, i) => {
   const diagnosis = auditionRecoveryDiagnosis(attempts.slice(0, i));
@@ -708,7 +721,12 @@ export async function illustrateReviewedAudition(args: {
    * `interrupted` (RSM-1): the closed paid attempts of an image that has no saved record; its next attempt continues after them.
    */
   resume?: { designs: unknown; sheets: Partial<Record<'entities' | 'locations', SavedSheet>>; pages: Partial<Record<number, SavedPage>>; stepPrefix: string;
-    interrupted?: { sheets?: Partial<Record<'entities' | 'locations', AuditionAttempt[]>>; pages?: Partial<Record<number, AuditionAttempt[]>> } };
+    interrupted?: { sheets?: Partial<Record<'entities' | 'locations', AuditionAttempt[]>>; pages?: Partial<Record<number, AuditionAttempt[]>> };
+    /**
+     * Re-reviews (AUDITION_REREVIEW_VERSION) of saved pages: `saved` re-binds an earlier one; without it, the page's named attempt is judged
+     * now, once (the owner-approved allowance its caller binds). Absent: every saved page exactly as before.
+     */
+    rereview?: { pages?: Partial<Record<number, { attempt: number; saved?: SavedRereview }>> } };
   /** The owner's bound acceptance of a held storyboard (storyboardOwnerAcceptance); absent, frames need a supported review as before. */
   ownerAcceptance?: unknown;
   /**
@@ -774,6 +792,9 @@ export async function illustrateReviewedAudition(args: {
   if (args.resume) {
     if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||
       Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
+    // A re-review names a saved page of this scope and one of its attempts (the attempt itself is checked where the page is re-bound).
+    if (Object.entries(args.resume.rereview?.pages ?? {}).some(([n, re]) => !re || !Number.isInteger(re.attempt) || !args.resume!.pages[Number(n)]))
+      fail('audition_rereview_binding');
   } else args.save('audition_sheet_designs', { policy, designs });
   const attemptOnce = async (phase: 'sheet' | 'page', name: string, attempt: number, prompt: string, refs: AuditionImage[],
     mode: 'book_identity' | 'book_design', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
@@ -782,7 +803,12 @@ export async function illustrateReviewedAudition(args: {
     const step = `${prefix}${phase}_${name}_${attempt}`;
     const rendered = await attemptStep(args.check, () => args.render(step, prompt, refs, mode, roles));
     if ('error' in rendered) return { attempt, candidate: null, review: null, assessment: null, status: 'unavailable', error: rendered.error };
-    const candidate = rendered.value;
+    return judgeCandidate(phase, name, attempt, rendered.value, context, contextSha, requirementIds, judgeRefs, predecessor, landmarks);
+  };
+  /** The judged half of an attempt (its review, then the identity measurement a page's gate needs), on a drawn candidate. */
+  const judgeCandidate = async (phase: 'sheet' | 'page', name: string, attempt: number, candidate: AuditionImage, context: unknown, contextSha: string,
+    requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
+    const step = `${prefix}${phase}_${name}_${attempt}`;
     const raw = await attemptStep(args.check, () => args.judge(`${step}_qa`, candidate, context, contextSha, judgeRefs, predecessor, phase));
     if ('error' in raw) return { attempt, candidate, review: null, assessment: null,
       status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
@@ -844,6 +870,47 @@ export async function illustrateReviewedAudition(args: {
   }
   const refs = referenceStatus(sheets);
   const canonical = [args.child, args.companion, refs.entities.image, refs.locations.image];
+  /**
+   * The effective page of a saved page with ONE re-reviewed attempt (AUDITION_REREVIEW_VERSION). Only a drawn attempt whose review was lost
+   * qualifies: unavailable, its candidate kept, never judged or measured. A saved successor is re-bound (its judgment re-derived from its raw
+   * review under this page's context, its choice and status re-derived); otherwise the attempt is judged now, once, as the step successor
+   * `${prefix}page_N_k`, and the successor is saved beside the untouched page record.
+   */
+  const rereviewed = async (prior: SavedPage, re: { attempt: number; saved?: SavedRereview }, context: unknown, contextSha: string,
+    checks: ReturnType<typeof auditionPageChecks>, predecessor: AuditionImage | null): Promise<SavedPage> => {
+    const target = prior.attempts.find(a => a.attempt === re.attempt), candidate = target?.candidate;
+    if (!target || !candidate || target.status !== 'unavailable' || target.review !== null || target.assessment !== null || 'identity' in target || prior.rereview)
+      return fail('audition_rereview_binding');
+    const priorSha256 = previewSha(canonicalJson(prior));
+    let reviewed: AuditionAttempt;
+    if (re.saved) {
+      const s = re.saved;
+      if (s.version !== AUDITION_REREVIEW_VERSION || s.pageNumber !== prior.pageNumber || s.attempt !== re.attempt || s.priorSha256 !== priorSha256 ||
+          s.contextSha !== contextSha || s.reviewed?.attempt !== re.attempt || canonicalJson(s.reviewed.candidate) !== canonicalJson(candidate)) fail('audition_rereview_binding');
+      // Nothing saved is trusted as a verdict: the judgment is re-derived from its raw review; an unusable identity would have halted.
+      const assessment = s.reviewed.review ? assessAuditionReview(s.reviewed.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks).assessment : null;
+      reviewed = { ...s.reviewed, assessment };
+      const measured = !!assessment && !assessment.safetyBlocked && !assessment.invalidCitations;
+      if (canonicalJson(assessment) !== canonicalJson(s.reviewed.assessment) || (measured && !identityUsable(reviewed.identity)) ||
+          (assessment ? reviewed.status !== attemptStatus('page', reviewed) : reviewed.status !== 'unavailable')) fail('audition_rereview_binding');
+    } else {
+      args.check();
+      reviewed = await judgeCandidate('page', String(prior.pageNumber), re.attempt, candidate, context, contextSha, checks.requirementIds, canonical, predecessor,
+        checks.uniqueLandmarks);
+      report('page', String(prior.pageNumber), reviewed);
+      if (reviewed.status === 'review_unusable' || reviewed.status === 'identity_unusable') {
+        args.save(`halted_${prefix}page_${prior.pageNumber}_rereview`, { phase: 'page', name: String(prior.pageNumber), attempts: [reviewed], error: reviewed.error });
+        fail(reviewed.status === 'review_unusable' ? 'audition_review_unusable' : 'audition_identity_unusable');
+      }
+    }
+    const attempts = prior.attempts.map(a => a.attempt === re.attempt ? reviewed : a);
+    const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${prior.pageNumber}_unavailable`);
+    const status = attemptStatus('page', chosen);
+    if (re.saved && (canonicalJson(chosen) !== canonicalJson(re.saved.chosen) || status !== re.saved.status)) fail('audition_rereview_binding');
+    if (!re.saved) args.save(`page_${prior.pageNumber}_rereview`, { version: AUDITION_REREVIEW_VERSION, pageNumber: prior.pageNumber, attempt: re.attempt,
+      priorSha256, contextSha, reviewed, chosen, status } satisfies SavedRereview);
+    return { ...prior, attempts, chosen, status, rereview: { version: AUDITION_REREVIEW_VERSION, attempt: re.attempt } };
+  };
   const pages: SavedPage[] = [];
   let heldSample = false;
   for (const pageNumber of order) {
@@ -859,7 +926,11 @@ export async function illustrateReviewedAudition(args: {
     const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks);
     const closed = args.resume?.interrupted?.pages?.[pageNumber];
     if (prior && closed) fail('audition_resume_binding');
-    if (prior) { pages.push(prior); continue; }
+    if (prior) {
+      const re = args.resume?.rereview?.pages?.[pageNumber];
+      pages.push(re ? await rereviewed(prior, re, context, contextSha, checks, predecessor) : prior);
+      continue;
+    }
     // RSM-1: the page's closed paid attempts first; its next attempt continues after them, inside the same ceiling.
     const attempts = closedAttempts(closed, pageAttempts);
     const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}`;
@@ -895,7 +966,8 @@ export async function illustrateReviewedAudition(args: {
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },
     pageDeferred: designs.pageDeferred,
     pages: presented.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
-      identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity) })),
+      identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity),
+      ...(p.rereview ? { rereview: p.rereview } : {}) })),
     approval: 'none: qa_supported is an automated audition label, not product acceptance or production qualification' as const,
     runtimeEligible: false as const, productionQualified: false as const, ownerReviewRequired: true as const };
   args.save('reviewed_audition_manifest', manifest);

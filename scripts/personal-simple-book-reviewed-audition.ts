@@ -42,7 +42,7 @@ import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, auditionJudgeInstruction, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   AUDITION_SCALE_LINEUP_VERSION, reviewedAuditionPolicy, auditionSheetContext, sameSheetContext, ReviewedAuditionError, AUDITION_ATTEMPT_INTERRUPTED,
-  type ReferenceStatus, type SavedSheet, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  type ReferenceStatus, type SavedSheet, type SavedPage, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -606,7 +606,10 @@ export class AuditionMeter {
       const cost = receipt && typeof receipt === 'object' && 'estimatedMicroUsd' in receipt &&
         Number.isSafeInteger((receipt as { estimatedMicroUsd: unknown }).estimatedMicroUsd) ? (receipt as { estimatedMicroUsd: number }).estimatedMicroUsd : null;
       const code = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code) ? error.code : 'audition_stage_failed';
-      exclusiveJson(path.join(this.root, `${step}.failure.json`), { code, message: error instanceof Error ? error.message.slice(0, 500) : null, receipt });
+      // The layer that ended the call, when the error carries one (2026-10-22); absent, the record exactly as before.
+      const cause = causeChain(error);
+      exclusiveJson(path.join(this.root, `${step}.failure.json`), { code, message: error instanceof Error ? error.message.slice(0, 500) : null, receipt,
+        ...(cause.length ? { cause } : {}) });
       exclusiveJson(path.join(this.root, `${step}.result.json`), { wireDigest, estimatedMicroUsd: cost, completed: false });
       throw error;
     }
@@ -706,8 +709,80 @@ export const auditionMeterRules: MeterRules = step => {
  * and the meter stops.
  */
 export const AUDITION_REVIEW_TIMEOUT_MS = 600_000;
+/**
+ * The review's own transport (2026-10-22, after both lost page reviews ended at ~300 s although the second one's SDK deadline was 600 s).
+ * Node's built-in fetch (undici) ends a request whose response headers, or the next part of whose body, have not arrived within ITS limits
+ * (300 s each by default), whatever the SDK deadline says, and the SDK reports that as "Request timed out." without the cause. So each review
+ * call gets its own dispatcher of the same class as Node's fetch, with finite header and body limits a fixed margin above the call's deadline:
+ * the deadline governs, and a stalled body still ends. The process-wide dispatcher is never replaced. Unavailable: refused before anything
+ * is sent, never a silent fall back to the defaults.
+ */
+export const AUDITION_TRANSPORT_MARGIN_MS = 30_000;
+const NODE_FETCH_DISPATCHER = Symbol.for('undici.globalDispatcher.1');
+type FetchDispatcher = { dispatch: unknown; destroy: () => Promise<void> };
+type FetchAgentClass = new (options: { headersTimeout: number; bodyTimeout: number }) => FetchDispatcher;
+function fetchAgentClass(): FetchAgentClass {
+  // Node loads its fetch implementation on first use; reading one of its globals loads it, and it installs its process-wide Agent. No request.
+  void globalThis.Response;
+  const current = (globalThis as unknown as Record<symbol, { dispatch?: unknown } | undefined>)[NODE_FETCH_DISPATCHER];
+  const Agent = current?.constructor as FetchAgentClass | undefined;
+  if (typeof Agent !== 'function' || typeof current?.dispatch !== 'function' || Agent.name !== 'Agent') fail('audition_transport_unavailable');
+  return Agent!;
+}
+/**
+ * One call's transport: its own finite dispatcher, a fetch that uses it and keeps its own failure (with its cause), and its release. The paid
+ * judge always uses the fixed margin; the local transport tests pass a short one, so a limit can be reached in a test.
+ */
+export function reviewTransport(deadlineMs: number, marginMs = AUDITION_TRANSPORT_MARGIN_MS) {
+  if (!Number.isSafeInteger(deadlineMs) || deadlineMs < 1 || !Number.isSafeInteger(marginMs) || marginMs < 1) fail('audition_transport_policy');
+  const limitMs = deadlineMs + marginMs, Agent = fetchAgentClass();
+  const dispatcher = new Agent({ headersTimeout: limitMs, bodyTimeout: limitMs });
+  let failure: unknown = null;
+  const transportFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    try { return await fetch(input, { ...init, dispatcher } as RequestInit); } catch (error) { failure = error; throw error; }
+  }) as typeof fetch;
+  return { limits: { headersTimeoutMs: limitMs, bodyTimeoutMs: limitMs }, dispatcher, fetch: transportFetch,
+    /** The SDK keeps no cause on its own error: the transport's failure is attached to it for the record (causeChain). */
+    annotate: (error: unknown) => { if (failure && error && typeof error === 'object') Object.assign(error, { transportCause: failure }); return error; },
+    release: () => dispatcher.destroy().catch(() => undefined) };
+}
+/**
+ * ONE review call, exactly as the paid judge sends it: its own transport (reviewTransport), a client without retries, the SDK deadline and the
+ * caller's signal. The local transport tests call this same function against a 127.0.0.1 server.
+ */
+export async function sendReview(payload: Awaited<ReturnType<typeof auditionJudgePayload>>,
+  opts: { apiKey: string; signal: AbortSignal; deadlineMs: number; baseURL: string;
+    /** Made by the caller BEFORE its claim (an unavailable transport then refuses with nothing claimed or sent); released by that caller. */
+    transport?: ReturnType<typeof reviewTransport> }) {
+  const own = !opts.transport, transport = opts.transport ?? reviewTransport(opts.deadlineMs);
+  if (transport.limits.headersTimeoutMs <= opts.deadlineMs || transport.limits.bodyTimeoutMs <= opts.deadlineMs) fail('audition_transport_policy');
+  try {
+    const client = new OpenAI({ apiKey: opts.apiKey, baseURL: opts.baseURL, maxRetries: 0, logLevel: 'off', fetch: transport.fetch });
+    return await client.responses.create(payload, { signal: opts.signal, timeout: opts.deadlineMs });
+  } catch (error) { throw transport.annotate(error); }
+  finally { if (own) await transport.release(); }
+}
+/**
+ * A failure's cause chain for its record (2026-10-22: a lost call must say which layer ended it): the transport's own failure when the
+ * adapter attached one, else the error's `cause`; each link's class, code and message (at most 4 links, 200 characters, key-like text redacted).
+ */
+export function causeChain(error: unknown) {
+  const redact = (s: string) => s.replace(/sk-[A-Za-z0-9_-]{6,}/g, 'sk-[redacted]').replace(/Bearer\s+\S+/gi, 'Bearer [redacted]');
+  const links: { class: string; code?: string; message: string }[] = [], seen = new Set<unknown>();
+  let link: unknown = error && typeof error === 'object' ? (error as { transportCause?: unknown }).transportCause ?? (error as { cause?: unknown }).cause : null;
+  while (link && typeof link === 'object' && !seen.has(link) && links.length < 4) {
+    seen.add(link);
+    const l = link as { constructor?: { name?: unknown }; code?: unknown; message?: unknown; cause?: unknown };
+    links.push({ class: String(l.constructor?.name ?? 'Object').slice(0, 60), ...(typeof l.code === 'string' ? { code: l.code.slice(0, 60) } : {}),
+      message: redact(String(l.message ?? '')).slice(0, 200) });
+    link = l.cause;
+  }
+  return links;
+}
 /** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
-export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void }) {
+export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void;
+  /** Opt-in: steps whose request must be exactly a known one (a re-review re-sends the lost request): checked before the claim. */
+  expectedWire?: Readonly<Record<string, string>> }) {
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
   const check = () => { cancelled(); args.guard?.(); };
@@ -765,15 +840,22 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
       predecessor: predecessor ? bytesOf(predecessor) : null, kind });
     // The crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
     check();
-    return args.meter.run(step, digestImages(payload), SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
-      cancelled(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
-      const raw = await client.responses.create(payload, { signal: args.signal, timeout: AUDITION_REVIEW_TIMEOUT_MS });
-      const estimatedMicroUsd = reviewCost(raw);
-      const receipt = { raw, estimatedMicroUsd };
-      if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
-      try { return { value: (kind === 'page' ? auditionPageReviewSchema : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
-      catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
-    });
+    const wire = digestImages(payload), expected = args.expectedWire?.[step];
+    if (expected !== undefined && previewSha(canonicalJson(wire)) !== expected) fail('audition_rereview_wire');
+    // The call's own transport, made before the claim: an unavailable one refuses here, with nothing claimed or sent.
+    const transport = reviewTransport(AUDITION_REVIEW_TIMEOUT_MS);
+    try {
+      return await args.meter.run(step, wire, SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
+        cancelled();
+        const raw = await sendReview(payload, { apiKey: args.key(), signal: args.signal, deadlineMs: AUDITION_REVIEW_TIMEOUT_MS,
+          baseURL: 'https://api.openai.com/v1', transport });
+        const estimatedMicroUsd = reviewCost(raw);
+        const receipt = { raw, estimatedMicroUsd };
+        if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
+        try { return { value: (kind === 'page' ? auditionPageReviewSchema : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
+        catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
+      });
+    } finally { await transport.release(); }
   };
   const identity = async (step: string, reference: AuditionImage, candidate: AuditionImage) => {
     check(); let transportError: unknown = null;
@@ -886,13 +968,44 @@ export function interruptedAttempts(root: string, directory: string, phase: 'she
   });
 }
 
+/**
+ * The re-reviews a resume may perform (AUDITION_REREVIEW_VERSION), each checked against the bound journal before anything is sent: ONE per
+ * saved page without a saved successor; the named attempt drew its candidate (the render's receipt names exactly the saved attempt's image);
+ * its review `lostStep` ended without a receipt (its own records) and is debited by this run; no other review of that attempt was ever
+ * claimed. Each re-sends exactly the lost request under the new step `${stepPrefix}page_N_k_qa` (its wire digest, checked before the claim).
+ */
+export function rereviewAllowance(list: readonly { page: number; attempt: number; lostStep: string }[], at: { paid: string;
+  pages: Record<number, SavedPage | undefined>; rebound: Record<number, unknown>; debits: readonly ConservativeDebit[]; stepPrefix: string }) {
+  if (new Set(list.map(r => r.page)).size !== list.length) fail('audition_rereview_binding');
+  const claims = existsSync(at.paid) ? readdirSync(at.paid).map(n => /^([a-z0-9_]+)\.claim\.json$/.exec(n)?.[1]).filter((s): s is string => !!s) : [];
+  return list.map(r => {
+    if (!Number.isInteger(r.page) || r.page < 0 || r.page > 8 || !Number.isInteger(r.attempt) || r.attempt < 0 || r.attempt > 9) return fail('audition_rereview_binding');
+    const saved = at.pages[r.page], target = saved?.attempts?.find(a => a.attempt === r.attempt);
+    const reviews = new RegExp(`^(?:r[0-9]{1,2}_)?page_${r.page}_${r.attempt}_qa$`), debit = at.debits.find(d => d.step === r.lostStep);
+    if (!saved || r.page in at.rebound || !target?.candidate || !reviews.test(r.lostStep) || claims.filter(s => reviews.test(s)).join() !== r.lostStep || !debit ||
+        canonicalJson(conservativeDebitOf(at.paid, r.lostStep)) !== canonicalJson(debit)) fail('audition_rereview_binding');
+    const render = r.lostStep.slice(0, -'_qa'.length);
+    if (read(path.join(at.paid, `${render}.result.json`))?.completed !== true ||
+        canonicalJson(read(path.join(at.paid, `${render}.receipt.json`))?.candidate ?? null) !== canonicalJson(target!.candidate)) fail('audition_rereview_binding');
+    const step = `${at.stepPrefix}page_${r.page}_${r.attempt}_qa`;
+    if (claims.includes(step) || !auditionMeterRules(step)) fail('audition_rereview_binding');
+    return { page: r.page, attempt: r.attempt, lostStep: r.lostStep, wireDigest: debit!.wireDigest, step };
+  });
+}
+
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout;
   /** Required exactly for a grant issued to an experiment: its slot, claim and guard (claim + source pin), run before every paid call. */
   experiment?: { slot: string; claimSha256: string; guard: () => void };
   /** Opt-in, owner-approved conservative debits of this audition's own unknown-cost records (see AuditionMeter); only with a resume. */
-  debits?: readonly ConservativeDebit[] }) {
+  debits?: readonly ConservativeDebit[];
+  /**
+   * Opt-in, owner-approved re-reviews (AUDITION_REREVIEW_VERSION), only with a resume: ONE per saved page, of the named attempt, whose
+   * review `lostStep` ended without a receipt and is debited by this run. The re-review re-sends exactly that lost request.
+   */
+  rereview?: readonly { page: number; attempt: number; lostStep: string }[] }) {
   if (args.debits?.length && !args.resume) fail('audition_meter_debit');
+  if (args.rereview?.length && !args.resume) fail('audition_rereview_binding');
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
@@ -917,7 +1030,10 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   // every claim, resume and spend record: opted in exactly here. Every other run sums its saved records as before.
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
     grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined, args.debits ?? []);
-  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}) });
+  // A re-review's step must send exactly its lost request (filled below on a resume, before anything is dispatched).
+  const expectedWire: Record<string, string> = {};
+  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}),
+    expectedWire });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
   const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
@@ -950,12 +1066,24 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       .map(n => [n, interruptedAttempts(paid, directory, 'page', String(n))] as const).filter(([, a]) => a.length));
     const interrupted = Object.keys(closedSheets).length || Object.keys(closedPages).length
       ? { ...(Object.keys(closedSheets).length ? { sheets: closedSheets } : {}), ...(Object.keys(closedPages).length ? { pages: closedPages } : {}) } : null;
-    resume = { designs: read(path.join(args.out, 'audition_sheet_designs.json')), sheets, pages, stepPrefix: `r${markers}_`, ...(interrupted ? { interrupted } : {}) };
+    // Re-reviews: every saved successor is re-bound (by the orchestrator, from its raw review); an allowance judges its attempt once, now.
+    const stepPrefix = `r${markers}_`;
+    const rebound = Object.fromEntries(Object.keys(pages).map(Number).filter(n => existsSync(path.join(args.out, `page_${n}_rereview.json`)))
+      .map(n => [n, { attempt: read(path.join(args.out, `page_${n}_rereview.json`)).attempt as number, saved: read(path.join(args.out, `page_${n}_rereview.json`)) }]));
+    const allowed = rereviewAllowance(args.rereview ?? [], { paid, pages, rebound, debits: args.debits ?? [], stepPrefix });
+    for (const a of allowed) expectedWire[a.step] = a.wireDigest;
+    const rereview = Object.keys(rebound).length || allowed.length
+      ? { pages: { ...rebound, ...Object.fromEntries(allowed.map(a => [a.page, { attempt: a.attempt }])) } } : null;
+    resume = { designs: read(path.join(args.out, 'audition_sheet_designs.json')), sheets, pages, stepPrefix, ...(interrupted ? { interrupted } : {}),
+      ...(rereview ? { rereview } : {}) };
     const counts = (closed: Record<string, AuditionAttempt[]>) => Object.fromEntries(Object.entries(closed).map(([k, a]) => [k, a.length]));
     save(`resume-${markers}`, { resumedPages: Object.keys(pages).map(Number),
       // Absent when nothing was interrupted (every earlier resume record's shape, unchanged).
       ...(interrupted ? { interrupted: { ...(interrupted.sheets ? { sheets: counts(interrupted.sheets) } : {}),
         ...(interrupted.pages ? { pages: counts(interrupted.pages) } : {}) } } : {}),
+      // Absent without re-reviews: those re-bound, and the one this run performs (its lost request and its new step).
+      ...(rereview ? { rereview: { ...(Object.keys(rebound).length ? { rebound: Object.keys(rebound).map(Number) } : {}),
+        ...(allowed.length ? { performed: allowed } : {}) } } : {}),
       spendBefore: meter.snapshot(), at: new Date().toISOString() });
   } else {
     child = await io.writeImage('reference_child.png', loaded.childBytes);
@@ -991,12 +1119,15 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     const spend = meter.snapshot(); save('spend', spend);
     return { mode: 'rejudge' as const, results, spend };
   }
+  // A later run of the same audition (a resume after a finished run) keeps the earlier manifest and writes its own beside it.
+  const engineSave = (name: string, value: unknown) => save(name === 'reviewed_audition_manifest' && resume && existsSync(path.join(args.out, `${name}.json`))
+    ? `${name}-${resume.stepPrefix.slice(0, -1)}` : name, value);
   const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
     child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
     ...(grant.scope.sample ? { sample: grant.scope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
     ...(scaleLineup ? { scaleLineup } : {}), ...(reused ? { reuseSheets: reused.sheets } : {}),
     ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}), ...(recovery ? { recovery } : {}),
-    render: io.render, judge: io.judge, identity: io.identity, check: io.check, save, ...(resume ? { resume } : {}),
+    render: io.render, judge: io.judge, identity: io.identity, check: io.check, save: engineSave, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();
   const used = [manifest.references.child, manifest.references.companion, manifest.references.entities, manifest.references.locations,

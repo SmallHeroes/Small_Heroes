@@ -1062,7 +1062,7 @@ export type FreshBookAuditionContinuationGrant = z.infer<typeof freshBookAuditio
 /** The named records a continuation grant stands on: the fresh-anchor line's claim, the fresh child's successor and the audition start. */
 const continuationNamed = (g: FreshBookAuditionContinuationGrant) => [[FRESH_BOOK_CHILD_FRESH_ANCHOR.claimName, g.fresh.claimSha256],
   [FRESH_BOOK_CHILD_FRESH_ANCHOR.successorName, g.fresh.successorSha256], [FRESH_BOOK_CHILD_FRESH_ANCHOR.auditionStartName, g.fresh.auditionStartSha256]] as const;
-const continuationClaimFields = (g: FreshBookAuditionContinuationGrant) => ({ freshGrantSha256: g.fresh.grantSha256,
+export const continuationClaimFields = (g: FreshBookAuditionContinuationGrant) => ({ freshGrantSha256: g.fresh.grantSha256,
   ...Object.fromEntries(continuationNamed(g).map(([name, digest]) => [name, digest])),
   debit: { step: g.debit.step, seq: g.debit.seq, wireDigest: g.debit.wireDigest, debitMicroUsd: g.debit.debitMicroUsd } });
 
@@ -1094,6 +1094,87 @@ export function assertFreshBookAuditionContinuationPaid(args: { env: FreshBookEn
   const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
   if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.auditionContinuation !== FRESH_BOOK_AUDITION_CONTINUATION.version || claim.grantSha256 !== args.grantSha ||
       claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || canonicalJson(claim.named) !== canonicalJson(continuationClaimFields(grant)) ||
+      claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
+      claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
+  const engine = args.env.head();
+  if (!engine.clean || engine.head !== grant.engine.head || engine.branch !== grant.engine.branch) fail('fresh_book_source_changed');
+  for (const [rel, digest] of Object.entries(grant.pins)) if (previewSha(fileBytes(path.join(args.workspace, rel))) !== digest) fail('fresh_book_source_changed');
+  return grant;
+}
+
+/**
+ * The owner-approved SAME-AUDITION RE-REVIEW (Guy's direct approval 2026-10-22, in the Claude session, recorded verbatim in
+ * OWNER-APPROVAL-SAME-BOOK-REREVIEW-20261022.txt), after the continuation ended (failed_audition_continuation / fresh_book_ledger_unknown):
+ * its page 2 held at attempt 2 and the last drawn attempt's review lost at the transport limit with no receipt. ONE more conservative budget
+ * debit of that call (its claim maximum, actual charge unknown), ONE re-review of that existing image (the identical request, a step successor
+ * of the saved page, never a redraw) on the client-scoped review transport, then, only if page 2 passes, the same audition's cover and
+ * remaining pages on the unchanged gates and caps. Every earlier grant, claim, outcome, record, attempt and cost stays byte-identical (the
+ * consumed continuation grant is never re-pinned); its own claim and outcome are fixed in code; a new unknown cost or output stops it.
+ */
+export const FRESH_BOOK_AUDITION_REREVIEW = Object.freeze({
+  version: 'fresh-book-audition-rereview/v1',
+  amendment: 'Guy 2026-10-22 OWNER-APPROVAL-SAME-BOOK-REREVIEW-20261022.txt (direct, in the Claude session af9211ff, recorded verbatim: "מאשר מסלול A: תיקון תעבורה כללי ומוגבל ללקוח עם בדיקות מקומיות ו־QA; זקיפה שמרנית של $0.60 גם לקריאה השנייה שאבדה; ביקורת אחת לאיור האחרון של עמוד 2 בלי ציור מחדש; ואם הוא עובר — המשך אותו ספר עד הכריכה, עמודים 3–8 והוויואר בתקרות הקיימות."), path A of REPORT-SAME-BOOK-CONTINUATION-20261022.md §6 after CODEX-SAME-BOOK-CONTINUATION-OUTCOME-QA-20261022.txt: a general client-scoped finite review transport with local tests and QA; ONE more conservative budget debit of the claim maximum of the second call whose cost is unknown (its actual charge stays unknown; its records immutable; never a receipt, known spend or a policy for another unknown); ONE re-review of the existing never-judged last page-2 image without redrawing (the identical request, a step successor of the immutable saved page); then, only if page 2 passes its gates, the SAME audition through the cover, pages 3-8 and the viewer within the existing USD 7 book / USD 8 cycle caps; a held re-review, a new unknown or exhausted attempts stop it.',
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.audition-rereview.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.audition-rereview.outcome.json',
+  /** Exactly one more unknown-cost call is debited by this line, and exactly one drawn attempt is re-reviewed. */
+  debitCalls: 1,
+  /** The owner's record: Guy's verbatim approval line must be in it (its bytes are bound by digest). */
+  approvalLine: 'מאשר מסלול A: תיקון תעבורה כללי ומוגבל ללקוח עם בדיקות מקומיות ו־QA',
+});
+const rereviewImage = z.object({ imageName: z.string().regex(/^[a-z0-9_]+\.png$/), imageSha: hash }).strict();
+const rereviewStep = z.string().regex(/^(r[0-9]{1,2}_)?page_[1-8]_[0-9]_qa$/);
+export const freshBookAuditionRereviewGrantSchema = z.object({ version: z.literal('fresh-book-audition-rereview-grant/v1'),
+  cycle: z.literal(FRESH_BOOK_CYCLE.id), approval: z.literal(FRESH_BOOK_CYCLE.approval), amendment: z.literal(FRESH_BOOK_AUDITION_REREVIEW.amendment),
+  ownerApproval: z.object({ file: abs, sha256: hash }).strict(), profileSha256: hash, bookDir: abs,
+  /** The consumed continuation it follows: its grant (by file and digest, never edited), its claim and its terminal outcome. */
+  continuation: z.object({ grantFile: abs, grantSha256: hash, claimSha256: hash, outcomeSha256: hash, outcomeStatus: z.string().min(1),
+    outcomeCode: z.string().min(1) }).strict(),
+  /** The audition as the continuation left it: its grant, admission and every file by digest, its calls and known spend, its status and the saved page. */
+  audition: z.object({ grantSha256: hash, admissionSha256: hash, folderSha256: hash, calls: micro, knownMicroUsd: micro, manifestStatus: z.string().min(1),
+    resumeMarkers: micro, pageSha256: hash }).strict(),
+  /** The ONE re-review: the saved page, its drawn attempt whose review was lost, that lost request, the image and the new step. */
+  rereview: z.object({ page: z.number().int().min(1).max(8), attempt: z.number().int().min(0).max(9), lostStep: rereviewStep, lostWireDigest: hash,
+    candidate: rereviewImage, step: rereviewStep }).strict(),
+  /** Both owner-approved conservative debits: the continuation's (page_2_0_qa, its grant's own) and this line's ONE, each of one record. */
+  debits: z.array(conservativeDebitSchema).length(2),
+  ledger: z.object({ diagnosticSettledMicroUsd: micro, bookKnownMicroUsd: micro, conservativeDebitMicroUsd: micro, calls: micro }).strict(),
+  engine: z.object({ head: sha40, branch: z.string().min(1) }).strict(), pins: z.record(z.string(), hash), nativePlanSha256: hash }).strict();
+export type FreshBookAuditionRereviewGrant = z.infer<typeof freshBookAuditionRereviewGrantSchema>;
+/** The named records a re-review grant stands on: the continuation's claim and its terminal outcome. */
+const rereviewNamed = (g: FreshBookAuditionRereviewGrant) => [[FRESH_BOOK_AUDITION_CONTINUATION.claimName, g.continuation.claimSha256],
+  [FRESH_BOOK_AUDITION_CONTINUATION.outcomeName, g.continuation.outcomeSha256]] as const;
+const rereviewClaimFields = (g: FreshBookAuditionRereviewGrant) => ({ continuationGrantSha256: g.continuation.grantSha256,
+  ...Object.fromEntries(rereviewNamed(g).map(([name, digest]) => [name, digest])),
+  rereview: { page: g.rereview.page, attempt: g.rereview.attempt, lostStep: g.rereview.lostStep, step: g.rereview.step },
+  debit: { step: g.debits[1].step, seq: g.debits[1].seq, wireDigest: g.debits[1].wireDigest, debitMicroUsd: g.debits[1].debitMicroUsd } });
+
+/** The re-review's one claim: once, only while its outcome is absent; any existing claim refuses, for any grant, label or folder. */
+export function claimFreshBookAuditionRereview(env: FreshBookEnv, grant: FreshBookAuditionRereviewGrant, grantSha: string) {
+  const s = lstatSync(env.authorityRoot); if (!s.isDirectory() || s.isSymbolicLink()) fail('fresh_book_authority_root');
+  if (existsSync(path.join(env.authorityRoot, FRESH_BOOK_AUDITION_REREVIEW.outcomeName))) fail('fresh_book_audition_rereview_used');
+  let fd: number;
+  try { fd = openSync(path.join(env.authorityRoot, FRESH_BOOK_AUDITION_REREVIEW.claimName), 'wx'); } catch { return fail('fresh_book_audition_rereview_used'); }
+  try { writeFileSync(fd, JSON.stringify({ cycle: FRESH_BOOK_CYCLE.id, auditionRereview: FRESH_BOOK_AUDITION_REREVIEW.version, grantSha256: grantSha,
+    ownerApprovalSha256: grant.ownerApproval.sha256, named: rereviewClaimFields(grant), profileSha256: grant.profileSha256, bookDir: path.resolve(grant.bookDir),
+    engineHead: grant.engine.head, claimedAt: new Date().toISOString() }) + '\n');
+    fsyncSync(fd); }
+  finally { closeSync(fd); }
+}
+/**
+ * Synchronous, before EVERY paid call of the re-review line: its grant bytes, the owner's record bytes, its profile, the claim it wrote, the
+ * continuation's claim and terminal outcome (each at its recorded digest), the clean source at its head, every pinned file.
+ */
+export function assertFreshBookAuditionRereviewPaid(args: { env: FreshBookEnv; grantFile: string; grantSha: string; profile: FreshBookProfile; workspace: string }) {
+  const bytes = fileBytes(args.grantFile);
+  if (previewSha(bytes) !== args.grantSha) fail('fresh_book_audition_rereview_grant');
+  const grant = freshBookAuditionRereviewGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  if (grant.profileSha256 !== freshBookProfileSha(args.profile)) fail('fresh_book_profile_changed');
+  if (previewSha(fileBytes(grant.ownerApproval.file)) !== grant.ownerApproval.sha256) fail('fresh_book_audition_rereview_approval');
+  const at = (name: string) => path.join(args.env.authorityRoot, name), claimFile = at(FRESH_BOOK_AUDITION_REREVIEW.claimName);
+  if (!existsSync(claimFile) || rereviewNamed(grant).some(([name, digest]) => !existsSync(at(name)) || previewSha(fileBytes(at(name))) !== digest)) fail('fresh_book_claim');
+  const claim = JSON.parse(fileBytes(claimFile).toString('utf8'));
+  if (claim.cycle !== FRESH_BOOK_CYCLE.id || claim.auditionRereview !== FRESH_BOOK_AUDITION_REREVIEW.version || claim.grantSha256 !== args.grantSha ||
+      claim.ownerApprovalSha256 !== grant.ownerApproval.sha256 || canonicalJson(claim.named) !== canonicalJson(rereviewClaimFields(grant)) ||
       claim.profileSha256 !== grant.profileSha256 || path.resolve(claim.bookDir).toLowerCase() !== path.resolve(grant.bookDir).toLowerCase() ||
       claim.engineHead !== grant.engine.head) fail('fresh_book_claim_foreign');
   const engine = args.env.head();

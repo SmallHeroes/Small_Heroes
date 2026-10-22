@@ -18,7 +18,9 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
   AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
-  readReusedSheets, interruptedAttempts, conservativeDebitOf, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
+  readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { AUDITION_REREVIEW_VERSION, type SavedRereview } from '../simple-book-reviewed-audition';
+import { previewSha } from '../../local-story-preview';
 import sharp from 'sharp';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { canonicalJson } from '../request-acceptance';
@@ -1811,6 +1813,147 @@ describe('RSM-1 and the one-call conservative debit (real meter journal; synthet
     expect(() => interruptedAttempts(root, images, 'page', '6')).toThrow('audition_resume_journal');
     for (const [phase, name] of [['page', '9'], ['page', 'entities'], ['sheet', '2'], ['sheet', 'props']] as const)
       expect(() => interruptedAttempts(root, images, phase, name), `${phase}:${name}`).toThrow('audition_resume_journal');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// The ONE re-review (2026-10-22, audition-rereview/v1): a drawn page attempt whose review was lost is judged once more, the same image and
+// request, as a step successor of the saved page; the saved page stays as it was. Journaled through a real meter, as the real book was.
+// ---------------------------------------------------------------------------------------------------------------
+describe('the ONE re-review of a drawn attempt whose review was lost (a step successor of the saved page)', () => {
+  const journaled = (opts: { timeoutOn?: string[]; debits?: ConservativeDebit[]; at?: { root: string; images: string } } = {}) => {
+    const dir = opts.at ? null : mkdtempSync(path.join(tmpdir(), 'audition-rereview-'));
+    const root = opts.at?.root ?? path.join(dir!, 'paid'), images = opts.at?.images ?? path.join(dir!, 'illustrations');
+    mkdirSync(images, { recursive: true });
+    const meter = new AuditionMeter(root, 9000000, AUDITION_WORST_CASE_CALLS, 1000000, 0, undefined, opts.debits ?? []);
+    const wrap = <T>(step: string, work: () => Promise<T>) => meter.run(step, { step }, 1000, async () => {
+      if (opts.timeoutOn?.includes(step)) throw new Error('Request timed out.');
+      const value = await work(), render = /_[0-9]+$/.test(step);
+      if (render) writeFileSync(path.join(images, `${step}.png`), step);
+      return { value, estimatedMicroUsd: 10, receipt: render ? { candidate: value } : {} };
+    });
+    return { meter, root, images, wrap };
+  };
+  const renders = (h: ReturnType<typeof harness>) => h.args.render.mock.calls.map(c => String(c[0]));
+  const judged = (h: ReturnType<typeof harness>) => h.args.judge.mock.calls.map(c => String(c[0]));
+  const measured = (h: ReturnType<typeof harness>) => h.args.identity.mock.calls.map(c => String(c[0]));
+  const stones = { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } };
+  /** The continuation's end: page 2 held twice, its last drawn attempt's review lost; the sample holds; nothing else is drawn or sent. */
+  const ended = async () => {
+    const run = journaled({ timeoutOn: ['page_2_2_qa'] });
+    const h = harness({ wrap: run.wrap, judge: step => step === 'page_2_0_qa' || step === 'page_2_1_qa' ? stones : {} });
+    const m = await illustrateReviewedAudition({ ...h.args, sample: [1, 2] });
+    return { run, h, m, debit: conservativeDebitOf(run.root, 'page_2_2_qa') };
+  };
+  const resumeOf = (h: ReturnType<typeof harness>, rereview: unknown, pages: Record<number, unknown> = { 1: h.saved.get('page_1'), 2: h.saved.get('page_2') }) => ({
+    designs: h.saved.get('audition_sheet_designs'), sheets: { entities: h.saved.get('sheet_entities') as any, locations: h.saved.get('sheet_locations') as any },
+    pages: pages as any, stepPrefix: 'r1_', rereview: rereview as any });
+
+  it('the halt it starts from: page 2\'s last drawn attempt has no verdict, its review an unknown cost; the sample holds and nothing else is sent', async () => {
+    const { run, h, m } = await ended();
+    const page2 = h.saved.get('page_2') as any;
+    expect(page2.attempts.map((a: AuditionAttempt) => [a.attempt, a.status, a.candidate?.imageName ?? null])).toEqual([[0, 'held', 'page_2_0.png'],
+      [1, 'held', 'page_2_1.png'], [2, 'unavailable', 'page_2_2.png']]);
+    expect([page2.attempts[2].review, page2.attempts[2].assessment, 'identity' in page2.attempts[2]]).toEqual([null, null, false]);
+    expect([m.status, run.meter.snapshot().unknownCost, renders(h).filter(s => !/^page_[12]_|^sheet_/.test(s))]).toEqual(['held_sample', 1, []]);
+  });
+
+  it('ONE re-review: that attempt is judged once (no image drawn, no attempt added), the saved page untouched; it passes, so the cover and the rest are drawn', async () => {
+    const { run, h, debit } = await ended();
+    const r = harness({ wrap: journaled({ at: run, debits: [debit] }).wrap });
+    const m = await illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: { attempt: 2 } } }) });
+    expect(judged(r).filter(s => /page_2_/.test(s))).toEqual(['r1_page_2_2_qa']);
+    expect(measured(r).filter(s => /page_2_/.test(s))).toEqual(['r1_page_2_2_identity']);
+    expect(renders(r).filter(s => /page_[12]_/.test(s))).toEqual([]);
+    expect(renders(r)).toEqual([0, 3, 4, 5, 6, 7, 8].map(n => `r1_page_${n}_0`));
+    const successor = r.saved.get('page_2_rereview') as SavedRereview;
+    expect(successor).toMatchObject({ version: AUDITION_REREVIEW_VERSION, pageNumber: 2, attempt: 2, priorSha256: previewSha(canonicalJson(h.saved.get('page_2'))),
+      reviewed: { attempt: 2, candidate: image('page_2_2'), status: 'qa_supported' }, chosen: { attempt: 2 }, status: 'qa_supported' });
+    expect([r.saved.has('page_2'), r.saved.has('page_1')]).toEqual([false, false]);
+    expect(m).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    expect(m.pages.find(p => p.pageNumber === 2)).toMatchObject({ status: 'qa_supported', chosenAttempt: 2, rereview: { version: AUDITION_REREVIEW_VERSION, attempt: 2 } });
+    expect(m.pages.find(p => p.pageNumber === 2)!.alternatives.map(a => [a.attempt, a.status])).toEqual([[0, 'held'], [1, 'held']]);
+  });
+
+  it('a held re-review keeps the sample held (nothing else drawn); a review lost again too; each successor is saved as judged', async () => {
+    for (const [name, judge, timeoutOn, expected] of [['held', (s: string) => s === 'r1_page_2_2_qa' ? stones : {}, [], 'held'],
+      ['lost again', () => ({}), ['r1_page_2_2_qa'], 'unavailable']] as const) {
+      const { run, h, debit } = await ended();
+      const r = harness({ wrap: journaled({ at: run, debits: [debit], timeoutOn: [...timeoutOn] }).wrap, judge });
+      const m = await illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: { attempt: 2 } } }) });
+      expect([name, m.status, renders(r)]).toEqual([name, 'held_sample', []]);
+      expect([name, (r.saved.get('page_2_rereview') as SavedRereview).reviewed.status, (r.saved.get('page_2_rereview') as SavedRereview).status])
+        .toEqual([name, expected, 'held']);
+    }
+  });
+
+  it('only a drawn attempt whose review was lost can be re-reviewed, only on a saved page; refused before anything is sent', async () => {
+    const { run, h, debit } = await ended();
+    const page2 = h.saved.get('page_2') as any;
+    const cases: [string, unknown, Record<number, unknown>?][] = [['a judged attempt', { pages: { 2: { attempt: 1 } } }], ['no such attempt', { pages: { 2: { attempt: 5 } } }],
+      ['a page without a saved record', { pages: { 3: { attempt: 0 } } }],
+      ['an attempt without its image', { pages: { 2: { attempt: 2 } } }, { 1: h.saved.get('page_1'), 2: { ...page2, attempts: page2.attempts.map((a: AuditionAttempt) => a.attempt === 2 ? { ...a, candidate: null } : a) } }],
+      ['an attempt already measured', { pages: { 2: { attempt: 2 } } }, { 1: h.saved.get('page_1'), 2: { ...page2, attempts: page2.attempts.map((a: AuditionAttempt) => a.attempt === 2 ? { ...a, identity: null } : a) } }],
+      // A review that ARRIVED but was unusable is not a lost review (its answer exists): never re-reviewed.
+      ['an arrived but unusable review', { pages: { 2: { attempt: 2 } } }, { 1: h.saved.get('page_1'), 2: { ...page2, attempts: page2.attempts.map((a: AuditionAttempt) =>
+        a.attempt === 2 ? { ...a, status: 'review_unusable', error: 'audition_pixel_schema' } : a) } }]];
+    for (const [name, rereview, pages] of cases) {
+      const r = harness({ wrap: journaled({ at: run, debits: [debit] }).wrap });
+      await expect(illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resumeOf(h, rereview, pages) }), name).rejects.toThrow(/audition_rereview_binding|audition_resume_binding/);
+      expect([name, judged(r).length, renders(r).length]).toEqual([name, 0, 0]);
+    }
+  });
+
+  it('a later resume re-binds the saved successor (no second review); any change to it refuses', async () => {
+    const { run, h, debit } = await ended();
+    const r = harness({ wrap: journaled({ at: run, debits: [debit] }).wrap });
+    await illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: { attempt: 2 } } }) });
+    const saved = r.saved.get('page_2_rereview') as SavedRereview;
+    const pages = { 1: h.saved.get('page_1'), 2: h.saved.get('page_2'), ...Object.fromEntries([0, 3, 4, 5, 6, 7, 8].map(n => [n, r.saved.get(`page_${n}`)])) };
+    const later = harness();
+    const m = await illustrateReviewedAudition({ ...later.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: { attempt: 2, saved } } }, pages) });
+    expect([judged(later), renders(later), m.status]).toEqual([[], [], 'qa_supported_audition']);
+    const bad: [string, SavedRereview][] = [['prior', { ...saved, priorSha256: sha('x') }], ['attempt', { ...saved, attempt: 1 }],
+      ['context', { ...saved, contextSha: sha('x') }], ['status', { ...saved, status: 'held' }], ['chosen', { ...saved, chosen: { ...saved.chosen, attempt: 1 } }],
+      ['verdict', { ...saved, reviewed: { ...saved.reviewed, assessment: { ...saved.reviewed.assessment!, counts: { ...saved.reviewed.assessment!.counts, story: 1 } } } }],
+      ['image', { ...saved, reviewed: { ...saved.reviewed, candidate: image('other') } }], ['version', { ...saved, version: 'x' as never }]];
+    for (const [name, s] of bad) {
+      const again = harness();
+      await expect(illustrateReviewedAudition({ ...again.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: { attempt: 2, saved: s } } }, pages) }), name)
+        .rejects.toThrow('audition_rereview_binding');
+      expect([name, judged(again).length, renders(again).length]).toEqual([name, 0, 0]);
+    }
+  });
+
+  it('the runner\'s allowance binds the journal: the lost review debited by its own records, the render that drew exactly that image, no other review claimed', async () => {
+    const { run, h, debit } = await ended();
+    const pages = { 2: h.saved.get('page_2') as any }, at = { paid: run.root, pages, rebound: {}, debits: [debit], stepPrefix: 'r1_' };
+    expect(rereviewAllowance([{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], at))
+      .toEqual([{ page: 2, attempt: 2, lostStep: 'page_2_2_qa', wireDigest: debit.wireDigest, step: 'r1_page_2_2_qa' }]);
+    const refused: [string, Parameters<typeof rereviewAllowance>][] = [
+      ['not debited', [[{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], { ...at, debits: [] }]],
+      ['another debit', [[{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], { ...at, debits: [{ ...debit, seq: 0 }] }]],
+      ['a judged review', [[{ page: 2, attempt: 1, lostStep: 'page_2_1_qa' }], at]],
+      ['a step of another attempt', [[{ page: 2, attempt: 2, lostStep: 'page_2_1_qa' }], at]],
+      ['no saved page', [[{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], { ...at, pages: {} }]],
+      ['already re-bound', [[{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], { ...at, rebound: { 2: {} } }]],
+      ['twice', [[{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }, { page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], at]],
+      ['another image', [[{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], { ...at, pages: { 2: { ...pages[2], attempts: pages[2].attempts.map((a: AuditionAttempt) =>
+        a.attempt === 2 ? { ...a, candidate: image('other') } : a) } } }]]];
+    for (const [name, [list, args]] of refused) expect(() => rereviewAllowance(list, args), name).toThrow('audition_rereview_binding');
+    // Another review of that attempt already claimed (an earlier re-review under any prefix): refused.
+    writeFileSync(path.join(run.root, 'r5_page_2_2_qa.claim.json'), JSON.stringify({ step: 'r5_page_2_2_qa', seq: 99, wireDigest: debit.wireDigest, maximumMicroUsd: 1000 }));
+    expect(() => rereviewAllowance([{ page: 2, attempt: 2, lostStep: 'page_2_2_qa' }], at)).toThrow('audition_rereview_binding');
+  });
+
+  it('a re-review whose request is not the lost one stops the run (fatal), never an unavailable attempt; nothing after it is drawn', async () => {
+    const { run, h, debit } = await ended();
+    const r = harness({ wrap: async <T>(step: string, work: () => Promise<T>) => {
+      if (step === 'r1_page_2_2_qa') throw new ReviewedAuditionError('audition_rereview_wire');
+      return journaled({ at: run, debits: [debit] }).wrap(step, work);
+    } });
+    await expect(illustrateReviewedAudition({ ...r.args, sample: [1, 2], resume: resumeOf(h, { pages: { 2: { attempt: 2 } } }) })).rejects.toThrow('audition_rereview_wire');
+    expect([renders(r), r.saved.has('page_2_rereview'), readdirSync(run.root).filter(n => n.startsWith('r1_'))]).toEqual([[], false, []]);
   });
 });
 
