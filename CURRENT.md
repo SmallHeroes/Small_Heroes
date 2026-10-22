@@ -25,6 +25,9 @@
   33/89 claims, page1renders2/page2renders4. Original3actualchargesUNKNOWN/1outcomeUNKNOWN retained; any NEW unknown stops. Max separate, no newMax.
 - Evidence/owner/DG/logs/unused-grant preparation: Codex artifact `r1-general-anatomy-recovery-20261022`. Next: docsLAST/frozen plan+grant+wrapper
   and same independent adversarial codeQA; only exact PASS then fresh nativepreflight permits the paid successor. No provider in this milestone.
+- Workflow timing correction: docs e9e8b5da was issued at18:35:41Z while its additional tsc was still finishing (exit0 at18:35:42.672Z).
+  The code milestone's tsc had already passed before its commit. This docs-only follow-up is made AFTER the final exit was verified; no
+  source/test/pixel/ledger bytes changed. Do not claim that e9e8b5da itself waited for that exit. Frozen QA uses the follow-up HEAD.
 
 ## Actual durable successor executed: first sample PASS, fourth second sample HELD; book INCOMPLETE, no current paid continuation (2026-10-22)
 
