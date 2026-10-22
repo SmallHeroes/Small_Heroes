@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Topology F1/F2 correction round1 complete (a76d8cf0), re-gate then authorized same-book full LOW test (2026-10-22)
+
+- Initial independent HOLD retained: conflicting same-body source evidence could fail open; irrelevant non-instance uncertainty could
+  hold a valid landmark. Fixed generally, with exact and transitive regressions plus negative controls. Relevant uncertainty remains held.
+- 245/245 focused tests and nonincremental tsc exit0; no provider/key/claim/book/authority changes or push. Historical full check stays RED.
+- Guy's direct new paid full-book test authorization is recorded; do not ask again for the same bounded authority. Same ONE book, $7book/
+  $8cycle, LOW,0.70, old consumed grants and attempts retained; no second book, new child/sheets, default-production change or HOLD bypass.
+- Same sole approved read-only reviewer re-gates the frozen correction; then native exact unused continuation/pins/plan/grant/preflight
+  needs its own technical review before paid calls. First relevant samples fresh, then cover/pages3–8 only on gates; held sheets honest.
+- Book accounted3050772/7m, cycle3179702/8m, two OLD actual charges unknown with approved1200000 conservative debits, no new unknown.
+
 ## General topology engine contract offline complete (6d40d2e3), independent QA next; book still held (2026-10-22)
 
 - Guy's "תטפל" on the general proposal was scoped visibly to offline implementation/QA, not invented paid allowance. Same sole writer

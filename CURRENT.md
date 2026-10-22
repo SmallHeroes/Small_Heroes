@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Topology QA F1/F2 corrected offline (a76d8cf0); same reviewer re-gate next; paid full-book test prospectively authorized (2026-10-22)
+
+- Initial independent review of `19b049e0..37e6c334` is **HOLD**, retained unchanged in
+  `r1-general-landmark-topology-20261022/INDEPENDENT-QA-TOPOLOGY-20261022.txt`. Its 230 existing tests and 392 legacy/preservation
+  controls passed, but two independent counterexamples established real general defects, not image/story-specific failures.
+- F1/P1: validate whole/non-instance and decisive feature consistency across the entire same-physical group (including transitive aliases)
+  before accepting anchors or exclusions. Contradictory observations cannot be resolved by selecting whichever one passes.
+- F2/P2: uncertain physical relations are source-scoped to potential instance/membership participants; proven not-instances cannot poison
+  another source's count. Relevant possible-whole and component/anchor uncertainty still holds. The orchestration fixture now uses a real
+  unresolved matching-whole relation, not the former overbroad expectation on two proven non-instances. No safety/identity/0.70 weakening.
+- Correction round 1: **245/245 tests exit0**, 42.29 s (194 orchestrator, 42 topology, 7 transport, 2 deadline); nonincremental tsc exit0,
+  59.92 s. Source/instructions/tests in focused code commit `a76d8cf0`; docs last. Historical initial HOLD, test REDs and full-check RED stay.
+- Guy directly authorized: "אחרי התיקון אני רוצה שתעשה בדיקה של רנדר של ספר שלם כדי להבין ולראות איפה המנוע עומד!
+  יש אישור בתשלום - אל תעצור כדי לשאול אותי". Exact record: artifact `OWNER-PAID-FULL-BOOK-CONTINUATION-20261022.txt` in this milestone.
+  This authorizes ONE prospective same-book LOW test after code QA, exact new native allowance/grant/preflight, fresh samples before rest;
+  it does not reopen consumed grants, turn HOLD into PASS, reset attempts/costs, enlarge $7/$8 or permit another book/child/sheets.
+- Next: same sole read-only reviewer re-gates F1/F2 on the new immutable range. Then build and separately QA the genuinely new one-use
+  native continuation (all new dependencies pinned, full old lineage/attempts/ledger retained), execute automatically within the direct
+  authority, and deliver cover-first viewer/all illustrations and honest engine/QA/cost report. No repeat approval question in that scope.
+  Two held sheets still prevent fully-supported complete status. Zero new paid calls/images/Max, money unchanged3050772book/3179702cycle.
+
 ## General typed landmark topology built offline (6d40d2e3); independent QA next; no new paid continuation (2026-10-22)
 
 - **Owner scope:** Guy pasted the general next-gate proposal and directly said "תטפל". Codex disclosed and implemented OFFLINE engine
