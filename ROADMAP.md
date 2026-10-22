@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## GENERAL local anatomical scene repair — code complete, same independent QA then bounded real check (2026-10-23)
+
+- Owner flagsreal5legs p7 in complete9imagecohort, asksgeneralenginefix/recheck. P4alsohasextraappendage; existing p7promptalready4legs,
+  andp7wasneverjudged. Code c2c013b7 from82dfb5a3 fixesgeneralcorrectionroute: rejectedfullscene first, distinctcanonicaldesign roles,
+  localcanonicalslot/actionbinding, FULLfreshquality/.70identity. Default/legacyjudgmentcontract unchanged, no universal4/actorwhitelist.
+- Sameexistingclassifier/orchestrator/meter, prospectiveopt-inonly. Nativeunused one-use successor followsACTUALconsumedc074diagnostic;
+  max2LOWimagesONEeachp7/p4/max7calls; samecounts/caps89/7m/8m/reserve600k. No reset/newbook/story/child/sheets/Max, no newunknownprovision.
+- 334focusedtests0/finalnewcases0,24actualnativedrycontrols0,22VMoperatorcontrols0, actualnonincrementaltsc0 BEFOREcodecommit. Earlier
+  developmentREDspreserved; fullcheckhistoricalRED not relabelled. DocsLAST then sameindependentimmutableQA/exactunusedgrant/operator;
+  onlyPASS+freshpreflight permits alreadyapprovedpayment. No parallelwriter/newagent/task/worktree or providerinthiscode milestone.
+- Alloldimages/raws/HOLDs/claims/sourcecanon preserved. Newbeforeafterfullcohortviewer; fixedanatomydoesnotimplyallotherissuesgone.
+  Production/customer/push/deploy/key/envwrite/delete/newmonitor excluded; finalproductacceptanceGuy.
+
 ## Full8illustrations +cover DELIVERED for owner judgment; QA partial/nativefailed honestly, no morepaidrun (2026-10-22)
 
 - Real bounded diagnostic run at673801f3 after independentexactPASSff95f823/preflight0:7newLOWframes3-8then0 beforeQA,0samplecalls.

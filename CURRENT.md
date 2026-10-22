@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Owner-observed fifth leg in full cohort — GENERAL local scene repair code complete, independent QA NEXT (2026-10-23)
+
+- New direct owner request: inspect all images, fix GENERAL engine/prompt behavior, recheck. All9selectedimages inspected. P7reallyhas5paw/limb
+  paths; tail not counted. P4extra bellyappendage also confirmed. Existing p7wire alreadyrepeated4legs; it was never autojudged becausep5's
+  unusable topology response stoppedquality. This is not evidence that the p7judge passedfivelegs. Other scale/palette/gaze findings remain.
+- Rootcause at render callsites: page correction used ONLY4canonicalrefs/book_identity, never the rejectedfullscene. Sheetrepair alreadyhad
+  an edit-targetpath. Code c2c013b7(parent82dfb5a3) adds opt-in local-anatomy-repair/v1, explicitbook_scene_edit roles (targetfirst+canonical
+  child/companion/supportingcast), canonical anatomicalslot allocation and smallest source-action-preserving posechange. No manual pixel/story
+  patch, universal4rule, name/pagewhitelist, secondQAengine or productiondefaultchange. All v9-v15 contexts/semantics remain unchanged.
+- Existing review/identity path extracted shared, not duplicated. Normal opt-in policyv16 uses the SAME v6/v2pixelcontract. Bound typed
+  structural DEFECTS only justifylocaledit; detail/uncertain/unusable/safety cannot authorizeone. Fresh FULLquality+gpt4oidentity(.70), no false
+  PASS from edit intent. Prior candidate/context/assessment/refs/status rederived; provenance records targetactors/parentimage/context.
+- New fixednative successor FOLLOWSc074428c/full-diagnostic failedclaim/outcome/admission, never resets/repins/reopens it. Atmost2LOWimages,
+  ONE eachp7/p4, max7calls (firstfreshqualityp7, then2edits/2quality/2identity). All actual attempts counted acrossprefixes; original2/6sample
+  counts untouched. Original89slots/7mbook/8mcycle/600kqualityreserve andold3actualUNKNOWN/debits/provision retained. Unknownnew stillstops.
+  Samebook/source/profile/anchors/sheets. Fullbookcohort alreadyexists; no rerenderall9 or additionalMax/story/child/referencegeneration.
+- Local proof:334/334in5relevantsuites exit0; finalnewcases rerun after testfixturetypefix exit0;24actualnative dry/negative controls0;
+  22operatorVMcontrols0(allspawns/writesstubbed). Nonincrementaltsc0 at21:39:04.330Z BEFOREcodecommit. HistoricalfullcheckRED unchanged.
+  Initial configimportfailure, whitespaceassertionRED and testfixtureTSerrors preserved, not paid/runtime failures or discarded evidence.
+- SAMEtask/soleCodexwriter, branchclaude/book-render-20261009, no newtask/agent/worktree; same owner-approved independent readonlyreviewer.
+  Evidence/preciseownerDG/logs/operator at ART/r1-local-anatomy-repair-20261023. Next:docsLASTaftertsc0, cleanfrozenrange/nativeunusedgrant/
+  exactoperator QA. Only exactPASS thenfreshnativepreflight permits approvedboundedpayment. No providerhasruninthismilestoneyet.
+- Imagecorrection isstochastic. Even4legsfixed canleaveotherHOLDs or regressunaffectedcontent; those remainvisible. Heldsheetsstillheld,
+  no production/fullsupported/productPASS. No push/deploy/key/envwrite/cleanup/newmonitor. Guyjudgesbeforeafter andcompletecohort.
+
 ## FULL visual cohort DELIVERED — eight body illustrations + cover; native QA failed honestly, independent accuracy PASS (2026-10-22)
 
 - Latest owner's request fulfilled as an explicit diagnostic cohort: real9distinct1024images, all8exactHebrewtexts, cover-first reader
