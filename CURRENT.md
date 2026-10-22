@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Owner-approved GENERAL anatomy/recovery engine milestone — offline code complete, independent QA pending (2026-10-22)
+
+- Guy's NEW direct instruction explicitly requests engine/judge/order fixes and same-book continuation. It supersedes the prior terminal stop
+  prospectively, never its consumed grant/history. Same sole Codex writer/branch; Claude usage-paused, same already-approved read-only reviewer.
+- Code `9e0855b3` from `3e9f04a8`: prospective opt-in reviewed-policy/v14/page-context/v5/structural-anatomy/v1. Complete stable cast coverage,
+  typed structural observations, counts and occlusion evidence, deterministic material identity findings for extra/missing/detached/malformed
+  appendages and uncertainty; no name/species whitelist or prose-to-PASS. Legacy v9-v13/context/raw and production defaults unchanged.
+- Renderer binds a raised/gesturing limb to the existing anatomical total, never a standing set PLUS gesture limbs. Reuses existing classifier,
+  assessment, correction loop, stage-recovery diagnosis and same paid adapters/meter. Persistent structural failure changes to a simpler feasible
+  pose while preserving canonical identity and source-required action. Human/AI synthetic examples prove wiring, not real-pixel detection.
+- NEW fixed one-use native successor `scripts/personal-fresh-book-anatomy.ts` follows ACTUALLY consumed orphan3dd4/claim/outcome/admission/raw,
+  replays both real v13 quality requests and child-identity receipts offline, preserves book/authority baselines across awaits and every call,
+  and derives exact new context/wire/grant from native orchestration. No consumed repin, output-folder reset, new diagnostic/story/child/sheets.
+- Conservative announced allowance: first saved sample gets ONE fresh quality/identity pair without drawing; failed sample gets at most TWO
+  NEW candidates (render indices4/5 after the real4), with diagnosis/changed strategy between failures. BOTH samples must pass before the same
+  cover/pages3-8; their ordinary maximum3 attempts remains. Held sheets stay diagnostic, so full illustrations do not imply fully-supported status.
+- Validation: focused6files/298tests PASS exit0, nonincremental tsc exit0. Native read-only hardened9controls exit0, no key/provider/claim/book writes.
+  Earlier native development probe correctly failed `audition_resume_binding` until legacy v9 sheet metadata was explicitly preserved; its RED
+  log remains. Initial focused295 then final298 are sequential runs, NOT additive unique tests. Full `npm run check` historical RED unchanged,
+  not rerun or presented green. One test invocation never started because automatic permission review timed out; the expressly allowed single
+  retry ran the same command. No refused-command wrapper or policy change.
+- Cost/counters unchanged: bookknown2307418 +oldapproveddebits1200000 +orphanprovision600000 =4107418/7000000; cycle4236348/8000000,
+  33/89 claims, page1renders2/page2renders4. Original3actualchargesUNKNOWN/1outcomeUNKNOWN retained; any NEW unknown stops. Max separate, no newMax.
+- Evidence/owner/DG/logs/unused-grant preparation: Codex artifact `r1-general-anatomy-recovery-20261022`. Next: docsLAST/frozen plan+grant+wrapper
+  and same independent adversarial codeQA; only exact PASS then fresh nativepreflight permits the paid successor. No provider in this milestone.
+
 ## Actual durable successor executed: first sample PASS, fourth second sample HELD; book INCOMPLETE, no current paid continuation (2026-10-22)
 
 - Exact independent code/native/unusedgrant/wrapper PASS29b92214 at clean executed`bcfca737`, fresh exact nativepreflight0 -> ONE actual

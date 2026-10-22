@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## General structural-anatomy and bounded same-book recovery — implementation done, independent gate NEXT (2026-10-22)
+
+- New explicit owner authority after actual extra-limb observation; code9e0855b3 adds prospective v14 typed anatomy, action/limb binding and
+  existing-loop targeted correction/persistent-failure pose strategy. Not a manual animal/page patch or second QA engine; old verdicts remain.
+- Native one-use successor follows consumed3dd4, replays actual old requests/identities, keeps2/4renders and33/89calls, permits at most2 NEW
+  failed-sample candidates and fresh first-sample review/identity, then gates same cover/pages3-8. Source-required actions, .70, uncertainty,
+  safety/age/style/identity, current USD7/8 caps and original UNKNOWN accounting remain. Held sheets prevent fully-supported complete.
+- Local298/298 exit0, tsc0, hardened native9controls0/provider0. Fullcheck historicalRED remains. Next: same approved independent reviewer against
+  frozen code/docs/unused grant and wrapper; exact PASS +fresh preflight before ANY provider. No new book/story/child/sheets, HIGH, task/agent,
+  key/monitor, production, push/deploy or deletion. Product completion/acceptance still outstanding; no new real-image result claimed.
+
 ## Real durable continuation terminalheld_sample; partial reader delivered, full book still NOT achieved (2026-10-22)
 
 - Exact code/nativePASS29b92214 +freshpreflight0 -> consumed3dd4c6ed at runtimebcfca737, realnative0/held_sample. FirstsavedimagefreshPASS;
