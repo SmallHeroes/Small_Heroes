@@ -13,7 +13,7 @@ import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { childAnchorAcceptanceVersions, CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_VISIBILITY_RECOVERABLE, CHILD_ANCHOR_VISIBILITY_RECOVERY_VERSION }
   from '../lib/personal-wizard/child-anchor-style';
-import { AuditionMeter, auditionReviewRule, conservativeDebitSchema, type ConservativeDebit, type MeterRules } from './personal-simple-book-reviewed-audition';
+import { AuditionMeter, auditionReviewRule, conservativeDebitSchema, type ConservativeDebit, type OrphanProvision, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { REREVIEW_AMENDMENT, rereviewAuthority, rereviewOutput, settledRereviewOutcome, type RereviewConfig } from './personal-child-anchor-rereview';
 
 export class FreshBookError extends Error { constructor(readonly code: string) { super(code); } }
@@ -100,7 +100,8 @@ const REREVIEW_RULES: MeterRules = step => step === 'reference_child_style_qa' |
  * One stage's meter folder and the rules its calls settle under (the stage driver's own). `debits` (opt-in, an owner-approved continuation
  * only): the conservative debits of this stage's own unknown-cost records (AuditionMeter); absent on every other stage and line.
  */
-export type FreshBookStage = { name: string; dir: string; rules: MeterRules; maxCalls: number; debits?: readonly ConservativeDebit[] };
+export type FreshBookStage = { name: string; dir: string; rules: MeterRules; maxCalls: number; debits?: readonly ConservativeDebit[];
+  orphanProvisions?: readonly OrphanProvision[] };
 /**
  * The cycle's cumulative ledger: the diagnostic subcap's settled spend (the original 59910 and every claimed re-review round, re-derived)
  * and every stage of THIS book, in order, each re-derived from its own records. Any unknown cost or outcome (an orphan claim, an in-flight
@@ -110,31 +111,38 @@ export type FreshBookStage = { name: string; dir: string; rules: MeterRules; max
 export function freshBookCycleLedger(args: { diagnosticSettledMicroUsd: number; stages: readonly FreshBookStage[] }) {
   if (!Number.isSafeInteger(args.diagnosticSettledMicroUsd) || args.diagnosticSettledMicroUsd < REREVIEW_AMENDMENT.originalSettledMicroUsd ||
       args.diagnosticSettledMicroUsd > FRESH_BOOK_CYCLE.diagnosticSubcapMicroUsd) fail('fresh_book_ledger_diagnostic');
-  let book = 0, debited = 0;
+  let book = 0, debited = 0, provisioned = 0;
   const debiting = args.stages.some(s => s.debits?.length);
+  const provisioning = args.stages.some(s => s.orphanProvisions?.length);
   const stages = args.stages.map(stage => {
     if (!existsSync(path.join(stage.dir, 'paid-stages'))) {
-      if (stage.debits?.length) fail('fresh_book_ledger_debit');
+      if (stage.debits?.length || stage.orphanProvisions?.length) fail('fresh_book_ledger_debit');
       return { name: stage.name, knownMicroUsd: 0, calls: 0 };
     }
     const snapshot = new AuditionMeter(path.join(stage.dir, 'paid-stages'), FRESH_BOOK_CYCLE.bookSubcapMicroUsd, stage.maxCalls, book, 0, stage.rules,
-      stage.debits ?? []).snapshot();
+      stage.debits ?? [], stage.orphanProvisions ?? []).snapshot();
     if (snapshot.unknownCost || snapshot.unknownOutcome || snapshot.reservedUnsettledMicroUsd) fail('fresh_book_ledger_unknown');
     book += snapshot.newKnownApiMicroUsd;
     const debit = (snapshot as { conservativeDebitMicroUsd?: number }).conservativeDebitMicroUsd ?? 0;
     debited += debit;
+    const provision = snapshot.orphanProvisionMicroUsd ?? 0;
+    provisioned += provision;
     return { name: stage.name, knownMicroUsd: snapshot.newKnownApiMicroUsd, calls: snapshot.calls,
-      ...(stage.debits?.length ? { conservativeDebitMicroUsd: debit, actualChargeUnknownCalls: stage.debits.length } : {}) };
+      ...(stage.debits?.length ? { conservativeDebitMicroUsd: debit, actualChargeUnknownCalls: stage.debits.length } : {}),
+      ...(stage.orphanProvisions?.length ? { orphanProvisionMicroUsd: provision, actualOutcomeUnknownCalls: stage.orphanProvisions.length,
+        actualChargeUnknownCalls: (stage.debits?.length ?? 0) + stage.orphanProvisions.length } : {}) };
   });
-  if (book + debited > FRESH_BOOK_CYCLE.bookSubcapMicroUsd || book + debited + args.diagnosticSettledMicroUsd > FRESH_BOOK_CYCLE.cycleCeilingMicroUsd)
+  if (book + debited + provisioned > FRESH_BOOK_CYCLE.bookSubcapMicroUsd || book + debited + provisioned + args.diagnosticSettledMicroUsd > FRESH_BOOK_CYCLE.cycleCeilingMicroUsd)
     fail('fresh_book_ledger_cap');
   return { diagnosticSettledMicroUsd: args.diagnosticSettledMicroUsd, bookKnownMicroUsd: book,
     // Opted in only: the conservative debits apart from known spend, and the budget they account for (their actual charge stays unknown).
-    ...(debiting ? { conservativeDebitMicroUsd: debited, bookBudgetAccountedMicroUsd: book + debited } : {}), stages,
+    ...(debiting ? { conservativeDebitMicroUsd: debited } : {}),
+    ...(debiting || provisioning ? { bookBudgetAccountedMicroUsd: book + debited + provisioned } : {}),
+    ...(provisioning ? { orphanProvisionMicroUsd: provisioned, actualOutcomeUnknownCalls: args.stages.reduce((n, s) => n + (s.orphanProvisions?.length ?? 0), 0) } : {}), stages,
     /** The next book meter's cap is the smaller of the subcap and what the cycle ceiling leaves. */
     nextCapMicroUsd: Math.min(FRESH_BOOK_CYCLE.bookSubcapMicroUsd, FRESH_BOOK_CYCLE.cycleCeilingMicroUsd - args.diagnosticSettledMicroUsd),
-    ...(debiting ? { cycleKnownMicroUsd: book + args.diagnosticSettledMicroUsd } : {}),
-    cycleAccountedMicroUsd: book + debited + args.diagnosticSettledMicroUsd };
+    ...(debiting || provisioning ? { cycleKnownMicroUsd: book + args.diagnosticSettledMicroUsd } : {}),
+    cycleAccountedMicroUsd: book + debited + provisioned + args.diagnosticSettledMicroUsd };
 }
 
 /** The one claim: written once, before the first provider or model stage; any existing claim refuses, for any profile, grant or folder. */

@@ -111,7 +111,9 @@ import { CHILD_ANCHOR_INSPECTION_VERSION, CHILD_ANCHOR_MATERIALITY_VERSION, CHIL
   CHILD_ANCHOR_POSE_V2, type ChildAnchorPoseVersion, type ChildAnchorChild, type ChildAnchorInspectionContext, type ChildAnchorRecipe } from '../lib/personal-wizard/child-anchor-style';
 import { AuditionMeter, auditionAdapters, auditionMeterRules, keyReader, loadReviewedStoryboard, loadReviewedBook, reviewedBookLayoutSchema, readReviewedBookLayout,
   runReviewedAudition, auditionGrantSchema, auditionJudgePayload, digestImages, verifyMeterRecords, renderMaximum, conservativeDebitOf, interruptedAttempts, rereviewAllowance, AUDITION_REVIEW_TIMEOUT_MS,
-  AUDITION_TRANSPORT_MARGIN_MS, type AuditionGrant, type ReviewedBookLayout, type MeterRules, type ConservativeDebit } from './personal-simple-book-reviewed-audition';
+  AUDITION_TRANSPORT_MARGIN_MS, orphanProvisionOf, orphanProvisionSchema, durableReviewPayload,
+  type AuditionGrant, type ReviewedBookLayout, type MeterRules, type ConservativeDebit, type OrphanProvision } from './personal-simple-book-reviewed-audition';
+import { DURABLE_REVIEW_VERSION } from './personal-durable-review';
 import { readAuditionImage, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { childAnchorJudges, inspectedDesignWire, inspectedStyleWire, type ChildAnchorInspectedDesignJudge, type ChildAnchorInspectedStyleJudge } from './personal-child-anchor-judges';
 import { CAUSAL_MODELS, createAstraCausalTransport, createOpusCausalTransport, prepareCausalWire, type CausalWire, type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
@@ -229,7 +231,7 @@ const CHILD_RECOVERY_RULES = pick(stageRules.childAnchor, [...FRESH_BOOK_CHILD_R
  * The child recovery keeps the presence line's stages and its held child, then adds its own folder after that child; the fresh anchor keeps the
  * recovery's and adds its own folder after the recovery's.
  */
-const bookStages = (bookDir: string, recovery: LedgerLine = false, debits?: readonly ConservativeDebit[]): FreshBookStage[] => [
+const bookStages = (bookDir: string, recovery: LedgerLine = false, debits?: readonly ConservativeDebit[], orphanProvisions?: readonly OrphanProvision[]): FreshBookStage[] => [
   { name: 'text', dir: path.join(bookDir, 'text'), rules: TEXT_RULES, maxCalls: TEXT_API_CALLS },
   ...(recovery ? [{ name: FRESH_BOOK_RECOVERY.folder, dir: path.join(bookDir, FRESH_BOOK_RECOVERY.folder), rules: RECOVERY_RULES, maxCalls: FRESH_BOOK_RECOVERY.apiCalls }] : []),
   ...(recovery === 'storyboard_repair' || recovery === 'storyboard_continuation' || recovery === 'storyboard_revalidation' || recovery === 'storyboard_extension'
@@ -260,7 +262,8 @@ const bookStages = (bookDir: string, recovery: LedgerLine = false, debits?: read
   ...(recovery === 'child_fresh_anchor' ? [{ name: FRESH_BOOK_CHILD_FRESH_ANCHOR.folder, dir: path.join(bookDir, FRESH_BOOK_CHILD_FRESH_ANCHOR.folder),
     rules: CHILD_RULES, maxCalls: FRESH_BOOK_CHILD_FRESH_ANCHOR.apiCalls }] : []),
   // The audition continuation alone passes its owner-approved conservative debit of one audition record (absent on every other line).
-  { name: 'audition', dir: path.join(bookDir, 'audition'), rules: auditionMeterRules, maxCalls: AUDITION_WORST_CASE_CALLS, ...(debits?.length ? { debits } : {}) }];
+  { name: 'audition', dir: path.join(bookDir, 'audition'), rules: auditionMeterRules, maxCalls: AUDITION_WORST_CASE_CALLS,
+    ...(debits?.length ? { debits } : {}), ...(orphanProvisions?.length ? { orphanProvisions } : {}) }];
 
 /** The engine files whose bytes the grant pins (the driver, its authority and every reviewed primitive it calls). */
 export const FRESH_BOOK_PINNED = Object.freeze(['scripts/personal-fresh-book-driver.ts', 'scripts/personal-fresh-book-authority.ts',
@@ -795,8 +798,8 @@ async function linePassed(a: { config: FreshBookConfig; env: FreshBookEnv; grant
  * audition continuation's owner-approved conservative debit of one audition record (absent: the ledger exactly as before).
  */
 export function freshBookLedger(config: FreshBookConfig, env: FreshBookEnv, rereview: RereviewConfig, recovery: LedgerLine = false,
-  debits?: readonly ConservativeDebit[]) {
-  return freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir, recovery, debits) });
+  debits?: readonly ConservativeDebit[], orphanProvisions?: readonly OrphanProvision[]) {
+  return freshBookCycleLedger({ diagnosticSettledMicroUsd: freshBookDiagnosticSpend(rereview, env), stages: bookStages(config.bookDir, recovery, debits, orphanProvisions) });
 }
 /** The book's terminal record beside its claim (once): the one book is over; nothing reopens it. The recovery line has its own (once). */
 function finish(env: FreshBookEnv, status: string, extra: Record<string, unknown>, name: string = FRESH_BOOK_CYCLE.outcomeName) {
@@ -5816,18 +5819,21 @@ function coverageRoots(config: FreshBookConfig, env: FreshBookEnv, rereview: Rer
     [`authority/${AT.outcomeName}`]: previewSha(fileBytes(path.join(env.authorityRoot, AT.outcomeName))) };
 }
 /** Replay the actual consumed v12 pixels and all earlier context parents before deriving any prospective v13 operation. */
-export async function planFreshBookAuditionCoverage(config: FreshBookConfig, env: FreshBookEnv, parentGrantFile: string, approvalFile: string) {
+export async function planFreshBookAuditionCoverage(config: FreshBookConfig, env: FreshBookEnv, parentGrantFile: string, approvalFile: string,
+  historical?: { remove: readonly string[]; ledger: ReturnType<typeof freshBookLedger> }) {
   const base = planFreshBook(config, env), approval = ownerApproval(approvalFile, AV.approvalLine, 'fresh_book_coverage_approval');
   const refuse = (): never => fail('fresh_book_coverage_parent'), dir = path.join(config.bookDir, 'audition');
   const at = (n: string) => path.join(env.authorityRoot, n), parentBytes = fileBytes(parentGrantFile);
   const parent = freshBookAuditionTopologyGrantSchema.parse(JSON.parse(parentBytes.toString('utf8')));
-  const roots = coverageRoots(config, env, base.rereview), auditionFiles = folderBaseline(dir), engine = env.head();
+  // Historical view is used only by the new orphan planner after its exact four additions/current ledger have been verified. No disk changes.
+  const view = () => Object.fromEntries(Object.entries(folderBaseline(dir)).filter(([n]) => !historical?.remove.includes(n)));
+  const roots = coverageRoots(config, env, base.rereview), auditionFiles = view(), engine = env.head();
   const pins = Object.fromEntries(FRESH_BOOK_AUDITION_TOPOLOGY_PINNED.map(rel => [rel, previewSha(fileBytes(path.join(workspace(), rel)))]));
   const immutableFiles: [string, string][] = [[parentGrantFile, previewSha(parentBytes)], [approval.file, approval.sha256],
     [parent.ownerApproval.file, parent.ownerApproval.sha256], [parent.parent.grantFile, parent.parent.grantSha256]];
   const same = () => {
     if (canonicalJson(roots) !== canonicalJson(coverageRoots(config, env, base.rereview)) ||
-      canonicalJson(auditionFiles) !== canonicalJson(folderBaseline(dir))) fail('fresh_book_roots_changed');
+      canonicalJson(auditionFiles) !== canonicalJson(view())) fail('fresh_book_roots_changed');
     for (const [f, s] of immutableFiles) if (previewSha(fileBytes(f)) !== s) refuse();
     const e = env.head();
     if (e.head !== engine.head || e.branch !== engine.branch || e.clean !== engine.clean) fail('fresh_book_source_changed');
@@ -5860,7 +5866,7 @@ export async function planFreshBookAuditionCoverage(config: FreshBookConfig, env
     ...['_qa', '_identity'].flatMap(s => ['wire', 'claim', 'receipt', 'result'].map(k => `paid-stages/${oldStep}${s}.${k}.json`))]);
   if ([...additions].some(n => !auditionFiles[n]) || previewSha(canonicalJson(Object.fromEntries(Object.entries(auditionFiles)
     .filter(([n]) => !additions.has(n))))) !== parent.auditionFolderSha256 ||
-    readdirSync(dir).filter(n => /^resume-[0-9]+\.json$/.test(n)).length !== 4 || existsSync(path.join(dir, 'admission-coverage.json')) ||
+    Object.keys(auditionFiles).filter(n => /^resume-[0-9]+\.json$/.test(n)).length !== 4 || !historical && existsSync(path.join(dir, 'admission-coverage.json')) ||
     first.action !== 'requalify' || second.action !== 'correct_once' || first.consumedAttemptsBefore !== 2 || second.consumedAttemptsBefore !== 3) refuse();
   const originalAdmission = path.join(dir, 'admission.json'), calibSaved = json(path.join(dir, `page_${first.page}_calibration.json`)) as SavedCalibration;
   const parentCalibration: AuditionCalibration = { ...cg.calibration,
@@ -5880,7 +5886,7 @@ export async function planFreshBookAuditionCoverage(config: FreshBookConfig, env
     grant.book.requestId !== loaded.queued.requestId || grant.book.storyboardDigest !== loaded.book.storyboardDigest ||
     previewSha(fileBytes(originalAdmission)) !== re.audition.admissionSha256 ||
     previewSha(fileBytes(path.join(config.bookDir, 'audition.grant.json'))) !== re.audition.grantSha256) refuse();
-  const ledger = freshBookLedger(config, env, base.rereview, 'child_fresh_anchor', parent.debits);
+  const ledger = historical?.ledger ?? freshBookLedger(config, env, base.rereview, 'child_fresh_anchor', parent.debits);
   if (canonicalJson(ledger) !== canonicalJson(outcome.ledger)) refuse();
   const readImage = (imageName: string) => ({ imageName, imageSha: previewSha(fileBytes(path.join(dir, 'illustrations', imageName))) });
   const bytesOf = (image: AuditionImage) => { const b = fileBytes(path.join(dir, 'illustrations', image.imageName));
@@ -5950,7 +5956,7 @@ export async function planFreshBookAuditionCoverage(config: FreshBookConfig, env
   const grantDraft = freshBookAuditionCoverageGrantSchema.parse({ ...bound, version: 'fresh-book-audition-coverage-grant/v1',
     engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
   return { plan, grantDraft, state: { engine, claimExists: existsSync(at(AV.claimName)), outcomeExists: existsSync(at(AV.outcomeName)) },
-    roots, auditionFiles, base, parent, contract, cont, immutableFiles };
+    roots, auditionFiles, base, parent, contract, cont, immutableFiles, firstPayload: payload };
 }
 export async function runFreshBookAuditionCoverage(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string;
   signal: AbortSignal; log: (line: string) => void }) {
@@ -5993,6 +5999,129 @@ export async function runFreshBookAuditionCoverage(a: { config: FreshBookConfig;
     return { status, manifestStatus: result.manifest.status, order: reading.order, ledger };
   } catch (e) {
     if (!existsSync(at(AV.outcomeName))) finish(a.env, 'failed_audition_coverage', { code: codeOf(e, 'fresh_book_coverage_failed') }, AV.outcomeName);
+    throw e;
+  }
+}
+
+/** One explicitly approved ID-less orphan successor. Never a resume/reset/repin of the consumed coverage grant. */
+export const FRESH_BOOK_AUDITION_ORPHAN = Object.freeze({ version: 'audition-orphan-continuation/v1' as const,
+  claimName: 'owner-cycle-20261017-fresh-book-usd7.audition-orphan.claim.json',
+  outcomeName: 'owner-cycle-20261017-fresh-book-usd7.audition-orphan.outcome.json',
+  approvalLine: 'מאשר את החריגה החד־פעמית וההמשך המוגבל' });
+const AO = FRESH_BOOK_AUDITION_ORPHAN;
+export const freshBookAuditionOrphanGrantSchema = freshBookAuditionCoverageGrantSchema.extend({
+  version: z.literal('fresh-book-audition-orphan-grant/v1'), continuation: z.literal(AO.version), durableReview: z.literal(DURABLE_REVIEW_VERSION),
+  parent: z.object({ grantFile: z.string().min(1), grantSha256: hash, claimSha256: hash, admissionSha256: hash }).strict(),
+  provision: orphanProvisionSchema, predecessorPlanSha256: hash,
+}).strict();
+
+/** Reconstruct the exact pre-orphan plan without changing/filtering files on disk, then derive one explicitly bound prospective successor. */
+export async function planFreshBookAuditionOrphan(config: FreshBookConfig, env: FreshBookEnv, parentGrantFile: string, approvalFile: string) {
+  const refuse = (): never => fail('fresh_book_orphan_parent'), dir = path.join(config.bookDir, 'audition'), paid = path.join(dir, 'paid-stages');
+  const at = (n: string) => path.join(env.authorityRoot, n), bytes = fileBytes(parentGrantFile), parentSha = previewSha(bytes);
+  const parent = freshBookAuditionCoverageGrantSchema.parse(JSON.parse(bytes.toString('utf8')));
+  const approval = ownerApproval(approvalFile, AO.approvalLine, 'fresh_book_orphan_approval');
+  const full = folderBaseline(dir), base = planFreshBook(config, env), engine = env.head();
+  const provision = orphanProvisionOf(paid, parent.firstReview.step), marker = Number(/^r([0-9]+)_/.exec(provision.step)?.[1]);
+  if (!Number.isSafeInteger(marker) || provision.maximumMicroUsd !== SOL_PIXEL_REVIEW_SLOT_MICRO_USD ||
+      provision.wireDigest !== parent.firstReview.wireDigest || provision.seq !== (parent.ledger as any).stages.find((s: any) => s.name === 'audition')?.calls ||
+      existsSync(at(AV.outcomeName)) || existsSync(path.join(config.bookDir, 'book-status-coverage.json'))) refuse();
+  const remove = ['admission-coverage.json', `resume-${marker}.json`, `paid-stages/${provision.step}.wire.json`, `paid-stages/${provision.step}.claim.json`];
+  if (remove.some(n => !full[n]) || previewSha(canonicalJson(Object.fromEntries(Object.entries(full).filter(([n]) => !remove.includes(n))))) !==
+      parent.auditionFolderSha256) refuse();
+  const expectedClaim = { cycle: FRESH_BOOK_CYCLE.id, version: AV.version, grantSha256: parentSha, parent: parent.parent,
+    ownerApproval: parent.ownerApproval, engine: parent.engine, bookDir: parent.bookDir, transition: parent.transition, allowance: parent.allowance };
+  if (canonicalJson(json(at(AV.claimName))) !== canonicalJson(expectedClaim) || parent.profileSha256 !== base.plan.profileSha256 ||
+      path.resolve(parent.bookDir).toLowerCase() !== path.resolve(config.bookDir).toLowerCase()) refuse();
+  const ledger = freshBookLedger(config, env, base.rereview, 'child_fresh_anchor', parent.debits, [provision]);
+  const historical: any = JSON.parse(JSON.stringify(ledger));
+  delete historical.orphanProvisionMicroUsd; delete historical.actualOutcomeUnknownCalls;
+  historical.bookBudgetAccountedMicroUsd -= provision.provisionMicroUsd;
+  historical.cycleAccountedMicroUsd -= provision.provisionMicroUsd;
+  const stage = historical.stages.find((s: any) => s.name === 'audition');
+  stage.calls--; delete stage.orphanProvisionMicroUsd; delete stage.actualOutcomeUnknownCalls; stage.actualChargeUnknownCalls--;
+  if (canonicalJson(historical) !== canonicalJson(parent.ledger)) refuse();
+  const currentMeter = new AuditionMeter(paid, FRESH_BOOK_CYCLE.bookSubcapMicroUsd, AUDITION_WORST_CASE_CALLS,
+    json(path.join(config.bookDir, 'audition.grant.json')).ledger.priorKnownApiMicroUsd, 0, auditionMeterRules, parent.debits).snapshot();
+  if (currentMeter.unknownOutcome !== 1 || currentMeter.unknownCost || currentMeter.reservedUnsettledMicroUsd !== provision.provisionMicroUsd) refuse();
+  const before = { ...currentMeter, calls: currentMeter.calls - 1, unknownOutcome: 0, reservedUnsettledMicroUsd: 0,
+    cumulativeAccountedMicroUsd: currentMeter.cumulativeAccountedMicroUsd - provision.provisionMicroUsd };
+  const resume = json(path.join(dir, `resume-${marker}.json`));
+  if (canonicalJson(resume.spendBefore) !== canonicalJson(before) || !Number.isFinite(Date.parse(resume.at))) refuse();
+  const p = await planFreshBookAuditionCoverage(config, env, parent.parent.grantFile, parent.ownerApproval.file, { remove, ledger: historical });
+  if (previewSha(canonicalJson(p.plan)) !== parent.nativePlanSha256 || canonicalJson(p.contract) !== canonicalJson({ ...parent.transition,
+      parentTopology: p.contract.parentTopology, savedTopology: p.contract.savedTopology }) ||
+      canonicalJson(json(path.join(dir, 'admission-coverage.json'))) !== canonicalJson({ version: AV.version,
+        parentAdmissionSha256: previewSha(fileBytes(path.join(dir, 'admission-topology.json'))), grantSha256: parentSha,
+        contract: p.contract, firstReview: parent.firstReview, policy: reviewedAuditionPolicy(undefined, true, LANDMARK_COVERAGE_TOPOLOGY_VERSION) })) refuse();
+  if (canonicalJson(full) !== canonicalJson(folderBaseline(dir)) || engine.head !== env.head().head || engine.branch !== env.head().branch ||
+      engine.clean !== env.head().clean || previewSha(fileBytes(parentGrantFile)) !== parentSha) fail('fresh_book_roots_changed');
+  const actualWire = digestImages(durableReviewPayload(p.firstPayload));
+  const firstReview = { ...parent.firstReview, step: parent.firstReview.step.replace(/^r[0-9]+_/, `r${marker + 1}_`),
+    wireDigest: previewSha(canonicalJson(actualWire)) };
+  const roots = { ...p.roots, [`authority/${AV.claimName}`]: previewSha(fileBytes(at(AV.claimName))),
+    'audition/admission-coverage.json': full['admission-coverage.json'] };
+  const pins = { ...p.grantDraft.pins, 'scripts/personal-durable-review.ts': previewSha(fileBytes(path.join(workspace(), 'scripts/personal-durable-review.ts'))) };
+  const immutableFiles: [string, string][] = [...p.immutableFiles, [parentGrantFile, parentSha], [approval.file, approval.sha256]];
+  const plan = { ...p.plan, version: AO.version, continuation: AO.version, durableReview: DURABLE_REVIEW_VERSION, ownerApproval: approval,
+    parent: { grantFile: path.resolve(parentGrantFile), grantSha256: parentSha, claimSha256: roots[`authority/${AV.claimName}`],
+      admissionSha256: full['admission-coverage.json'] }, provision, predecessorPlanSha256: parent.nativePlanSha256,
+    auditionFolderSha256: previewSha(canonicalJson(full)), rootsSha256: previewSha(canonicalJson(roots)), firstReview, ledger,
+    allowance: { ...parent.allowance, maxNewCalls: AUDITION_WORST_CASE_CALLS - (provision.seq + 1) },
+    ceiling: 'ONE explicitly approved replacement first-sample review, durable transport; same required identity, then original sample2 fourth LOW only on PASS and cover/pages3-8 only on both PASS. Original orphan outcome/charge UNKNOWN; no fifth sample2 or reset.',
+    callLimit: 'Original cumulative89 and7m/8m caps; orphan provision replaces its reservation, never known spend; any additional unknown stops. No line retry/resume or extra replacement review.' };
+  const { ceiling: _c, callLimit: _l, providerCalls: _p, keyRead: _k, ...bound } = plan;
+  const grantDraft = freshBookAuditionOrphanGrantSchema.parse({ ...bound, version: 'fresh-book-audition-orphan-grant/v1',
+    engine: { head: engine.head, branch: engine.branch }, pins, nativePlanSha256: previewSha(canonicalJson(plan)) });
+  return { plan, grantDraft, state: { engine, claimExists: existsSync(at(AO.claimName)), outcomeExists: existsSync(at(AO.outcomeName)) },
+    base, contract: p.contract, cont: p.cont, full, roots, immutableFiles, actualWire };
+}
+
+export async function runFreshBookAuditionOrphan(a: { config: FreshBookConfig; env: FreshBookEnv; grantFile: string; grantSha: string;
+  signal: AbortSignal; log: (line: string) => void }) {
+  const b = fileBytes(a.grantFile), refuse = (): never => fail('fresh_book_orphan_grant');
+  if (previewSha(b) !== a.grantSha) refuse();
+  const g = freshBookAuditionOrphanGrantSchema.parse(JSON.parse(b.toString('utf8')));
+  const p = await planFreshBookAuditionOrphan(a.config, a.env, g.parent.grantFile, g.ownerApproval.file);
+  if (canonicalJson(g) !== canonicalJson(p.grantDraft)) refuse();
+  const at = (n: string) => path.join(a.env.authorityRoot, n), dir = path.join(a.config.bookDir, 'audition');
+  const same = () => {
+    const e = a.env.head();
+    if (a.signal.aborted || !e.clean || e.head !== g.engine.head || e.branch !== g.engine.branch) fail('fresh_book_source_changed');
+    for (const [rel, sha] of Object.entries(g.pins)) if (previewSha(fileBytes(path.join(workspace(), rel))) !== sha) fail('fresh_book_source_changed');
+    for (const [f, sha] of [[a.grantFile, a.grantSha], ...p.immutableFiles]) if (previewSha(fileBytes(f)) !== sha) refuse();
+    if (canonicalJson(coverageRoots(a.config, a.env, p.base.rereview)) !== canonicalJson(Object.fromEntries(Object.entries(p.roots)
+      .filter(([n]) => n !== `authority/${AV.claimName}` && n !== 'audition/admission-coverage.json')))) fail('fresh_book_roots_changed');
+    if (previewSha(fileBytes(at(AV.claimName))) !== g.parent.claimSha256) refuse();
+    for (const [rel, sha] of Object.entries(p.full)) if (previewSha(fileBytes(path.join(dir, rel))) !== sha) fail('fresh_book_orphan_parent');
+    if (canonicalJson(orphanProvisionOf(path.join(dir, 'paid-stages'), g.provision.step)) !== canonicalJson(g.provision)) refuse();
+  };
+  same();
+  if (p.state.claimExists || p.state.outcomeExists || existsSync(at(AO.claimName)) || existsSync(at(AO.outcomeName))) fail('fresh_book_orphan_used');
+  exclusiveJson(at(AO.claimName), { cycle: FRESH_BOOK_CYCLE.id, version: AO.version, grantSha256: a.grantSha, parent: g.parent,
+    ownerApproval: g.ownerApproval, engine: g.engine, bookDir: g.bookDir, provision: g.provision, allowance: g.allowance });
+  const claimSha256 = previewSha(fileBytes(at(AO.claimName)));
+  const guard = () => { same(); if (previewSha(fileBytes(at(AO.claimName))) !== claimSha256 || existsSync(at(AO.outcomeName))) fail('fresh_book_orphan_used'); };
+  try {
+    const result = await runReviewedAudition({ bookDir: a.config.bookDir, out: dir, keyFile: a.config.keyEnvFile,
+      grantFile: path.join(a.config.bookDir, 'audition.grant.json'), signal: a.signal, log: a.log, resume: true, debits: g.debits,
+      layout: readReviewedBookLayout(path.join(a.config.bookDir, 'book-layout.json')),
+      coverageContinuation: { grantSha256: a.grantSha, contract: p.contract, firstReview: g.firstReview },
+      coverageOrphanRecovery: { version: AO.version, parentAdmissionSha256: g.parent.admissionSha256, provision: g.provision },
+      experiment: { slot: FRESH_BOOK_AUDITION_SLOT, claimSha256: p.cont.fresh.claimSha256, guard } });
+    if (result.mode !== 'render') return fail('fresh_book_audition_mode');
+    const gate = (s: unknown): PageGate['disposition'] => s === 'qa_supported' ? 'passed' : 'held_uncertain';
+    const cover = result.manifest.pages.find(x => x.pageNumber === 0), reading = freshBookReadingOrder(cover ? gate(cover.status) : null,
+      result.manifest.pages.filter(x => x.pageNumber > 0).map(x => ({ page: x.pageNumber, disposition: gate(x.status) })));
+    const status = result.manifest.status === 'held_sample' ? 'held_sample' : reading.status === 'complete' &&
+      result.manifest.status !== 'qa_supported_audition' ? 'partial' : reading.status;
+    const ledger = freshBookLedger(a.config, a.env, p.base.rereview, 'child_fresh_anchor', g.debits, [g.provision]);
+    exclusiveJson(path.join(a.config.bookDir, 'book-status-orphan.json'), { status, manifestStatus: result.manifest.status,
+      order: reading.order, ledger, grantSha256: a.grantSha, runtimeEligible: false });
+    finish(a.env, status, { manifestStatus: result.manifest.status, ledger }, AO.outcomeName);
+    return { status, manifestStatus: result.manifest.status, order: reading.order, ledger };
+  } catch (e) {
+    if (!existsSync(at(AO.outcomeName))) finish(a.env, 'failed_audition_orphan', { code: codeOf(e, 'fresh_book_orphan_failed') }, AO.outcomeName);
     throw e;
   }
 }
@@ -6082,7 +6211,7 @@ export async function runFreshBookBook(args: { config: FreshBookConfig; env: Fre
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const config = freshBookConfig(argValue('--config') ?? fail('fresh_book_arguments')), env = realFreshBookEnv();
-  const stage = ['audition-coverage-plan', 'audition-coverage', 'audition-topology-plan', 'audition-topology', 'audition-calibration-plan', 'audition-calibration', 'audition-rereview-plan', 'audition-rereview', 'audition-continuation-plan', 'audition-continuation', 'child-fresh-anchor-plan', 'child-fresh-anchor',
+  const stage = ['audition-orphan-plan', 'audition-orphan', 'audition-coverage-plan', 'audition-coverage', 'audition-topology-plan', 'audition-topology', 'audition-calibration-plan', 'audition-calibration', 'audition-rereview-plan', 'audition-rereview', 'audition-continuation-plan', 'audition-continuation', 'child-fresh-anchor-plan', 'child-fresh-anchor',
     'child-recovery-plan', 'child-recovery',
     'storyboard-presence-preview', 'storyboard-presence-plan', 'storyboard-presence',
     'storyboard-calibration-preview', 'storyboard-calibration-plan', 'storyboard-calibration',
@@ -6109,13 +6238,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
   const done = (p: Promise<unknown>) => p.then(r => console.log(JSON.stringify(r, null, 2)))
     .catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
   // The audition continuation and the audition re-review take no line flag: each is its own stage on the audition it follows.
-  if ((stage === 'audition-continuation' || stage === 'audition-rereview' || stage === 'audition-calibration' || stage === 'audition-topology' || stage === 'audition-topology-plan' || stage === 'audition-coverage' || stage === 'audition-coverage-plan') && ['--recovery', '--storyboard-repair', '--storyboard-continuation',
+  if ((stage === 'audition-orphan' || stage === 'audition-orphan-plan' || stage === 'audition-continuation' || stage === 'audition-rereview' || stage === 'audition-calibration' || stage === 'audition-topology' || stage === 'audition-topology-plan' || stage === 'audition-coverage' || stage === 'audition-coverage-plan') && ['--recovery', '--storyboard-repair', '--storyboard-continuation',
     '--storyboard-revalidation', '--storyboard-extension', '--storyboard-extension-revalidation', '--storyboard-calibration', '--storyboard-presence',
     '--child-recovery', '--child-fresh-anchor', '--resume'].some(f => process.argv.includes(f))) fail('fresh_book_arguments');
   // The audition re-review (dry): the consumed continuation and the audition it left re-derived, its two unknown-cost calls and their debits,
   // the ONE re-review (the saved page, its never-judged drawn attempt, the lost request and the new step), the ledger with both debits and the
   // grant draft (--continuation-grant: the consumed continuation grant file; --owner-approval: the owner's record). No key, provider, claim or write.
-  if (stage === 'audition-coverage-plan' || (stage === 'audition-coverage' && !execute)) done(Promise.resolve().then(async () => {
+  if (stage === 'audition-orphan-plan' || (stage === 'audition-orphan' && !execute)) done(Promise.resolve().then(async () => {
+    const { plan, grantDraft, state } = await planFreshBookAuditionOrphan(config, env, argValue('--coverage-grant') ?? fail('fresh_book_arguments'),
+      argValue('--owner-approval') ?? fail('fresh_book_arguments')); return { plan, grantDraft, state }; }))
+  else if (stage === 'audition-coverage-plan' || (stage === 'audition-coverage' && !execute)) done(Promise.resolve().then(async () => {
     const { plan, grantDraft, state } = await planFreshBookAuditionCoverage(config, env, argValue('--topology-grant') ?? fail('fresh_book_arguments'),
       argValue('--owner-approval') ?? fail('fresh_book_arguments')); return { plan, grantDraft, state }; }))
   else if (stage === 'audition-topology-plan' || (stage === 'audition-topology' && !execute)) done(Promise.resolve().then(async () => {
@@ -6232,7 +6364,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const common = { config, env, grantFile: argValue('--grant') ?? fail('fresh_book_arguments'), grantSha: argValue('--grant-sha') ?? fail('fresh_book_arguments'),
       signal: controller.signal, log: (line: string) => console.log(line) };
-    done(stage === 'audition-coverage' ? runFreshBookAuditionCoverage(common) : stage === 'audition-topology' ? runFreshBookAuditionTopology(common) : stage === 'audition-calibration' ? runFreshBookAuditionCalibration(common) : stage === 'audition-rereview' ? runFreshBookAuditionRereview(common) : stage === 'audition-continuation' ? runFreshBookAuditionContinuation(common)
+    done(stage === 'audition-orphan' ? runFreshBookAuditionOrphan(common) : stage === 'audition-coverage' ? runFreshBookAuditionCoverage(common) : stage === 'audition-topology' ? runFreshBookAuditionTopology(common) : stage === 'audition-calibration' ? runFreshBookAuditionCalibration(common) : stage === 'audition-rereview' ? runFreshBookAuditionRereview(common) : stage === 'audition-continuation' ? runFreshBookAuditionContinuation(common)
       : stage === 'child-fresh-anchor' ? runFreshBookChildFreshAnchor(common) : stage === 'child-recovery' ? runFreshBookChildRecovery(common)
       : stage === 'storyboard-presence' ? runFreshBookStoryboardPresence(common)
       : stage === 'storyboard-calibration' ? runFreshBookStoryboardCalibration(common)

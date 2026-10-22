@@ -47,6 +47,7 @@ import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, audi
   type AuditionCoverageContinuation, type AuditionTopologyContinuation, type AuditionCalibration, type ReferenceStatus, type SavedSheet, type SavedPage, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
+import { DURABLE_REVIEW_VERSION, DurableReviewJournal, durableReviewJob } from './personal-durable-review';
 
 const fail = (code: string): never => { throw new ReviewedAuditionError(code); };
 const read = (file: string) => JSON.parse(fencedText(file, 32000000));
@@ -501,6 +502,22 @@ export const conservativeDebitSchema = z.object({ version: z.literal(AUDITION_CO
   claimSha256: hash, resultSha256: hash, failureSha256: hash, actualCost: z.literal('unknown') }).strict()
   .refine(d => d.debitMicroUsd === d.maximumMicroUsd, 'audition_meter_debit');
 export type ConservativeDebit = z.infer<typeof conservativeDebitSchema>;
+/** Different from a failed-call debit: explicitly approved budget provision for ONE ID-less orphan; outcome AND charge stay UNKNOWN. */
+export const orphanProvisionSchema = z.object({ version: z.literal('audition-orphan-provision/v1'), step: z.string().regex(/^[a-z][a-z0-9_]{0,79}$/),
+  seq: z.number().int().nonnegative(), wireDigest: hash, maximumMicroUsd: z.number().int().positive(), provisionMicroUsd: z.number().int().positive(),
+  claimSha256: hash, wireSha256: hash, actualCost: z.literal('unknown'), actualOutcome: z.literal('unknown') }).strict()
+  .refine(d => d.provisionMicroUsd === d.maximumMicroUsd, 'audition_orphan_provision');
+export type OrphanProvision = z.infer<typeof orphanProvisionSchema>;
+export function orphanProvisionOf(root: string, step: string): OrphanProvision {
+  if (!/^[a-z][a-z0-9_]{0,79}$/.test(step)) fail('audition_orphan_provision');
+  const at = (k: string) => path.join(root, `${step}.${k}.json`);
+  if (!existsSync(at('claim')) || !existsSync(at('wire')) || ['result', 'receipt', 'failure'].some(k => existsSync(at(k)))) fail('audition_orphan_provision');
+  const c = read(at('claim')), wire = read(at('wire'));
+  if (c.step !== step || previewSha(canonicalJson(wire)) !== c.wireDigest) fail('audition_orphan_provision');
+  return orphanProvisionSchema.parse({ version: 'audition-orphan-provision/v1', step, seq: c.seq, wireDigest: c.wireDigest,
+    maximumMicroUsd: c.maximumMicroUsd, provisionMicroUsd: c.maximumMicroUsd, claimSha256: previewSha(readFileSync(at('claim'))),
+    wireSha256: previewSha(readFileSync(at('wire'))), actualCost: 'unknown', actualOutcome: 'unknown' });
+}
 /** The conservative debit of one journaled call of a meter folder, derived from its own records only (the plan's one source of a debit). */
 export function conservativeDebitOf(root: string, step: string): ConservativeDebit {
   const at = (kind: string) => path.join(root, `${step}.${kind}.json`);
@@ -530,11 +547,14 @@ export class AuditionMeter {
    * known spend; a debit that does not bind one such record exactly refuses. Absent: every snapshot exactly as before.
    */
   constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls: number, readonly priorKnownApiMicroUsd = 0,
-    readonly carriedUnresolvedMicroUsd = 0, readonly rules?: MeterRules, readonly debits: readonly ConservativeDebit[] = []) {
+    readonly carriedUnresolvedMicroUsd = 0, readonly rules?: MeterRules, readonly debits: readonly ConservativeDebit[] = [],
+    readonly orphanProvisions: readonly OrphanProvision[] = []) {
     if (![capMicroUsd, maxCalls, priorKnownApiMicroUsd, carriedUnresolvedMicroUsd].every(Number.isSafeInteger) || carriedUnresolvedMicroUsd < 0 ||
       capMicroUsd <= priorKnownApiMicroUsd + carriedUnresolvedMicroUsd ||
       capMicroUsd - priorKnownApiMicroUsd > 8000000 || maxCalls < 1 || maxCalls > AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3) fail('audition_meter_policy');
     if (debits.some(d => !conservativeDebitSchema.safeParse(d).success) || new Set(debits.map(d => d.step)).size !== debits.length) fail('audition_meter_debit');
+    if (orphanProvisions.length > 1 || orphanProvisions.some(p => !orphanProvisionSchema.safeParse(p).success || debits.some(d => d.step === p.step)))
+      fail('audition_orphan_provision');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root);
   }
   /** A debit binds exactly its one record: the record's own bytes, request digest, sequence and maximum; no receipt; cost still unknown. */
@@ -552,10 +572,16 @@ export class AuditionMeter {
       return { claim: JSON.parse(readFileSync(path.join(this.root, name), 'utf8')), result: existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null };
     });
     let newKnownApiMicroUsd = 0, reservedUnsettledMicroUsd = 0, calls = 0, failed = 0, unknownCost = 0, unknownOutcome = 0, conservativeDebitMicroUsd = 0;
-    const settled: { seq: number; stage: string; completed: boolean }[] = [], debited = new Set<string>();
+    const settled: { seq: number; stage: string; completed: boolean }[] = [], debited = new Set<string>(), provisioned = new Set<string>();
+    let orphanProvisionMicroUsd = 0;
     for (const { claim, result } of records) {
       calls++;
       const debit = this.debits.find(d => d.step === claim.step);
+      const provision = this.orphanProvisions.find(p => p.step === claim.step);
+      if (provision) {
+        if (result || canonicalJson(orphanProvisionOf(this.root, claim.step)) !== canonicalJson(provision)) fail('audition_orphan_provision');
+        orphanProvisionMicroUsd += provision.provisionMicroUsd; provisioned.add(provision.step); continue;
+      }
       // A debit names a record whose outcome is settled (failed) and whose cost alone is unknown; anything else is not what it binds.
       if (debit && (!result || typeof result.estimatedMicroUsd === 'number')) fail('audition_meter_debit');
       if (!result) { unknownOutcome++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; continue; }
@@ -566,17 +592,20 @@ export class AuditionMeter {
       else { unknownCost++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; }
     }
     if (debited.size !== this.debits.length) fail('audition_meter_debit');
+    if (provisioned.size !== this.orphanProvisions.length) fail('audition_orphan_provision');
     // Two consecutive failures overall, or in one logical stage even when calls of another stage succeeded in between.
     const lastTwo = (list: typeof settled) => { const two = list.slice(-2); return two.length === 2 && two.every(s => !s.completed); };
     const ordered = settled.sort((a, b) => a.seq - b.seq);
     const repeatedFailure = lastTwo(ordered) || [...new Set(ordered.map(s => s.stage))].some(stage => lastTwo(ordered.filter(s => s.stage === stage)));
     const cumulativeAccountedMicroUsd = this.priorKnownApiMicroUsd + this.carriedUnresolvedMicroUsd + newKnownApiMicroUsd + conservativeDebitMicroUsd +
-      reservedUnsettledMicroUsd;
+      reservedUnsettledMicroUsd + orphanProvisionMicroUsd;
     if (this.rules && ![newKnownApiMicroUsd, reservedUnsettledMicroUsd, cumulativeAccountedMicroUsd].every(Number.isSafeInteger)) fail('audition_meter_cost');
     return { priorKnownApiMicroUsd: this.priorKnownApiMicroUsd, newKnownApiMicroUsd, reservedUnsettledMicroUsd,
       ...(this.carriedUnresolvedMicroUsd ? { carriedUnresolvedMicroUsd: this.carriedUnresolvedMicroUsd } : {}),
       // Opted in only: the conservative debits, apart from known spend; their calls' actual charge stays unknown.
       ...(this.debits.length ? { conservativeDebitMicroUsd, conservativeDebitCalls: debited.size, actualChargeUnknownCalls: debited.size } : {}),
+      ...(this.orphanProvisions.length ? { orphanProvisionMicroUsd, provisionedOrphanCalls: provisioned.size,
+        actualOutcomeUnknownCalls: provisioned.size, actualChargeUnknownCalls: debited.size + provisioned.size } : {}),
       cumulativeAccountedMicroUsd,
       capMicroUsd: this.capMicroUsd, calls, maxCalls: this.maxCalls, failed, unknownCost, unknownOutcome,
       repeatedFailure,
@@ -604,6 +633,8 @@ export class AuditionMeter {
       return made.value;
     } catch (error) {
       if (existsSync(path.join(this.root, `${step}.result.json`))) throw error;
+      // A durable provider job may still be running. Do not invent a settled failure (or a new attempt) from a local interruption.
+      if (error && typeof error === 'object' && 'durableReviewPending' in error && error.durableReviewPending === true) throw error;
       const receipt = error && typeof error === 'object' && 'receipt' in error ? (error as { receipt: unknown }).receipt : null;
       const cost = receipt && typeof receipt === 'object' && 'estimatedMicroUsd' in receipt &&
         Number.isSafeInteger((receipt as { estimatedMicroUsd: unknown }).estimatedMicroUsd) ? (receipt as { estimatedMicroUsd: number }).estimatedMicroUsd : null;
@@ -615,6 +646,49 @@ export class AuditionMeter {
       exclusiveJson(path.join(this.root, `${step}.result.json`), { wireDigest, estimatedMicroUsd: cost, completed: false });
       throw error;
     }
+  }
+  /**
+   * Explicit reconciliation of ONE existing claim, never a new call/slot. Its transport MUST be the GET-only durable resume seam. The
+   * original request/claim are checked before dispatch; the result is settled from the same raw answer under its own meter rule. Another
+   * unknown still blocks. A receipt already fsynced before a crash is preserved byte-for-byte, not overwritten.
+   */
+  async recover<T>(step: string, wire: unknown, retrieve: () => Promise<{ value: T; estimatedMicroUsd: number | null; receipt: unknown }>) {
+    if (!this.rules || !/^[a-z][a-z0-9_]{0,79}$/.test(step)) fail('audition_recovery_binding');
+    const rules = this.rules ?? fail('audition_recovery_binding');
+    const at = (kind: string) => path.join(this.root, `${step}.${kind}.json`), snapshot = this.snapshot();
+    if (snapshot.unknownCost || snapshot.unknownOutcome !== 1 || !existsSync(at('claim')) || existsSync(at('result')) || existsSync(at('failure')))
+      fail('audition_recovery_binding');
+    const claim = read(at('claim')), wireDigest = previewSha(canonicalJson(wire));
+    if (claim.step !== step || claim.wireDigest !== wireDigest || canonicalJson(read(at('wire'))) !== canonicalJson(wire) ||
+        ruledMaximum(ruleOf(rules, step), wire) !== claim.maximumMicroUsd) fail('audition_recovery_binding');
+    const claimSha256 = previewSha(readFileSync(at('claim'))), wireSha256 = previewSha(readFileSync(at('wire')));
+    const same = () => {
+      const now = this.snapshot();
+      if (previewSha(readFileSync(at('claim'))) !== claimSha256 || previewSha(readFileSync(at('wire'))) !== wireSha256 ||
+          now.unknownCost || now.unknownOutcome !== 1 || existsSync(at('result')) || existsSync(at('failure'))) fail('audition_recovery_binding');
+    };
+    let made: Awaited<ReturnType<typeof retrieve>>;
+    try { made = await retrieve(); }
+    catch (error) {
+      // A terminal response may fail schema/status while still carrying real usage. Only an actual receipt may settle that failure.
+      if (!error || typeof error !== 'object' || !('receipt' in error) || !error.receipt) throw error;
+      same();
+      const receipt = error.receipt as { estimatedMicroUsd?: number | null }, settled = ruleOf(rules, step).settle(wire, receipt, false);
+      if (!settled.coherent || settled.estimatedMicroUsd !== receipt.estimatedMicroUsd || existsSync(at('receipt'))) fail('audition_meter_cost');
+      exclusiveJson(at('failure'), { code: 'audition_recovered_terminal_failure', receipt });
+      exclusiveJson(at('result'), { wireDigest, estimatedMicroUsd: settled.estimatedMicroUsd, completed: false });
+      this.snapshot(); throw error;
+    }
+    same();
+    const settled = ruleOf(rules, step).settle(wire, made.receipt, true);
+    if (!settled.coherent || settled.estimatedMicroUsd !== made.estimatedMicroUsd) fail('audition_meter_cost');
+    if (existsSync(at('receipt'))) {
+      if (canonicalJson(read(at('receipt'))) !== canonicalJson(made.receipt)) fail('audition_recovery_binding');
+    } else exclusiveJson(at('receipt'), made.receipt);
+    exclusiveJson(at('result'), { wireDigest, estimatedMicroUsd: made.estimatedMicroUsd, completed: true });
+    this.snapshot();
+    if (made.estimatedMicroUsd === null) fail('audition_unknown_cost');
+    return made.value;
   }
 }
 
@@ -757,14 +831,42 @@ export function reviewTransport(deadlineMs: number, marginMs = AUDITION_TRANSPOR
 export async function sendReview(payload: Awaited<ReturnType<typeof auditionJudgePayload>>,
   opts: { apiKey: string; signal: AbortSignal; deadlineMs: number; baseURL: string;
     /** Made by the caller BEFORE its claim (an unavailable transport then refuses with nothing claimed or sent); released by that caller. */
-    transport?: ReturnType<typeof reviewTransport> }) {
+    transport?: ReturnType<typeof reviewTransport>;
+    /** Prospective opt-in only. The original claim/wire must exist; resume retrieves that SAME provider ID, never generates a replacement. */
+    durable?: { directory: string; claimFile: string; wireFile: string; resume?: true; pollMs?: number; afterIdCheckpoint?: () => void } }) {
   const own = !opts.transport, transport = opts.transport ?? reviewTransport(opts.deadlineMs);
   if (transport.limits.headersTimeoutMs <= opts.deadlineMs || transport.limits.bodyTimeoutMs <= opts.deadlineMs) fail('audition_transport_policy');
   try {
     const client = new OpenAI({ apiKey: opts.apiKey, baseURL: opts.baseURL, maxRetries: 0, logLevel: 'off', fetch: transport.fetch });
+    if (opts.durable) {
+      const body = durableReviewPayload(payload), d = opts.durable;
+      const wire = read(d.wireFile), claim = read(d.claimFile), wireDigest = previewSha(canonicalJson(digestImages(body)));
+      if (body.model !== REVIEW_MODEL || path.basename(d.wireFile) !== `${claim.step}.wire.json` ||
+          path.basename(d.claimFile) !== `${claim.step}.claim.json` || path.dirname(d.claimFile) !== path.dirname(d.wireFile) ||
+          canonicalJson(wire) !== canonicalJson(digestImages(body)) || claim.wireDigest !== wireDigest ||
+          claim.maximumMicroUsd !== SOL_PIXEL_REVIEW_SLOT_MICRO_USD) fail('audition_durable_claim');
+      const journal = new DurableReviewJournal(d.directory, { version: DURABLE_REVIEW_VERSION, wireDigest,
+        claimSha256: previewSha(readFileSync(d.claimFile)), bodySha256: previewSha(canonicalJson(body)), model: body.model,
+        semanticRequestSha256: body.metadata.semantic_request_sha256, retention: 'background-store-false-temporary' });
+      try {
+        return await durableReviewJob({ journal, resume: d.resume, signal: opts.signal, deadlineMs: opts.deadlineMs, pollMs: d.pollMs,
+          afterIdCheckpoint: d.afterIdCheckpoint,
+          create: async o => await client.responses.create(body, { signal: o.signal, timeout: o.timeoutMs }),
+          retrieve: async (id, o) => await client.responses.retrieve(id, {}, { signal: o.signal, timeout: o.timeoutMs }) });
+      } catch (error) {
+        // Leave the claim unresolved. The saved provider job might still complete; the next authorized operation may retrieve only its ID.
+        if (error && typeof error === 'object') Object.assign(error, { durableReviewPending: true });
+        throw error;
+      }
+    }
     return await client.responses.create(payload, { signal: opts.signal, timeout: opts.deadlineMs });
   } catch (error) { throw transport.annotate(error); }
   finally { if (own) await transport.release(); }
+}
+/** Same semantic request, explicitly different transport wire; its metadata binds the pre-transport request without a self-referential hash. */
+export function durableReviewPayload(payload: Awaited<ReturnType<typeof auditionJudgePayload>>) {
+  return { ...payload, background: true as const, store: false,
+    metadata: { semantic_request_sha256: previewSha(canonicalJson(digestImages(payload))) } };
 }
 /**
  * A failure's cause chain for its record (2026-10-22: a lost call must say which layer ended it): the transport's own failure when the
@@ -786,7 +888,10 @@ export function causeChain(error: unknown) {
 /** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
 export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void;
   /** Opt-in: steps whose request must be exactly a known one (a re-review re-sends the lost request): checked before the claim. */
-  expectedWire?: Readonly<Record<string, string>> }) {
+  expectedWire?: Readonly<Record<string, string>>;
+  /** Native grant opt-in, never a CLI/default switch. Reconciliation names just ONE existing job and cannot claim a new generation. */
+  durableReviews?: { version: typeof DURABLE_REVIEW_VERSION; resumeStep?: string } }) {
+  if (args.durableReviews && args.durableReviews.version !== DURABLE_REVIEW_VERSION) fail('audition_durable_policy');
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
   const check = () => { cancelled(); args.guard?.(); };
@@ -844,21 +949,30 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
       predecessor: predecessor ? bytesOf(predecessor) : null, kind });
     // The crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
     check();
-    const wire = digestImages(payload), expected = args.expectedWire?.[step];
+    const wire = digestImages(args.durableReviews ? durableReviewPayload(payload) : payload), expected = args.expectedWire?.[step];
     if (expected !== undefined && previewSha(canonicalJson(wire)) !== expected) fail('audition_rereview_wire');
     // The call's own transport, made before the claim: an unavailable one refuses here, with nothing claimed or sent.
     const transport = reviewTransport(AUDITION_REVIEW_TIMEOUT_MS);
     try {
-      return await args.meter.run(step, wire, SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
+      const dispatch = async () => {
         cancelled();
+        const durableRoot = path.join(path.dirname(args.meter.root), 'review-jobs');
+        if (args.durableReviews) {
+          if (!existsSync(durableRoot)) mkdirSync(durableRoot);
+          realDirectory(durableRoot);
+        }
         const raw = await sendReview(payload, { apiKey: args.key(), signal: args.signal, deadlineMs: AUDITION_REVIEW_TIMEOUT_MS,
-          baseURL: 'https://api.openai.com/v1', transport });
+          baseURL: 'https://api.openai.com/v1', transport,
+          ...(args.durableReviews ? { durable: { directory: path.join(durableRoot, step), claimFile: path.join(args.meter.root, `${step}.claim.json`),
+            wireFile: path.join(args.meter.root, `${step}.wire.json`), ...(args.durableReviews.resumeStep === step ? { resume: true as const } : {}) } } : {}) });
         const estimatedMicroUsd = reviewCost(raw);
         const receipt = { raw, estimatedMicroUsd };
         if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
         try { return { value: (kind === 'page' ? auditionPageReviewSchemaForContext(context) : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
         catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
-      });
+      };
+      return await (args.durableReviews?.resumeStep === step ? args.meter.recover(step, wire, dispatch)
+        : args.meter.run(step, wire, SOL_PIXEL_REVIEW_SLOT_MICRO_USD, dispatch));
     } finally { await transport.release(); }
   };
   const identity = async (step: string, reference: AuditionImage, candidate: AuditionImage) => {
@@ -1011,7 +1125,9 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   /** Only a new native continuation claim may supply this; the consumed audition grant/admission remain immutable. */
   calibration?: { grantSha256: string; contract: AuditionCalibration };
   topologyContinuation?: { grantSha256: string; contract: AuditionTopologyContinuation; firstReview: { step: string; wireDigest: string } };
-  coverageContinuation?: { grantSha256: string; contract: AuditionCoverageContinuation; firstReview: { step: string; wireDigest: string } } }) {
+  coverageContinuation?: { grantSha256: string; contract: AuditionCoverageContinuation; firstReview: { step: string; wireDigest: string } };
+  /** New one-use native successor only: old ID-less orphan stays UNKNOWN and its original admission remains immutable. */
+  coverageOrphanRecovery?: { version: 'audition-orphan-continuation/v1'; parentAdmissionSha256: string; provision: OrphanProvision } }) {
   if (args.debits?.length && !args.resume) fail('audition_meter_debit');
   if (args.rereview?.length && !args.resume) fail('audition_rereview_binding');
   if (args.calibration && (!args.resume || !args.experiment || args.rereview?.length ||
@@ -1025,7 +1141,11 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       !/^[a-f0-9]{64}$/.test(args.coverageContinuation.grantSha256) ||
       args.coverageContinuation.contract.version !== AUDITION_COVERAGE_CONTINUATION_VERSION ||
       !existsSync(path.join(args.out, 'admission-topology.json')))) fail('audition_coverage_parent');
-  if (existsSync(path.join(args.out, 'admission-coverage.json'))) fail('audition_coverage_used');
+  if (args.coverageOrphanRecovery && (!args.coverageContinuation || args.coverageOrphanRecovery.version !== 'audition-orphan-continuation/v1' ||
+      previewSha(readFileSync(path.join(args.out, 'admission-coverage.json'))) !== args.coverageOrphanRecovery.parentAdmissionSha256 ||
+      canonicalJson(read(path.join(args.out, 'admission-coverage.json')).contract) !== canonicalJson(args.coverageContinuation.contract))) fail('audition_orphan_parent');
+  if (existsSync(path.join(args.out, 'admission-coverage.json')) && !args.coverageOrphanRecovery) fail('audition_coverage_used');
+  if (existsSync(path.join(args.out, 'admission-coverage-orphan.json'))) fail('audition_orphan_used');
   if (existsSync(path.join(args.out, 'admission-topology.json')) && !args.coverageContinuation) fail('audition_topology_used');
   if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation && !args.coverageContinuation) fail('audition_calibration_used');
   args.experiment?.guard();
@@ -1051,13 +1171,15 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   // An experiment's audition (its grant names it, so a start or resume without its guard is refused above) re-derives its own calls before
   // every claim, resume and spend record: opted in exactly here. Every other run sums its saved records as before.
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
-    grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined, args.debits ?? []);
+    grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined, args.debits ?? [],
+    args.coverageOrphanRecovery ? [args.coverageOrphanRecovery.provision] : []);
+  if (args.coverageOrphanRecovery) meter.snapshot();
   // A re-review's step must send exactly its lost request (filled below on a resume, before anything is dispatched).
   const expectedWire: Record<string, string> = {};
   if (args.topologyContinuation) expectedWire[args.topologyContinuation.firstReview.step] = args.topologyContinuation.firstReview.wireDigest;
   if (args.coverageContinuation) expectedWire[args.coverageContinuation.firstReview.step] = args.coverageContinuation.firstReview.wireDigest;
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}),
-    expectedWire });
+    expectedWire, ...(args.coverageOrphanRecovery ? { durableReviews: { version: DURABLE_REVIEW_VERSION } } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
   const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
@@ -1085,10 +1207,14 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       parentAdmissionSha256: previewSha(readFileSync(path.join(args.out, 'admission-calibration.json'))),
       grantSha256: args.topologyContinuation.grantSha256, contract: args.topologyContinuation.contract,
       firstReview: args.topologyContinuation.firstReview, policy: reviewedAuditionPolicy(scaleLineup, true, LANDMARK_TOPOLOGY_VERSION) });
-    if (args.coverageContinuation) save('admission-coverage', { version: AUDITION_COVERAGE_CONTINUATION_VERSION,
+    if (args.coverageContinuation && !args.coverageOrphanRecovery) save('admission-coverage', { version: AUDITION_COVERAGE_CONTINUATION_VERSION,
       parentAdmissionSha256: previewSha(readFileSync(path.join(args.out, 'admission-topology.json'))),
       grantSha256: args.coverageContinuation.grantSha256, contract: args.coverageContinuation.contract,
       firstReview: args.coverageContinuation.firstReview, policy: reviewedAuditionPolicy(scaleLineup, true, LANDMARK_COVERAGE_TOPOLOGY_VERSION) });
+    if (args.coverageOrphanRecovery) save('admission-coverage-orphan', { ...args.coverageOrphanRecovery,
+      grantSha256: args.coverageContinuation!.grantSha256, contract: args.coverageContinuation!.contract,
+      firstReview: args.coverageContinuation!.firstReview, durableReview: DURABLE_REVIEW_VERSION,
+      policy: reviewedAuditionPolicy(scaleLineup, true, LANDMARK_COVERAGE_TOPOLOGY_VERSION) });
     const optional = (name: string) => existsSync(path.join(args.out, `${name}.json`)) ? read(path.join(args.out, `${name}.json`)) : undefined;
     const markers = readdirSync(args.out).filter(n => /^resume-[0-9]+\.json$/.test(n)).length + 1;
     const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => [n, optional(`page_${n}`)]).filter(([, p]) => p));
