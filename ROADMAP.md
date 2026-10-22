@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Real durable continuation terminalheld_sample; partial reader delivered, full book still NOT achieved (2026-10-22)
+
+- Exact code/nativePASS29b92214 +freshpreflight0 -> consumed3dd4c6ed at runtimebcfca737, realnative0/held_sample. FirstsavedimagefreshPASS;
+  second fourthLOWrenderheld, identityboth~1.0. No cover/pages3-8/fifth. Original2/4renders and33/89calls retained; no reset/retry/secondbook.
+- Five realknowncalls326544/oneimage; no neworphan, savedreviewIDs+terminalraw+usage. Bookaccounted4107418/7m/cycle4236348/8m, original
+  threeactualchargesUNKNOWN/oneoutcomeUNKNOWN remainexplicit, Max separate/no newMax. Remainingmoney/slots do NOT expand consumedallowance.
+- OutcomeaccuracyPASSc2a610dc/3407hash-static-replayassertions confirms407oldhashes,469initialsnapshotentries,8originaltexts,2images/7missing;
+  finalpartialviewer ART/same-book-durable-outcome-20261022/viewer/index-v2.html,477filefinalinventory. NOT fullbook/pixel/productPASS.
+- Next GENERAL gaps diagnosed: source-required action vs incidentalillustrativedirection across planner/render/judge; explicit structural-
+  anatomy severity (newjudge saysfivelegpaths yetdetail); sourceidentity/uncertainty vs geography/projection. No retrospectiveHOLD-to-PASS,
+  lexicalanatomy-promotion hack, canon/story/image patch or uncheckeddownstream. Newtechnical/product scope required before morepayment;
+  no production/default changes, push/deploy/cleanup or newmonitor. Docs-only closure preserves exact executed runtime and allhistoricalREDs.
+
 ## Durable failure-prefix F1 corrected once; independent exact re-gate before approved same-book execution (2026-10-22)
 
 - First frozen review HOLD3451c6fb found one P2 crash prefix. Code22adc507 now reconciles only its own actual-failure record to the missing

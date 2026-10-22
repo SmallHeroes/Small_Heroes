@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Actual durable successor executed: first sample PASS, fourth second sample HELD; book INCOMPLETE, no current paid continuation (2026-10-22)
+
+- Exact independent code/native/unusedgrant/wrapper PASS29b92214 at clean executed`bcfca737`, fresh exact nativepreflight0 -> ONE actual
+  run14:53:01.832Z..14:59:44.327Z. Real nativeexit0/signalnull, operator/native/knownchildren gone. Actual outcome`held_sample`, NOT bookPASS.
+  Fixed grant`3dd4c6ed` is now consumed; no re-open/reset/re-pin/ordinaryresume/newlabel/fifthsample2. Runtime pins/code unchanged by closure.
+- First SAME saved page1image: freshquality+gpt4oidentity~1.0/.70 =>qa_supported, detailframing only. No first redraw or oldraw retroactivePASS.
+  Second sample: ONE new LOWfourth totalrender `r6_page_2_3.png`; identity~1.0 passed, qualityheld. No cover/pages3-8. Rendercounts2/4,
+  cumulative33/89claims. Three DISTINCT blocking concerns across fourentries: frozenfingertracing/gaze direction, lower-animal staging,
+  uncertain identity of a rounded skyline rise. Hillraw+derived finding is oneconcern, not proven duplicate or a secondjudge.
+- General semantic risks remain: pixel contract treats stated pose/gaze/action as storycritical although fingertracing is visualdirection,
+  not literalHebrewtext. Judge also described five ibexlimbpaths but typedimpactdetail; classifier indeed treats detailanatomy as nonblocking.
+  Independent inspection qualifies exactlimbcount/worldheight across perspective; no parserfailure or manualreclassification established.
+  Future generic severity/narrative-direction contract work needs prospective tests/evidence; oldHOLDs remain. Not smooth autonomousbook proof.
+- New5actualsettledcalls326544microUSD ($0.326544), ONE image, no newUNKNOWN/no newMax. Bothreviewjobs saved providerID andterminalraw/usage.
+  BookKNOWN2307418 +OLDapproveddebits1200000 +NEWapprovedorphanprovision600000 =4107418/7000000;cycle4236348/8000000. Original3actualcharges
+  UNKNOWN/1outcomeUNKNOWN stay explicit. Bookremaining2892582/cycle3763652/56slots are arithmetic, NOT new sample allowance. Max historical
+  5.502244/8sessions separate, not APIinvoice/$0; no originalorphan outcome/charge invented and no doublecount of its reservation.
+- SAME independent outcome ACCURACY-PASS`c2a610dc`:3407hash/static/replay assertions exit0; all407oldhashes and469initialsnapshotfiles exact,
+  all33meterrecords rederived, exact five usagecosts,2actualimages+8originalHebrewtexts+7missing/496locallinks. NOT pixel/product/fullbookPASS.
+  ART`same-book-durable-outcome-20261022/viewer/index-v2.html` adds outcome-report links;477file finalinventory preserves469initialentries.
+  No livebrowser/layoutPASS (priorfileURLrefusal not bypassed). Storedchild/p1/p2images inspected only; fullbookvisualQA impossible whilemissing.
+- Full diagnosis ART`r1-general-durable-review-20261022/STOP-REPORT-AND-GENERAL-ENGINE-REPORT-20261022.txt`; independentreport sameQ
+  `INDEPENDENT-QA-DURABLE-ORPHAN-OUTCOME-20261022.txt` SHAc2a610dc108056941a6e66e3a6efb0447dca2d29c0bdebf79e927706065169e8.
+  TechnicalF1fix/codePASS remains valid, historicalfullcheckRED/firstHOLD/REDs immutable. Current safe boundary: no furtherpayment under
+  consumed exact allowance. Newscope required before further render/review; no budgetincrease assumed, no newtask/agent/monitor/key.
+  Docs-only closure, no source/runtime/book/auth edits, push/deploy/production/cleanup. Guy productacceptance outstanding; heldsheets remain
+  diagnostic. Automationstatus unverified (exacttoml absent/priorviewtoolrefused); no claim of pause/resume/change or replacementmonitor.
+
 ## Durable review F1 first focused correction: terminal failure-prefix reconciliation; exact independent re-gate next (2026-10-22)
 
 - Independent first frozen review of d86b1c58..674ef4b5 returned ONE verified P2 F1, not PASS: recover() rejected its OWN durable failure
