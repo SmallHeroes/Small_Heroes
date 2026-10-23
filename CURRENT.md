@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Key-event source interval bug fixed; untouched second plan ready for FIRST semantic review (2026-10-23)
+
+- Actual completion admitted source detail notes, then planner1/Sol held one sock-count concern (duplicated book/page rows); planner2
+  completed known output but native1/self_check_key_event_instant before its review. API8/221202microUSD; Max5/2553221 reported resource,
+  separately, zero unknown. All consumed outcomes remain failed/held. Same reviewer reproduced exact paid wire/raw with20offlinecontrols0.
+- General opt-in storyboard-self-check-source-spans/v1 adds actual unique same-page interval overlap containing a complete source word,
+  ONLY for keyEvent binding. Legacy containment/absent behavior and claim quotes remain unchanged; ambiguous/disjoint/punctuation/partialword
+  new overlaps refuse. Meaning/consequential event still require fresh Sol judgment. Compile-only marker changes storyboardDigest, review
+  input/frame context and exact saved-loader replay, NOT manuscript/sourceDigest or the original planner wire. No manual raw/source edit.
+- Code29ad5a64 parentf467be29: fixed ONE-use storyboard successor follows consumed completion/older ancestors, complete current book
+  inventory/source-admission/raw/repair/shared accounting. Recompile untouched known second planner output; its FIRST s4Solreview is unused.
+  Two planner attempts stay consumed, only original third remains if genuinely held. No new source/impact/completion/citation writing/calls.
+-60focused tests0 and nonincrementaltsc0 09:48:25.396Z before codecommit; actual full saved recompile and review preview0 (92420contentbytes),
+  actual native DRY plan0 atclean29ad5a64 09:49:35.893Z. Two initial synthetic-fixture REDs preserved (empty/no-op relation), corrected using
+  the existing fixture's valid earlier relation, not runtime relaxation. Historical fullcheckRED stays; no unchanged broad suites rerun.
+- SAME7mAPI/98calls +6mMax-resource; ordinary600000reviewreserve, original unspent child2/sheets2/page3TOTAL/LOW/.70/full8+cover. NextdocsLAST,
+  exact unused grant/operator/SAME independent readonly gate/freshpreflight/exclusive writer, then firstreview/unspent downstream. Q=ART/
+  r2-new-book-storyboard-span-20261023. No budget/model/production/default/key/task/worktree/monitor/push/delete changes; Guy product acceptance.
+
 ## Source-impact coverage contract fixed; ONE frozen-response completion ready for QA (2026-10-23)
 
 - Actual fresh impact call settled28656microUSD then native1/source_impact_coverage:5guards supported, first finding supported/detail,

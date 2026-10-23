@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## General key-event source-span correction and same second-plan FIRST review (2026-10-23)
+
+- Exact saved planner2/raw/wire diagnosis confirms two unique source intervals overlap while neither quote contains the other; v1 helper
+  wrongly treats containment as overlap. No malformed/unknown output. Old native1/consumed outcome preserved, sourceadmission notes valid.
+- Code29ad5a64: opt-in key-event-only unique word-bearing SOURCE overlap; explicit new digest-bound compiler/loader/review/frame marker,
+  old claim/v1/default behavior unchanged. Full unedited saved2ndplan compiles; FIRST new semantic review required, not oldPASS conversion.
+- Native fixed successor binds all parents/current files/counters. TWOplannerattempts consumed/ONEleft; s4FIRSTreview unused, no new source
+  writing/impact/completion/citation. API221202/8, Maxresource2553221/5 known. Same7m/98 +6mMax; child/sheets/pages/LOW/.70 still unspent.
+-60focused0, nonincrementaltsc0, actualrecompile+92420byte reviewpreview0/nativeDRYplan0. Initial2fixtureREDs and historicalfullcheckRED retained.
+  DocsLAST/frozen exact unused grant/operator/SAMEreadonlyQA/freshpreflight next, then automatic paid firstreview/remaining full-book flow.
+
 ## Exact source-impact coverage + one constrained same-source completion (2026-10-23)
 
 - Impact raw omitted1of2required decisions; native1/source_impact_coverage honest, cost28656known.5guards+firstdetail supported/12refsvalid;
