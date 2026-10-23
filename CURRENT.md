@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Receipt recovery pricing correction1 — OFFLINE GREEN, independent re-gate next (2026-10-23)
+
+- First independent HOLD16c5a674 on2f02978b/granta2d22a70 found ONE P2: raw Sol cache writes were charged at ordinary input rate.
+  Decoder/known-response replay otherwise verified;106tests0 and816bounded controls retained,including intentional pricingRED. No
+  execution of that unused grant. All failed paid outcomes and first HOLD remain immutable. No extra model/planner/review call.
+- Focused codebc9368ec +f6df3e66 adds opt-in sol-default-cache-write-budget/v1 to SAME TrialApiMeter for this receipt successor.
+  Original base journals,rules/claim maxima and old-version snapshots unchanged. Named settled cache-write supplement and pending25%
+  Sol-reservation margin enter cumulative cap; preclaim admission includes the prospective margin BEFORE any claim/provider. Pending
+  margin is replaced by settled adjustment once. Cached reads receive no discount; explicitly modeled upper bound,not invoice.
+- ALL5existing raw counts replay:base444510 +40053writeadjustment =484563microUSD/7m,5calls,1historicalfailed,unknown0/unsettled0.
+  Includes16959 for original3calls and23094 for newSol2. Actual Sol planner242116 and reviewer112004 modeledUSDmicro. Max1609594
+  reportedresource/6logical separately unchanged. Source/board3consumed/0newboard/0newreview unchanged;687history hashes preserved.
+- API semantic correction: prompt_cache_retention:24h is a MAXIMUM independent of MINIMUM prompt_cache_options.ttl. Official Responses
+  reference explicitly says they do not interact. All5real responses echo24h while wires omit minimumTTL(default30m). First blanket
+  retention refusal was caught by pure preflight before a grant/provider; retained in code history and diagnosis. Helper now accepts
+  documented24h/null/absent maximum,while requiring default/explicit30m minimumTTL;12h/unknown/mixed minimum options,partial/invalid
+  cache counts,wrong model/tier andlong-context refuse. No request/policy change or false zero-price assumption.
+-127affectedtests passed/0failed/0skipped over6files,final nonincremental wholetsc0. Actual native code-head proof exact priced plan,
+ 4preclaim/fee-reset/attempt/lease refusals,unchanged actual review_supported_with_notes,687preserved,0key/provider/bookwrites. No broad
+  fullcheck rerun;historicRED unchanged. Q=ART/r3-sol-receipt-recovery-20261023 holds PRICE-REPLAY-R1,NATIVE-PROOF-R1,logs/diagnosis.
+- Next:docsLAST,new technical pin of SAME UNUSED successor slot,independent exact re-gate of code/operator/grant,then same authorized
+  child/sheets/all8+coverLOW/reader. Old unused grant/operator/HOLD preserved;new filenames do not reset spent authority or create a book.
+
 ## Sol real run + known-response loader recovery — OFFLINE VERIFIED, pending independent gate (2026-10-23)
 
 - The prior Sol successor actually ran once at a13ff845 after independent code/operator PASS7227ff84. Planner232748microUSD;

@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Receipt-recovery pricing re-gate — general bounded correction1 (2026-10-23)
+
+- Independent first HOLD16c5a674 confirmed actual cache-write undercount across5known Sol calls,not new unknown cost or exhausted cap.
+  Unused granta2d22a70 stays unused/history;no provider call since original known local decoder failure.
+- Codebc9368ec/f6df3e66:opt-in SAME-meter additive tariff supplement+pending margin and preclaim bound,legacy records/snapshots unchanged.
+  Base444510 +40053 =484563/7m,5calls/1historicalfailure;Max1609594resource/6logical andboard3/3 unchanged. No cached-read discount.
+- Correct API maxretention24h vs minimumTTL30m distinction is primary-doc-backed; malformed/unknown/unsupported settings refuse.
+  127focusedtests0/6files,nonincrementaltsc0,actual native proof0/4preclaimrefusals/687preserved;0provider/key/bookwrites. First pure-plan
+  overly-strict retention refusal preserved and diagnosed. No broad/fullcheckGREEN claim.
+- DocsLAST/exact unused technical repin and SAME independent re-gate precede downstream child/8+coverLOW/reader. No new planner,
+  review,story/book,attempt,budget,key,narration,task/agent/monitor/worktree,production,push/deploy/cleanup. Old reader unchanged.
+
 ## Sol known-response integration recovery — no extra planning/review attempt (2026-10-23)
 
 - Real gated Sol plan232748 +review98278microUSD; cumulativeAPI444510/7m/5calls. Max1609594resource/6logical separately unchanged.
