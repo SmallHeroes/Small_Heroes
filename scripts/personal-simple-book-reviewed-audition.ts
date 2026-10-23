@@ -16,6 +16,7 @@ import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } f
 import { getCompanionById } from '../lib/companions';
 import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
+import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../lib/personal-wizard/options';
@@ -77,7 +78,9 @@ export const reviewedBookLayoutSchema = z.object({ version: z.literal('reviewed-
    * Opt-in (2026-10-21), only with childAnchor: the adopted anchor's context binds the pose contract of child-anchor-visible-pose/v1 or /v2
    * (its request is that version's pose description request). Absent: the context exactly as before.
    */
-  childAnchorPose: z.enum(childAnchorPoseVersions).optional() }).strict()
+  childAnchorPose: z.enum(childAnchorPoseVersions).optional(),
+  /** Explicit prospective scene presentation; a paid run must also name the same marker in its grant. Never changes sheets/anchors. */
+  readerFraming: z.literal(READER_SAFE_FRAMING_VERSION).optional() }).strict()
   .refine(l => l.childAnchorPose === undefined || l.childAnchor !== undefined, 'audition_layout_child_anchor_pose')
   // v2 binds the materiality contract's occlusion record: only beside the materiality acceptance.
   .refine(l => l.childAnchorPose !== CHILD_ANCHOR_POSE_V2 || l.childAnchor === CHILD_ANCHOR_MATERIALITY_VERSION, 'audition_layout_child_anchor_pose');
@@ -329,13 +332,15 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
       (ownerAcceptance === undefined ? disposition() !== result.status || result.storyboard.framePackets.length !== 9
         : disposition() !== result.status || result.storyboard.framePackets.length !== 0)) fail('audition_board_binding');
   const current = { request: queued.request, writerResult: result.source, options };
+  // First verify all historical source packets WITHOUT new guidance; then construct only future render/QA packets under the opt-in.
+  const renderCurrent: Parameters<typeof currentPersonalStoryboardFrame>[3] = layout.readerFraming === undefined ? current : { ...current, readerFraming: layout.readerFraming };
   if (ownerAcceptance === undefined) {
     for (let n = 0; n <= 8; n++) if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
-    return { queued, options, prepared, result, source, parentDraft, book, rawReview, current };
+    return { queued, options, prepared, result, source, parentDraft, book, rawReview, current: renderCurrent };
   }
   // Every frame builds under the acceptance (it binds this book, this review and all of its unsupported checks, or the engine refuses).
   for (let n = 0; n <= 8; n++) currentPersonalStoryboardFrame(book, rawReview, n, current, ownerAcceptance);
-  return { queued, options, prepared, result, source, parentDraft, book, rawReview, current, ownerAcceptance };
+  return { queued, options, prepared, result, source, parentDraft, book, rawReview, current: renderCurrent, ownerAcceptance };
 }
 
 /** The written child design a reference must show, under the active storyboard's wardrobe and owned clothing. */
@@ -352,7 +357,10 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
   // Optional re-plan (never the default): the child and companion references below are then checked against ITS storyboard.
   const replan = replanDir === undefined ? undefined
     : admitReplanStoryboard({ bookDir, request: queued.request, options, source: result.source, book, rawReview, draft: parentDraft }, replanDir);
-  const active = replan ?? { result, book, rawReview, current, companionDescription: source.companionDescription };
+  const activeBase = replan ?? { result, book, rawReview, current, companionDescription: source.companionDescription };
+  const activeCurrent: Parameters<typeof currentPersonalStoryboardFrame>[3] = layout.readerFraming === undefined ? activeBase.current
+    : { ...activeBase.current, readerFraming: layout.readerFraming };
+  const active = { ...activeBase, current: activeCurrent };
   // Child: the reviewed, passed reference adopted for this book, bound to its recomputed original context.
   const childDir = path.join(bookDir, layout.childDir);
   const adoption = read(path.join(childDir, 'reference_child_adoption.json'));
@@ -391,7 +399,8 @@ const referenceSchema = z.object({ image, status: z.enum(['approved_reference', 
 export const auditionGrantSchema = z.object({
   version: z.literal('audition-spend-grant/v1'),
   approvalReference: z.string().trim().min(30).max(2000),
-  book: z.object({ requestId: hash, storyboardDigest: hash }).strict(),
+  book: z.object({ requestId: hash, storyboardDigest: hash,
+    readerFraming: z.literal(READER_SAFE_FRAMING_VERSION).optional() }).strict(),
   ledger: z.object({ priorKnownApiMicroUsd: z.number().int().nonnegative(),
     /** An earlier call's still-unknown cost carried by an owner-approved continuation (never known spend). Absent on every legacy grant. */
     carriedUnresolvedMicroUsd: z.number().int().positive().optional(),
@@ -441,9 +450,10 @@ export function grantReferenceStatus(references: GrantReferences): ReferenceStat
   return { entities: status(references.entities), locations: status(references.locations) };
 }
 
-export function readAuditionGrant(file: string, book: { requestId: string; storyboardDigest: string }) {
+export function readAuditionGrant(file: string, book: { requestId: string; storyboardDigest: string; readerFraming?: typeof READER_SAFE_FRAMING_VERSION }) {
   const grant = auditionGrantSchema.parse(read(file));
   if (grant.book.requestId !== book.requestId || grant.book.storyboardDigest !== book.storyboardDigest) fail('audition_grant_book');
+  if (grant.book.readerFraming !== book.readerFraming) fail('audition_grant_reader_framing');
   for (const e of grant.ledger.evidence) if (!path.isAbsolute(e.file) || previewSha(readFileSync(e.file)) !== e.sha256) fail('audition_grant_evidence');
   return { grant, sha256: previewSha(readFileSync(file)) };
 }
@@ -1205,7 +1215,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation && !args.coverageContinuation && !args.anatomyRecovery && !diagnostic) fail('audition_calibration_used');
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
-  const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
+  const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest,
+    ...(loaded.current.readerFraming ? { readerFraming: loaded.current.readerFraming } : {}) });
   if (!!grant.experiment !== !!args.experiment || grant.experiment && (grant.experiment.slot !== args.experiment!.slot ||
       grant.experiment.claimSha256 !== args.experiment!.claimSha256)) fail('audition_experiment_guard');
   assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
@@ -1253,6 +1264,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
+    ...(loaded.current.readerFraming ? { readerFraming: loaded.current.readerFraming } : {}),
     policy: reviewedAuditionPolicy(scaleLineup), grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
     reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
     ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
@@ -1401,6 +1413,11 @@ export function dryRun(bookDir: string, storyboardDir?: string, layout?: Reviewe
   const landmarkCatalogue = auditionPageChecks(loaded.book, 0, loaded.companionDescription).uniqueLandmarks
     .map(l => ({ id: l.id, features: l.features.map(f => `${f.id} ${f.decisive ? "decisive" : "listed"} ${f.aspect}: ${f.text}`) }));
   return { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest, title: loaded.title, landmarkCatalogue,
+    ...(loaded.current.readerFraming ? { readerFraming: loaded.current.readerFraming,
+      pageFraming: Array.from({ length: loaded.book.narrativeSpreads + 1 }, (_, page) => {
+        const packet = currentPersonalStoryboardFrame(loaded.book, loaded.rawReview, page, loaded.current, loaded.ownerAcceptance);
+        return { page, framing: packet.context.readerFraming, promptSha: packet.render.promptSha, contextSha: packet.render.contextSha };
+      }) } : {}),
     ...(loaded.replan ? { replan: loaded.replan } : {}), ...(designs.entities.scaleLineup ? { scaleLineup: designs.entities.scaleLineup } : {}),
     pageDeferred: designs.pageDeferred.map(d => `${d.entityId}:${d.requirement} (${d.reason} -> ${d.verifiedOn})`),
     entitiesSheet: ids(designs.entities as never), locationsSheet: ids(designs.locations as never), checks,

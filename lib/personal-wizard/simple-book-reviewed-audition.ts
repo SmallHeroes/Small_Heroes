@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
 import { previewSha } from '../local-story-preview';
 import { STYLE_01_SHARED } from '../style01-prompt-core';
+import { readerSafeSceneFraming } from '../storybook-scene-framing';
 import { qualityDisposition, previewQualityContextSha, QUALITY_CATEGORIES, PREVIEW_JUDGE_INSTRUCTION } from '../local-preview-quality';
 import { BOOK_SEQUENCE_ROLES } from '../local-book-sequence';
 import { currentPersonalStoryboardFrame, type PersonalStoryboard } from './storyboard';
@@ -791,6 +792,18 @@ function coveragePageInstruction() {
   return text.slice(0, start) + COVERAGE_INVENTORY_RULE + text.slice(end);
 }
 
+/** The same prospective presentation contract the renderer used; absence preserves exact historical judge bytes. */
+function readerFramingJudgeInstruction(context: unknown) {
+  const packet = context && typeof context === 'object' && 'packet' in context ? context.packet : undefined;
+  if (!packet || typeof packet !== 'object' || !('readerFraming' in packet)) return '';
+  const framing = packet.readerFraming as ReturnType<typeof readerSafeSceneFraming>;
+  try {
+    const expected = readerSafeSceneFraming(framing.version, framing.shot, framing.authoredChildHeightFraction ?? undefined);
+    if (canonicalJson(framing) !== canonicalJson(expected)) fail('audition_reader_framing_contract');
+  } catch { return fail('audition_reader_framing_contract'); }
+  return `\nREADER-SAFE SCENE FRAMING (${framing.version}): context.packet.readerFraming is the render's prospective presentation target, replacing ONLY the source plan's older occupancy target. Compare the complete source image, not a magnified crop. Target and 70% ceiling are different; wide/normal targets remain smaller. The central safeActionRect covers the essential visible actors and story interaction, not every background feature. Numeric occupancy/safe-area drift alone is detail, never a new HOLD or retry. A real missing required action, illegible required identity, anatomy or safety defect still has its existing impact and must cite its actual requirement; never hide it as framing detail. No reinterpretation of previous pixels or verdicts.`;
+}
+
 /**
  * The judge instruction for a judged context: a sheet whose entities design carries the opt-in lineup gets the lineup checks; every other
  * context gets exactly the existing instruction. Chosen from the judged context itself, so a request can never pair a lineup design with
@@ -806,7 +819,7 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
       : AUDITION_JUDGE_INSTRUCTIONS.page;
     return base + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '') +
       (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '') +
-      (auditionAnatomyCast(context) ? `\n${ANATOMY_JUDGE_RULES}` : '');
+      (auditionAnatomyCast(context) ? `\n${ANATOMY_JUDGE_RULES}` : '') + readerFramingJudgeInstruction(context);
   }
   if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
@@ -1074,7 +1087,7 @@ export function auditionPageContext(book: PersonalStoryboard, packetContext: unk
 
 export async function illustrateReviewedAudition(args: {
   book: PersonalStoryboard; rawReview: unknown; texts: readonly string[];
-  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions };
+  current: Parameters<typeof currentPersonalStoryboardFrame>[3];
   child: AuditionImage; companion: AuditionImage; companionDescription: string;
   render: Render; judge: Judge;
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>;
@@ -1629,7 +1642,7 @@ function summary(phase: 'sheet' | 'page', s: Pick<SavedSheet, 'attempts' | 'chos
 }
 
 /** Re-judge already saved images with the current checks (no render, no identity). Diagnostic evidence for the judge only. */
-export async function rejudgeAudition(args: { book: PersonalStoryboard; rawReview: unknown; current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions };
+export async function rejudgeAudition(args: { book: PersonalStoryboard; rawReview: unknown; current: Parameters<typeof currentPersonalStoryboardFrame>[3];
   companionDescription: string; canonical: AuditionImage[]; references: ReferenceStatus;
   frames: readonly { pageNumber: number; candidate: AuditionImage; predecessor: AuditionImage | null; label: string }[];
   judge: Judge; check: () => void; save: (name: string, value: unknown) => void;

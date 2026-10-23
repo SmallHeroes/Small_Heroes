@@ -6,6 +6,7 @@ import { parseStoryMarkdown } from './story-validators/parser';
 import { STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE, STYLE_01_FRAMING_RULE, STYLE_01_FRAMING_RULE_CLOSE_UP, buildStyle01ChildAnatomicalLock } from './style01-prompt-core';
 import { buildStyle01AnatomyIntegrityLock } from './style01-visual-polish';
 import { previewContinuitySchema, previewContinuityContext } from './local-preview-quality';
+import { readerSafeSceneFraming, readerSafeSceneFramingPrompt, type ReaderSafeFramingVersion } from './storybook-scene-framing';
 
 // This is an audition artifact, deliberately not a VisualPackage or runtime authority.
 export const PREVIEW_VERSION = 'local-story-preview/v1';
@@ -104,13 +105,15 @@ export function validatePreviewPlan(value: unknown, pageCount: number): PreviewP
   return plan;
 }
 
-export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: string, childAge: number, gender: string, companionDescription: string) {
+export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: string, childAge: number, gender: string, companionDescription: string,
+  readerFraming?: ReaderSafeFramingVersion) {
   const p = plan.pages[pageNumber];
   if (!p || p.pageNumber !== pageNumber) throw Error('unknown_page');
   return [
     STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE,
     buildStyle01ChildAnatomicalLock({ childAge, allowDistinctSupportingChildren: true }), buildStyle01AnatomyIntegrityLock(),
-    p.shot === 'close' ? STYLE_01_FRAMING_RULE_CLOSE_UP : STYLE_01_FRAMING_RULE,
+    readerFraming === undefined ? (p.shot === 'close' ? STYLE_01_FRAMING_RULE_CLOSE_UP : STYLE_01_FRAMING_RULE)
+      : readerSafeSceneFramingPrompt(readerSafeSceneFraming(readerFraming, p.shot, plan.continuity?.pages[pageNumber].childHeightFraction)),
     'Reference roles: image 1 = exact child identity and watercolor technique ONLY; image 2 = exact companion design ONLY; image 3, when attached = recurring PROP design board ONLY. Never copy their pose, expression, composition or blank backdrop. No panels, collage, captions, words or typography.',
     `CHILD: ${childAge}-year-old ${gender}; same face/hair/skin identity. ${plan.actorAppearance ? 'CHILD-OWNED CLOTHING ONLY' : 'BOOK WARDROBE LOCK'}: ${plan.wardrobe}`,
     `COMPANION: ${companionDescription}`,

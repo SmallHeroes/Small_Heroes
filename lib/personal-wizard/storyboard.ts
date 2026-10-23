@@ -6,6 +6,7 @@ import { compileWholeBookDraft, wholeBookDraftSchema, ownedWholeBookDraftSchema,
 import { previewTextPages, previewStoryEvidence, previewSha, previewPagePrompt, selectedDraftQaContext } from '../local-story-preview';
 import { sequencePageState, sequenceRenderPrompt } from '../local-book-sequence';
 import { canonicalJson } from './request-acceptance';
+import { readerSafeSceneFraming, type ReaderSafeFramingVersion } from '../storybook-scene-framing';
 import { anyPersonalStoryResultSchema } from './story-editor-contract';
 import { assertStoryEditBinding, editorNeedsWork } from './story-editor';
 import { admitCurrentStoryboardStory } from './storyboard-source-admission';
@@ -660,7 +661,7 @@ function bindOwnerAcceptance(book: PersonalStoryboard, decision: StoryboardRevie
  * bound acceptance (storyboardOwnerAcceptance), which the packet then names; absent, exactly the existing packet.
  */
 export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unknown, pageNumber: number,
-  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }, ownerAcceptance?: unknown) {
+  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions; readerFraming?: ReaderSafeFramingVersion }, ownerAcceptance?: unknown) {
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
@@ -678,6 +679,9 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   const depicted = book.moments?.frames[pageNumber].depicted ?? null;
   const sequence = ledger && depicted ? drawnSequenceState(book, pageNumber, ledger, depicted) : ledger;
   const plan = book.moments ? planAtDrawnInstant(book.plan, book.moments, pageNumber) : book.plan;
+  // Explicit prospective presentation only. The historical plan and saved frame packets are never rewritten.
+  const readerFraming = current.readerFraming === undefined ? undefined : readerSafeSceneFraming(current.readerFraming,
+    plan.pages[pageNumber].shot, plan.continuity?.pages[pageNumber].childHeightFraction);
   // Claim basis: this frame's verified citation notes (claim ref -> the cited span), for its judge and its render lines.
   const verifier = book.claimBasis && decision.impact ? citationVerifier(book, previewStoryEvidence(source.story).texts) : null;
   const citations = verifier ? decision.impact!.notes.flatMap(note => note.issues).filter(i => i.ref.startsWith(`p${pageNumber}:`) && verifier.binds(i))
@@ -686,14 +690,14 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     storyboardDigest: book.storyboardDigest, reviewDigest: decision.reviewDigest,
     requestId: book.requestId, pageNumber, text, ...(book.selfCheckSourceSpans ? { selfCheckSourceSpans: book.selfCheckSourceSpans } : {}),
     companion: { id: source.request.companion.id, description: source.companionDescription },
-    visual: selectedDraftQaContext(plan, pageNumber), sequence,
+    visual: selectedDraftQaContext(plan, pageNumber), sequence, ...(readerFraming ? { readerFraming } : {}),
     ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
     ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
     // Typed policy: the bound non-blocking notes travel with every frame (the judge sees what the review accepted as detail).
     ...(decision.impact ? { reviewImpact: { version: decision.impact.version, disposition: decision.disposition, notes: decision.impact.notes } } : {}),
     ...(book.claimBasis ? { claimBasis: { version: book.claimBasis.version, citations } } : {}) };
   const packetDigest = digest(context);
-  const base = previewPagePrompt(plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
+  const base = previewPagePrompt(plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription, current.readerFraming);
   // No prior pixels are being claimed reviewed or attached by this offline bridge.
   const sequenced = sequence ? sequenceRenderPrompt(base, { ...sequence, predecessor: null }, null) : base;
   const section = book.moments ? (book.claimBasis ? momentRenderSection(book.moments, pageNumber, new Map(citations.map(c => [c.ref, c.text])))
@@ -705,7 +709,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
 
 /** Current packet admission, still diagnostic and never permission to spend/render. */
 export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawReview: unknown, pageNumber: number,
-  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }, ownerAcceptance?: unknown) {
+  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions; readerFraming?: ReaderSafeFramingVersion }, ownerAcceptance?: unknown) {
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   admitCurrentStoryboardStory(source.request, source.result, current.options);
