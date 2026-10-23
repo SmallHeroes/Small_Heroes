@@ -386,7 +386,7 @@ export class TrialApiMeter extends AuditionMeter{
     for(const name of readdirSync(this.root).filter(n=>n.endsWith('.claim.json'))){
       const at=(kind:string)=>path.join(this.root,name.replace('.claim.',`.${kind}.`)),claim=read(at('claim')),wire=read(at('wire'));
       if(!existsSync(at('result'))){pendingCacheWriteReserveMicroUsd+=solCacheReserveMargin(wire,claim.maximumMicroUsd);continue;}
-      const result=read(at('result'));if(result.estimatedMicroUsd===null)continue; // Original unknown gates still stop all further spend.
+      const result=read(at('result'));if(result.estimatedMicroUsd===null){pendingCacheWriteReserveMicroUsd+=solCacheReserveMargin(wire,claim.maximumMicroUsd);continue;} // Unknown keeps BOTH reservation and original blocking flag.
       const receipt=existsSync(at('receipt'))?read(at('receipt')):read(at('failure')).receipt;
       cacheWriteAdjustmentMicroUsd+=solCacheWriteAdjustment(wire,receipt?.raw);
     }

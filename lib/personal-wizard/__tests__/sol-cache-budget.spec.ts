@@ -11,6 +11,21 @@ const raw=(writes=11,reads=0)=>({model:'gpt-6.1-sol',service_tier:'default',stat
  usage:{input_tokens:12,output_tokens:3,input_tokens_details:{cache_write_tokens:writes,cached_tokens:reads}}});
 const receipt=(r=raw())=>({raw:r,usage:{inputTokens:12,outputTokens:3},estimatedMicroUsd:54});
 describe('explicit raw-based Sol cache-write budget supplement; no provider',()=>{
+ it('refuses actual input-node breakpoint overrides before claim,without reading story/schema mentions as cache controls',async()=>{
+  const input=[{role:'user',content:[{type:'input_text',text:'Synthetic override',prompt_cache_breakpoint:{mode:'explicit',ttl:'12h'}}]}],
+    nested={...wire(),json:JSON.stringify({model:'gpt-6.1-sol',service_tier:'default',input})},folder=root(),meter=new TrialApiMeter(folder,'',true);let calls=0;
+  expect(()=>solCacheReserveMargin(nested,600000)).toThrow();
+  await expect(meter.run('s0_final_review',nested,600000,async()=>{calls++;return{value:1,estimatedMicroUsd:54,receipt:receipt()};})).rejects.toThrow();
+  expect(calls).toBe(0);expect(readdirSync(folder)).toEqual([]);
+  const harmless={model:'gpt-6.1-sol',service_tier:'default',input:'Story DATA says prompt_cache_breakpoint ttl12h,not actual control',
+    text:{format:{schema:{properties:{prompt_cache_breakpoint:{type:'string'}}}}}};
+  expect(solCacheReserveMargin(harmless,600000)).toBe(150000);
+ });
+ it('retains the cache margin after an unknown result,while blocking every next call',async()=>{
+  const meter=new TrialApiMeter(root(),'',true);await expect(meter.run('s0_final_review',wire(),600000,async()=>{throw Error('SYNTHETIC_UNKNOWN_OUTPUT');})).rejects.toThrow('SYNTHETIC_UNKNOWN_OUTPUT');
+  expect(meter.snapshot()).toMatchObject({unknownCost:1,reservedUnsettledMicroUsd:600000,pendingCacheWriteReserveMicroUsd:150000,cumulativeAccountedMicroUsd:750000});
+  let calls=0;await expect(meter.run('s0_comparison',wire(),600000,async()=>{calls++;return{} as any;})).rejects.toThrow('audition_unknown_cost');expect(calls).toBe(0);
+ });
  it('reproduces all5 inherited real usage counts and per-call rounding without changing base records',()=>{
   const rows=[[5405,5402,20600,23301],[3647,3644,10774,12596],[24875,24872,82110,94546],[18739,18736,232748,242116],[27454,27451,98278,112004]];
   const delta=rows.map(([input,writes,base,total])=>{const r=raw();r.usage.input_tokens=input;r.usage.input_tokens_details.cache_write_tokens=writes;

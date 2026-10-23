@@ -1,6 +1,14 @@
 /** Opt-in tariff supplement; legacy base-rate records remain immutable. No provider/key/filesystem side effects. */
 export const SOL_CACHE_BUDGET='sol-default-cache-write-budget/v1' as const;
 const fail=():never=>{throw Error('trial_sol_cache_pricing');};
+/** This restricted pricing policy supports no per-content overrides. Strings and output schemas are DATA,not cache controls. */
+function noInputBreakpoints(value:unknown,seen=new Set<object>()){
+  if(!value||typeof value!=='object')return;
+  if(seen.has(value))fail();seen.add(value);
+  if(Object.prototype.hasOwnProperty.call(value,'prompt_cache_breakpoint'))fail();
+  for(const child of Object.values(value))noInputBreakpoints(child,seen);
+  seen.delete(value);
+}
 function requestOf(wire:any){
   if(wire?.payload)return wire.payload;
   if(typeof wire?.json==='string'){try{return JSON.parse(wire.json);}catch{return fail();}}
@@ -10,6 +18,7 @@ function requestOf(wire:any){
 export function isSolCacheWire(wire:unknown){
   const request=requestOf(wire);
   if(request?.model!=='gpt-6.1-sol')return false;
+  noInputBreakpoints(request.input);
   if(request.service_tier!==undefined&&request.service_tier!=='default')fail();
   const options=request.prompt_cache_options;
   if(options!==undefined&&(!options||typeof options!=='object'||Array.isArray(options)||
