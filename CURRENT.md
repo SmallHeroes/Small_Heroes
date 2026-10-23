@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## General storyboard state parity + truthful quota diagnostics — offline code complete, independent gate pending (2026-10-23)
+
+- Direct owner request: fix the engine and test it, not manually repair this story or reopen the consumed trial. Code9ce9615b
+  (parent e18ba8a3) introduces explicit storyboard-state-parity/v1; production and existing trial defaults remain unchanged.
+- Root-cause correction: local-book-planning and local-book-sequence REQUIRE mutable attributes to retain an invariant BASELINE.
+  Old calibration instead told the planner not to keep changed attributes invariant and the reviewer treated that overlap as forbidden.
+  The new opt-in replaces those conflicting clauses and derives fixed attributes vs mutable baseline/evidenced changes from the SAME
+  compiler ledger. Removing the baseline or banning overlap would be incorrect. A mutable declaration is NOT semantic permission.
+- Explicit temporal parity: initialStates is the end of body page1, whose transitions stay empty; later transitions join page-end states.
+  A supported depicted instant is frame-local, never persisted into later pages. Select one consequential readable action/result without
+  requiring a timeline in one picture. The real p4catch is in the text; its earlier semantic HOLD is not reclassified or automatically passed.
+- Contract marker binds planner/reviewer source+context, compiled book, repair parent, actual diagnostic/flow callbacks, restore and frame
+  packets. Old flag-absent behavior replays exactly. New semantics require a fresh real review; old raw answers cannot become new verdicts.
+- Strict claude-resource-stop/v1 recognizes a structured, terminated429 quota refusal ONLY with zero reported resource and complete zero
+  usage. Native transport observes it before callback wrappers obscure the cause; reporting faults cannot erase the original receipt.
+  It remains a consumed failed attempt/stopped budget, not retry, checkpoint recovery, availability proof or accounting/authority reset.
+- Final affected suite:212passed/0failed/0skipped across11files; whole-project nonincrementaltsc0. The earlier206/1RED was the intentional
+  supported-contract enum expectation, fixed explicitly and retained. No broad/fullcheck rerun; historicalRED/stale/timeouts unchanged.
+- Real saved-record replay at codeHEAD:313files unchanged, exact old book+held assessment and9old frame packets. The new source rejects
+  the old review. Actual injected callbacks agree on the new marker; fresh review94742/104000bytes (9258headroom). These are structural/
+  provenance checks, NOT a new literary/pixel judgment. Replay deliberately stops before any semantic review/provider.
+- Q=ART/r3-storyboard-state-parity-20261023 holds Decision Gate, focused logs/exits, real replay and preservation evidence. ZERO new
+  API/Max/image/audio calls, keys or grants. Existing failed_trial/claim/outcome/accounting and current mom reader remain untouched.
+- Next: docsLAST/clean immutable range to SAME authorized independent read-only reviewer. Max weekly availability is still externally
+  blocked; no consumed command retry, model switch, paid continuation, automatic monitor, production/Wizard/push/deploy or cleanup.
+
 ## New reader-safe book trial — TERMINAL Claude Max weekly-quota block; NO new illustrations (2026-10-23)
 
 - Exact new one-use trial owner-reader-safe-book-20261023/v1 ran at09b35d7e after independent code/unused-grant/operatorPASS4a4f3448:

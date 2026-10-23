@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## General state parity correction — offline validation complete, independent gate pending (2026-10-23)
+
+- Owner-approved general fix at9ce9615b: explicit storyboard-state-parity/v1 aligns planner, reviewer, compiler-derived fixed/mutable
+  authority, end-page ledger and depicted instant. No second ledger/classifier, blanket overlap ban, story-specific edit or retroactivePASS.
+- Important correction to the prior diagnosis: invariants ARE initial values when a mutable attribute is explicitly declared. The compiler
+  requires that baseline; old calibration instructions conflicted with it. Truly fixed/unsupported changes and semantic uncertainty still hold.
+- New marker is prospective and hash-bound through actual callbacks/restore/frames; absence preserves legacy bytes. Strict quota diagnostics
+  expose a verified zero-usage429 before callback wrappers, but DO NOT retry, restore a consumed claim, infer a bill or authorize continuation.
+-212affectedtests0/11files/no skips, nonincremental whole-projecttsc0;313preservation hashes and9exact old frame packets; new-review request
+  94742/104000bytes. Synthetic/callback/saved-replay proof only, no fresh semantic or pixel validation. Earlier enum-expectationRED retained
+  and fixed; historical fullcheckRED unchanged. Q=r3-storyboard-state-parity-20261023; next SAME independent read-only QA at clean docsHEAD.
+- ZERO provider/key/image/audio/grant work. External Max quota remains the actual live dependency. A future same-book continuation must be
+  separately checkpoint/remaining-attempt-bound and reviewed, not a rerun of the consumed command or silent policy/model change.
+
 ## New reader-safe book trial — EXTERNAL Max quota block, framing-pixel validation still pending (2026-10-23)
 
 - The ONE new trial actually ran at09b35d7e after exact independentPASS/fresh preflight. Eight new source pages/first storyboard produced;
