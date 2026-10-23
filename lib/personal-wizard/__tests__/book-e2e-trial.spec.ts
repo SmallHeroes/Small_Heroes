@@ -2,7 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {mkdtempSync,readFileSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
-import {BOOK_E2E_TRIAL,TrialApiMeter,TrialMaxBudget,trialApiRules,trialConfigSchema} from '../../../scripts/personal-book-e2e-trial';
+import {BOOK_E2E_TRIAL,READER_SAFE_BOOK_TRIAL,bookTrialPolicy,runTrialSourceImpact,TrialApiMeter,TrialMaxBudget,trialApiRules,trialConfigSchema} from '../../../scripts/personal-book-e2e-trial';
 import {auditionRenderPlan} from '../../../scripts/personal-simple-book-reviewed-audition';
 import {prepareSourceImpactReview,compileSourceImpactReview,SOURCE_REVIEW_IMPACT,prepareSourceImpactCompletion,compileSourceImpactCompletion,SOURCE_IMPACT_COMPLETION} from '../source-review-impact';
 
@@ -11,6 +11,16 @@ const raw={model:'gpt-6.1-sol',service_tier:'default',status:'completed',output_
 const wire={role:'astra',stage:'final_review',model:'gpt-6.1-sol',outputCap:16000,json:JSON.stringify({model:'gpt-6.1-sol',input:'test'})};
 const receipt=()=>({raw:structuredClone(raw),usage:{inputTokens:12,outputTokens:3},estimatedMicroUsd:54});
 describe('new full-book native trial',()=>{
+  it('selects only the second directly authorized fixed trial without changing legacy authority or ceilings',()=>{
+    const before=JSON.stringify(BOOK_E2E_TRIAL),next=bookTrialPolicy(READER_SAFE_BOOK_TRIAL.id);
+    expect(bookTrialPolicy(BOOK_E2E_TRIAL.id)).toBe(BOOK_E2E_TRIAL);
+    expect(next.claim).not.toBe(BOOK_E2E_TRIAL.claim);expect(next.outcome).not.toBe(BOOK_E2E_TRIAL.outcome);
+    expect(next.apiCapMicroUsd).toBe(7000000);expect(next.maxResourceMicroUsd).toBe(6000000);
+    expect(READER_SAFE_BOOK_TRIAL.readerFraming).toBe('reader-safe-scene-framing/v1');
+    expect(READER_SAFE_BOOK_TRIAL.sourceImpactReviews).toBe(1);expect(READER_SAFE_BOOK_TRIAL.sourceImpactCompletions).toBe(1);
+    expect(()=>bookTrialPolicy('arbitrary-folder-or-cycle' as never)).toThrow('trial_cycle');
+    expect(JSON.stringify(BOOK_E2E_TRIAL)).toBe(before);
+  });
   it('fixes one new slot and both ceilings, not a renamed old consumed grant',()=>{
     expect(BOOK_E2E_TRIAL.id).toBe('owner-new-book-e2e-20261023/v1');expect(BOOK_E2E_TRIAL.apiCapMicroUsd).toBe(7000000);
     expect(BOOK_E2E_TRIAL.maxResourceMicroUsd).toBe(6000000);expect(BOOK_E2E_TRIAL.pageAttempts).toBe(3);
@@ -18,6 +28,7 @@ describe('new full-book native trial',()=>{
     const config={version:'book-e2e-trial-config/v1',cycle:BOOK_E2E_TRIAL.id,ownerFile:'C:/o',ownerSha:'a'.repeat(64),bookDir:'C:/b',profileFile:'C:/p',
       profileSha:'b'.repeat(64),executable:'C:/exe',executableSha256:'c'.repeat(64),keyFile:'C:/existing'};
     expect(trialConfigSchema.safeParse(config).success).toBe(true);
+    expect(trialConfigSchema.safeParse({...config,cycle:READER_SAFE_BOOK_TRIAL.id}).success).toBe(true);
     expect(trialConfigSchema.safeParse({...config,cycle:'owner-autonomous-book-api-20261017/fresh-book-usd7'}).success).toBe(false);
     expect(trialConfigSchema.safeParse({...config,apiCapMicroUsd:100000000}).success).toBe(false);
   });
@@ -121,6 +132,24 @@ describe('prospective diagnostic source impact (legacy literary HOLD preserved)'
   });
   const completionFixture=()=>{const p=prepared(),full=positive(p),partial=structuredClone(full),missing=partial.decisions.pop()!;
     const c=prepareSourceImpactCompletion(p,partial);return{p,full,partial,c,answer:{version:SOURCE_IMPACT_COMPLETION,completionDigest:c.completionDigest,missingDecisions:[missing],additionalFindings:[] as typeof full.decisions}};};
+  it('the actual new-trial classifier wrapper makes only one call for complete evidence',async()=>{
+    const p=prepared(),stages:string[]=[];
+    const r=await runTrialSourceImpact(p,async(request,stage)=>{expect(request).toBe(p);stages.push(stage);return positive(p);});
+    expect(stages).toEqual(['source_impact_review']);expect(r.status).toBe('diagnostic_source_supported_with_notes');
+  });
+  it('the actual new-trial wrapper completes only missing rows, once, without dropping the original HOLD',async()=>{
+    const {p,partial,answer}=completionFixture(),stages:string[]=[];
+    const r=await runTrialSourceImpact(p,async(request,stage)=>{stages.push(stage);return stage==='source_impact_review'?partial:answer;});
+    expect(stages).toEqual(['source_impact_review','source_impact_completion']);expect(r.historicalLiteraryHoldPreserved).toBe(true);
+  });
+  it.each(['dispatch-error','bad-evidence','material'])('new-trial wrapper does not retry %s',async kind=>{
+    const p=prepared(),a=positive(p);let calls=0;
+    if(kind==='bad-evidence')a.guards[0].evidence[0].anchor='טקסט שאינו קיים';
+    if(kind==='material')a.decisions[0].impact='story';
+    const run=()=>runTrialSourceImpact(p,async()=>{calls++;if(kind==='dispatch-error')throw Error('known-or-unknown-transport');return a;});
+    if(kind==='material')expect((await run()).status).toBe('held_material');else await expect(run()).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
   it('fills only a unique missing decision, preserving every prior typed field and original invalid response',()=>{
     const {p,partial,c,answer}=completionFixture(),before=JSON.stringify(partial),r=compileSourceImpactCompletion(c,answer);
     expect(r.status).toBe('diagnostic_source_supported_with_notes');expect(r.raw.guards).toEqual(partial.guards);

@@ -2,8 +2,7 @@ import { z } from 'zod';
 import type { ReaderBookPayload } from './reader-book-source';
 
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
-export const localReaderPreviewSchema = z.object({
-  version: z.literal('local-narrated-reader/v1'),
+const localReaderBase = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]{2,79}$/),
   title: z.string().min(1).max(200),
   childName: z.string().min(1).max(80),
@@ -11,15 +10,22 @@ export const localReaderPreviewSchema = z.object({
   sourceQa: z.literal('incomplete'),
   productAccepted: z.literal(false),
   productionQualified: z.literal(false),
-  voice: z.object({ id: z.string().min(1).max(50), label: z.string().min(1).max(80),
-    provider: z.literal('elevenlabs'), model: z.string().min(1).max(60) }).strict(),
-  pages: z.array(z.object({
+}).strict();
+const localReaderPage = z.object({
     pageNumber: z.number().int().min(0).max(64),
     text: z.string().min(1).max(16000),
     imageSha256: sha,
-    audioSha256: sha,
-  }).strict()).min(2).max(65),
-}).strict().superRefine((value, ctx) => {
+}).strict();
+const narratedReader = localReaderBase.extend({ version: z.literal('local-narrated-reader/v1'),
+  voice: z.object({ id: z.string().min(1).max(50), label: z.string().min(1).max(80),
+    provider: z.literal('elevenlabs'), model: z.string().min(1).max(60) }).strict(),
+  pages: z.array(localReaderPage.extend({ audioSha256: sha }).strict()).min(2).max(65),
+}).strict();
+const imageOnlyReader = localReaderBase.extend({ version: z.literal('local-image-reader/v1'),voice: z.null(),
+  pages: z.array(localReaderPage.extend({ audioSha256: z.null() }).strict()).min(2).max(65),
+}).strict();
+/** An image-only trial has NO audio, not silent/reused narration or an invented mom recording. */
+export const localReaderPreviewSchema = z.discriminatedUnion('version',[narratedReader,imageOnlyReader]).superRefine((value, ctx) => {
   if (value.pages.some((p, index) => p.pageNumber !== index))
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Cover and body pages must be complete and ordered from zero' });
   if (value.pages[0]?.text !== value.title)
@@ -37,6 +43,7 @@ export function localReaderAsset(preview: LocalReaderPreview, file: string) {
   if (!match) throw Error('local_reader_asset');
   const page = preview.pages.find(p => p.pageNumber === Number(match[1]));
   if (!page) throw Error('local_reader_asset');
+  if (match[2] === 'mp3' && page.audioSha256 === null) throw Error('local_reader_asset');
   return { sha256: match[2] === 'png' ? page.imageSha256 : page.audioSha256,
     contentType: match[2] === 'png' ? 'image/png' : 'audio/mpeg' };
 }
@@ -47,7 +54,7 @@ export function localReaderPayload(preview: LocalReaderPreview): ReaderBookPaylo
       pageNumber: p.pageNumber, text: p.text, narrationText: p.text, isCover: p.pageNumber === 0,
       pageLayout: 'standard',
       imageUrl: `/api/dev/local-reader?book=${encodeURIComponent(preview.id)}&asset=page-${p.pageNumber}.png`,
-      audioUrl: `/api/dev/local-reader?book=${encodeURIComponent(preview.id)}&asset=page-${p.pageNumber}.mp3`,
+      audioUrl: p.audioSha256 === null ? null : `/api/dev/local-reader?book=${encodeURIComponent(preview.id)}&asset=page-${p.pageNumber}.mp3`,
     })) } };
 }
 

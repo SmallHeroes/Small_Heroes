@@ -55,3 +55,23 @@ describe('bounded audio byte ranges', () => {
     expect(localReaderByteRange(header, 10)).toBe('unsatisfiable');
   });
 });
+
+describe('local image-only reader is explicit, not invented narration',()=>{
+  const imageOnly=()=>{const f=fixture();return {...f,version:'local-image-reader/v1',voice:null,pages:f.pages.map(p=>({...p,audioSha256:null}))};};
+  it('uses existing ReaderV2 payload with all images/texts and null audio',()=>{
+    const p=localReaderPreviewSchema.parse(imageOnly()),payload=localReaderPayload(p);
+    expect(p.voice).toBeNull();expect(payload.book?.pages).toHaveLength(3);
+    for(const row of payload.book!.pages){expect(row.audioUrl).toBeNull();expect(row.imageUrl).toContain('.png');expect(row.text).toBeTruthy();}
+    expect(localReaderAsset(p,'page-1.png').sha256).toBe('b'.repeat(64));
+    expect(()=>localReaderAsset(p,'page-1.mp3')).toThrow('local_reader_asset');
+  });
+  it.each(['fake-voice','mixed-audio','missing-audio-state','unknown-version','accepted'])('refuses %s',variant=>{
+    const p:any=imageOnly();
+    if(variant==='fake-voice')p.voice=fixture().voice;
+    if(variant==='mixed-audio')p.pages[1].audioSha256='c'.repeat(64);
+    if(variant==='missing-audio-state')delete p.pages[1].audioSha256;
+    if(variant==='unknown-version')p.version='local-image-reader/v2';
+    if(variant==='accepted')p.productAccepted=true;
+    expect(localReaderPreviewSchema.safeParse(p).success).toBe(false);
+  });
+});

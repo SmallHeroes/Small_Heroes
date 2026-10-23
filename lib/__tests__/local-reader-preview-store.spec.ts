@@ -29,6 +29,15 @@ const request = (asset = 'page-1.mp3', headers?: HeadersInit) => new Request(
   `http://127.0.0.1/api/dev/local-reader?book=synthetic-book&asset=${encodeURIComponent(asset)}`, { headers });
 
 describe('real local store and HTTP route, synthetic bytes only', () => {
+  it('image-only manifest serves PNG but refuses an existing unclaimed MP3 file',async()=>{
+    manifest.version='local-image-reader/v1';manifest.voice=null;
+    for(const p of manifest.pages)p.audioSha256=null;
+    writeFileSync(path.join(dir,'manifest.json'),JSON.stringify(manifest));
+    expect((await GET(request('page-1.png'))).status).toBe(200);
+    expect((await GET(request('page-1.mp3'))).status).toBe(404);
+    await expect(loadLocalReaderAsset('synthetic-book','page-1.mp3')).rejects.toThrow('local_reader_asset');
+    vi.stubEnv('NODE_ENV','production');expect((await GET(request('page-1.png'))).status).toBe(404);
+  });
   it('loads exact frozen text and serves every bound asset', async () => {
     expect((await loadLocalReaderPreview('synthetic-book')).pages[1].text).toBe('מקור מדויק');
     expect((await loadLocalReaderAsset('synthetic-book', 'page-0.png')).bytes).toEqual(image);

@@ -38,12 +38,18 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboard
 import { personalBookOutputLimits } from '../lib/personal-wizard/book-config';
 import { decodePersonalBookProviderOutput } from '../lib/personal-wizard/book-openai';
 import { STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION } from '../lib/personal-wizard/storyboard-self-check';
+import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
 
 export const BOOK_E2E_TRIAL = Object.freeze({ id:'owner-new-book-e2e-20261023/v1', pages:8, apiCapMicroUsd:7_000_000,
   maxResourceMicroUsd:6_000_000, maxApiCalls:98, sourceRepairs:1, storyboardAttempts:3, citationCorrections:1, pageAttempts:3,
   authorityRoot:'C:/GNart/Work/book-authority', claim:'owner-new-book-e2e-20261023.claim.json', outcome:'owner-new-book-e2e-20261023.outcome.json',
   priorBook:'C:/GNart/Work/book-renders/fresh-book-usd7-20261018',
   routes:{writing:'claude-opus-5-5/claude-max',quality:'gpt-6.1-sol',images:'gpt-image-2/low',numericIdentity:'gpt-4o',identityThreshold:.70} });
+/** A second explicit owner decision, not an arbitrary label or reuse of the consumed first book. */
+export const READER_SAFE_BOOK_TRIAL = Object.freeze({ ...BOOK_E2E_TRIAL,id:'owner-reader-safe-book-20261023/v1',
+  claim:'owner-reader-safe-book-20261023.claim.json',outcome:'owner-reader-safe-book-20261023.outcome.json',
+  priorBook:'C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/new-book-fresh-fox-20261023',
+  readerFraming:READER_SAFE_FRAMING_VERSION,sourceImpactReviews:1,sourceImpactCompletions:1,selfCheckSourceSpans:STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION });
 const hash=z.string().regex(/^[a-f0-9]{64}$/), absolute=z.string().refine(path.isAbsolute);
 const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
 const read=(file:string):any=>{const s=lstatSync(file);if(!s.isFile()||s.isSymbolicLink()||s.size>32_000_000)fail('trial_data_file');return JSON.parse(readFileSync(file,'utf8'));};
@@ -51,10 +57,15 @@ const shaFile=(file:string)=>previewSha(readFileSync(file));
 const same=(a:unknown,b:unknown)=>canonicalJson(a)===canonicalJson(b);
 const source=path.resolve(__dirname,'..');
 const git=(...args:string[])=>execFileSync('git',args,{cwd:source,encoding:'utf8'}).trim();
-export const trialConfigSchema=z.object({version:z.literal('book-e2e-trial-config/v1'),cycle:z.literal(BOOK_E2E_TRIAL.id),
+export const trialConfigSchema=z.object({version:z.literal('book-e2e-trial-config/v1'),cycle:z.enum([BOOK_E2E_TRIAL.id,READER_SAFE_BOOK_TRIAL.id]),
   ownerFile:absolute,ownerSha:hash,bookDir:absolute,profileFile:absolute,profileSha:hash,
   executable:absolute,executableSha256:hash,keyFile:absolute}).strict();
 export type TrialConfig=z.infer<typeof trialConfigSchema>;
+export function bookTrialPolicy(cycle:TrialConfig['cycle']) {
+  if(cycle===BOOK_E2E_TRIAL.id)return BOOK_E2E_TRIAL;
+  if(cycle===READER_SAFE_BOOK_TRIAL.id)return READER_SAFE_BOOK_TRIAL;
+  return fail('trial_cycle');
+}
 export const trialProfileSchema=z.object({version:z.literal('book-e2e-trial-profile/v1'),seed:z.string().min(8).max(120),
   child:z.object({name:z.string().min(2),age:z.number().int().min(3).max(8),gender:z.enum(['boy','girl']),
     design:z.string().min(40).max(1500),wardrobe:z.string().min(5),fictional:z.literal(true)}).strict(),
@@ -77,27 +88,31 @@ export function validateTrialProfile(raw:unknown,root=source){
 /** Pure admission checks. No folder/meter/client/key is created by the dry plan. */
 function planTrialInputs(config:TrialConfig,existing=false){
   trialConfigSchema.parse(config);
+  const trial=bookTrialPolicy(config.cycle),readerSafe=config.cycle===READER_SAFE_BOOK_TRIAL.id;
+  if(readerSafe&&existing)fail('trial_reader_safe_no_legacy_continuation');
   if(shaFile(config.ownerFile)!==config.ownerSha||shaFile(config.profileFile)!==config.profileSha)fail('trial_input_changed');
   const owner=readFileSync(config.ownerFile,'utf8');
-  if(!owner.includes('2026-10-23')||!owner.includes('ONE NEW')||!owner.includes('יש אישור לתשלום'))fail('trial_owner_record');
+  if(!owner.includes('2026-10-23')||!owner.includes('ONE NEW')||!(readerSafe
+    ?owner.includes('אוקי בוא נבדוק בספר חדש?')&&owner.includes(READER_SAFE_FRAMING_VERSION)
+    :owner.includes('יש אישור לתשלום')))fail('trial_owner_record');
   const context=validateTrialProfile(read(config.profileFile));
   if(path.resolve(config.keyFile)!==path.resolve('C:/GNart/Work/Small_Heroes/.env.local'))fail('trial_existing_key_scope');
   if(git('status','--porcelain')||git('branch','--show-current')!=='claude/book-render-20261009')fail('trial_source_changed');
-  realDirectory(path.dirname(config.bookDir));realDirectory(BOOK_E2E_TRIAL.authorityRoot);
-  if(inside(source,config.bookDir)||inside(BOOK_E2E_TRIAL.priorBook,config.bookDir)||
-    path.resolve(config.bookDir)===path.resolve(BOOK_E2E_TRIAL.priorBook)||existsSync(config.bookDir)!==existing)fail('trial_output_scope');
-  if(!existing&&(existsSync(path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.claim))||existsSync(path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.outcome))))fail('trial_consumed');
+  realDirectory(path.dirname(config.bookDir));realDirectory(trial.authorityRoot);
+  if(inside(source,config.bookDir)||[BOOK_E2E_TRIAL.priorBook,trial.priorBook].some(prior=>inside(prior,config.bookDir)||path.resolve(config.bookDir)===path.resolve(prior))||
+    existsSync(config.bookDir)!==existing)fail('trial_output_scope');
+  if(!existing&&(existsSync(path.join(trial.authorityRoot,trial.claim))||existsSync(path.join(trial.authorityRoot,trial.outcome))))fail('trial_consumed');
   const exe=lstatSync(config.executable);if(!exe.isFile()||exe.isSymbolicLink()||shaFile(config.executable)!==config.executableSha256)fail('trial_executable_pin');
   const companion=context.options.companions.find(c=>c.id===context.profile.companionId)!;
   const companionPath=path.join(source,'public',companion.image.slice(1));
   const technique=resolveChildAnchorTechnique(source);
-  return {version:'book-e2e-trial-grant/v1',cycle:BOOK_E2E_TRIAL.id,configSha:previewSha(canonicalJson(config)),ownerSha:config.ownerSha,
+  return {version:readerSafe?'reader-safe-book-trial-grant/v1':'book-e2e-trial-grant/v1',cycle:trial.id,configSha:previewSha(canonicalJson(config)),ownerSha:config.ownerSha,
     profileSha:config.profileSha,engine:{head:git('rev-parse','HEAD'),branch:git('branch','--show-current')},
-    pins:Object.fromEntries([...PINNED,...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
+    pins:Object.fromEntries([...PINNED,...(readerSafe?['lib/storybook-scene-framing.ts','lib/local-story-preview.ts']:[]),...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
-    requestId:context.prepared.accepted.requestId,limits:{...BOOK_E2E_TRIAL},contracts:CONTRACTS,
+    requestId:context.prepared.accepted.requestId,limits:{...trial},contracts:{...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true}: {})},
     visual:{freshCohort:AUDITION_FRESH_COHORT_VERSION,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
-      materialSceneRepair:true,detailNonblocking:true,productionQualified:false}};
+      materialSceneRepair:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {})}};
 }
 export function planBookTrial(config:TrialConfig){return planTrialInputs(config);}
 export type TrialGrant=ReturnType<typeof planBookTrial>;
@@ -224,6 +239,16 @@ export const trialApiRules:MeterRules=step=>{
   if(Object.prototype.hasOwnProperty.call(stageRules.childAnchor,step))return stageRules.childAnchor[step];
   return auditionMeterRules(step);
 };
+/** Existing typed classifiers only: one fresh severity answer, at most one eligible missing-coverage completion. No blind retry. */
+export async function runTrialSourceImpact(review:ReturnType<typeof prepareSourceImpactReview>,
+  dispatch:(request:ReturnType<typeof prepareSourceImpactReview>|ReturnType<typeof prepareSourceImpactCompletion>,stage:'source_impact_review'|'source_impact_completion')=>Promise<unknown>) {
+  const raw=await dispatch(review,'source_impact_review');
+  try{return compileSourceImpactReview(review,raw);}
+  catch{
+    const completion=prepareSourceImpactCompletion(review,raw);
+    return compileSourceImpactCompletion(completion,await dispatch(completion,'source_impact_completion'));
+  }
+}
 export class TrialApiMeter extends AuditionMeter{
   constructor(root:string,readonly prefix=''){super(root,BOOK_E2E_TRIAL.apiCapMicroUsd,BOOK_E2E_TRIAL.maxApiCalls,0,0,trialApiRules);}
   override run<T>(step:string,wire:unknown,maximum:number,dispatch:()=>Promise<{value:T;estimatedMicroUsd:number|null;receipt:unknown}>){
@@ -253,6 +278,8 @@ export class TrialMaxBudget extends SimpleBookBudget{
 }
 const admittedStatus=(s:string)=>s==='review_supported'||s==='review_supported_with_notes';
 export async function executeBookTrial(config:TrialConfig,grantFile:string,grantSha:string,signal:AbortSignal,log:(s:string)=>void){
+  const trial=bookTrialPolicy(config.cycle),readerSafe=config.cycle===READER_SAFE_BOOK_TRIAL.id,
+    contracts={...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{})};
   if(shaFile(grantFile)!==grantSha)fail('trial_grant_changed');
   const grant=read(grantFile) as TrialGrant|SourceContinuationGrant|StoryboardSpanGrant,spanning=grant.version==='book-e2e-storyboard-source-spans/v1',completing=grant.version==='book-e2e-source-impact-completion/v1',
     isSourceContinuation=completing||grant.version==='book-e2e-source-impact-continuation/v1',
@@ -273,9 +300,9 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     }
   };
   currentInputs();
-  const claimFile=path.join(BOOK_E2E_TRIAL.authorityRoot,spanning?STORYBOARD_SPANS.claim:completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:BOOK_E2E_TRIAL.claim),
-    outcomeFile=path.join(BOOK_E2E_TRIAL.authorityRoot,spanning?STORYBOARD_SPANS.outcome:completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:BOOK_E2E_TRIAL.outcome);
-  exclusiveJson(claimFile,{cycle:BOOK_E2E_TRIAL.id,grantSha,configSha:configDigest,ownerSha:grant.ownerSha,bookDir:grant.bookDir,engine:grant.engine,
+  const claimFile=path.join(trial.authorityRoot,spanning?STORYBOARD_SPANS.claim:completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:trial.claim),
+    outcomeFile=path.join(trial.authorityRoot,spanning?STORYBOARD_SPANS.outcome:completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:trial.outcome);
+  exclusiveJson(claimFile,{cycle:trial.id,grantSha,configSha:configDigest,ownerSha:grant.ownerSha,bookDir:grant.bookDir,engine:grant.engine,
     ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,sourceSha:parent.sourceSha}:{} )});
   const claimSha=shaFile(claimFile);
   let sourceAdmissionSha:string|null=spanning?shaFile(path.join(config.bookDir,'source-impact-admission.json')):null;
@@ -290,7 +317,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const policy=wirePolicy(config,config.bookDir),continuationTextIndex=completing||spanning?3:2;
   let citationUsed=parent?1:0,sourceRepairUsed=parent?1:0,boardAttempts=spanning?2:0,finalTextDir=spanning?'text_4_source_spans':parent?`text_${continuationTextIndex}`:'text';
   if(!parent)save('request',{version:'local-simple-wizard-request/v1',requestId:prepared.accepted.requestId,optionsFingerprint:prepared.accepted.optionsFingerprint,
-    request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:BOOK_E2E_TRIAL.id});
+    request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:trial.id});
   const baseCurrent={request:prepared.accepted.canonical,options};
   const stageIO=(index:number,replay=false)=>{
     const dir=path.join(config.bookDir,replay?'text_4_source_spans':index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
@@ -348,14 +375,14 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const finish=(status:string,extra:Record<string,unknown>={})=>{
     const snapshot=(read:()=>unknown)=>{try{return read();}catch(error){return{status:'unreconciled',knownMicroUsd:null,error:(error as any)?.code??'accounting_replay_failed',furtherPaymentAllowed:false};}};
     const accounting={api:snapshot(()=>meter.snapshot()),claudeMax:snapshot(()=>max.snapshot()),claudeMaxNote:'reported resource, separate from API, not invoice'};
-    save(spanning?'storyboard-source-spans-final-accounting':completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:BOOK_E2E_TRIAL.id,claimSha,grantSha,status,accounting,...extra,
+    save(spanning?'storyboard-source-spans-final-accounting':completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:trial.id,claimSha,grantSha,status,accounting,...extra,
       ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,originalLiteraryHoldPreserved:true}:{}),
       runtimeEligible:false,productAccepted:false,productionQualified:false});return{status,accounting,...extra};
   };
   try{
     let io=stageIO(spanning?4:parent?continuationTextIndex:0,spanning);
     const runFlow=(io:ReturnType<typeof stageIO>,repair?:{prior:unknown;readings:unknown[]})=>runSimpleWizardBook({...baseCurrent,seed:profile.seed,signal,
-      reservedWritingUsd:2,...CONTRACTS,...(repair?{repair}:{}),opus:io.opus,reader:io.reader,visual:io.visual,correctReading:io.correctReading,
+      reservedWritingUsd:2,...contracts,...(repair?{repair}:{}),opus:io.opus,reader:io.reader,visual:io.visual,correctReading:io.correctReading,
       publish:view=>log(`phase ${view.phase}`)});
     let sourceAdmission:ReturnType<typeof compileSourceImpactReview>|undefined;
     if(spanning){
@@ -389,21 +416,42 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       if(sourceRepairUsed++>=BOOK_E2E_TRIAL.sourceRepairs)fail('trial_source_repair_used');
       const prior=result;io=stageIO(1);finalTextDir='text_1';result=await runFlow(io,{prior:prior.source,readings:prior.readings});saveText();
     }
+    if(result!.status==='story_held'&&readerSafe){
+      // ONE fresh typed severity review after the bounded source repair. Old literary HOLD/raws remain unchanged.
+      const held=result,sourceFile=path.join(io.dir,'simple-book-result.json'),packets=simpleStoryReadingPackets(prepared.accepted.canonical,held.source,options),
+        review=prepareSourceImpactReview({finalPacket:packets.final,readings:held.readings,sourceSha:shaFile(sourceFile),age:profile.child.age});
+      const readImpact=async(request:ReturnType<typeof prepareSourceImpactReview>|ReturnType<typeof prepareSourceImpactCompletion>,stage:'source_impact_review'|'source_impact_completion')=>{
+        const binding='completionDigest' in request?{completionDigest:request.completionDigest}:{packetDigest:request.packetDigest};
+        save(stage+'-request',{...binding,instructions:request.instructions,body:request.body});
+        const call:any={stage,role:'astra',conversationKey:`trial:${grant.requestId}:${stage}`,instructions:request.instructions,
+          input:canonicalJson({...binding,packet:request.body}),schema:request.schema,maxOutputTokens:request.maxOutputTokens};
+        const wire=prepareCausalWire(call,policy,2_000_000),rule=trialApiRules(stage)!,reader=createAstraCausalTransport({key,rates:replaySettlement.rates.sol,model:'gpt-6.1-sol',inlineReferences:true,fetch:longCallFetch(660000)});
+        guard();log(`phase ${stage}`);
+        return meter.run(stage,wire,rule.reserve(wire)!,async()=>{const r=await reader(wire,call,signal);return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
+      };
+      sourceAdmission=await runTrialSourceImpact(review,readImpact);
+      save('source-impact-admission',sourceAdmission);sourceAdmissionSha=shaFile(path.join(config.bookDir,'source-impact-admission.json'));
+      if(sourceAdmission.status!=='diagnostic_source_supported_with_notes')return finish('held_source_impact',{sourceAdmission});
+      io=stageIO(2);finalTextDir='text_2';
+      const board=await runSimpleStoryboardDiagnostic({...baseCurrent,writerResult:held.source,signal,...contracts,generate:io.visual});
+      result={...held,status:board.status,storyboard:board};saveText();
+    }
     if(result!.status==='story_held')return finish('held_source');
     let repair:StoryboardRepair|undefined=spanning?read((parent as StoryboardSpanGrant['parent']).repairFile):undefined;
     while(!admittedStatus(result.status)&&result.storyboard&&boardAttempts<BOOK_E2E_TRIAL.storyboardAttempts){
       const old=result.storyboard;
       repair={parentStoryboardDigest:old.storyboardDigest,draft:io.draft(),review:old.rawReview,...(repair?{parentRepair:repair}:{}),
-        parentCompile:{selfCheckNames:true,stagingFields:true,...(spanning?{selfCheckSourceSpans:true as const}:{})}};
-      const index=parent?boardAttempts+continuationTextIndex:(boardAttempts+(sourceRepairUsed?1:0));io=stageIO(index);finalTextDir=path.basename(io.dir);
+        parentCompile:{selfCheckNames:true,stagingFields:true,...(spanning||readerSafe?{selfCheckSourceSpans:true as const}:{})}};
+      const index=parent?boardAttempts+continuationTextIndex:(boardAttempts+(sourceRepairUsed?1:0)+(sourceAdmission?1:0));io=stageIO(index);finalTextDir=path.basename(io.dir);
       exclusiveJson(path.join(io.dir,'storyboard_repair_input.json'),repair);
-      const board=await runSimpleStoryboardDiagnostic({...baseCurrent,writerResult:result.source,signal,...CONTRACTS,...(spanning?{selfCheckSourceSpans:true as const}:{}),repair,generate:io.visual});
+      const board=await runSimpleStoryboardDiagnostic({...baseCurrent,writerResult:result.source,signal,...contracts,...(spanning?{selfCheckSourceSpans:true as const}:{}),repair,generate:io.visual});
       result={...result,status:board.status,storyboard:board};saveText();
     }
     if(!result.storyboard||!admittedStatus(result.status))return finish('held_storyboard',{storyboardAttempts:boardAttempts});
     guard();
     const layoutBase={version:'reviewed-book-layout/v1',seed:profile.seed,childDesign:profile.child.design,storyboardDir:finalTextDir,
-      childDir:'child',childImage:'reference_child.png',savedCompanion:null,childAnchor:profile.childAnchor,childAnchorPose:CHILD_ANCHOR_POSE_V2} as const;
+      childDir:'child',childImage:'reference_child.png',savedCompanion:null,childAnchor:profile.childAnchor,childAnchorPose:CHILD_ANCHOR_POSE_V2,
+      ...(readerSafe?{readerFraming:READER_SAFE_FRAMING_VERSION}:{})} as const;
     const board=loadReviewedStoryboard(config.bookDir,source,reviewedBookLayoutSchema.parse(layoutBase));
     const childDir=path.join(config.bookDir,'child'),childImages=path.join(childDir,'illustrations');mkdirSync(childDir);mkdirSync(childImages);
     const childIO=auditionAdapters({directory:childImages,meter,key,signal,guard}),judges=childAnchorJudges({bytesOf:i=>readAuditionImage(childImages,i),meter,key,signal,guard});
@@ -416,6 +464,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     childSave('reference_child_adoption',{name:'child',context:anchor.context,candidate:child.candidate,authority:'new_book_trial_reviewed_passed',anchor:child.record});
     const layout=reviewedBookLayoutSchema.parse({...layoutBase,childImage:child.candidate.imageName});save('book-layout',layout);
     const loaded=loadReviewedBook(config.bookDir,source,undefined,layout);
+    if(readerSafe&&loaded.current.readerFraming!==grant.visual.readerFraming)fail('trial_reader_framing_binding');
     const art=auditionAdapters({directory:imageDir,meter,key,signal,guard});
     const childRef=await art.writeImage('reference_child.png',loaded.childBytes),companionRef=await art.writeImage('reference_companion.png',loaded.companionBytes);
     const saved=new Map<string,any>();

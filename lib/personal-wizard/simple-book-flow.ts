@@ -32,6 +32,8 @@ export async function runSimpleWizardBook(args: {
   selfCheckContract?: true; reviewImpactPolicy?: true;
   /** Opt-in compile-level self-check section-name resolution (storyboard-self-check-names/v1); absent keeps the exact compile. */
   selfCheckNames?: true;
+  /** Prospective source-span evidence binding; absent preserves the historical compiler. */
+  selfCheckSourceSpans?: true;
   /** Opt-in claim basis (storyboard-claim-basis/v1); absent keeps the exact existing calls. */
   claimBasisContract?: true;
   /** Opt-in compile-level claim-basis staging fields (storyboard-claim-basis-staging-fields/v1); absent keeps the exact compile and review. */
@@ -122,6 +124,7 @@ export async function runSimpleWizardBook(args: {
     ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
     ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
     ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}),
+    ...(args.selfCheckSourceSpans ? { selfCheckSourceSpans: true as const } : {}),
     ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
     ...(args.stagingFields ? { stagingFields: true as const } : {}),
     ...(args.calibrationContract ? { calibrationContract: true as const } : {}),

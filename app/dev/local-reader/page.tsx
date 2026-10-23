@@ -13,9 +13,9 @@ export default async function LocalNarratedReader({ searchParams }: {
   const id = typeof query.book === 'string' ? query.book : '';
   const preview = await loadLocalReaderPreview(id).catch(() => null);
   if (!preview) notFound();
-  return <div className={shellStyles.shell} data-reader-authority="local-narrated-reader/v1" dir="rtl">
+  return <div className={shellStyles.shell} data-reader-authority={preview.version} dir="rtl">
     <aside style={{ padding: '8px 16px', background: '#fff4cc', color: '#433b21', fontSize: 14, textAlign: 'center' }}>
-      ספר ניסוי מקומי · קריינות {preview.voice.label} · בדיקות איכות האיורים טרם הושלמו · לא אישור מוצר או ייצור
+      ספר ניסוי מקומי · {preview.voice ? `קריינות ${preview.voice.label}` : 'ללא קריינות'} · בדיקות איכות האיורים טרם הושלמו · לא אישור מוצר או ייצור
     </aside>
     <ReaderV2 source={{ kind: 'qa_fixture', payload: localReaderPayload(preview),
       exitHref: `/dev/local-reader?book=${encodeURIComponent(preview.id)}`, exitLabel: 'חזרה לתחילת ספר הניסוי' }} />
