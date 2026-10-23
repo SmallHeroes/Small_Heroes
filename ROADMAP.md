@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Same NEW fox book: source-impact calibration, not source rewrite (2026-10-23)
+
+- Original new trial consumed held_source, API74796/5; Maxresource740103/3; zero unknown/images. AccuracyQA681controls0, no parser/misbinding.
+- Code b933af13: general typed source-review-impact/v1 + fixed consumed-parent same-book continuation, one fresh Sol assessment of frozen
+  text, exhaustive old findings/current citations + safety/age/causal/identity/continuity. Only typed detail nonblocking; old HOLD preserved.
+- No more source writing/repair/citation retry; cumulative7mAPI/6mMax/98calls and unspent board/child/sheet/page allowances unchanged.
+ 32tests + nonincrementaltsc0, historicalREDs retained. DocsLAST/unused exact grant/operator/SAMEindependentQA/preflight then downstream.
+  Not production acceptance, no old book reset, extra book, push or cleanup.
+
 ## NEW story + different companion end-to-end trial — code ready for independent gate (2026-10-23)
 
 - New direct owner-paid ONE book approval; new fixed slot, fictionalNaomi6/fox_uri, USD7API/Max resource6 separate, no old reset.

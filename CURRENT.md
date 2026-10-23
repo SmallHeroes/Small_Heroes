@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Fresh fox book: literary source held; prospective typed-impact continuation ready for independent gate (2026-10-23)
+
+- Actual first new-trial native0 at08:20:16Z stopped held_source BEFORE storyboard/child/images. API5knowncalls74796microUSD;
+  Max3completed sessions740103microUSD reported resource separately. No unknown. Fixed original new-book claim/outcome are CONSUMED,
+  preserved; no retry or repin. Independent681offline controls verified exact4paid reader wires/candidates,5rawSolcosts/citation repair,
+  3Maxoutputs/costs and642oldfiles. No parser/candidate misbinding established: the legacy meaningful literary predicate faithfully held.
+- Owner's direct ONE new full-book paid test plus minor-nonblocking direction now has a prospective GENERAL source-review-impact/v1:
+  shared impact classifier and strict existing source-unit resolver; exhaustive prior material-finding decisions + five safety/age/causal/
+  identity/continuity guards. Fresh typed detail can admit diagnostic illustration only. Material/uncertain/missing evidence still holds;
+  original blocking cannot become detail. Historical severity/raw/source remain unchanged; not literary/product/production PASS.
+- Code b933af13 parentb8205c82: pure policy + same existing native orchestrator's fixed source-impact successor. ONE fresh Sol review of
+  SAME frozen repaired text, NO new author/editor/source repair/citation correction. Same bookDir/profile/seed/companion and cumulative
+  USD7API/98calls, Max-resourceUSD6; unspent board3/child2/sheets2/page3total, .70/LOW/full-cohort-first unchanged. Consumed parent grant,
+  claim/outcome/source/all existing book files/known ledgers and new code pins bind the separate one-use continuation; no new book/reset.
+- Focused32/32 passed on final code; nonincrementaltsc0 08:39:15.884Z before codecommit; diffcheck0. Prior typeRED and one test-fixture
+  pricingRED preserved (board rule was tested with a reader-shaped wire), fixed without a gate relaxation. FullcheckhistoricalRED stays;
+  no unchanged hours-long suites rerun. Original operator F1HOLD was independently re-gated PASS58VM/706binding controls before firstpaid.
+- Next: docsLAST/clean frozen successor plan/grant/operator, SAME readonly independentQA, NEW fresh native preflight, then ONE fresh source
+  impact review and automatic downstream if admitted. Viewer must disclose the original literary HOLD and prospective admission notes.
+  Q=ART/r2-new-book-e2e-20261023 has approval/DGs/outcome/diagnosis; no production/push/delete/newkey/task/worktree/monitor.
+
 ## NEW owner-approved end-to-end book trial — code complete, independent QA NEXT (2026-10-23)
 
 - Guy directly authorized ONE different story from scratch, a different companion, paid full-book testing and nonblocking minor issues.
