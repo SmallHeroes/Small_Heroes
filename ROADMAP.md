@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Complete-artwork reader — independently gated and delivered locally (2026-10-24)
+
+- Exact7dd92ecc..011367f1/codee0d3cf96 passed sole read-only independent reviewer;32targetedtests0,21exactv1bytecases,
+  9prospectiveactualv2contexts/9nativebindings,1953history preserved. Main136tests/whole tsc0;historical fullcheckRED unchanged.
+- Independent real desktop/mobile scroll/end/reset and whole-art proof confirms the reported face-crop/hidden-prose defects fixed
+  within bounded states. Main36states/fourviewport sizes supplementary;no physical-device/all-reader/accessibility certification.
+- Local reader3119 contains all original cover+8body images with paper margins,not destructive zoom;mobile prose separate/scrollable.
+  Shared presentation default intentionally changes if deployed;no deployment/push. Prospectivev2smaller-camera targets are wired,
+  not real newpixel evidence. Existing consumedv1book/images/holds/claims/accounting remain unchanged;0newprovider/0newimages.
+- Product acceptance and complete semantic pixel QA remain open. No implicit paid continuation/new authority/attempt reset. Report,
+  native exits,freeze,stable screenshots and PowerShell/QA handoff are in ART/r3-reader-fit-20261024;closure docs-only after release.
+
 ## Complete-artwork reader / prospective smaller cast v2 — bounded zero-spend fix (2026-10-24)
 
 - Codee0d3cf96:common ReaderV2contain for cover/body/turns,paper mobile prose,accessible text scroll/reset,touch fence and actual

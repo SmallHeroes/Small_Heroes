@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Complete-artwork reader — independent code/live-reader PASS, zero-spend delivery (2026-10-24)
+
+- Independent read-only gate PASS for immutable7dd92ecc..011367f1 (codee0d3cf96,docsLAST011367f1), clean/ahead48 at review.
+  Report SHA2568faab4834f451f1e938ce99863a5373151ced0c312ef001a7fec9fa087c987ac in ART/r3-reader-fit-20261024.
+  No verified blocker. Main136focusedtests/10files exit0 and whole TypeScript0;independent32focusedtests/3files exit0.
+- Reviewer independently checked exact v1 JSON/prompt parity for21cases,all9actual frame contexts with prospectivev2,9native
+  version-binding combinations and1953protected historical files/17frozen files/189runtime app copies.4483bounded controls exit0
+  include these hash/preservation controls;they are not4483pixel judgments. Known historical fullcheckRED remains unchanged.
+- Independent Chrome desktop1280x720p7 shows full child/fox face/tail;keyboard End reaches last paragraph and nextscene resets0.
+  Mobile390x844p7/p8 shows full art plus separate reachable paper prose. Own temporary viewport reset/tabclosed;main's36-state
+  matrix remains attributed to main. Small-mobile320x568p8 keyboard ending also verified. These are emulations,not physical devices.
+- Shared ReaderV2 PRESENTATION default intentionally changes to contain/paper prose for its consumers if deployed. Source image,
+  text,story/canon,models,authority and generation defaults do not change. No deployment/push occurred. Existing paid book staysv1;
+  explicit prospectivev2 targets30/40/50%,55%ceiling/8%edge but actual newv2pixels remain UNTESTED/no fresh render authority.
+- Delivered additive reader http://localhost:3119/dev/local-reader?book=naomi-fox-sol-20261023 with same9PNGs/text/manifest.
+  API1967865microUSD/30calls,unknown0 andMax1609594reportedresource separate stay unchanged;this milestone0provider/0newimages.
+  Original sourceQa incomplete/native failed/HOLD/unusable/not-reviewed claims remain. This is reader-fit/code PASS,not semantic
+  whole-book/product/production PASS;no automatic paid resume. Product acceptance remains Guy's. No narration was added.
+- Evidence:Q/INDEPENDENT-READER-FIT-QA.txt,FREEZE.json,RUNTIME-PROOF-released.json,VISUAL-AUDIT-RESULT.txt,
+  delivery-desktop-p7.png and reviewer/settled screenshots. Initial height/raw-niqqud/midturn errors remain documented,not erased.
+  Closure after released review is docs-only with whole npx tsc before commit;no source code change after the independent gate.
+
 ## Complete-artwork reader + smaller prospective cast — offline verified, independent QA next (2026-10-24)
 
 - Direct owner request:smaller characters and no essential content cut by the reader. Sourcee0d3cf96(parent7dd92ecc),same
