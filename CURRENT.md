@@ -1,9 +1,10 @@
 # SmallHeroes — Current Technical State
 
-## General storyboard state parity + truthful quota diagnostics — offline code complete, independent gate pending (2026-10-23)
+## General storyboard state parity + quota diagnostics — focused QA corrections complete, independent re-gate pending (2026-10-23)
 
 - Direct owner request: fix the engine and test it, not manually repair this story or reopen the consumed trial. Code9ce9615b
-  (parent e18ba8a3) introduces explicit storyboard-state-parity/v1; production and existing trial defaults remain unchanged.
+  (parent e18ba8a3) introduces explicit storyboard-state-parity/v1; code30037074 corrects two independent quota-observation findings.
+  Production and existing trial defaults remain unchanged. Initial code/docs range ended atf575ecd2; that QA HOLD remains immutable.
 - Root-cause correction: local-book-planning and local-book-sequence REQUIRE mutable attributes to retain an invariant BASELINE.
   Old calibration instead told the planner not to keep changed attributes invariant and the reviewer treated that overlap as forbidden.
   The new opt-in replaces those conflicting clauses and derives fixed attributes vs mutable baseline/evidenced changes from the SAME
@@ -16,14 +17,19 @@
 - Strict claude-resource-stop/v1 recognizes a structured, terminated429 quota refusal ONLY with zero reported resource and complete zero
   usage. Native transport observes it before callback wrappers obscure the cause; reporting faults cannot erase the original receipt.
   It remains a consumed failed attempt/stopped budget, not retry, checkpoint recovery, availability proof or accounting/authority reset.
-- Final affected suite:212passed/0failed/0skipped across11files; whole-project nonincrementaltsc0. The earlier206/1RED was the intentional
-  supported-contract enum expectation, fixed explicitly and retained. No broad/fullcheck rerun; historicalRED/stale/timeouts unchanged.
+- SAME independent first pass:212/212 plus actual replay0, no state-parity blocker; HOLDde2d9283 found twoP2 diagnostic false positives:
+  ignored positive nested thinking/tool usage, and negated/quoted quota-message substrings. No money/attempt/outcome bypass found.
+  Focused correction1 validates known complete nested token/tool/cache shapes and the full affirmative provider-refusal message; unknown/
+  partial/positive evidence stays unclassified. Original receipt/error and stopped meter preserved; old report/RED remains unchanged.
+- Final affected suite after correction:228passed/0failed/0skipped across11files; whole-project nonincrementaltsc0. Tests-first regression
+  added16cases;15failed before fix,all pass after. Earlier206/1enum-expectationRED retained and fixed; no broad/fullcheck claim or rerun.
+  HistoricalRED/stale/timeouts unchanged. This is engineering correction round1/2,not a provider attempt or new authority.
 - Real saved-record replay at codeHEAD:313files unchanged, exact old book+held assessment and9old frame packets. The new source rejects
   the old review. Actual injected callbacks agree on the new marker; fresh review94742/104000bytes (9258headroom). These are structural/
   provenance checks, NOT a new literary/pixel judgment. Replay deliberately stops before any semantic review/provider.
 - Q=ART/r3-storyboard-state-parity-20261023 holds Decision Gate, focused logs/exits, real replay and preservation evidence. ZERO new
   API/Max/image/audio calls, keys or grants. Existing failed_trial/claim/outcome/accounting and current mom reader remain untouched.
-- Next: docsLAST/clean immutable range to SAME authorized independent read-only reviewer. Max weekly availability is still externally
+- Next: docsLAST/clean corrected immutable range to SAME authorized independent read-only reviewer. Max weekly availability is still externally
   blocked; no consumed command retry, model switch, paid continuation, automatic monitor, production/Wizard/push/deploy or cleanup.
 
 ## New reader-safe book trial — TERMINAL Claude Max weekly-quota block; NO new illustrations (2026-10-23)

@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-## General state parity correction — offline validation complete, independent gate pending (2026-10-23)
+## General state parity correction — first QA findings fixed, independent re-gate pending (2026-10-23)
 
 - Owner-approved general fix at9ce9615b: explicit storyboard-state-parity/v1 aligns planner, reviewer, compiler-derived fixed/mutable
   authority, end-page ledger and depicted instant. No second ledger/classifier, blanket overlap ban, story-specific edit or retroactivePASS.
@@ -8,9 +8,12 @@
   requires that baseline; old calibration instructions conflicted with it. Truly fixed/unsupported changes and semantic uncertainty still hold.
 - New marker is prospective and hash-bound through actual callbacks/restore/frames; absence preserves legacy bytes. Strict quota diagnostics
   expose a verified zero-usage429 before callback wrappers, but DO NOT retry, restore a consumed claim, infer a bill or authorize continuation.
--212affectedtests0/11files/no skips, nonincremental whole-projecttsc0;313preservation hashes and9exact old frame packets; new-review request
+- SAME first independent QA:212/212 and actual replay0; HOLDde2d9283 raised only quota-classifier P2 nested-usage/message-negation findings.
+  Focused code30037074 validates complete known nested usage and affirmative full provider message; no money/attempt/old-outcome change.
+  Tests-first15RED retained,final228affectedtests0/11files/no skips, nonincremental whole-projecttsc0;313hashes and9exact old frame packets; new-review request
   94742/104000bytes. Synthetic/callback/saved-replay proof only, no fresh semantic or pixel validation. Earlier enum-expectationRED retained
-  and fixed; historical fullcheckRED unchanged. Q=r3-storyboard-state-parity-20261023; next SAME independent read-only QA at clean docsHEAD.
+  and fixed; initial independent HOLD/RED preserved, historical fullcheckRED unchanged. Q=r3-storyboard-state-parity-20261023; next SAME
+  independent read-only re-gate at clean corrected docsHEAD. Engineering correction round1/2,not a new provider attempt/claim/grant.
 - ZERO provider/key/image/audio/grant work. External Max quota remains the actual live dependency. A future same-book continuation must be
   separately checkpoint/remaining-attempt-bound and reviewed, not a rerun of the consumed command or silent policy/model change.
 
