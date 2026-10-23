@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## New reader-safe book trial — code ready, awaiting exact independent execution gate (2026-10-23)
+
+- Owner asked ONE NEW book;fixed new one-use owner-reader-safe-book-20261023/v1,not old consumed slot reset. Codea1ce938c;7mAPI/6mMaxresource
+  separately,98APIcalls,bounded existing attempts/.70/LOW. Reuse native pipeline with new framing and existing source-span compiler options.
+- Existing typed source-impact review/completion can classify the still-held repaired source prospectively within same ledger;material and
+  uncertain still hold,old raw/HOLD unchanged. Additive local-image-reader/v1 uses realReaderV2 with nullaudio,not paid/silent/reused narration.
+-185focusedtests/nonincrementaltsc0,no skips;historicalfullcheckRED unchanged. Q=r3-new-book-framing-20261023. Nextclean docsLAST/nativeexact
+  plan+unusedgrant/operator/SAMEreadonlyQA,freshpreflight,then one new story/child/sheets/8+cover and actualdesktop/mobile framing audit.
+- Existing narrated book/claims/ledgers immutable;no production/default/canvas change,newtask/agent/worktree/monitor/key,push/deploy/cleanup.
+
 ## Reader-safe scene framing — code PASS, nonblocking and prospective (2026-10-23)
 
 - Owner asks smaller cast and about70% ceiling, NOT a new book blocker. Code925bea59 adds reader-safe-scene-framing/v1 at actual scene

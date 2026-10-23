@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## ONE new book to test reader-safe framing — offline connection ready for independent gate (2026-10-23)
+
+- Guy directly requested a NEW book after framing-code QA. Fixed owner-reader-safe-book-20261023/v1 is a separate explicit one-use trial,
+  not reopening consumed owner-new-book-e2e-20261023/v1. Same conservative7mAPI/6mMax-resource separately,98APIcalls;old caps/counters intact.
+- Codea1ce938c reuses existing native writer/editor/reviewer/anchor/audition stages. New plan pins reader-safe-scene-framing/v1 and existing
+  selfCheckSourceSpans; layout carries framing to actual renderer/judge. After at most one source repair, one fresh existing typed impact
+  review plus at most one format-only missing-coverage completion may admit detail only. Old literary HOLD/raw remains; material/uncertain
+  safety/age/identity/anatomy/story requirements still hold. No second classifier, no manual manuscript/canon patch or open-ended retries.
+- Additive local-image-reader/v1 branch mounts existing ReaderV2 with actual images/text and null audio. Strict nullvoice/audio,MP3refusal,
+  original narrated v1 behavior and productionhard404/path/hash/sequence/acceptance guards retained; no silent/reused/new narration.
+-185focusedtests0 across7files,no skips;whole-project nonincrementaltsc0. No hourslong/fullcheck rerun;historicalREDs preserved. No provider
+  call/keyread/claim/image yet. Sourcecode local/unpushed;Q=ART/r3-new-book-framing-20261023 holds owner/DG/frozenfictionalprofile and checks.
+- Next: docsLAST/clean exact native plan+unused grant/operator;SAME authorized read-only QA;fresh preflight;then approved ONE full-book
+  diagnostic8+coverLOW,actual image+desktop/mobile framing review and honest local reader/report. Same fictionalNaomi6/fox,new story/seed;
+  squarecanvas unchanged to isolate framing,no narration,no production/Wizard/newkey/task/agent/monitor/worktree/push/deploy/cleanup.
+
 ## Reader-safe scene framing — prospective NONBLOCKING guidance, independent code PASS (2026-10-23)
 
 - Guy requests smaller characters, roughly70% maximum, while explicitly keeping framing NONBLOCKING. General engine change, not an edit
