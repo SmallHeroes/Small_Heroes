@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Explicit Sol writing route + same-book checkpoint — OFFLINE VERIFIED, awaiting independent gate (2026-10-23)
+
+- Guy directly approved replacing prospective Opus/Max writing/planning with gpt-6.1-sol. Codef8d3695c(parent28007e2e) adds
+  sol-writing-responses/v1: explicit author/editor/storyboard transport,default tier/medium,existing output contracts/decoder and settlement.
+  Original Opus transports,legacy defaults and production/Wizard untouched. This book reuses completed Max author/editor text/readings;
+  only the final storyboard attempt moves to Sol. No account/model fallback or silent historical attribution change.
+- Private native successor reader-safe-book-sol-continuation/v1 binds original consumed grant/claim/failed outcome,exact source/readings,
+  profile/seed,all38oldfiles,new owner/operator/source pins and both consumed quota probes. Original bookMax4 plus2zero probes=6logical,
+  1609594reportedresource/notinvoice;API113484/3calls carried into SAME7mAPI/98call meter. Max6mcap unchanged;no budget transfer/reset.
+- New Sol plan and fresh Sol review use prospective storyboard-state-parity/v1. Original HOLD/raw remains. Board2used/1remaining of3,
+  sourceWriting0/sourceRepairs0/citationCorrections0;child/page allowances unchanged,LOW/.70 and typed detail-vs-material gates retained.
+  A supplied exact runtime lease is mandatory before the successor claim and rechecked at native paid boundaries; unknown costs stop.
+-143affectedtests passed/0failed/0skipped across5files;nonincremental whole-projecttsc0. Initial union-type tscRED retained and corrected;
+  final tested bytes green. No hourslong/broad/fullcheck rerun;historicRED/stale/timeouts unchanged. Transport tests use fake SDK responses,
+  not pixels. Actual provider-free saved-book proof:9negativepreclaimcases,321priorhashes,exact new native plan;no key/provider/book writes.
+  Prospective planner90943bytes/50000outputcap/reserve750075microUSD;fresh review111170wirebytes/39000cap/reserve673574. No cap reduction.
+- Initial dry-plan invocation from unrelated d53bcwd correctly refused child_anchor_reference_mismatch before claim/key/provider; proper
+  source-cwd native dry plan succeeds. No code/asset/permission relaxation. Actual same-book repair source and new review contexts agree;
+  structural old-draft replay stops BEFORE a semantic review,not a new PASS. Q=ART/r3-sol-writing-continuation-20261023 retains all evidence.
+- Next:docsLAST/cleanhead,exact unused native plan/grant,SAME authorized read-only independent code/operatorQA,then gated paid continuation
+  under the existing approval. No payment yet. No new story/child/images/audio/reader claimed,production/push/deploy/cleanup/newtask/monitor.
+
 ## Fresh Max availability check — real weekly quota refusal; same book preserved (2026-10-23)
 
 - Latest direct owner approval: check Max and, ONLY if available, continue the SAME book with the new engine contract within existing

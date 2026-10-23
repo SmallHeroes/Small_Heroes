@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Owner-approved Sol migration — same source, final remaining storyboard attempt (2026-10-23)
+
+- Codef8d3695c adds explicit sol-writing-responses/v1 for author/editor/planner with shared contracts/settlement;no production or old
+  Opus default change. Current book already has text,so no author/editor rerun. Direct model-change approval replaces future Max planning.
+- Native same-book successor binds consumed parent/history,both quota probes,new operator/owner/code and prospective state parity.
+  Board2used/1remaining,SAME7mAPIcap/API113484/3carried,Max1609594resource/6logical separately/no reset. No silent HOLDpromotion.
+-143focusedtests0/5files,nonincremental tsc0;9actual-native preclaimcounterexamples0/321oldhashes preserved. Actual prospective Sol
+  planner90943bytes,reserve750075;review111170wirebytes,reserve673574. All offline,not model/pixel proof;no broad/fullcheck rerun.
+- Q=r3-sol-writing-continuation-20261023:owner/DG,exact code plan,logs,preservation/real saved-book wiring. DocsLAST/independent exact
+  code+unusedgrant/operatorQA precede paid planner/review;only if admitted,existing child/all8+coverLOW/reader follow. Existing ledger,
+  old book/momreader/unknown0 and .70 unchanged;no new task/agent/monitor/key/worktree/production/push/deploy/cleanup.
+
 ## Same-book conditional continuation — Max rechecked, external quota still blocks (2026-10-23)
 
 - Direct owner authorized fresh availability check, then SAME book continuation if available; no story restart or attempt reset.
