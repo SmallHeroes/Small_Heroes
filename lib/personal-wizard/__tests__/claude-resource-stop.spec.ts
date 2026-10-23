@@ -6,7 +6,10 @@ import { claudeQuotaStop, observeClaudeQuotaStop, trialFailureDetails, type Clau
 import { SimpleBookBudget } from '../simple-book-budget';
 
 const output=()=>({type:'result',is_error:true,terminal_reason:'api_error',api_error_status:429,total_cost_usd:0,
-  usage:{input_tokens:0,output_tokens:0,cache_creation_input_tokens:0,cache_read_input_tokens:0},modelUsage:{},
+  usage:{input_tokens:0,output_tokens:0,cache_creation_input_tokens:0,cache_read_input_tokens:0,
+    output_tokens_details:{thinking_tokens:0},server_tool_use:{web_search_requests:0,web_fetch_requests:0},
+    cache_creation:{ephemeral_1h_input_tokens:0,ephemeral_5m_input_tokens:0},service_tier:'standard',inference_geo:'',
+    iterations:[],speed:'standard',fallback_credit:null},modelUsage:{},
   result:"You've hit your weekly limit · resets Oct 25, 4am (Asia/Jerusalem)"});
 const receipt=()=>({estimatedMicroUsd:0,raw:{termination:{code:1,signal:null},killConfirmed:true,stopped:false,stdout:JSON.stringify(output()),stderr:''}});
 describe('strict Claude quota observability, never recovery/payment authority',()=>{
@@ -26,12 +29,32 @@ describe('strict Claude quota observability, never recovery/payment authority',(
     ['positive usage',(r:any,o:any)=>o.usage.output_tokens=1],['positive raw cost',(r:any,o:any)=>o.total_cost_usd=.1],
     ['model billed',(r:any,o:any)=>o.modelUsage={'claude-opus-5-5':{}}],['malformed modelUsage',(r:any,o:any)=>o.modelUsage=true],
     ['structured answer',(r:any,o:any)=>o.structured_output={}],['wrong type',(r:any,o:any)=>o.type='message'],
+    ['nested thinking usage',(r:any,o:any)=>o.usage.output_tokens_details.thinking_tokens=100],
+    ['nested tool usage',(r:any,o:any)=>o.usage.server_tool_use.web_search_requests=1],
+    ['nested cache usage',(r:any,o:any)=>o.usage.cache_creation.ephemeral_5m_input_tokens=1],
+    ['unknown usage field even zero',(r:any,o:any)=>o.usage.unknown_usage=0],
+    ['unknown nested counter even zero',(r:any,o:any)=>o.usage.output_tokens_details.extra_tokens=0],
+    ['partial nested counters',(r:any,o:any)=>delete o.usage.server_tool_use.web_fetch_requests],
+    ['malformed nested counters',(r:any,o:any)=>o.usage.cache_creation=[]],
+    ['unknown nested counters',(r:any,o:any)=>o.usage.output_tokens_details=null],
+    ['string-valued counter',(r:any,o:any)=>o.usage.output_tokens_details.thinking_tokens='0'],
+    ['unexplained iteration',(r:any,o:any)=>o.usage.iterations=[{}]],
+    ['unsupported usage metadata',(r:any,o:any)=>o.usage.fallback_credit=1],
+    ['negated quota',(r:any,o:any)=>o.result='You have not hit your weekly limit. This is an ordinary request-rate429.'],
+    ['quoted quota',(r:any,o:any)=>o.result='The submitted text "hit your weekly limit" is not a quota event; ordinary request-rate429.'],
+    ['qualified affirmative-looking text',(r:any,o:any)=>o.result="You've hit your weekly limit is only an example, not the cause."],
+    ['unrecognized message suffix',(r:any,o:any)=>o.result="You've hit your weekly limit. This is not account exhaustion."],
   ])('does not misclassify %s as a known0 quota refusal',(name,mutate)=>{
     const r=receipt(),raw:any=output();(mutate as any)(r,raw);
     if(!['malformed stdout','oversized stdout'].includes(name as string))r.raw.stdout=JSON.stringify(raw);
     expect(claudeQuotaStop(r)).toBeNull();
   });
   it.each([null,undefined,0,'weekly limit',{},[]])('refuses missing/unstructured evidence %s',r=>expect(claudeQuotaStop(r)).toBeNull());
+  it('permits the minimal supported zero-counter shape and an affirmative have-hit message without inferring omitted optional use',()=>{
+    const r=receipt(),raw:any=output();raw.usage={input_tokens:0,output_tokens:0,cache_creation_input_tokens:0,cache_read_input_tokens:0};
+    raw.result='You have hit your daily limit';r.raw.stdout=JSON.stringify(raw);
+    expect(claudeQuotaStop(r)?.quotaPeriod).toBe('daily');
+  });
   it('captures the cause before a generic callback wrapper but rethrows the exact original and does not retry or mutate the receipt',async()=>{
     const r=receipt(),before=JSON.stringify(r),error=Object.assign(new Error('CLI refused'),{code:'cli_termination',receipt:r});
     let stop:ClaudeQuotaStop|null=null;const dispatch=vi.fn(async()=>{throw error;});
