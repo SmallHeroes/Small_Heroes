@@ -21,6 +21,12 @@ describe('explicit raw-based Sol cache-write budget supplement; no provider',()=
   expect(solCacheWriteAdjustment(wire(),raw(5,7))).toBe(3);expect(solCacheWriteAdjustment(wire(),raw(0,12))).toBe(0);
   expect(solCacheReserveMargin(wire(),600000)).toBe(150000);expect(solCacheReserveMargin({model:'gpt-4o'},600000)).toBe(0);
  });
+ it('distinguishes independent24h maximum retention from30m minimum write TTL',()=>{
+  expect(solCacheWriteAdjustment(wire(),{...raw(),prompt_cache_retention:null,prompt_cache_options:null})).toBe(6);
+  expect(solCacheWriteAdjustment(wire(),{...raw(),prompt_cache_retention:'24h',prompt_cache_options:null})).toBe(6);
+  expect(solCacheWriteAdjustment({...wire(),json:JSON.stringify({model:'gpt-6.1-sol',prompt_cache_retention:'24h',prompt_cache_options:{ttl:'30m'}})},raw())).toBe(6);
+  expect(()=>solCacheWriteAdjustment(wire(),{...raw(),prompt_cache_retention:'12h'})).toThrow();
+ });
  it.each([{ttl:'12h'},{ttl:'unknown'},{},{ttl:'30m',other:true},null,'30m'])('refuses unsupported/partial TTL %j',options=>{
   expect(()=>solCacheReserveMargin(wire(options),600000)).toThrow('trial_sol_cache_pricing');
  });

@@ -14,13 +14,14 @@ export function isSolCacheWire(wire:unknown){
   const options=request.prompt_cache_options;
   if(options!==undefined&&(!options||typeof options!=='object'||Array.isArray(options)||
     Object.keys(options).some(k=>k!=='ttl')||options.ttl!=='30m'))fail();
-  if(request.prompt_cache_retention!==undefined)fail();
+  // Responses reference: maximum retention and minimum TTL are independent.24h is the supported maximum for current models.
+  if(request.prompt_cache_retention!=null&&request.prompt_cache_retention!=='24h')fail();
   return true;
 }
 const count=(n:unknown):number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=0?n:fail();
 export function solCacheWriteAdjustment(wire:unknown,raw:any){
   if(!isSolCacheWire(wire))return 0;
-  if(raw?.model!=='gpt-6.1-sol'||raw?.service_tier!=='default'||raw.prompt_cache_retention!==undefined)fail();
+  if(raw?.model!=='gpt-6.1-sol'||raw?.service_tier!=='default'||raw.prompt_cache_retention!=null&&raw.prompt_cache_retention!=='24h')fail();
   const options=raw.prompt_cache_options;
   if(options!==undefined&&options!==null&&(!options||typeof options!=='object'||Array.isArray(options)||
     Object.keys(options).some(k=>k!=='ttl')||options.ttl!=='30m'))fail();
