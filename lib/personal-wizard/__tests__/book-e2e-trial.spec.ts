@@ -4,6 +4,7 @@ import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {BOOK_E2E_TRIAL,TrialApiMeter,TrialMaxBudget,trialApiRules,trialConfigSchema} from '../../../scripts/personal-book-e2e-trial';
 import {auditionRenderPlan} from '../../../scripts/personal-simple-book-reviewed-audition';
+import {prepareSourceImpactReview,compileSourceImpactReview,SOURCE_REVIEW_IMPACT} from '../source-review-impact';
 
 const root=()=>mkdtempSync(path.join(tmpdir(),'new-book-trial-test-'));
 const raw={model:'gpt-6.1-sol',service_tier:'default',status:'completed',output_text:'{}',usage:{input_tokens:12,output_tokens:3}};
@@ -59,5 +60,58 @@ describe('new full-book native trial',()=>{
     expect(meter.snapshot().knownEstimateMicroUsd).toBe(4500000);
     expect(()=>meter.run('another',{},2000000,produce)).toThrow('trial_max_cap');expect(calls).toBe(3);
     expect(()=>meter.run('another',{},1,produce)).toThrow('trial_max_session_guard');
+  });
+});
+
+describe('prospective diagnostic source impact (legacy literary HOLD preserved)',()=>{
+  const prepared=(blocking=false)=>prepareSourceImpactReview({sourceSha:'a'.repeat(64),age:6,
+    finalPacket:{version:'synthetic/final-v1',instructions:"Every finding quote must be a contiguous verbatim substring copied from the cited version's actual page text at that pageNumber, not a paraphrase or a quote from the brief/title/plan. A literal quote proves provenance, not the truth of your interpretation.",
+      manuscript:{title:'טיול חדש',pages:Array.from({length:8},(_,n)=>({pageNumber:n+1,text:'רות יצאה לשביל. החבר עזר והיא חייכה.'}))}} as any,
+    readings:[{stage:'final_review',findings:[{severity:blocking?'blocking':'meaningful',kind:'issue',criterion:'אבחנה כללית לדוגמה',explanation:'טענה ספרותית שמחייבת בדיקת השפעה חדשה',original:[],revised:[]}]},
+      {stage:'comparison',findings:[{severity:'meaningful',kind:'new_regression',criterion:'טענת עריכה לדוגמה',explanation:'השפעת הניסוח על ההבנה צריכה להיבדק',original:[],revised:[]}]}] as any});
+  const evidence=[{startId:'r-p1-u1',endId:'r-p1-u1',anchor:'רות יצאה'}];
+  const positive=(p=prepared())=>({version:SOURCE_REVIEW_IMPACT,packetDigest:p.packetDigest,summary:'בדיקה חדשה מפורשת של אותה גרסה בדיוק',
+    guards:['safety','age_readability','causality','identity','continuity'].map(domain=>({domain,status:'supported',reason:'הטקסט מדגים פעולה מובנת ורצף שמור לילד',evidence:structuredClone(evidence)})),
+    decisions:p.body.requiredFindings.map(f=>({id:f.id,impact:'detail',certainty:'supported',reason:'ההשפעה מקומית ועריכתית ואינה שוברת הבנה או זהות',evidence:structuredClone(evidence)})),additional:[]});
+  it('fresh supported detail admits diagnostics only, retaining old raw severity and binding',()=>{
+    const p=prepared(),before=JSON.stringify(p.context.readings),answer=positive(p),result=compileSourceImpactReview(p,answer);
+    expect(result.status).toBe('diagnostic_source_supported_with_notes');expect(result.productAccepted).toBe(false);
+    expect(result.historicalLiteraryHoldPreserved).toBe(true);expect(JSON.stringify(p.context.readings)).toBe(before);
+    expect(p.context.readings[0].findings[0].severity).toBe('meaningful');
+  });
+  it.each(['safety','story','identity','continuity'])('a fresh %s finding still holds',impact=>{
+    const p=prepared(),a=positive(p);a.decisions[0].impact=impact;
+    expect(compileSourceImpactReview(p,a).status).toBe('held_material');
+  });
+  it.each(['safety','age_readability','causality','identity','continuity'])('uncertain %s guard cannot be waved through',domain=>{
+    const p=prepared(),a=positive(p);a.guards.find(g=>g.domain===domain)!.status='uncertain';
+    expect(compileSourceImpactReview(p,a).status).toBe('held_uncertain');
+  });
+  it('required evidence uncertainty holds even when labeled detail',()=>{
+    const p=prepared(),a=positive(p);a.decisions[0].certainty='uncertain';expect(compileSourceImpactReview(p,a).status).toBe('held_uncertain');
+  });
+  it.each(['missing','duplicate','foreign'])('refuses %s prior-finding coverage',variant=>{
+    const p=prepared(),a=positive(p);if(variant==='missing')a.decisions.pop();else a.decisions[1].id=variant==='duplicate'?a.decisions[0].id:'foreign';
+    expect(()=>compileSourceImpactReview(p,a)).toThrow('source_impact_coverage');
+  });
+  it('does not demote an old blocking claim to detail',()=>{
+    const p=prepared(true);expect(()=>compileSourceImpactReview(p,positive(p))).toThrow('source_impact_blocking_demotion');
+  });
+  it('rejects duplicate guards, false letter anchor, foreign digest and changed instructions/context',()=>{
+    const p=prepared(),a=positive(p);a.guards[1].domain=a.guards[0].domain;expect(()=>compileSourceImpactReview(p,a)).toThrow('source_impact_guards');
+    const b=positive(p);b.decisions[0].evidence[0].anchor='רות יצא';expect(()=>compileSourceImpactReview(p,b)).toThrow();
+    const c=positive(p);c.packetDigest='b'.repeat(64);expect(()=>compileSourceImpactReview(p,c)).toThrow('source_impact_binding');
+    const d=positive(p);p.instructions+=' changed';expect(()=>compileSourceImpactReview(p,d)).toThrow('source_impact_binding');
+    const p2=prepared(),a2=positive(p2);p2.context.sourceSha='b'.repeat(64);expect(()=>compileSourceImpactReview(p2,a2)).toThrow('source_impact_binding');
+  });
+  it('counts the one prospective review in the SAME native API ledger and reservation floor',async()=>{
+    const meter=new TrialApiMeter(root()),w={...wire,stage:'source_impact_review'};
+    expect(trialApiRules('source_impact_review')?.reserve(w)).toBe(600000);
+    await meter.run('source_impact_review',w,600000,async()=>({value:1,estimatedMicroUsd:54,receipt:receipt()}));
+    expect(meter.snapshot().calls).toBe(1);let dispatched=false;
+    await expect(meter.run('source_impact_review',w,600000,async()=>{dispatched=true;return{value:1,estimatedMicroUsd:54,receipt:receipt()};})).rejects.toThrow();
+    expect(dispatched).toBe(false);expect(meter.snapshot().newKnownApiMicroUsd).toBe(54);
+    expect(trialApiRules('s4_storyboard_review')).toBeDefined();
+    expect(trialApiRules('s4_final_review')).toBeUndefined();
   });
 });
