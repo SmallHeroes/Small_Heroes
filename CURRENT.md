@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Receipt recovery final pricing correction2 — OFFLINE GREEN, exact independent re-gate next (2026-10-24)
+
+- Independent R1 HOLD1b641a5e accepted actual484563microUSD accounting but reproduced TWO P2 edge cases in synthetic callbacks:
+  actual per-content12h cache-breakpoint override was admitted under30m pricing,and unknown result dropped the additive pending margin.
+  Neither occurred in the real five calls. R1 grant6dd63131 remains unused/HOLD history; no paid call or source restart since then.
+- Focused code06aeb440(parentc56fea00) rejects prompt_cache_breakpoint on actual input nodes before claim; no string parsing or output
+  schema-name false positives. Unknown results now retain original600000 reservation PLUS150000 cache margin/unknown blocking flag.
+  Both independent original probes rerun byte-identically in separate author scratch:2/2pass,0providers/keys/realclaims; originalRED intact.
+- Tests-first127passed/2failed retained; final129/129passed across6affectedfiles,exit0. Whole-project tsc --noEmit exit0 with a fresh
+  incremental cache explicitly under artifact root (not source). No broad/fullcheck rerun; historicalRED/stale/timeouts unchanged.
+- Actual five-row replay remains base444510 +40053 =484563/7m,5calls/1historicfailed,unknown0/unsettled0;Max1609594resource/6logical
+  separately unchanged. Native frozen code-head proof:exact new plan,4preclaim/fee-reset/attempt/lease refusals,unchanged paid review
+  supported_with_notes,699unique protected history hashes,0key/provider/bookwrites. Source and3consumed board attempts stay unchanged.
+- Q=ART/r3-sol-receipt-recovery-20261023;R2 operator uses SAME existing r1 coordination registry,not a new monitor/state. New unused
+  grant-R2 is only technical pin of SAME fixed successor slot. Exact source/operator/grant independent review must precede downstream
+  child/sheets/all8+coverLOW/reader. No new source/planner/review allowance,pricinground3,budget reset,production,push/deploy or cleanup.
+
 ## Receipt recovery pricing correction1 — OFFLINE GREEN, independent re-gate next (2026-10-23)
 
 - First independent HOLD16c5a674 on2f02978b/granta2d22a70 found ONE P2: raw Sol cache writes were charged at ordinary input rate.

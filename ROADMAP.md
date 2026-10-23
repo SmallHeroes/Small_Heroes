@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Receipt recovery final pricing correction2 — frozen code, bounded independent re-gate (2026-10-24)
+
+- R1 HOLD1b641a5e found only synthetic per-contentTTL admission and unknown-result reserve-margin gaps; real484563microUSD remains.
+- Code06aeb440:actual input breakpoints refuse preclaim (text/schema mentions remain data);unknown result keeps full750000 accounting.
+  Original independent probes2/2green,tests-first127/2RED retained,final129tests0/6files,whole tsc --noEmit0/artifact-only fresh cache.
+- Native proof4preclaimrefusals0,699history hashes unchanged,exact paid semantic replay unchanged;0newproviders/keys/bookwrites.
+  Same source/board3of3/APIcap7m/Maxseparate/LOW/.70/child+page allowances. Historical failed outcomes and unused grants retained.
+- DocsLAST/exact unused grant-R2 and SAME independent reviewer before downstream. Final engineering pricing correction2,not a new
+  book/authority/monitor;no new writing/planner/review call or open retries. No complete/pixel/product claim until actual outcome.
+
 ## Receipt-recovery pricing re-gate — general bounded correction1 (2026-10-23)
 
 - Independent first HOLD16c5a674 confirmed actual cache-write undercount across5known Sol calls,not new unknown cost or exhausted cap.
