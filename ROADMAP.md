@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Existing ReaderV2 + mom narration for new diagnostic book (2026-10-23)
+
+- Direct owner approval: one readerlink with exactcover+8texts/images and realmomMP3; narration<=USD1 within7m, no oldconsumedgrant reset.
+- General strict local-only/hash-bound manifest/store/routes mounts existing ReaderV2; no DB/cloud/order or reader-core change. QA incomplete
+  notice retained, productionhard404/slug/realpath/hash/coversequence/byterangeguards.52focusedtests/nonincrementaltsc0, fullcheckREDretained.
+- Q=r2-new-book-mom-reader-20261023 holds one-use9POSToperator, existingvoice/model/niqqud+pacing, Natural0.5 explicitaudition, conservative
+  costs/headers/uniqueclaims/no retries. Sameindependentgate beforeprovider, then9actualclips+originalimages/audio/media/runtime/UIverify.
+- Oldfailed_trial/HOLDs/32API1494826 +Max2553221resource unchanged; no productionpush/newkey/task/worktree/reviewer/monitor/cleanup.
+
 ## Fresh different-companion full book DRAWN and DELIVERED; automated QA incomplete honestly (2026-10-23)
 
 - New Naomi/fox story: actual8body+coverLOWimages/exact8texts, childpassed, bothsheetssecondcandidate supported, source detail admission

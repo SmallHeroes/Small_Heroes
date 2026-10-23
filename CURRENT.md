@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Owner-approved mom narration + actual ReaderV2 local preview — code ready for independent gate (2026-10-23)
+
+- Guy explicitly approved title+8pages in existing mom voice, new narration <=USD1 within existing USD7 book cap, and one complete readerlink.
+  Original32calls1494826microUSD/nativefailed/QAincomplete/9images/texts remain unchanged. No book grant reopened or production/order created.
+- Additive generic local-narrated-reader/v1 manifest/store and /dev/local-reader + /api/dev/local-reader mount EXISTING ReaderV2 viaqa_fixture.
+  Local NODE_ENVproduction hard404 (even staging), fixed ignoredroot, slug/path/realpath/hash checks, contiguouscover+pages, exacttext,
+  strict false productAccepted/productionQualified, visible incompleteQA notice; per-pageMP3 support +boundedHTTP206/416. No reader-core edits.
+-52focused tests0 across6files (newpure27/store+actualroute5/existingnarration8/voice6/src4/dwell2); nonincrementaltsc0 at11:14:29.370Z.
+  Historical fullcheckRED unchanged, no unrelated hourslongsuites. New production controls/DB/cloud storage calls NONE.
+- Q=ART/r2-new-book-mom-reader-20261023: owner/DG/solewriter, operator plan bindshead+source/images+momregistry/helper. Up to9singlePOSTS,
+  eleven_v3/existingmom, explicit Natural0.5 audition(otherregistrysettings), existing niqqud+pacing only; no registry/default/model change.
+  Global one-use narration claim, per-page wires/headers/MP3hashes; ordinary provider autoretry prevented by operator's single-dispatchguard.
+  Conservative100microUSD/billedcharacter budget, official currentlist80 separately, total1mguard/prior+new<=7m; unknown output/cost stops.
+- NextdocsLAST/frozen unused plan/SAMEreadonlycode+operatorQA, then approved narration and actuallocalreader/media/UI checks. No secret read or
+  provider yet; no newkey/envfile/task/agent/monitor/worktree, push/deploy/production/customer delivery, image/story/child repair or cleanup.
+
 ## NEW fox book delivered: cover + all8 body images; native FAILED / automated QA INCOMPLETE (2026-10-23)
 
 - Guy's ONE fresh different-story/companion trial produced "העלה שעשה אפצ'יק", fictionalNaomi6/fox_uri, all8 exact Hebrew texts and9actual
