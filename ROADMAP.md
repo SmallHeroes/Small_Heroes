@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## NEW story + different companion end-to-end trial — code ready for independent gate (2026-10-23)
+
+- New direct owner-paid ONE book approval; new fixed slot, fictionalNaomi6/fox_uri, USD7API/Max resource6 separate, no old reset.
+- Existing engine author/editor/board/child/references/full9images/QA/reader. Optional cohort-first and material-scene repair; detail notes
+  nonblocking through existing classifier, never safety/identity/required-evidence uncertainty override. Old defaults/history unchanged.
+- Code9ced8735:64focused +15native REALmeter/syntheticprovider controls0, nonincrementaltsc0; actualnativeplan0, paid0. FullcheckREDstays.
+- DocsLAST/exact frozen unused grant/operator/SAME separate readonlyQA/preflight -> one approved full diagnostic reader and truthful report.
+
 ## Local scene repair diagnostic delivered WITH FINDINGS (2026-10-23)
 
 - Full8page+coverviewerindex-v2:adoptedp4fourlimbsbutheldgoldground; rejectednewp7threevisible/sourcefourrequired, oldp7retainedheld.

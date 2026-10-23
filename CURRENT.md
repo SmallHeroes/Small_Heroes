@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## NEW owner-approved end-to-end book trial — code complete, independent QA NEXT (2026-10-23)
+
+- Guy directly authorized ONE different story from scratch, a different companion, paid full-book testing and nonblocking minor issues.
+  New native fixed slot owner-new-book-e2e-20261023/v1, NOT a reset of any consumed old book/claim/grant. Prior book and UNKNOWNs preserved.
+  Fictional Naomi6/fox_uri; fresh request/seed/profile. Free author/editor/planner output, not hand-written story or category/bank.
+- Native route scripts/personal-book-e2e-trial.ts reuses runSimpleWizardBook, storyboard diagnostic/repair, inspected child/posev2/materiality,
+  original render/quality/identity adapters and raw accounting. USD7 API; Max reported resource USD6 separately; no new key/model substitution.
+  Original existing-key reader only inside a claimed call. Source repair1, storyboard attempts3, citation correction1, child2, sheets2,
+  pages3TOTAL including first; unknown cost/outcome stops. Fixed one-use claim outside output paths; plan dry by default.
+- General prospective freshCohort flag draws all8body pages then cover before first page judgment, so unusable review cannot hide missing
+  visual coverage. Explicit diagnostic status, no acceptance override; default/sample/legacy behavior unchanged. Detail nonblocking is the
+  EXISTING shared materiality policy; safety/identity/age/anatomy/source/uncertainty not relabeled. No production default or second QA engine.
+- Optional materialScene repair uses the same bound raw assessment, scene edit target and separate canon refs, same full QA/.70/selector;
+  only positive bound nonderived material defects, not detail/uncertain/safety/unusable evidence. Original anatomy-only default unchanged.
+- Code9ced8735 parent9db3805c, focused64passed/227filtered including10newcohort/material cases; native15/15passed with REAL meter and
+  synthetic providers. Nonincrementaltsc0 at07:49:05.078Z before code commit. Initial tscRED type issues and new-fixture REDs preserved,
+  fixed without weakening gates. Fullcheck historicalRED remains; no broad hours-long suites rerun. API/Max paid calls0 so far.
+- Actual native dry plan at9ced8735 exit0, 07:50:30.120Z..07:50:37.552Z, validates request/executable/style/companion pins and fresh
+  fixed unused slot BEFORE claim/folder/key/provider. New book dir ART/new-book-fresh-fox-20261023. No old approval reused.
+- Same task, Codex sole writer in C:/GNart/Work/sh-book-render-20261009, branch claude/book-render-20261009; d53b clean768ccb2f untouched.
+  Q=ART/r2-new-book-e2e-20261023 has exact owner record/DG/config/logs. Next docsLAST/clean freeze/unused grant+operator, SAME approved
+  independent readonly reviewer, fresh preflight, then approved paid run and all-image/manual/outcome QA + reader/accounting report.
+  No push/merge/deploy/customer delivery/delete/cleanup/newtask/worktree/monitor/reviewer/key. Product acceptance remains Guy.
+
 ## Local anatomy diagnostic CLOSED WITH FINDINGS — p4 improved; p7 clarity candidate rejected (2026-10-23)
 
 - FullreaderART/same-book-anatomy-clarity-outcome-20261023/viewer/index-v2.html:cover+8selectedimages/exact8Hebrewtexts, beforeafterp4/p7,
