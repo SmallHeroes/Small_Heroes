@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## NEW fox book delivered: cover + all8 body images; native FAILED / automated QA INCOMPLETE (2026-10-23)
+
+- Guy's ONE fresh different-story/companion trial produced "העלה שעשה אפצ'יק", fictionalNaomi6/fox_uri, all8 exact Hebrew texts and9actual
+  1024LOWimages. Source admitted diagnostic detail notes prospectively; second unchanged planner output received its FIRST real Sol review,
+  review_supported. No third planner. Child firstcandidate passed; BOTH reference sheets passed secondcandidate. OldHOLDs/raws retained.
+- Executed clean d72eb41d, consumed66de9240 grant: 10:05:44.255Z..10:19:16.111Z, native1/failed_trial/audition_review_unusable. All9frames
+  generated BEFORE first pageQA, no later rerender/repair. Page1 qualityHELD, numericidentity0.9999999999999999/.70 passed; p2 review known
+  but unusable; cover+pages3-8 quality/identity NOTRUN. Do not call this engine-E2E PASS, approved book or production-qualified output.
+- Exact p2 raw/schema valid, first cross-field refusal landmark-topology.ts:198: attached clothesline supports associationdifferent_object
+  plus extentcomponent_only/component_of. Known paid inconsistent typed verdict, NOT malformedJSON/network/unknowncost/pixel duplicate proof.
+  General remaining work: align whole/component association contracts; bounded review isolation/recovery without rerendering, falsePASS,
+  resetting attempts/claims or discarding material findings. This diagnostic closure implements NO such new recovery or paid retry.
+- Final API32knowncalls1494826microUSD of7m/98, zero unknown/reservation. Max5sessions2553221microUSD reported resource separately of6mguard,
+  not additional verifiedAPIinvoice. This last run added24calls1273624microUSD and0Max.14totalimagecalls=child1+sheets4+body8+cover1.
+- SAME independent outcomeaccuracyPASS657438e8:256controls0, all9actualPNGs/child/fox inspected, exact8texts/22localpaths/9anchors,
+  all72prior current-bookparents/49source-stylepins/consumedlineage intact. No obvious extra fox limb found, not perfect anatomy/productPASS.
+  Actual visual notes: earlylitlantern; p2about10readable hangingsocks+1mouth failsvisiblyestablish20, ropepartlyoccluded so no hidden-count
+  certainty. These minor notes did not prevent full drawn coverage. Original judgeholds preserved, seven unreviewed frames not relabelled.
+- Q=ART/r2-new-book-storyboard-span-20261023: delivered-viewer/index.html +hashmanifest, BOOK-TEST-REPORT.txt, INDEPENDENT-BOOK-OUTCOME-QA.txt.
+  Runtime/codegate f467be29..d72eb41d independently60tests/58VM/174controls0. Original reviewer harness-shape REDs retained, finalv3correct.
+  Fullcheck historicalRED stays. Browserfile:tool denied; statictext/hash/assets/actualPNGs verified, liveHTMLlayout NOTverified/QUEUEDonly.
+- Provider processes/directchildren absent; no payment after terminal. This closure only updates CURRENT/ROADMAP and local documentation
+  commit after nonincrementaltsc; does NOT repin/reopen consumed authority. Prior book/UNKNOWNs/claims/outputs remain unchanged. No push,
+  production/customer/deploy/delete/newkey/task/worktree/monitor/reviewer. Guy retains product acceptance; owner has actual new full book.
+
 ## Key-event source interval bug fixed; untouched second plan ready for FIRST semantic review (2026-10-23)
 
 - Actual completion admitted source detail notes, then planner1/Sol held one sock-count concern (duplicated book/page rows); planner2

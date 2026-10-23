@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Fresh different-companion full book DRAWN and DELIVERED; automated QA incomplete honestly (2026-10-23)
+
+- New Naomi/fox story: actual8body+coverLOWimages/exact8texts, childpassed, bothsheetssecondcandidate supported, source detail admission
+  and unchangedsecondplan's FIRSTSolreview_supported. No thirdplanner, no page rerender/repair; all9drawn before pageQA.
+- Runtime d72eb41d/consumed66de9240 native1/failed_trial/audition_review_unusable: p1qualityheld/identity~1passed; p2knownrawtypedtopology
+  contradictory(component_only vsdifferent_object), firstguard landmark-topology.ts:198; cover+3-8notreviewed. Not fullengine/productPASS.
+- API32/1494826known of7m/98; Max5/2553221reportedresource separately of6m; zero newunknown/pending. No paidloop after terminal.
+- SAME independent accuracyPASS657438e8:256controls0, all9actualpixelinspection,8texts/22links/72parents/49pins intact. No obvious extrafox
+  limb. Earlylitlantern and20socksnotvisiblyestablished remain notes, not falsePASS or another rerender. HistoricalREDs/HOLDs retained.
+- Deliver Q=r2-new-book-storyboard-span-20261023/delivered-viewer/index.html +BOOK-TEST-REPORT.txt +independentreport. Staticchecks done;
+  browserlayout NOTverified. Docs-only localclose/nonincrementaltsc, no repin/push/production/newauthority. Product acceptance Guy.
+- Next general engineering lesson (NOT implemented/authorized by accuracyPASS): whole/component association schema/instruction alignment,
+  known unusable-review isolation/bounded recovery so one protocol issue does not cancel remaining diagnostic QA; preserve all gates/counters.
+
 ## General key-event source-span correction and same second-plan FIRST review (2026-10-23)
 
 - Exact saved planner2/raw/wire diagnosis confirms two unique source intervals overlap while neither quote contains the other; v1 helper
