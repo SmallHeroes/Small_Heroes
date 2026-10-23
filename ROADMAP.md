@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Exact source-impact coverage + one constrained same-source completion (2026-10-23)
+
+- Impact raw omitted1of2required decisions; native1/source_impact_coverage honest, cost28656known.5guards+firstdetail supported/12refsvalid;
+  secondUNDECIDED. Original failed record untouched. API103452/6, Maxresource740103/3, no board/child/images/unknown.
+- Code314ddcf6 strengthens provider exactenum/cardinality and adds ONE missing-ID completion with frozen existing typed data/provenance.
+ 48tests/tsc0. Samebook/bothconsumedancestors/shared7mAPI+6mMax+98calls; no fullreview/sourcewriting or reset. DocsLAST/QAgate/preflight next.
+
 ## Same NEW fox book: source-impact calibration, not source rewrite (2026-10-23)
 
 - Original new trial consumed held_source, API74796/5; Maxresource740103/3; zero unknown/images. AccuracyQA681controls0, no parser/misbinding.

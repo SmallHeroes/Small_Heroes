@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Source-impact coverage contract fixed; ONE frozen-response completion ready for QA (2026-10-23)
+
+- Actual fresh impact call settled28656microUSD then native1/source_impact_coverage:5guards supported, first finding supported/detail,
+  second required ID omitted. Summary is NOT the missing verdict. All12existing citation refs resolve against exact current units.
+  Parent failed_trial/claim/raw remain frozen/consumed. CumulativeAPI103452/6, Maxresource740103/3, zero unknown; no board/child/images.
+- General provider schema now encodes the SAME compiler's exhaustive required-ID enum and exact cardinality, not just generic max40.
+  Pure source-review-impact-completion/v1 permits ONE constrained missing-ID completion only when existing guards/rows/citations are valid,
+  supported/detail. Existing summary/guards/typed findings remain unchanged; new additional blockers allowed, material/uncertain still hold.
+  A completed successor has explicit partial-raw/completion provenance; old incomplete response is NEVER retrospectively accepted.
+- Code314ddcf6 parent91b71629: fixed one-use completion claim/outcome follows BOTH consumed ancestors and47currentbookfiles (plan verifies
+  actual inventory), same frozen source/units/profile/seed/bookDir. No full-review retry, author/editor/source/citation repair or reset.
+  SAME7mAPI/98calls and6mMax resource, ordinary600000reserve; only unspent board3/child2/sheets2/page3total/LOW/.70 continue if admitted.
+-48tests0 and nonincrementaltsc0 09:04:28.273Z before codecommit; diffcheck0. NextdocsLAST/unused exactplan/grant/operator/SAMEindependent
+  review/freshpreflight then automatic ONEcompletion/downstream. No unknown-cost exception, secondbook, production/push/delete/newkey/task.
+  Q=ART/r2-new-book-source-impact-20261023 contains DG/paid-result diagnosis; historical fullcheckRED and all earlierHOLDs retained.
+
 ## Fresh fox book: literary source held; prospective typed-impact continuation ready for independent gate (2026-10-23)
 
 - Actual first new-trial native0 at08:20:16Z stopped held_source BEFORE storyboard/child/images. API5knowncalls74796microUSD;
