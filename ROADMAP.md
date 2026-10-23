@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## General complete-bundle integration — fixed same-book no-spend checkpoint (2026-10-24)
+
+- R2 actualnative1/audition_repair_binding preserved as failed/outcomef6af3960;independentaccuracyPASSd5ccdc31 confirmed missing repair
+  input persistence before child/provider. No newcost/API/Max. Oldgrant2fe97294 consumed,not reopened/re-pinned;pricing findings stayclosed.
+- Codee6934178:shared pure/full filesystem bundle admission,exact paid repair return/persistence andpreclaim downstream-loader proof.
+  Fixed opt-in successor only for that known0-provider local failure;newoutput/claim,full oldlineage/accounting/remainingcounts preserved.
+-151focusedtests0/7files,final artifact-cachetsc0;actualnativeproof8negativepreclaimcontrols0/9unchangedframes/1802preserved/0provider.
+  API484563/5,Max1609594/6logical separate,board3of3/newtext0/LOW/.70 unchanged. FullcheckRED not relabeled;no completebook yet.
+- DocsLAST/exactunusedgrant/operator independentQA before the already-approved remaining samebook child/8+cover/reader. No newpaid
+  writing/planner/review,story/book,attempt/budgetreset,production,narration,key,agent/monitor/worktree,push/deploy/cleanup.
+
 ## Receipt recovery final pricing correction2 — frozen code, bounded independent re-gate (2026-10-24)
 
 - R1 HOLD1b641a5e found only synthetic per-contentTTL admission and unknown-result reserve-margin gaps; real484563microUSD remains.

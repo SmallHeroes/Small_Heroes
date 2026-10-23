@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Sol complete storyboard bundle / zero-spend checkpoint — OFFLINE VERIFIED, independent gate next (2026-10-24)
+
+- The released R2 grant2fe97294 actually ran once at011b9dc9:exit1/audition_repair_binding,claimcf04f760/outcomef6af3960 consumed.
+  Replay succeeded but omitted storyboard_repair_input.json;loader correctly refused before child/provider. Actual outcomeQA d5ccdc31
+  verified1835bounded checks/699history/55pins. Exactly5newbookfiles,0newprovider/cost;API484563/5 andMax1609594/6logical unchanged.
+  This failed outcome stays failed;old outputs/claim/grant are immutable. It is a new bundle integration defect,not pricing correction3.
+- Codee6934178(parent011b9dc9) extracts existing loadReviewedStoryboard admission into the SAME pure admitReviewedStoryboardBundle.
+  Legacy filesystem wrapper and strict request/source/repair/draft/review/frame/uncertainty gates remain. Exact paid replay now returns
+  the actual repair input and runs complete-bundle admission BEFORE claim;native persistence includes that input. No new model verdict.
+- Explicit fixed reader-safe-sol-bundle-checkpoint/v1 follows ONLY the exact consumed no-new-spend audition_repair_binding outcome:
+  prior grant/claim/outcome/raw/source/ledger/pins bound,oldfailed folder untouched,newtext_sol_bundle. Requires same5knownAPI/0unknown,
+  unchanged Max/accounting andzero child/images;remaining source/planner/review0,board3/3,child2/page3 unchanged. New fixed claim must
+  be unused;not arbitrary chained retries/reset. General engine fix under direct same-book completion approval;no extra paid allowance.
+-151focusedtests0/7files,final whole tsc --noEmit0 with copied artifact-only incremental cache. Initial2typingerrors retained/fixed.
+  Actual CJS native proof exact plan,shared real downstream loader admits same paid9frames/repair,8preclaim negative controls,1802
+  unique protected hashes,0provider/key/book/realclaimwrites. Actual original missing-repair paired probe retained. No broad/fullcheck
+  rerun or pixel/completebook claim. Known RED/stale/timeouts stay as they were.
+- Q=ART/r3-sol-bundle-checkpoint-20261024. Next:docsLAST/frozen exact unused plan+operator/same independent reviewer;only afterPASS,
+  freshpreflight/solelease and already-authorized remaining child/sheets/8pages+coverLOW/reader. API7m/98,Max6mseparate,LOW/.70 remain.
+  No text restart,semantic HOLD promotion,newunknownexception,narration,key,production,push/deploy/cleanup/newtask/agent/monitor.
+
 ## Receipt recovery final pricing correction2 — OFFLINE GREEN, exact independent re-gate next (2026-10-24)
 
 - Independent R1 HOLD1b641a5e accepted actual484563microUSD accounting but reproduced TWO P2 edge cases in synthetic callbacks:
