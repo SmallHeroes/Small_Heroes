@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Sol real run + known-response loader recovery — OFFLINE VERIFIED, pending independent gate (2026-10-23)
+
+- The prior Sol successor actually ran once at a13ff845 after independent code/operator PASS7227ff84. Planner232748microUSD;
+  reviewer98278; newAPI331026, cumulative444510/7000000 over5/98 calls,unknown0/unsettled0. Max1609594reportedresource/6logical
+  including two known-zero quota probes remains separate. No author/editor rerun,child or illustration. Nativeexit1; failed_trial and
+  review_callback_failed remain immutable. PID/directchildren ended. No blind retry/reset or historical PASS promotion.
+- Confirmed integration fault: review callback redundantly dynamically imported extensionless book-openai under a CJS-only tsx launcher;
+  ERR_MODULE_NOT_FOUND was masked as trial_review_schema. Original completed JSON/usage are valid. Exact paid-wire provider-free replay
+  produces review_supported_with_notes (3citation issues supported by the reviewer's own same-page spans); no raw field/verdict changed.
+- Codebca25c7e(parenta13ff845) uses the already-loaded shared static decoder and retains bounded diagnostic cause/receipt. Private explicit
+  reader-safe-sol-receipt-recovery/v1 is a fixed one-use downstream successor of that known local decode failure: same source/profile,
+  old consumed Sol grant/claim/outcome,all new+old raw journals,exact plan/review wire,prospective stateParity and strict API replay.
+  Three board attempts remain3/3,zero new source/planner/review allowance. No engine policy/schema/severity/production default change.
+- Recovery calls the same existing compiler/classifier and requires the actual unchanged answer to admit; unknown/malformed/changed
+  context or material uncertainty still refuses before downstream. Any text dispatch in the recovery branch is explicitly refused.
+  Exact owner/operator/runtime lease required before claim and at native paid boundaries. Remaining child/page allowances andLOW/.70
+  unchanged; no new unknown-cost exception,Max call,budget transfer,new book,narration,key,monitor,push/deploy/cleanup.
+-106affectedtests passed/0failed/0skipped over5files; final whole-project nonincrementaltsc0. Initial literal-type tscRED retained/fixed.
+  Actual CJS native proof:exact saved semantic result,10preclaim/contract/reset refusals,677unique protected history hashes,0key/provider
+  calls/bookwrites. No broad/hourslong/fullcheck rerun; historicalRED/stale/timeouts unchanged. No new pixel/product proof.
+- Q=ART/r3-sol-receipt-recovery-20261023 retains owner/DG,prior real outcome,costs,code-plan,real replay,logs and preservation. Next:
+  docsLAST/cleanhead,exact unused grant/operator independent QA,then same-book child/sheets/8pages+coverLOW and honest local reader.
+
 ## Explicit Sol writing route + same-book checkpoint — OFFLINE VERIFIED, awaiting independent gate (2026-10-23)
 
 - Guy directly approved replacing prospective Opus/Max writing/planning with gpt-6.1-sol. Codef8d3695c(parent28007e2e) adds

@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Sol known-response integration recovery — no extra planning/review attempt (2026-10-23)
+
+- Real gated Sol plan232748 +review98278microUSD; cumulativeAPI444510/7m/5calls. Max1609594resource/6logical separately unchanged.
+  Completed reviewer response hit a CJS extensionless dynamic import bug,misreported as schema failure. Terminal old outcome staysfailed.
+- Codebca25c7e uses existing static decoder; fixed explicit receipt-recovery successor binds exact saved paid wire/raw under SAME
+  prospective contract,shared classifier and original source. Actual unchanged answer admits with citation notes. No new model verdict,
+  raw rewrite,policy relaxation,attempt/budget reset,source restart or repinning consumed authority. Board3/3,newtext/reviews0.
+-106focusedtests0/5files,nonincrementaltsc0;real CJS saved-output proof0 with10preclaimnegatives,677unique history hashes preserved,
+  no key/provider/bookwrites. Historic fullcheckRED remains. Exact code+unusedgrant/operator independent QA before downstream spend.
+- Same approved book/LOW/.70/finite child+page allowances; unchanged production/Opus defaults and old mom reader. No new audio/book,
+  key,agent,task,monitor,worktree,push/deploy/cleanup. Q=r3-sol-receipt-recovery-20261023. No new illustrated book claimed yet.
+
 ## Owner-approved Sol migration — same source, final remaining storyboard attempt (2026-10-23)
 
 - Codef8d3695c adds explicit sol-writing-responses/v1 for author/editor/planner with shared contracts/settlement;no production or old
