@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Same-book conditional continuation — Max rechecked, external quota still blocks (2026-10-23)
+
+- Direct owner authorized fresh availability check, then SAME book continuation if available; no story restart or attempt reset.
+  Real single minimal Max probe at ad7b2dce/22:43 Israel returned429 weekly quota. Supplier-reported reset Oct25,04:00 Asia/Jerusalem
+  is not a future availability guarantee. No additional storyboard,child,image,cover or reader call followed the refusal.
+- New Max reported resource0/APIcalls0; cumulative Max1609594microUSD/5logical attempts including probe,original book ledger4 unchanged;
+  API113484microUSD/3calls. Separate6mMax/7mAPI caps,unknown0;board2used/1remaining;all313priorhashes and38bookfiles preserved.
+- One operator-ownership correction re-gated23+12controls0; SAME independent outcome-accuracyPASSbed21d40/442actual-data controls0.
+  Code unchanged and no old outcome promoted. Q=r3-same-book-state-parity-continuation-20261023 holds receipt/report/accounting/QA.
+- Remaining dependency is actual Max availability, then a separately checkpoint/remaining-attempt-bound exact continuation gate under
+  the preserved direct approval. No automatic retry/monitor,alternate account/model,new story,cap reset or completed-book claim.
+
 ## General state parity correction — independently code-verified, live continuation still separate (2026-10-23)
 
 - Owner-approved general fix at9ce9615b: explicit storyboard-state-parity/v1 aligns planner, reviewer, compiler-derived fixed/mutable

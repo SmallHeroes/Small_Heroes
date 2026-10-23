@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Fresh Max availability check — real weekly quota refusal; same book preserved (2026-10-23)
+
+- Latest direct owner approval: check Max and, ONLY if available, continue the SAME book with the new engine contract within existing
+  budget/remaining attempts; no restart. Exactly one independently gated minimal Max probe ran at ad7b2dce,19:43:15..19:43:19Z (22:43 Israel).
+  Actual claude-opus-5-5 response:429 weekly quota; provider reports reset Oct25,04:00 Asia/Jerusalem. This is NOT a future availability
+  guarantee. Native CLI exit1/no timeout; operator exit3 intentionally records unavailable_quota, not an additional failure or retry.
+- New reported Max resource0; no new API call. Cumulative Max1609594microUSD reported resource/5 logical attempts including this probe,
+  separate from an invoice; original stopped book ledger remains4. API113484microUSD/3calls remains unchanged. Caps remain6mMax/7mAPI
+  separately; unknown0/unsettled0. Storyboard remains2 used/1 remaining of3. Original consumed trial,claims,outcome and all313 prior hashes
+  preserved; all38 current book files unchanged. No author/editor rerun,child,sheets,images,audio or new reader. Old mom reader untouched.
+- Initial availability-operator ownership HOLD98a1c4a3 retained; focused correction1/re-gate da1ffbb6 passed23operator+12QA-acquisition
+  controls. Exact consumed probe grant77885c2c and actual outcome94137a92 retained. No source engine code was changed by this probe.
+  SAME independent actual-outcome ACCURACY PASSbed21d40:442bounded assertions exit0,including313hashes,raw429,receipt and cost/count replay.
+  This is reporting/accounting/preservation proof, NOT Max readiness, a new semantic/pixel verdict or product acceptance.
+- Q=ART/r3-same-book-state-parity-continuation-20261023 contains actual receipts,AVAILABILITY-REPORT.txt and independent outcome QA.
+  Conditional continuation did not run because Max is unavailable. Existing state-parity codePASS remains; actual prospective storyboard
+  review and framing pixel validation still pending. No retry of the consumed probe/trial,model/account/key substitution,cap/attempt reset,
+  automatic monitor/resume,production/Wizard,push/deploy or cleanup. Docs-only close; no new illustrated book claimed.
+
 ## General storyboard state parity + quota diagnostics — independent CODE PASS, no new model/pixel verdict (2026-10-23)
 
 - Direct owner request: fix the engine and test it, not manually repair this story or reopen the consumed trial. Code9ce9615b
