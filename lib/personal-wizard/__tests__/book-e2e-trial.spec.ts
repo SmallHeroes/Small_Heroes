@@ -4,7 +4,7 @@ import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {BOOK_E2E_TRIAL,TrialApiMeter,TrialMaxBudget,trialApiRules,trialConfigSchema} from '../../../scripts/personal-book-e2e-trial';
 import {auditionRenderPlan} from '../../../scripts/personal-simple-book-reviewed-audition';
-import {prepareSourceImpactReview,compileSourceImpactReview,SOURCE_REVIEW_IMPACT} from '../source-review-impact';
+import {prepareSourceImpactReview,compileSourceImpactReview,SOURCE_REVIEW_IMPACT,prepareSourceImpactCompletion,compileSourceImpactCompletion,SOURCE_IMPACT_COMPLETION} from '../source-review-impact';
 
 const root=()=>mkdtempSync(path.join(tmpdir(),'new-book-trial-test-'));
 const raw={model:'gpt-6.1-sol',service_tier:'default',status:'completed',output_text:'{}',usage:{input_tokens:12,output_tokens:3}};
@@ -113,5 +113,55 @@ describe('prospective diagnostic source impact (legacy literary HOLD preserved)'
     expect(dispatched).toBe(false);expect(meter.snapshot().newKnownApiMicroUsd).toBe(54);
     expect(trialApiRules('s4_storyboard_review')).toBeDefined();
     expect(trialApiRules('s4_final_review')).toBeUndefined();
+  });
+  it('provider schema encodes exact complete cardinality and stable finding IDs',()=>{
+    const p=prepared(),a=positive(p);expect(p.schema.safeParse(a).success).toBe(true);
+    a.decisions.pop();expect(p.schema.safeParse(a).success).toBe(false);
+    const b=positive(p);b.decisions[0].id='foreign';expect(p.schema.safeParse(b).success).toBe(false);
+  });
+  const completionFixture=()=>{const p=prepared(),full=positive(p),partial=structuredClone(full),missing=partial.decisions.pop()!;
+    const c=prepareSourceImpactCompletion(p,partial);return{p,full,partial,c,answer:{version:SOURCE_IMPACT_COMPLETION,completionDigest:c.completionDigest,missingDecisions:[missing],additionalFindings:[] as typeof full.decisions}};};
+  it('fills only a unique missing decision, preserving every prior typed field and original invalid response',()=>{
+    const {p,partial,c,answer}=completionFixture(),before=JSON.stringify(partial),r=compileSourceImpactCompletion(c,answer);
+    expect(r.status).toBe('diagnostic_source_supported_with_notes');expect(r.raw.guards).toEqual(partial.guards);
+    expect(r.raw.summary).toBe(partial.summary);expect(r.raw.decisions[0]).toEqual(partial.decisions[0]);
+    expect(JSON.stringify(partial)).toBe(before);expect(r.completion.originalIncompleteResponseStillInvalid).toBe(true);
+    expect(()=>compileSourceImpactReview(p,partial)).toThrow('source_impact_coverage');
+    expect(()=>prepareSourceImpactCompletion(p,r.raw)).toThrow('source_completion_not_needed');
+  });
+  it.each(['safety','story','identity','continuity'])('a missing decision completed as %s remains material HOLD',impact=>{
+    const {c,answer}=completionFixture();answer.missingDecisions[0].impact=impact;expect(compileSourceImpactCompletion(c,answer).status).toBe('held_material');
+  });
+  it('uncertain completion and newly discovered blocker are not detail-PASS',()=>{
+    const {c,answer}=completionFixture();answer.missingDecisions[0].certainty='uncertain';expect(compileSourceImpactCompletion(c,answer).status).toBe('held_uncertain');
+    const other=completionFixture();other.answer.additionalFindings=[{...other.answer.missingDecisions[0],id:'add-1',impact:'safety'}];
+    expect(compileSourceImpactCompletion(other.c,other.answer).status).toBe('held_material');
+  });
+  it.each(['held-guard','uncertain-guard','material-row','uncertain-row','foreign-row','duplicate-row','invalid-evidence'])('refuses format-only recovery of %s',variant=>{
+    const {p,partial}=completionFixture();
+    if(variant==='held-guard')partial.guards[0].status='held';
+    if(variant==='uncertain-guard')partial.guards[0].status='uncertain';
+    if(variant==='material-row')partial.decisions[0].impact='story';
+    if(variant==='uncertain-row')partial.decisions[0].certainty='uncertain';
+    if(variant==='foreign-row')partial.decisions[0].id='foreign';
+    if(variant==='duplicate-row')partial.decisions.push(structuredClone(partial.decisions[0]));
+    if(variant==='invalid-evidence')partial.decisions[0].evidence[0].anchor='רות יצא';
+    expect(()=>prepareSourceImpactCompletion(p,partial)).toThrow();
+  });
+  it('rejects missing/foreign completion IDs, changed digest and changed parent raw',()=>{
+    const {c,answer}=completionFixture();expect(()=>compileSourceImpactCompletion(c,{...answer,missingDecisions:[]})).toThrow();
+    const b=structuredClone(answer);b.missingDecisions[0].id='foreign';expect(()=>compileSourceImpactCompletion(c,b)).toThrow();
+    expect(()=>compileSourceImpactCompletion(c,{...answer,completionDigest:'b'.repeat(64)})).toThrow('source_completion_binding');
+    c.partialRaw={...(c.partialRaw as object),summary:'Changed existing typed summary is forbidden'};
+    expect(()=>compileSourceImpactCompletion(c,answer)).toThrow('source_completion_binding');
+  });
+  it('the completion is one separately claimed step within the same cumulative98-call/USD7 ledger',async()=>{
+    const meter=new TrialApiMeter(root()),w={...wire,stage:'source_impact_completion'};expect(trialApiRules('source_impact_completion')?.reserve(w)).toBe(600000);
+    await meter.run('source_impact_review',{...wire,stage:'source_impact_review'},600000,async()=>({value:1,estimatedMicroUsd:54,receipt:receipt()}));
+    await meter.run('source_impact_completion',w,600000,async()=>({value:2,estimatedMicroUsd:54,receipt:receipt()}));
+    expect(meter.snapshot().calls).toBe(2);expect(meter.snapshot().newKnownApiMicroUsd).toBe(108);
+    let dispatched=false;await expect(meter.run('source_impact_completion',w,600000,async()=>{dispatched=true;return{value:1,estimatedMicroUsd:54,receipt:receipt()};})).rejects.toThrow();
+    expect(dispatched).toBe(false);expect(trialApiRules('s5_storyboard_review')).toBeDefined();
+    expect(trialApiRules('s5_final_review')).toBeUndefined();
   });
 });

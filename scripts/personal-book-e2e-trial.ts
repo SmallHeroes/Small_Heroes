@@ -32,7 +32,8 @@ import { exclusiveJson, exclusiveText, realDirectory } from './personal-causal-t
 import { longCallFetch } from './personal-long-call-fetch';
 import { admitCurrentSimpleStorySource, simpleStoryReadingPackets } from '../lib/personal-wizard/simple-story-source';
 import { compileCausalSourceReading } from '../lib/personal-wizard/story-causal-experiment';
-import { SOURCE_REVIEW_IMPACT, prepareSourceImpactReview, compileSourceImpactReview } from '../lib/personal-wizard/source-review-impact';
+import { SOURCE_REVIEW_IMPACT, prepareSourceImpactReview, compileSourceImpactReview,sourceImpactSchema,
+  prepareSourceImpactCompletion,compileSourceImpactCompletion } from '../lib/personal-wizard/source-review-impact';
 
 export const BOOK_E2E_TRIAL = Object.freeze({ id:'owner-new-book-e2e-20261023/v1', pages:8, apiCapMicroUsd:7_000_000,
   maxResourceMicroUsd:6_000_000, maxApiCalls:98, sourceRepairs:1, storyboardAttempts:3, citationCorrections:1, pageAttempts:3,
@@ -97,18 +98,21 @@ function planTrialInputs(config:TrialConfig,existing=false){
 export function planBookTrial(config:TrialConfig){return planTrialInputs(config);}
 export type TrialGrant=ReturnType<typeof planBookTrial>;
 const SOURCE_SUCCESSOR={claim:'owner-new-book-e2e-20261023-source-impact.claim.json',outcome:'owner-new-book-e2e-20261023-source-impact.outcome.json'} as const;
+const SOURCE_COMPLETION={claim:'owner-new-book-e2e-20261023-source-impact-completion.claim.json',outcome:'owner-new-book-e2e-20261023-source-impact-completion.outcome.json'} as const;
 /** Fixed consumed-parent continuation; no arbitrary source/output/ledger, no replay of author/editor or old execute. */
-export function planBookSourceContinuation(config:TrialConfig){
-  const base=planTrialInputs(config,true),parentGrantFile=path.join(path.dirname(config.ownerFile),'grant-STAGED.json'),oldGrant=read(parentGrantFile),
-    parentClaimFile=path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.claim),parentOutcomeFile=path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.outcome),
+export function planBookSourceContinuation(config:TrialConfig,completion=false){
+  const base=planTrialInputs(config,true),parentGrantFile=completion?
+    path.join(path.dirname(path.dirname(config.ownerFile)),'r2-new-book-source-impact-20261023','grant-STAGED.json'):path.join(path.dirname(config.ownerFile),'grant-STAGED.json'),oldGrant=read(parentGrantFile),
+    parentClaimFile=path.join(BOOK_E2E_TRIAL.authorityRoot,completion?SOURCE_SUCCESSOR.claim:BOOK_E2E_TRIAL.claim),
+    parentOutcomeFile=path.join(BOOK_E2E_TRIAL.authorityRoot,completion?SOURCE_SUCCESSOR.outcome:BOOK_E2E_TRIAL.outcome),
     claim=read(parentClaimFile),outcome=read(parentOutcomeFile),sourceFile=path.join(config.bookDir,'text_1','simple-book-result.json'),held=read(sourceFile);
-  if(outcome.status!=='held_source'||held.status!=='story_held'||held.storyboard!==null||oldGrant.cycle!==base.cycle||claim.cycle!==base.cycle||outcome.cycle!==base.cycle||
+  if(outcome.status!==(completion?'failed_trial':'held_source')||held.status!=='story_held'||held.storyboard!==null||oldGrant.cycle!==base.cycle||claim.cycle!==base.cycle||outcome.cycle!==base.cycle||
     shaFile(parentGrantFile)!==claim.grantSha||claim.grantSha!==outcome.grantSha||shaFile(parentClaimFile)!==outcome.claimSha||
     claim.configSha!==previewSha(canonicalJson(config))||oldGrant.configSha!==claim.configSha||
     path.resolve(oldGrant.bookDir)!==path.resolve(config.bookDir)||!same(oldGrant.limits,BOOK_E2E_TRIAL)||
     oldGrant.ownerSha!==base.ownerSha||oldGrant.profileSha!==base.profileSha||!same(oldGrant.companion,base.companion)||
     readdirSync(path.join(config.bookDir,'illustrations')).length||existsSync(path.join(config.bookDir,'child')))fail('trial_source_parent');
-  for(const name of Object.values(SOURCE_SUCCESSOR))if(existsSync(path.join(BOOK_E2E_TRIAL.authorityRoot,name)))fail('trial_source_continuation_consumed');
+  for(const name of Object.values(completion?SOURCE_COMPLETION:SOURCE_SUCCESSOR))if(existsSync(path.join(BOOK_E2E_TRIAL.authorityRoot,name)))fail('trial_source_continuation_consumed');
   const sourceResult=admitCurrentSimpleStorySource(baseRequest(config),held.source,resolvePersonalWizardOptions(source));
   const packets=simpleStoryReadingPackets(baseRequest(config),sourceResult,resolvePersonalWizardOptions(source));
   if(held.readings.length!==2)fail('trial_source_readings');
@@ -117,24 +121,36 @@ export function planBookSourceContinuation(config:TrialConfig){
   });
   const api=new TrialApiMeter(path.join(config.bookDir,'paid-stages')).snapshot(),max=new TrialMaxBudget(path.join(config.bookDir,'claude-max-stages'),'').snapshot();
   if(api.unknownCost||api.unknownOutcome||api.reservedUnsettledMicroUsd||max.unknownAttemptCosts||max.stopped||
-    !same(api,outcome.accounting.api)||!same(max,outcome.accounting.claudeMax)||api.calls!==5||max.logicalAttempts!==3)fail('trial_source_accounting');
+    !same(api,outcome.accounting.api)||!same(max,outcome.accounting.claudeMax)||api.calls!==(completion?6:5)||max.logicalAttempts!==3)fail('trial_source_accounting');
+  const impactReceiptFile=completion?path.join(config.bookDir,'paid-stages','source_impact_review.receipt.json'):null;
+  if(impactReceiptFile){
+    const r=read(impactReceiptFile),raw=sourceImpactSchema.parse(JSON.parse(r.raw.output_text));
+    if(oldGrant.version!=='book-e2e-source-impact-continuation/v1'||oldGrant.sourceImpact!==SOURCE_REVIEW_IMPACT||!same(raw,r.output)||
+      existsSync(path.join(config.bookDir,'source-impact-admission.json')))fail('trial_source_completion_parent');
+    const p=prepareSourceImpactReview({finalPacket:packets.final,readings:held.readings,sourceSha:shaFile(sourceFile),age:validateTrialProfile(read(config.profileFile)).profile.child.age});
+    prepareSourceImpactCompletion(p,raw); // Existing typed guards/rows/evidence must pass before a completion claim.
+  }
+  const ancestorFiles:Record<string,string>=completion?{[oldGrant.parent.grantFile]:oldGrant.parent.grantSha,
+    [oldGrant.parent.claimFile]:oldGrant.parent.claimSha,[oldGrant.parent.outcomeFile]:oldGrant.parent.outcomeSha}:{};
+  for(const [file,sha]of Object.entries(ancestorFiles))if(shaFile(file)!==sha)fail('trial_source_ancestor_changed');
   const files:Record<string,string>={};
   const walk=(directory:string)=>{for(const name of readdirSync(directory)){const f=path.join(directory,name),s=lstatSync(f);
     if(s.isSymbolicLink())fail('trial_source_file');if(s.isDirectory())walk(f);else if(s.isFile())files[path.relative(config.bookDir,f)]=shaFile(f);else fail('trial_source_file');}};
   walk(config.bookDir);
-  return {...base,version:'book-e2e-source-impact-continuation/v1',sourceImpact:SOURCE_REVIEW_IMPACT,
+  return {...base,version:completion?'book-e2e-source-impact-completion/v1':'book-e2e-source-impact-continuation/v1',sourceImpact:SOURCE_REVIEW_IMPACT,
     parent:{grantFile:parentGrantFile,grantSha:shaFile(parentGrantFile),claimFile:parentClaimFile,claimSha:shaFile(parentClaimFile),
-      outcomeFile:parentOutcomeFile,outcomeSha:shaFile(parentOutcomeFile),sourceFile,sourceSha:shaFile(sourceFile),files},
-    remaining:{newSourceImpactReviews:1,sourceWriting:0,sourceRepairs:0,citationCorrections:0,storyboardAttempts:3,childAttempts:2,pageAttempts:3}};
+      outcomeFile:parentOutcomeFile,outcomeSha:shaFile(parentOutcomeFile),sourceFile,sourceSha:shaFile(sourceFile),files,
+      impactReceiptFile,impactReceiptSha:impactReceiptFile?shaFile(impactReceiptFile):null,ancestorFiles},
+    remaining:{newSourceImpactReviews:completion?0:1,newSourceImpactCompletions:completion?1:0,sourceWriting:0,sourceRepairs:0,citationCorrections:0,storyboardAttempts:3,childAttempts:2,pageAttempts:3}};
 }
 const baseRequest=(config:TrialConfig)=>validateTrialProfile(read(config.profileFile)).prepared.accepted.canonical;
 export type SourceContinuationGrant=ReturnType<typeof planBookSourceContinuation>;
 /** Reader and storyboard rules retain the ordinary reservation floor. Everything else uses the original adapters' exact rule. */
 export const trialApiRules:MeterRules=step=>{
-  if(step==='source_impact_review')return flooredReviewRule(stageRules.text.final_review);
+  if(step==='source_impact_review'||step==='source_impact_completion')return flooredReviewRule(stageRules.text.final_review);
   const text=/^s[0-3]_(final_review|comparison|storyboard_review|citation_correction)$/.exec(step);
   if(text)return flooredReviewRule(stageRules.text[text[1]==='citation_correction'?'comparison':text[1]]);
-  if(/^s[2-4]_storyboard_review$/.test(step))return flooredReviewRule(stageRules.text.storyboard_review);
+  if(/^s[2-5]_storyboard_review$/.test(step))return flooredReviewRule(stageRules.text.storyboard_review);
   if(Object.prototype.hasOwnProperty.call(stageRules.childAnchor,step))return stageRules.childAnchor[step];
   return auditionMeterRules(step);
 };
@@ -168,9 +184,10 @@ export class TrialMaxBudget extends SimpleBookBudget{
 const admittedStatus=(s:string)=>s==='review_supported'||s==='review_supported_with_notes';
 export async function executeBookTrial(config:TrialConfig,grantFile:string,grantSha:string,signal:AbortSignal,log:(s:string)=>void){
   if(shaFile(grantFile)!==grantSha)fail('trial_grant_changed');
-  const grant=read(grantFile) as TrialGrant|SourceContinuationGrant,isSourceContinuation=grant.version==='book-e2e-source-impact-continuation/v1',
+  const grant=read(grantFile) as TrialGrant|SourceContinuationGrant,completing=grant.version==='book-e2e-source-impact-completion/v1',
+    isSourceContinuation=completing||grant.version==='book-e2e-source-impact-continuation/v1',
     parent=isSourceContinuation?(grant as SourceContinuationGrant).parent:null,
-    plan=isSourceContinuation?planBookSourceContinuation(config):planBookTrial(config);
+    plan=isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
   if(!same(grant,plan))fail('trial_plan_changed');
   const configDigest=previewSha(canonicalJson(config));
   const currentInputs=()=>{
@@ -182,11 +199,12 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     if(parent){
       for(const [file,sha]of Object.entries(parent.files))if(shaFile(path.join(config.bookDir,file))!==sha)fail('trial_source_parent_changed');
       for(const [file,sha]of [[parent.grantFile,parent.grantSha],[parent.claimFile,parent.claimSha],[parent.outcomeFile,parent.outcomeSha]])if(shaFile(file)!==sha)fail('trial_source_parent_changed');
+      for(const [file,sha]of Object.entries(parent.ancestorFiles))if(shaFile(file)!==sha)fail('trial_source_ancestor_changed');
     }
   };
   currentInputs();
-  const claimFile=path.join(BOOK_E2E_TRIAL.authorityRoot,parent?SOURCE_SUCCESSOR.claim:BOOK_E2E_TRIAL.claim),
-    outcomeFile=path.join(BOOK_E2E_TRIAL.authorityRoot,parent?SOURCE_SUCCESSOR.outcome:BOOK_E2E_TRIAL.outcome);
+  const claimFile=path.join(BOOK_E2E_TRIAL.authorityRoot,completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:BOOK_E2E_TRIAL.claim),
+    outcomeFile=path.join(BOOK_E2E_TRIAL.authorityRoot,completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:BOOK_E2E_TRIAL.outcome);
   exclusiveJson(claimFile,{cycle:BOOK_E2E_TRIAL.id,grantSha,configSha:configDigest,ownerSha:grant.ownerSha,bookDir:grant.bookDir,engine:grant.engine,
     ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,sourceSha:parent.sourceSha}:{} )});
   const claimSha=shaFile(claimFile);
@@ -202,7 +220,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const policy:WirePolicy={executable:config.executable,executableSha256:config.executableSha256,workspace:config.bookDir,maxWireBytes:104000,
     rates:{opus:replaySettlement.rates.opus,astra:replaySettlement.rates.sol},openAIReviewModel:'gpt-6.1-sol',astraInlineReferences:true,
     plannerSchema:'definition-names/v1'};
-  let citationUsed=parent?1:0,sourceRepairUsed=parent?1:0,boardAttempts=0,finalTextDir=parent?'text_2':'text';
+  const continuationTextIndex=completing?3:2;
+  let citationUsed=parent?1:0,sourceRepairUsed=parent?1:0,boardAttempts=0,finalTextDir=parent?`text_${continuationTextIndex}`:'text';
   if(!parent)save('request',{version:'local-simple-wizard-request/v1',requestId:prepared.accepted.requestId,optionsFingerprint:prepared.accepted.optionsFingerprint,
     request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:BOOK_E2E_TRIAL.id});
   const baseCurrent={request:prepared.accepted.canonical,options};
@@ -256,12 +275,12 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const finish=(status:string,extra:Record<string,unknown>={})=>{
     const snapshot=(read:()=>unknown)=>{try{return read();}catch(error){return{status:'unreconciled',knownMicroUsd:null,error:(error as any)?.code??'accounting_replay_failed',furtherPaymentAllowed:false};}};
     const accounting={api:snapshot(()=>meter.snapshot()),claudeMax:snapshot(()=>max.snapshot()),claudeMaxNote:'reported resource, separate from API, not invoice'};
-    save(parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:BOOK_E2E_TRIAL.id,claimSha,grantSha,status,accounting,...extra,
+    save(completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:BOOK_E2E_TRIAL.id,claimSha,grantSha,status,accounting,...extra,
       ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,originalLiteraryHoldPreserved:true}:{}),
       runtimeEligible:false,productAccepted:false,productionQualified:false});return{status,accounting,...extra};
   };
   try{
-    let io=stageIO(parent?2:0);
+    let io=stageIO(parent?continuationTextIndex:0);
     const runFlow=(io:ReturnType<typeof stageIO>,repair?:{prior:unknown;readings:unknown[]})=>runSimpleWizardBook({...baseCurrent,seed:profile.seed,signal,
       reservedWritingUsd:2,...CONTRACTS,...(repair?{repair}:{}),opus:io.opus,reader:io.reader,visual:io.visual,correctReading:io.correctReading,
       publish:view=>log(`phase ${view.phase}`)});
@@ -269,13 +288,16 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     if(parent){
       const held=read(parent.sourceFile),packets=simpleStoryReadingPackets(prepared.accepted.canonical,held.source,options),
         review=prepareSourceImpactReview({finalPacket:packets.final,readings:held.readings,sourceSha:parent.sourceSha,age:profile.child.age});
-      save('source-impact-request',{packetDigest:review.packetDigest,instructions:review.instructions,body:review.body});
-      const call:any={stage:'source_impact_review',role:'astra',conversationKey:`trial:${grant.requestId}:source-impact`,instructions:review.instructions,
-        input:canonicalJson({packetDigest:review.packetDigest,packet:review.body}),schema:review.schema,maxOutputTokens:review.maxOutputTokens};
-      const wire=prepareCausalWire(call,policy,2_000_000),rule=trialApiRules('source_impact_review')!,reader=createAstraCausalTransport({key,rates:replaySettlement.rates.sol,model:'gpt-6.1-sol',inlineReferences:true,fetch:longCallFetch(660000)});
-      guard();log('phase source_impact_review');
-      const raw=await meter.run('source_impact_review',wire,rule.reserve(wire)!,async()=>{const r=await reader(wire,call,signal);return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
-      sourceAdmission=compileSourceImpactReview(review,raw);save('source-impact-admission',sourceAdmission);
+      const completion=completing?prepareSourceImpactCompletion(review,read(parent.impactReceiptFile!).output):null,
+        request=completion??review,stage=completing?'source_impact_completion':'source_impact_review',
+        binding=completion?{completionDigest:completion.completionDigest}:{packetDigest:review.packetDigest};
+      save(completing?'source-impact-completion-request':'source-impact-request',{...binding,instructions:request.instructions,body:request.body});
+      const call:any={stage,role:'astra',conversationKey:`trial:${grant.requestId}:${stage}`,instructions:request.instructions,
+        input:canonicalJson({...binding,packet:request.body}),schema:request.schema,maxOutputTokens:request.maxOutputTokens};
+      const wire=prepareCausalWire(call,policy,2_000_000),rule=trialApiRules(stage)!,reader=createAstraCausalTransport({key,rates:replaySettlement.rates.sol,model:'gpt-6.1-sol',inlineReferences:true,fetch:longCallFetch(660000)});
+      guard();log(`phase ${stage}`);
+      const raw=await meter.run(stage,wire,rule.reserve(wire)!,async()=>{const r=await reader(wire,call,signal);return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
+      sourceAdmission=completion?compileSourceImpactCompletion(completion,raw):compileSourceImpactReview(review,raw);save('source-impact-admission',sourceAdmission);
       sourceAdmissionSha=shaFile(path.join(config.bookDir,'source-impact-admission.json'));
       if(sourceAdmission.status!=='diagnostic_source_supported_with_notes')return finish('held_source_impact',{sourceAdmission});
       log('phase storyboard');
@@ -295,7 +317,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       const old=result.storyboard;
       repair={parentStoryboardDigest:old.storyboardDigest,draft:io.draft(),review:old.rawReview,...(repair?{parentRepair:repair}:{}),
         parentCompile:{selfCheckNames:true,stagingFields:true}};
-      const index=parent?boardAttempts+2:(boardAttempts+(sourceRepairUsed?1:0));io=stageIO(index);finalTextDir=path.basename(io.dir);
+      const index=parent?boardAttempts+continuationTextIndex:(boardAttempts+(sourceRepairUsed?1:0));io=stageIO(index);finalTextDir=path.basename(io.dir);
       exclusiveJson(path.join(io.dir,'storyboard_repair_input.json'),repair);
       const board=await runSimpleStoryboardDiagnostic({...baseCurrent,writerResult:result.source,signal,...CONTRACTS,repair,generate:io.visual});
       result={...result,status:board.status,storyboard:board};saveText();
@@ -385,10 +407,12 @@ async function cli(){
   const args=process.argv.slice(2),at=(flag:string)=>args[args.indexOf(flag)+1];
   if(!args.includes('--config'))fail('trial_arguments');
   const config=trialConfigSchema.parse(read(at('--config')));
-  const continuing=args.includes('--source-impact-continuation');
-  if(!args.includes('--execute'))return continuing?planBookSourceContinuation(config):planBookTrial(config);
+  const completing=args.includes('--source-impact-completion'),continuing=completing||args.includes('--source-impact-continuation');
+  if(!args.includes('--execute'))return continuing?planBookSourceContinuation(config,completing):planBookTrial(config);
   if(!args.includes('--grant')||!args.includes('--grant-sha'))fail('trial_arguments');
-  if((read(at('--grant')).version==='book-e2e-source-impact-continuation/v1')!==continuing)fail('trial_arguments');
+  const grantVersion=read(at('--grant')).version;
+  if((grantVersion==='book-e2e-source-impact-continuation/v1'||grantVersion==='book-e2e-source-impact-completion/v1')!==continuing||
+    (grantVersion==='book-e2e-source-impact-completion/v1')!==completing)fail('trial_arguments');
   return executeBookTrial(config,at('--grant'),at('--grant-sha'),new AbortController().signal,s=>console.log(JSON.stringify({at:new Date().toISOString(),event:s})));
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(__filename))cli().then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(JSON.stringify({error:e?.code??e?.message??'trial_failed'}));process.exitCode=1;});

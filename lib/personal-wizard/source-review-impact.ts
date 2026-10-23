@@ -32,7 +32,47 @@ export function prepareSourceImpactReview(context:Context){
   const body={version:SOURCE_REVIEW_IMPACT,sourceSha:context.sourceSha,age:context.age,instructionsSha:causalDigest(instructions),
     readingDigests:context.readings.map(causalDigest),finalPacketDigest:causalDigest(context.finalPacket),
     sourcePacket:numbered.packet,requiredFindings};
-  return {context:structuredClone(context),numbered,body,packetDigest:causalDigest(body),instructions,schema:sourceImpactSchema,maxOutputTokens:7000};
+  // Provider schema encodes the SAME exhaustive invariant as the compiler; generic maxItems alone allowed an omitted decision.
+  const ids=requiredFindings.map(f=>f.id) as [string,...string[]];
+  const schema=sourceImpactSchema.extend({decisions:z.array(finding.extend({id:z.enum(ids)})).length(ids.length)}).strict();
+  return {context:structuredClone(context),numbered,body,packetDigest:causalDigest(body),instructions,schema,maxOutputTokens:7000};
+}
+
+export const SOURCE_IMPACT_COMPLETION='source-review-impact-completion/v1' as const;
+/** ONE strictly incomplete-coverage recovery; not a retry or reclassification of any existing supported row/guard. */
+export function prepareSourceImpactCompletion(prepared:ReturnType<typeof prepareSourceImpactReview>,partialRaw:unknown){
+  const rebuilt=prepareSourceImpactReview(prepared.context);
+  if(rebuilt.packetDigest!==prepared.packetDigest||canonicalJson(rebuilt.body)!==canonicalJson(prepared.body)||prepared.instructions!==rebuilt.instructions||
+    canonicalJson(rebuilt.numbered)!==canonicalJson(prepared.numbered))throw Error('source_completion_binding');
+  const partial=sourceImpactSchema.parse(partialRaw),required=new Map(prepared.body.requiredFindings.map(f=>[f.id,f]));
+  if(canonicalJson(partial)!==canonicalJson(partialRaw)||partial.packetDigest!==prepared.packetDigest||partial.guards.length!==domains.length||new Set(partial.guards.map(g=>g.domain)).size!==domains.length||
+    partial.guards.some(g=>g.status!=='supported')||new Set(partial.decisions.map(f=>f.id)).size!==partial.decisions.length||
+    partial.decisions.some(f=>!required.has(f.id))||new Set(partial.additional.map(f=>f.id)).size!==partial.additional.length||
+    partial.additional.some(f=>!/^add-[1-9]\d*$/.test(f.id))||
+    [...partial.decisions,...partial.additional].some(f=>f.certainty!=='supported'||impactIsMaterial(f.impact))||
+    partial.decisions.some(f=>required.get(f.id)!.severity==='blocking'))throw Error('source_completion_not_format_only');
+  // Validate every existing current-source citation before permitting even a completion claim.
+  for(const row of [...partial.guards,...partial.decisions,...partial.additional])for(const ref of row.evidence)resolveSourceCitation(prepared.numbered,ref,'revised');
+  const missing=prepared.body.requiredFindings.filter(f=>!partial.decisions.some(p=>p.id===f.id));
+  if(!missing.length)throw Error('source_completion_not_needed');
+  const ids=missing.map(f=>f.id) as [string,...string[]];
+  const instructions=`${prepared.instructions}\nThis is ONE constrained coverage completion, NOT a full review retry. The supplied partial response, summary, five guards and every existing decision are frozen and must not be changed or rejudged. Return EXACTLY the missingDecisions IDs once each; the schema fixes the enum and exact count. Assess each missing claim honestly under the original source-impact policy and current text. Additional newly discovered defects may be reported in additionalFindings with DISTINCT add-N IDs not already present. Material/uncertain still holds. No story rewrite, no inferred missing verdict from prior summary, no preference for PASS. Keep each reason concise, about100-300characters; never pad or clip a sentence. Use the exact supplied source units/anchors. Return complete schema JSON only.`;
+  const body={version:SOURCE_IMPACT_COMPLETION,sourcePacket:prepared.body,sourcePacketDigest:prepared.packetDigest,
+    partialRaw:partial,partialRawSha:causalDigest(partialRaw),missingDecisions:missing,instructionsSha:causalDigest(instructions)};
+  const schema=z.object({version:z.literal(SOURCE_IMPACT_COMPLETION),completionDigest:hash,
+    missingDecisions:z.array(finding.extend({id:z.enum(ids)})).length(ids.length),additionalFindings:z.array(finding).max(8)}).strict();
+  return {prepared,partialRaw:structuredClone(partialRaw),partial,body,completionDigest:causalDigest(body),instructions,schema,maxOutputTokens:7000};
+}
+export function compileSourceImpactCompletion(completion:ReturnType<typeof prepareSourceImpactCompletion>,raw:unknown){
+  const rebuilt=prepareSourceImpactCompletion(completion.prepared,completion.partialRaw);
+  if(canonicalJson(rebuilt.body)!==canonicalJson(completion.body)||rebuilt.completionDigest!==completion.completionDigest||
+    completion.instructions!==rebuilt.instructions)throw Error('source_completion_binding');
+  const value=rebuilt.schema.parse(raw);
+  if(value.completionDigest!==completion.completionDigest||new Set(value.missingDecisions.map(f=>f.id)).size!==rebuilt.body.missingDecisions.length)throw Error('source_completion_binding');
+  const merged={...structuredClone(rebuilt.partial),decisions:[...rebuilt.partial.decisions,...value.missingDecisions],additional:[...rebuilt.partial.additional,...value.additionalFindings]};
+  const admitted=compileSourceImpactReview(rebuilt.prepared,merged);
+  return {...admitted,completion:{version:SOURCE_IMPACT_COMPLETION,completionDigest:rebuilt.completionDigest,parentRawSha:rebuilt.body.partialRawSha,
+    raw:value,existingTypedDecisionsUnchanged:true as const,originalIncompleteResponseStillInvalid:true as const}};
 }
 export function compileSourceImpactReview(prepared:ReturnType<typeof prepareSourceImpactReview>,raw:unknown){
   const rebuilt=prepareSourceImpactReview(prepared.context);
