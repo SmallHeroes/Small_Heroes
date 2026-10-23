@@ -18,6 +18,7 @@ import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
 import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
 import { STORYBOARD_STATE_PARITY_VERSION } from '../lib/personal-wizard/storyboard-state-parity';
+import type { StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../lib/personal-wizard/options';
@@ -304,17 +305,24 @@ export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: strin
 /** The reviewed request and storyboard of a book (no references yet): every saved part recompiled and bound. */
 export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(), layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT) {
   realDirectory(bookDir);
+  const visual = path.join(bookDir, layout.storyboardDir), repairFile = path.join(visual, STORYBOARD_REPAIR_INPUT_FILE),
+    acceptanceFile = path.join(visual, STORYBOARD_OWNER_ACCEPTANCE_FILE);
+  return admitReviewedStoryboardBundle({queued:read(path.join(bookDir,'request.json')),
+    result:read(path.join(visual,'visual_simple_book_result.json')),draft:read(path.join(visual,'owned_storyboard_draft.json')),
+    repair:existsSync(repairFile)?read(repairFile):undefined,ownerAcceptance:existsSync(acceptanceFile)?read(acceptanceFile):undefined},workspace,layout);
+}
+/** Shared provider-free admission of ALL persisted compile inputs. Filesystem loading and checkpoint preflight use this same path. */
+export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;draft:unknown;repair?:StoryboardRepair;ownerAcceptance?:unknown},
+  workspace=process.cwd(),layout:ReviewedBookLayout=LEGACY_BOOK_LAYOUT){
   const queued = z.object({ version: z.literal('local-simple-wizard-request/v1'), requestId: z.string(), optionsFingerprint: z.string(),
-    request: z.unknown() }).passthrough().parse(read(path.join(bookDir, 'request.json')));
+    request: z.unknown() }).passthrough().parse(bundle.queued);
   const options = resolvePersonalWizardOptions(workspace), prepared = prepareSimpleStory(queued.request, options, layout.seed);
   if (prepared.accepted.requestId !== queued.requestId || prepared.accepted.optionsFingerprint !== queued.optionsFingerprint ||
       prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('audition_request_binding');
-  const visual = path.join(bookDir, layout.storyboardDir);
-  const result = read(path.join(visual, 'visual_simple_book_result.json'));
+  const result = bundle.result;
   // The owner's acceptance of a held storyboard, present exactly when this storyboard is used under it: the saved result is then the held one
   // (its own review's disposition; a held run saves no frames) and every frame is built under that bound acceptance (storyboardOwnerAcceptance).
-  const acceptanceFile = path.join(visual, STORYBOARD_OWNER_ACCEPTANCE_FILE);
-  const ownerAcceptance: unknown = existsSync(acceptanceFile) ? read(acceptanceFile) : undefined;
+  const ownerAcceptance = bundle.ownerAcceptance;
   const held = (status: unknown) => status === 'held_uncertain' || status === 'held_contradiction';
   if ((ownerAcceptance === undefined ? !admittedStatus(result.status) || result.storyboard?.status !== result.status
     : !held(result.status) || result.storyboard?.status !== result.status) || result.runtimeEligible !== false) fail('audition_result_status');
@@ -325,13 +333,12 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   // A repaired storyboard's source includes its saved repair input (the held parent's draft and review), present exactly when the saved book
   // names its parent; the engine re-binds that input to the parent (and the parent's review must hold it), and any other input changes the
   // source digest and fails the board binding the same way.
-  const repairFile = path.join(visual, STORYBOARD_REPAIR_INPUT_FILE);
-  if (existsSync(repairFile) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
+  if ((bundle.repair !== undefined) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
-    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
+    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), bundle.repair,
     savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
     savedClaimBasisContract(saved), savedCalibrationContract(saved), savedPresenceContract(saved), savedStateParityContract(saved));
-  const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
+  const parentDraft = bundle.draft;
   const names = savedSelfCheckNames(saved), fields = savedStagingFields(saved), spans = savedSelfCheckSourceSpans(saved);
   const book = names || fields || spans ? compilePersonalStoryboard(source, parentDraft, { ...names, ...fields, ...spans }) : compilePersonalStoryboard(source, parentDraft);
   // The book binds first: a changed book refuses here before its saved review is read (the review names the saved book's digests).

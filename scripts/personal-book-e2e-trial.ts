@@ -19,7 +19,7 @@ import { SimpleBookBudget } from '../lib/personal-wizard/simple-book-budget';
 import { illustrateReviewedAudition, AUDITION_FRESH_COHORT_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION,
   auditionPageContext, referenceStatus, repairReviewedAuditionPage, selectAuditionAttempt, attemptStatus,
   type SavedPage, type SavedSheet } from '../lib/personal-wizard/simple-book-reviewed-audition';
-import { AuditionMeter, auditionAdapters, auditionMeterRules, keyReader, loadReviewedBook, loadReviewedStoryboard,
+import { AuditionMeter, auditionAdapters, auditionMeterRules, keyReader, loadReviewedBook, loadReviewedStoryboard, admitReviewedStoryboardBundle,
   reviewedBookLayoutSchema, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { readAuditionImage } from './personal-simple-book-illustrator';
 import { childAnchorJudges } from './personal-child-anchor-judges';
@@ -291,6 +291,12 @@ export function planBookSolContinuation(config:TrialConfig,approvalRaw:SolContin
 export type SolContinuationGrant=ReturnType<typeof planBookSolContinuation>;
 export const SOL_RECEIPT_RECOVERY=Object.freeze({version:'reader-safe-sol-receipt-recovery/v1',
   claim:'owner-reader-safe-book-sol-receipt-recovery-20261023.claim.json',outcome:'owner-reader-safe-book-sol-receipt-recovery-20261023.outcome.json'});
+export const SOL_BUNDLE_CHECKPOINT=Object.freeze({version:'reader-safe-sol-bundle-checkpoint/v1',
+  claim:'owner-reader-safe-book-sol-bundle-checkpoint-20261024.claim.json',outcome:'owner-reader-safe-book-sol-bundle-checkpoint-20261024.outcome.json'});
+const trialStoryboardLayout=(profile:TrialProfile,storyboardDir:string,readerSafe:boolean)=>reviewedBookLayoutSchema.parse({
+  version:'reviewed-book-layout/v1',seed:profile.seed,childDesign:profile.child.design,storyboardDir,
+  childDir:'child',childImage:'reference_child.png',savedCompanion:null,childAnchor:profile.childAnchor,childAnchorPose:CHILD_ANCHOR_POSE_V2,
+  ...(readerSafe?{readerFraming:READER_SAFE_FRAMING_VERSION}:{})});
 /** Same shared decoder in CJS and ESM launchers. A loader failure is never relabelled as model/schema evidence. */
 export function decodeTrialStoryboardReview(call:SimpleStoryboardDiagnosticCall,raw:any){
   const settled=replaySettlement.answer(replaySettlement.rates.sol,call.maxOutputTokens,'gpt-6.1-sol',raw),
@@ -303,12 +309,13 @@ export function decodeTrialStoryboardReview(call:SimpleStoryboardDiagnosticCall,
 export async function replayTrialSolStoryboard(config:TrialConfig,old:SolContinuationGrant){
   const contracts={...CONTRACTS,selfCheckSourceSpans:true as const,stateParityContract:true as const};
   if(!same(old.contracts,contracts))fail('trial_receipt_contract');
-  const held=read(old.parent.sourceFile),{options,prepared}=validateTrialProfile(read(config.profileFile)),root=path.join(config.bookDir,'paid-stages'),
+  const held=read(old.parent.sourceFile),{profile,options,prepared}=validateTrialProfile(read(config.profileFile)),root=path.join(config.bookDir,'paid-stages'),
     planner=read(path.join(root,'sol_storyboard.receipt.json')),failed=read(path.join(root,'sol_storyboard_review.failure.json'));
   if(failed.code!=='audition_stage_failed'||failed.message!=='trial_review_schema')fail('trial_receipt_failure_kind');
+  const repair={...read(old.parent.repairFile),addedContracts:['stateParityContract']} as StoryboardRepair;
   let draft:unknown=null,calls=0;
   const board=await runSimpleStoryboardDiagnostic({request:prepared.accepted.canonical,writerResult:held.source,options,signal:new AbortController().signal,
-    ...contracts,repair:{...read(old.parent.repairFile),addedContracts:['stateParityContract']} as StoryboardRepair,generate:async call=>{
+    ...contracts,repair,generate:async call=>{
       calls++;
       if(call.stage==='storyboard'){
         if(!same(prepareSolWritingWire(call),read(path.join(root,'sol_storyboard.wire.json'))))fail('trial_receipt_planner_wire');
@@ -319,7 +326,10 @@ export async function replayTrialSolStoryboard(config:TrialConfig,old:SolContinu
       return decodeTrialStoryboardReview(call,failed.receipt.raw).value;
     }});
   if(calls!==2||!admittedStatus(board.status))fail('trial_receipt_not_admitted');
-  return{result:{...held,status:board.status,storyboard:board},draft,replayedCalls:calls,providerCalls:0 as const};
+  const result={...held,status:board.status,storyboard:board};
+  admitReviewedStoryboardBundle({queued:read(path.join(config.bookDir,'request.json')),result,draft,repair},source,
+    trialStoryboardLayout(profile,'text_sol_recovered',true));
+  return{result,draft,repair,replayedCalls:calls,providerCalls:0 as const};
 }
 /** A single fixed downstream successor of a fully priced local decode failure. No new text/planner/review calls are allowed. */
 export async function planBookSolReceiptRecovery(config:TrialConfig,approvalRaw:SolContinuationApproval){
@@ -357,6 +367,54 @@ export async function planBookSolReceiptRecovery(config:TrialConfig,approvalRaw:
     remaining:{sourceWriting:0,sourceRepairs:0,citationCorrections:0,newStoryboardReviews:0,storyboardAttemptsAlreadyConsumed:3,storyboardAttempts:0,childAttempts:2,pageAttempts:3}};
 }
 export type SolReceiptRecoveryGrant=Awaited<ReturnType<typeof planBookSolReceiptRecovery>>;
+/** Only the known zero-provider bundle-loading failure; never a semantic hold, unknown cost, or an arbitrary retry. */
+export function assertSolBundleCheckpoint(old:SolReceiptRecoveryGrant,claim:any,outcome:any,api:unknown,max:unknown){
+  if(old.version!==SOL_RECEIPT_RECOVERY.version||old.cycle!==READER_SAFE_BOOK_TRIAL.id||claim.cycle!==old.cycle||outcome.cycle!==old.cycle||
+    !same(claim.engine,old.engine)||outcome.status!=='failed_trial'||outcome.code!=='audition_repair_binding'||outcome.runtimeEligible!==false||
+    outcome.parentClaimSha!==old.parent.claimSha||outcome.parentOutcomeSha!==old.parent.outcomeSha||
+    !same(outcome.receiptRecovery,old.receiptRecovery)||old.receiptRecovery.providerCalls!==0||
+    !same(old.remaining,{sourceWriting:0,sourceRepairs:0,citationCorrections:0,newStoryboardReviews:0,storyboardAttemptsAlreadyConsumed:3,storyboardAttempts:0,childAttempts:2,pageAttempts:3})||
+    !same(api,outcome.accounting?.api)||!same(api,old.pricing.inheritedAdjustedApi)||!same(max,outcome.accounting?.claudeMax)||
+    !same(outcome.accounting?.claudeMaxAvailability,old.parent.availabilityAccounting))fail('trial_bundle_checkpoint');
+  const a=api as ReturnType<TrialApiMeter['snapshot']>,m=max as ReturnType<TrialMaxBudget['snapshot']>;
+  if(a.calls!==5||a.failed!==1||a.unknownCost||a.unknownOutcome||a.reservedUnsettledMicroUsd||a.repeatedFailure||
+    a.cumulativeAccountedMicroUsd>a.capMicroUsd||m.unknownAttemptCosts)fail('trial_bundle_checkpoint_accounting');
+}
+/** One fixed continuation after complete local bundle loading failed without a new provider. Consumed predecessor stays immutable. */
+export async function planBookSolBundleContinuation(config:TrialConfig,approvalRaw:SolContinuationApproval,parentGrantFile:string){
+  absolute.parse(parentGrantFile);
+  const approval=solContinuationApprovalSchema.parse(approvalRaw),base=planTrialInputs(config,true,true),old=read(parentGrantFile) as SolReceiptRecoveryGrant,
+    parentClaimFile=path.join(READER_SAFE_BOOK_TRIAL.authorityRoot,SOL_RECEIPT_RECOVERY.claim),parentOutcomeFile=path.join(READER_SAFE_BOOK_TRIAL.authorityRoot,SOL_RECEIPT_RECOVERY.outcome),
+    claim=read(parentClaimFile),outcome=read(parentOutcomeFile);
+  if(shaFile(approval.ownerFile)!==approval.ownerSha||shaFile(approval.operatorFile)!==approval.operatorSha||
+    !readFileSync(approval.ownerFile,'utf8').includes('תכניס אותו למסלול וצא לדרך'))fail('trial_bundle_approval');
+  if(shaFile(parentGrantFile)!==claim.grantSha||claim.grantSha!==outcome.grantSha||shaFile(parentClaimFile)!==outcome.claimSha||
+    old.configSha!==base.configSha||claim.configSha!==base.configSha||old.profileSha!==base.profileSha||old.ownerSha!==base.ownerSha||old.bookDir!==base.bookDir||
+    !same(old.companion,base.companion)||!same(old.approval.availabilityOutcomes,approval.availabilityOutcomes)||
+    !same(old.contracts,{...base.contracts,stateParityContract:true})||!same(old.limits,{...base.limits,routes:{...base.limits.routes,writing:'gpt-6.1-sol/openai_responses'}})||
+    existsSync(path.join(config.bookDir,'child'))||readdirSync(path.join(config.bookDir,'illustrations')).length||existsSync(path.join(config.bookDir,'text_sol_bundle')))fail('trial_bundle_parent');
+  for(const name of[SOL_BUNDLE_CHECKPOINT.claim,SOL_BUNDLE_CHECKPOINT.outcome])if(existsSync(path.join(READER_SAFE_BOOK_TRIAL.authorityRoot,name)))fail('trial_bundle_consumed');
+  const api=new TrialApiMeter(path.join(config.bookDir,'paid-stages'),'',true).snapshot(),max=new TrialMaxBudget(path.join(config.bookDir,'claude-max-stages'),'').snapshot();
+  assertSolBundleCheckpoint(old,claim,outcome,api,max);
+  const ancestorFiles={...old.parent.ancestorFiles,[old.parent.grantFile]:old.parent.grantSha,[old.parent.claimFile]:old.parent.claimSha,[old.parent.outcomeFile]:old.parent.outcomeSha};
+  for(const[file,sha]of Object.entries(ancestorFiles))if(shaFile(file)!==sha)fail('trial_bundle_ancestor');
+  for(const[file,sha]of Object.entries(old.parent.files))if(shaFile(path.join(config.bookDir,file))!==sha)fail('trial_bundle_history');
+  const replay=await replayTrialSolStoryboard(config,read(old.parent.grantFile)),failedDir=path.join(config.bookDir,'text_sol_recovered');
+  if(previewSha(canonicalJson(replay.result))!==old.receiptRecovery.resultSha||previewSha(canonicalJson(replay.draft))!==old.receiptRecovery.draftSha||
+    !same(read(path.join(failedDir,'simple-book-result.json')),replay.result)||!same(read(path.join(failedDir,'visual_simple_book_result.json')),replay.result)||
+    !same(read(path.join(failedDir,'owned_storyboard_draft.json')),replay.draft)||existsSync(path.join(failedDir,'storyboard_repair_input.json'))||
+    readdirSync(path.join(failedDir,'cli-workspace')).length)fail('trial_bundle_failed_artifacts');
+  const files:Record<string,string>={},walk=(dir:string)=>{for(const n of readdirSync(dir)){const f=path.join(dir,n),s=lstatSync(f);
+    if(s.isSymbolicLink())fail('trial_bundle_file');if(s.isDirectory())walk(f);else if(s.isFile())files[path.relative(config.bookDir,f)]=shaFile(f);else fail('trial_bundle_file');}};walk(config.bookDir);
+  return{...base,version:SOL_BUNDLE_CHECKPOINT.version,approval,writing:SOL_WRITING,contracts:old.contracts,limits:old.limits,
+    pins:{...base.pins,'scripts/personal-sol-writing-transport.ts':shaFile(path.join(source,'scripts/personal-sol-writing-transport.ts')),
+      'lib/personal-wizard/storyboard-state-parity.ts':shaFile(path.join(source,'lib/personal-wizard/storyboard-state-parity.ts')),
+      'scripts/personal-sol-cache-budget.ts':shaFile(path.join(source,'scripts/personal-sol-cache-budget.ts'))},pricing:old.pricing,
+    parent:{...old.parent,grantFile:parentGrantFile,grantSha:shaFile(parentGrantFile),claimFile:parentClaimFile,claimSha:shaFile(parentClaimFile),outcomeFile:parentOutcomeFile,outcomeSha:shaFile(parentOutcomeFile),files,ancestorFiles},
+    receiptRecovery:{version:'known-output-bundle-checkpoint/v1',resultSha:old.receiptRecovery.resultSha,draftSha:old.receiptRecovery.draftSha,
+      repairSha:previewSha(canonicalJson(replay.repair)),replayGrantFile:old.parent.grantFile,replayGrantSha:old.parent.grantSha,providerCalls:0 as const},remaining:old.remaining};
+}
+export type SolBundleContinuationGrant=Awaited<ReturnType<typeof planBookSolBundleContinuation>>;
 /** Reader and storyboard rules retain the ordinary reservation floor. Everything else uses the original adapters' exact rule. */
 export const trialApiRules:MeterRules=step=>{
   if(['sol_author','sol_editor','sol_storyboard'].includes(step))return solWritingRuleFor(step.slice(4) as 'author'|'editor'|'storyboard');
@@ -426,14 +484,15 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const trial=bookTrialPolicy(config.cycle),readerSafe=config.cycle===READER_SAFE_BOOK_TRIAL.id,
     contracts={...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{})};
   if(shaFile(grantFile)!==grantSha)fail('trial_grant_changed');
-  const grant=read(grantFile) as TrialGrant|SourceContinuationGrant|StoryboardSpanGrant|SolContinuationGrant|SolReceiptRecoveryGrant,
-    receiptRecovery=grant.version===SOL_RECEIPT_RECOVERY.version?grant as SolReceiptRecoveryGrant:null,
+  const grant=read(grantFile) as TrialGrant|SourceContinuationGrant|StoryboardSpanGrant|SolContinuationGrant|SolReceiptRecoveryGrant|SolBundleContinuationGrant,
+    bundleRecovery=grant.version===SOL_BUNDLE_CHECKPOINT.version?grant as SolBundleContinuationGrant:null,
+    receiptRecovery=bundleRecovery??(grant.version===SOL_RECEIPT_RECOVERY.version?grant as SolReceiptRecoveryGrant:null),
     sol=grant.version===SOL_TRIAL_CONTINUATION.version?grant as SolContinuationGrant:null,
     solFamily=sol??receiptRecovery,
     spanning=grant.version==='book-e2e-storyboard-source-spans/v1',completing=grant.version==='book-e2e-source-impact-completion/v1',
     isSourceContinuation=completing||grant.version==='book-e2e-source-impact-continuation/v1',
     parent=solFamily?solFamily.parent:spanning?(grant as StoryboardSpanGrant).parent:isSourceContinuation?(grant as SourceContinuationGrant).parent:null,
-    plan=receiptRecovery?await planBookSolReceiptRecovery(config,receiptRecovery.approval):sol?planBookSolContinuation(config,sol.approval):spanning?planBookStoryboardSpanContinuation(config):isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
+    plan=bundleRecovery?await planBookSolBundleContinuation(config,bundleRecovery.approval,bundleRecovery.parent.grantFile):receiptRecovery?await planBookSolReceiptRecovery(config,receiptRecovery.approval):sol?planBookSolContinuation(config,sol.approval):spanning?planBookStoryboardSpanContinuation(config):isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
   if(solFamily&&!runtimeGuard)fail('trial_sol_runtime_lease');
   if(!same(grant,plan))fail('trial_plan_changed');
   const configDigest=previewSha(canonicalJson(config));
@@ -452,8 +511,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     }
   };
   currentInputs();
-  const claimFile=path.join(trial.authorityRoot,receiptRecovery?SOL_RECEIPT_RECOVERY.claim:sol?SOL_TRIAL_CONTINUATION.claim:spanning?STORYBOARD_SPANS.claim:completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:trial.claim),
-    outcomeFile=path.join(trial.authorityRoot,receiptRecovery?SOL_RECEIPT_RECOVERY.outcome:sol?SOL_TRIAL_CONTINUATION.outcome:spanning?STORYBOARD_SPANS.outcome:completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:trial.outcome);
+  const claimFile=path.join(trial.authorityRoot,bundleRecovery?SOL_BUNDLE_CHECKPOINT.claim:receiptRecovery?SOL_RECEIPT_RECOVERY.claim:sol?SOL_TRIAL_CONTINUATION.claim:spanning?STORYBOARD_SPANS.claim:completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:trial.claim),
+    outcomeFile=path.join(trial.authorityRoot,bundleRecovery?SOL_BUNDLE_CHECKPOINT.outcome:receiptRecovery?SOL_RECEIPT_RECOVERY.outcome:sol?SOL_TRIAL_CONTINUATION.outcome:spanning?STORYBOARD_SPANS.outcome:completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:trial.outcome);
   exclusiveJson(claimFile,{cycle:trial.id,grantSha,configSha:configDigest,ownerSha:grant.ownerSha,bookDir:grant.bookDir,engine:grant.engine,
     ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,sourceSha:parent.sourceSha}:{} )});
   const claimSha=shaFile(claimFile);
@@ -468,14 +527,14 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const save=(name:string,value:unknown)=>exclusiveJson(path.join(config.bookDir,`${name}.json`),value);
   const policy=wirePolicy(config,config.bookDir),continuationTextIndex=completing||spanning?3:2;
   let citationUsed=solFamily?0:parent?1:0,sourceRepairUsed=solFamily?0:parent?1:0,boardAttempts=solFamily?solFamily.remaining.storyboardAttemptsAlreadyConsumed:spanning?2:0,
-    finalTextDir=receiptRecovery?'text_sol_recovered':sol?'text_sol':spanning?'text_4_source_spans':parent?`text_${continuationTextIndex}`:'text';
+    finalTextDir=bundleRecovery?'text_sol_bundle':receiptRecovery?'text_sol_recovered':sol?'text_sol':spanning?'text_4_source_spans':parent?`text_${continuationTextIndex}`:'text';
   if(!parent)save('request',{version:'local-simple-wizard-request/v1',requestId:prepared.accepted.requestId,optionsFingerprint:prepared.accepted.optionsFingerprint,
     request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:trial.id});
   const baseCurrent={request:prepared.accepted.canonical,options};
   const providerState:{stop:ClaudeQuotaStop|null}={stop:null};
   const observeProviderStop=<T>(dispatch:()=>Promise<T>)=>observeClaudeQuotaStop(dispatch,stop=>{providerState.stop=stop;log('phase provider_quota_exhausted');});
   const stageIO=(index:number,replay=false)=>{
-    const dir=path.join(config.bookDir,receiptRecovery?'text_sol_recovered':sol?'text_sol':replay?'text_4_source_spans':index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
+    const dir=path.join(config.bookDir,bundleRecovery?'text_sol_bundle':receiptRecovery?'text_sol_recovered':sol?'text_sol':replay?'text_4_source_spans':index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
     const budget=new TrialMaxBudget(maxRoot,`s${index}_`),api=new TrialApiMeter(apiRoot,sol?'sol_':`s${index}_`),
       writingPolicy={...policy,workspace:path.join(dir,'cli-workspace')},opus=createOpusCausalTransport(writingPolicy),
       reader=createAstraCausalTransport({key,rates:replaySettlement.rates.sol,model:'gpt-6.1-sol',inlineReferences:true,fetch:longCallFetch(660000)});
@@ -534,7 +593,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     const snapshot=(read:()=>unknown)=>{try{return read();}catch(error){return{status:'unreconciled',knownMicroUsd:null,error:(error as any)?.code??'accounting_replay_failed',furtherPaymentAllowed:false};}};
     const accounting={api:snapshot(()=>meter.snapshot()),claudeMax:snapshot(()=>max.snapshot()),claudeMaxNote:'reported resource, separate from API, not invoice',
       ...(solFamily?{claudeMaxAvailability:solFamily.parent.availabilityAccounting,writingRoute:SOL_WRITING}: {})};
-    save(receiptRecovery?'sol-receipt-recovery-final-accounting':sol?'sol-continuation-final-accounting':spanning?'storyboard-source-spans-final-accounting':completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:trial.id,claimSha,grantSha,status,accounting,...extra,
+    save(bundleRecovery?'sol-bundle-checkpoint-final-accounting':receiptRecovery?'sol-receipt-recovery-final-accounting':sol?'sol-continuation-final-accounting':spanning?'storyboard-source-spans-final-accounting':completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:trial.id,claimSha,grantSha,status,accounting,...extra,
       ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,
         ...(solFamily?{originalTerminalOutcomePreserved:true,originalStoryboardHoldPreserved:true,...(receiptRecovery?{receiptRecovery:receiptRecovery.receiptRecovery}:{})}:{originalLiteraryHoldPreserved:true})}:{}),
       runtimeEligible:false,productAccepted:false,productionQualified:false});return{status,accounting,...extra};
@@ -546,9 +605,11 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       publish:view=>log(`phase ${view.phase}`)});
     let sourceAdmission:ReturnType<typeof compileSourceImpactReview>|undefined;
     if(receiptRecovery){
-      const recovered=await replayTrialSolStoryboard(config,read(receiptRecovery.parent.grantFile));
+      const recovered=await replayTrialSolStoryboard(config,read(bundleRecovery?bundleRecovery.receiptRecovery.replayGrantFile:receiptRecovery.parent.grantFile));
       if(previewSha(canonicalJson(recovered.result))!==receiptRecovery.receiptRecovery.resultSha||previewSha(canonicalJson(recovered.draft))!==receiptRecovery.receiptRecovery.draftSha)fail('trial_receipt_replay_changed');
+      if(bundleRecovery&&previewSha(canonicalJson(recovered.repair))!==bundleRecovery.receiptRecovery.repairSha)fail('trial_receipt_replay_changed');
       result=recovered.result;io.draft=()=>recovered.draft;
+      exclusiveJson(path.join(io.dir,'storyboard_repair_input.json'),recovered.repair);
       exclusiveJson(path.join(io.dir,'receipt-recovery-provenance.json'),{...receiptRecovery.receiptRecovery,parentOutcomeSha:receiptRecovery.parent.outcomeSha,originalFailedOutcomePreserved:true,newProviderCalls:0});
       log('phase saved_sol_review_recovered_without_provider');
     }else if(sol){
@@ -620,9 +681,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     }
     if(!result.storyboard||!admittedStatus(result.status))return finish('held_storyboard',{storyboardAttempts:boardAttempts});
     guard();
-    const layoutBase={version:'reviewed-book-layout/v1',seed:profile.seed,childDesign:profile.child.design,storyboardDir:finalTextDir,
-      childDir:'child',childImage:'reference_child.png',savedCompanion:null,childAnchor:profile.childAnchor,childAnchorPose:CHILD_ANCHOR_POSE_V2,
-      ...(readerSafe?{readerFraming:READER_SAFE_FRAMING_VERSION}:{})} as const;
+    const layoutBase=trialStoryboardLayout(profile,finalTextDir,readerSafe);
     const board=loadReviewedStoryboard(config.bookDir,source,reviewedBookLayoutSchema.parse(layoutBase));
     const childDir=path.join(config.bookDir,'child'),childImages=path.join(childDir,'illustrations');mkdirSync(childDir);mkdirSync(childImages);
     const childIO=auditionAdapters({directory:childImages,meter,key,signal,guard}),judges=childAnchorJudges({bytesOf:i=>readAuditionImage(childImages,i),meter,key,signal,guard});
