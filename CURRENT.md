@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Actual narrated ReaderV2 DELIVERED locally — mom title + all8 pages (2026-10-23)
+
+- Owner-approved narration completed at clean be19ee80:9single ElevenLabs/mom/eleven_v3 calls, nativeexit0,
+  11:35:57.154Z..11:38:34.861Z. Nine realMP3s,356.754285seconds; exact9originalPNGs/title+8texts preserved.
+  Existing mom registry/defaults unchanged; explicit Natural0.5 audition. No images/story/child generated or oldgrant reopened.
+- Conservative narration budget329800microUSD (<approved1m); prior1494826 +329800 =1824626 of7m. Headerunits1320 are NOT input3298chars;
+  max(input,header)*100 accounting preserved. Separate263840 list estimate is NOT a supplier invoice. Nine known outputs/usage, no newunknown.
+  Original native32calls/1494826, failed_trial/imageQAincomplete and Max2553221resource remain unchanged; supplement is not a ledger reset.
+- SAME independent technicalPASS c077f792 closed F1operator/F2acquisition:52source tests,25nativeVM,15helperVM,58real bindingcontrols.
+  HistoricalHOLDs preserved; no rerun of unchanged suites/fullcheckRED. Actual outcomeaccuracyPASS6b58d1c2:117checks0, all9 independently
+  ffprobe+ffmpeg decoded, exactcalls/claims/wires/hashes/accounting/source/pins/native0 verified. Not pronunciation/image/productPASS.
+- Actual local reader http://localhost:3117/dev/local-reader?book=naomi-fox-mom-20261023 serves existing ReaderV2 and ALL18assets200,
+  correctMP3range206/invalid416/missing404. Real browser verified cover=>p1 automatic, audio advancing, desktop pause/resume, manualpages
+  through8, correctclip changes, previous/endstops, visible exactHebrew/images/incompleteQA notice; consolewarnings/errors0. Viewportreset,
+  reader left oncover withSTART. Mobile uses existing handsfree+edgearrows; existing narrowlayout hides bottom pausebar (not changed here).
+- Initial ART runtime appjunction failed Next route discovery (404); preserved logs, fixed runtime-v2 uses192nonsecret source-code copies,
+  othercode/public junctions and isolatedcache. Only exact owned initialserverPIDs stopped; source/tree/data unchanged. No envfile copied.
+  Local hidden Nextserver stays running; localhost requires this computer/server. No publicdeploy/order/DB/storageupload/productionPASS.
+- Q=ART/r2-new-book-mom-reader-20261023: reviewed plan-v2, nineusage/media records, consumedfixed narrationclaim/outcome, verified-output,
+  verified-http/verified-browser/reader-cover.jpg, independentreports and deliveryreport. Product/listening acceptance remains Guy's;
+  two noncritical niqqud warnings for שם retained. Docs-only localclose after nonincrementaltsc; no push/newkey/task/monitor/cleanup.
+
 ## Owner-approved mom narration + actual ReaderV2 local preview — code ready for independent gate (2026-10-23)
 
 - Guy explicitly approved title+8pages in existing mom voice, new narration <=USD1 within existing USD7 book cap, and one complete readerlink.

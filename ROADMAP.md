@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## New fox book: real mom narration + working local ReaderV2 DELIVERED (2026-10-23)
+
+- All9requestedclips completed native0/356.754285s; originalcover+8images/exacttexts unchanged. Existing momvoice/eleven_v3,
+  Natural0.5 audition,9singlecalls/no retries. Conservative329800microUSD within1m; bookcumulative1824626/7m, not supplierinvoice.
+- SAME technicalPASSc077f792 (F1/F2closed) +actualoutcomeaccuracyPASS6b58d1c2/117checks0; nineffmpegdecodes, pins/usage/claims/source intact.
+  Source52/operator25/helper15/bindings58 reused at unchangedbytes; fullcheckRED/historicalHOLDs remain. No image/product/pronunciationPASS.
+- Actual reader http://localhost:3117/dev/local-reader?book=naomi-fox-mom-20261023:9images+9MP3, all18HTTP200/ranges206, realbrowser
+  auto-title/p1/audioadvance/desktoppause-resume/manualallpages/back/end verified. Narrow existingreader hides bottompausebar; unchanged.
+  Initial route404 from appjunction resolved by isolatedruntime-v2 code snapshot; originalsource untouched, logs preserved, no newpaidcall.
+- Delivered local link remains oncover/START with visible diagnosticnotice; localserver required. SourcevisualQA stillincomplete,
+  failednativebook/Maxseparate retained. No DB/order/cloud/production/push/deploy/newkey/task/monitor or consumednativegrant reuse.
+
 ## Existing ReaderV2 + mom narration for new diagnostic book (2026-10-23)
 
 - Direct owner approval: one readerlink with exactcover+8texts/images and realmomMP3; narration<=USD1 within7m, no oldconsumedgrant reset.
