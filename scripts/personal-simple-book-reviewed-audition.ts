@@ -17,6 +17,7 @@ import { getCompanionById } from '../lib/companions';
 import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
 import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
+import { STORYBOARD_STATE_PARITY_VERSION } from '../lib/personal-wizard/storyboard-state-parity';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../lib/personal-wizard/options';
@@ -167,6 +168,13 @@ export function savedSelfCheckSourceSpans(savedBook: { selfCheckSourceSpans?: un
   const marker = savedBook?.selfCheckSourceSpans;
   if (marker === undefined) return undefined;
   return marker === STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION ? { selfCheckSourceSpans: true } : fail('audition_board_binding');
+}
+
+/** The new semantics are restored only from their saved digest-bound book marker; no env/CLI promotion of an old book. */
+export function savedStateParityContract(savedBook: { stateParity?: unknown } | undefined): true | undefined {
+  const marker = savedBook?.stateParity;
+  if (marker === undefined) return undefined;
+  return marker === STORYBOARD_STATE_PARITY_VERSION ? true : fail('audition_board_binding');
 }
 
 /** The claim basis comes only from the saved, digest-bound book (its marker names the version); an unknown version is refused. */
@@ -322,7 +330,7 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
     savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
-    savedClaimBasisContract(saved), savedCalibrationContract(saved), savedPresenceContract(saved));
+    savedClaimBasisContract(saved), savedCalibrationContract(saved), savedPresenceContract(saved), savedStateParityContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const names = savedSelfCheckNames(saved), fields = savedStagingFields(saved), spans = savedSelfCheckSourceSpans(saved);
   const book = names || fields || spans ? compilePersonalStoryboard(source, parentDraft, { ...names, ...fields, ...spans }) : compilePersonalStoryboard(source, parentDraft);

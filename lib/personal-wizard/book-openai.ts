@@ -44,6 +44,8 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   // Presence refines the calibrated drawn instant (its frames list depicted.presence), so it needs the calibration.
   if (call.context.presenceContract !== undefined && (call.context.presenceContract !== true || call.context.calibrationContract !== true))
     throw new BookProviderError('book_provider_context');
+  if (call.context.stateParityContract !== undefined && (call.context.stateParityContract !== true || call.context.calibrationContract !== true))
+    throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');

@@ -39,6 +39,7 @@ import { personalBookOutputLimits } from '../lib/personal-wizard/book-config';
 import { decodePersonalBookProviderOutput } from '../lib/personal-wizard/book-openai';
 import { STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION } from '../lib/personal-wizard/storyboard-self-check';
 import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
+import { observeClaudeQuotaStop, trialFailureDetails, type ClaudeQuotaStop } from '../lib/personal-wizard/claude-resource-stop';
 
 export const BOOK_E2E_TRIAL = Object.freeze({ id:'owner-new-book-e2e-20261023/v1', pages:8, apiCapMicroUsd:7_000_000,
   maxResourceMicroUsd:6_000_000, maxApiCalls:98, sourceRepairs:1, storyboardAttempts:3, citationCorrections:1, pageAttempts:3,
@@ -74,7 +75,7 @@ export type TrialProfile=z.infer<typeof trialProfileSchema>;
 const CONTRACTS=Object.freeze({actorOwnedAppearance:true,momentContract:true,landmarkKindContract:true,sceneLocationContract:true,
   compilerRulesContract:true,drawnInstantContract:true,visibleMomentContract:true,selfCheckContract:true,reviewImpactPolicy:true,
   selfCheckNames:true,claimBasisContract:true,stagingFields:true,calibrationContract:true,presenceContract:true} as const);
-const PINNED=[...new Set([...FRESH_BOOK_STORYBOARD_PRESENCE_PINNED,'scripts/personal-book-e2e-trial.ts',
+const PINNED=[...new Set([...FRESH_BOOK_STORYBOARD_PRESENCE_PINNED,'scripts/personal-book-e2e-trial.ts','lib/personal-wizard/claude-resource-stop.ts',
   'lib/personal-wizard/audition-anatomy.ts','lib/personal-wizard/landmark-topology.ts','lib/personal-wizard/storyboard-presence.ts',
   'lib/personal-wizard/storyboard-calibration.ts','lib/companions.ts','lib/style01-prompt-core.ts','lib/personal-wizard/options.ts',
   'lib/personal-wizard/source-review-impact.ts'])];
@@ -319,6 +320,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   if(!parent)save('request',{version:'local-simple-wizard-request/v1',requestId:prepared.accepted.requestId,optionsFingerprint:prepared.accepted.optionsFingerprint,
     request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:trial.id});
   const baseCurrent={request:prepared.accepted.canonical,options};
+  const providerState:{stop:ClaudeQuotaStop|null}={stop:null};
+  const observeProviderStop=<T>(dispatch:()=>Promise<T>)=>observeClaudeQuotaStop(dispatch,stop=>{providerState.stop=stop;log('phase provider_quota_exhausted');});
   const stageIO=(index:number,replay=false)=>{
     const dir=path.join(config.bookDir,replay?'text_4_source_spans':index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
     const budget=new TrialMaxBudget(maxRoot,`s${index}_`),api=new TrialApiMeter(apiRoot,`s${index}_`),
@@ -343,7 +346,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
         const file=path.join(dir,'storyboard-instructions.txt');exclusiveText(file,plannerRequest(call).instructions);
         const wire=prepareOpusStoryboardWire(call,writingPolicy,file);
         return budget.run('storyboard',wire,2_000_000,async()=>{
-          const r=await createOpusStoryboardTransport(writingPolicy)(wire,call,s);draft=r.output;return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
+          const r=await observeProviderStop(()=>createOpusStoryboardTransport(writingPolicy)(wire,call,s));draft=r.output;return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
       }
       const payload=simpleWizardVisualPayload(call,'gpt-6.1-sol'),reserve=trialApiRules(`s${index}_storyboard_review`)?.reserve(payload)??fail('trial_review_wire');
       return api.run('storyboard_review',payload,reserve,async()=>{
@@ -360,7 +363,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     return{dir,visual,draft:()=>draft,
       opus:async(call:any,s:AbortSignal)=>{guard();const d=dispatch(call,'opus'),file=path.join(dir,`${call.stage}-instructions.txt`);exclusiveText(file,call.instructions);
         const wire=prepareCausalWire(d,writingPolicy,2_000_000,file);
-        return budget.run(call.stage,wire,2_000_000,async()=>{const r=await opus(wire,d,s);return{value:r,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});},
+        return budget.run(call.stage,wire,2_000_000,async()=>{const r=await observeProviderStop(()=>opus(wire,d,s));return{value:r,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});},
       reader:doRead,
       correctReading:async(stage:any,numbered:any,raw:unknown,s:AbortSignal)=>{
         if(citationUsed++>=BOOK_E2E_TRIAL.citationCorrections)fail('trial_citation_used');
@@ -514,7 +517,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       ...(sourceAdmission?{sourceAdmission}:{}),
       viewer:path.join(config.bookDir,'viewer','index.html')});
   }catch(error){
-    if(!existsSync(outcomeFile))finish('failed_trial',{code:(error as any)?.code??'trial_failure'});
+    if(!existsSync(outcomeFile))finish('failed_trial',trialFailureDetails(error,providerState.stop));
     throw error;
   }
 }

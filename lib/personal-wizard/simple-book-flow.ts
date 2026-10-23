@@ -42,6 +42,7 @@ export async function runSimpleWizardBook(args: {
   calibrationContract?: true;
   /** Opt-in presence (storyboard-presence/v1; needs the calibration); absent keeps the exact existing calls. */
   presenceContract?: true;
+  stateParityContract?: true;
   /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
   storyboardRepair?: StoryboardRepair;
   /**
@@ -129,6 +130,7 @@ export async function runSimpleWizardBook(args: {
     ...(args.stagingFields ? { stagingFields: true as const } : {}),
     ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
     ...(args.presenceContract ? { presenceContract: true as const } : {}),
+    ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
     ...(args.storyboardRepair ? { repair: args.storyboardRepair } : {}),
     generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');

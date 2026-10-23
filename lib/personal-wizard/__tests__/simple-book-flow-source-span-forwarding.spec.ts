@@ -5,10 +5,10 @@ import { runSimpleWizardBook } from '../simple-book-flow';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import type { TransportReply } from '../../../scripts/personal-causal-trial-adapters';
 
-describe('actual simple-book flow forwards prospective source-span contract',()=>{
+describe('actual simple-book flow forwards prospective source-span/state-parity contracts',()=>{
   let f:Awaited<ReturnType<typeof personalStoryboardFixture>>;
   beforeAll(async()=>{f=await personalStoryboardFixture();});
-  it.each([undefined,true] as const)('preserves absent behavior or forwards exact opt-in %s',async flag=>{
+  it.each([[undefined,undefined],[true,undefined],[undefined,true],[true,true]] as const)('preserves absent behavior or forwards exact opt-ins %s/%s',async(flag,parity)=>{
     diagnostic.run.mockReset();diagnostic.run.mockResolvedValue({status:'review_supported',framePackets:[]});
     const plan=f.result.plan,draft={title:plan.title,childGoal:plan.childGoal,companionWant:plan.companionWant,
       comicPromise:plan.comicPromise,ending:plan.ending,pages:f.result.manuscript.pages.map(p=>({text:p.text+' נועה ודיני מציירות.'})),
@@ -16,7 +16,7 @@ describe('actual simple-book flow forwards prospective source-span contract',()=
       resilienceMoments:plan.resilience.moments.map(({pageNumber,...m})=>({page:pageNumber,...m}))};
     const calls:string[]=[];
     const result=await runSimpleWizardBook({request:f.request,options:f.current.options,seed:'test-source-span-forwarding',
-      signal:new AbortController().signal,reservedWritingUsd:2,publish:()=>{},selfCheckSourceSpans:flag,
+      signal:new AbortController().signal,reservedWritingUsd:2,publish:()=>{},selfCheckSourceSpans:flag,stateParityContract:parity,
       visual:async()=>{throw Error('mocked diagnostic must not dispatch');},
       reader:async call=>({packetDigest:JSON.parse(call.input).packetDigest,summary:'Synthetic structural reading, not real quality proof',findings:[]}),
       opus:async call=>{calls.push(call.stage);const usage={inputTokens:100,outputTokens:100},termination={code:0,signal:null};
@@ -28,5 +28,6 @@ describe('actual simple-book flow forwards prospective source-span contract',()=
       }});
     expect(result.status).toBe('review_supported');expect(calls).toEqual(['author','editor']);
     expect(diagnostic.run).toHaveBeenCalledTimes(1);expect(diagnostic.run.mock.calls[0][0].selfCheckSourceSpans).toBe(flag);
+    expect(diagnostic.run.mock.calls[0][0].stateParityContract).toBe(parity);
   });
 });

@@ -16,6 +16,7 @@ import type { StoryboardPreservation } from './storyboard-preservation';
 import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
+import { stateParityReviewerCalibration, STATE_PARITY_REVIEW_ADDENDUM } from './storyboard-state-parity';
 
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
 export const SIMPLE_STORYBOARD_INPUT_LIMIT = 104_000;
@@ -29,7 +30,9 @@ export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
  * and its own addendum closes the instruction; the presence contract (which needs the calibration) appends its rule after it.
  */
 export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; selfCheckSourceSpans?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true; presenceContract?: true }) => {
+  selfCheckContract?: true; selfCheckSourceSpans?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true; presenceContract?: true; stateParityContract?: true }) => {
+  if (contracts.stateParityContract !== undefined && (contracts.stateParityContract !== true || contracts.calibrationContract !== true || contracts.claimBasisContract !== true))
+    throw Error('simple_storyboard_diagnostic_state_parity_policy');
   const calibrated = contracts.calibrationContract && contracts.claimBasisContract;
   return PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
     + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
@@ -38,9 +41,10 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (contracts.reviewImpactPolicy ? '\n' + (calibrated ? CALIBRATION_REVIEW_IMPACT_ADDENDUM : STORYBOARD_REVIEW_IMPACT_ADDENDUM) : '')
     + (contracts.claimBasisContract ? '\n' + (calibrated ? calibrationClaimBasisReviewAddendum() : CLAIM_BASIS_REVIEW_ADDENDUM) : '')
     + (contracts.claimBasisContract && contracts.stagingFields ? '\n' + CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE : '')
-    + (calibrated ? '\n' + CALIBRATION_REVIEW_ADDENDUM : '')
+    + (calibrated ? '\n' + (contracts.stateParityContract ? stateParityReviewerCalibration() : CALIBRATION_REVIEW_ADDENDUM) : '')
     + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '')
-    + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '');
+    + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '')
+    + (contracts.stateParityContract ? '\n' + STATE_PARITY_REVIEW_ADDENDUM : '');
 };
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
@@ -94,11 +98,14 @@ export async function runSimpleStoryboardDiagnostic(args: {
   calibrationContract?: true;
   /** Opt-in presence (storyboard-presence/v1: needs the calibration; the planner's instructions, schema and compile, and the review's rule); absent keeps the exact existing calls. */
   presenceContract?: true;
+  /** Shared, prospective compiler attribute/time semantics; needs calibration and visible moment. */
+  stateParityContract?: true;
 }) {
   if (args.selfCheckSourceSpans !== undefined && (args.selfCheckSourceSpans !== true || args.selfCheckContract !== true)) fail('self_check_source_spans_policy');
   if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
   if (args.calibrationContract !== undefined && (args.calibrationContract !== true || args.claimBasisContract !== true)) fail('calibration_policy');
   if (args.presenceContract !== undefined && (args.presenceContract !== true || args.calibrationContract !== true)) fail('presence_policy');
+  if (args.stateParityContract !== undefined && (args.stateParityContract !== true || args.calibrationContract !== true || args.visibleMomentContract !== true)) fail('state_parity_policy');
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
@@ -106,7 +113,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
     args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
-    args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract);
+    args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract, args.stateParityContract);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length, args.selfCheckContract ? { selfCheck: true } : undefined);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -115,7 +122,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
         args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
-        args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract).sourceDigest !== source.sourceDigest)
+        args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract, args.stateParityContract).sourceDigest !== source.sourceDigest)
         fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
@@ -151,7 +158,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.selfCheckContract ? { selfCheckContract: true as const } : {}),
       ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
-      ...(args.presenceContract ? { presenceContract: true as const } : {}) } }), args.signal,
+      ...(args.presenceContract ? { presenceContract: true as const } : {}),
+      ...(args.stateParityContract ? { stateParityContract: true as const } : {}) } }), args.signal,
     args.selfCheckNames || args.stagingFields || args.selfCheckSourceSpans ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}),
       ...(args.selfCheckSourceSpans ? { selfCheckSourceSpans: true as const } : {}) }
       : undefined);
@@ -166,7 +174,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
       ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
       ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
-      ...(args.calibrationContract ? { calibrationContract: true as const } : {}) } });
+      ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
+      ...(args.stateParityContract ? { stateParityContract: true as const } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();
   // Supported, or (typed policy only) supported with bound detail notes, which the packets then carry.

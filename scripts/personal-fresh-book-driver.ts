@@ -294,7 +294,8 @@ export const FRESH_BOOK_STORYBOARD_EXTENSION_REVALIDATION_PINNED = FRESH_BOOK_ST
 /** Calibration-line grants also pin the calibration contract (its transport compaction lives in files the base list already pins). */
 export const FRESH_BOOK_STORYBOARD_CALIBRATION_PINNED = Object.freeze([...FRESH_BOOK_STORYBOARD_EXTENSION_PINNED, 'lib/personal-wizard/storyboard-calibration.ts']);
 /** Presence-line grants also pin the presence contract (its moments, drawn-instant, claim and review hooks live in files already pinned). */
-export const FRESH_BOOK_STORYBOARD_PRESENCE_PINNED = Object.freeze([...FRESH_BOOK_STORYBOARD_CALIBRATION_PINNED, 'lib/personal-wizard/storyboard-presence.ts']);
+export const FRESH_BOOK_STORYBOARD_PRESENCE_PINNED = Object.freeze([...FRESH_BOOK_STORYBOARD_CALIBRATION_PINNED, 'lib/personal-wizard/storyboard-presence.ts',
+  'lib/personal-wizard/storyboard-state-parity.ts']);
 /** Child-recovery-line grants pin exactly the presence line's files (the pose contract and the recovery live in files it already pins). */
 export const FRESH_BOOK_CHILD_RECOVERY_PINNED = FRESH_BOOK_STORYBOARD_PRESENCE_PINNED;
 /** Fresh-anchor-line grants pin exactly the same files (pose v2 lives in files they already pin). */
