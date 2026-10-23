@@ -136,6 +136,52 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
   return { args, prompts, saved, contexts };
 }
 
+describe('fresh full-cohort trial',()=>{
+  const cohort='audition-fresh-cohort/v1' as const;
+  const settings={pageAttempts:1,structuralAnatomy:true as const,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,freshCohort:cohort};
+  it('renders all nine body-first/cover-last before the first page review, retains material HOLD',async()=>{
+    const h=harness({book:typedFixture(),coverage:true,judge:()=>({environment:{issues:[issue('continuity','visual_language')]}})}),events:string[]=[];
+    const result=await illustrateReviewedAudition({...h.args,...settings,
+      render:async(step,...rest)=>{events.push(`draw:${step}`);return h.args.render(step,...rest);},
+      judge:async(step,...rest)=>{events.push(`judge:${step}`);return h.args.judge(step,...rest);}});
+    const before=events.slice(0,events.findIndex(e=>e.startsWith('judge:page_')));
+    expect(before.filter(e=>e.startsWith('draw:page_'))).toEqual([...Array.from({length:8},(_,i)=>`draw:page_${i+1}_0`),'draw:page_0_0']);
+    expect(result.pages).toHaveLength(9);expect(result.pages.every(p=>p.status==='held')).toBe(true);
+    expect(result.status).toBe('diagnostic_audition');expect(result.runtimeEligible).toBe(false);
+    expect(result.freshCohort?.version).toBe(cohort);
+  });
+  it('detail-only notes do not block any of the nine pages or cause retries',async()=>{
+    const h=harness({book:typedFixture(),coverage:true,judge:()=>({environment:{issues:[issue('detail','visual_language')]}})});
+    const result=await illustrateReviewedAudition({...h.args,...settings});
+    expect(result.pages).toHaveLength(9);expect(result.pages.every(p=>p.status==='qa_supported')).toBe(true);
+    expect(h.args.render.mock.calls.filter(c=>c[0].startsWith('page_'))).toHaveLength(9);
+  });
+  it.each([{sample:[1,2]}, {pages:[1,2]}, {pageAttempts:2}, {resume:{}}, {structuralAnatomy:undefined}])(
+    'refuses incompatible cohort scope before a provider callback: %j',async extra=>{
+      const h=harness({book:typedFixture(),coverage:true});await expect(illustrateReviewedAudition({...h.args,...settings,...extra} as any))
+        .rejects.toThrow('audition_fresh_cohort_scope');expect(h.args.render).not.toHaveBeenCalled();expect(h.args.judge).not.toHaveBeenCalled();
+    });
+  it('an unusable first page review keeps all nine already drawn candidates, never turns them PASS',async()=>{
+    const h=harness({book:typedFixture(),coverage:true});await expect(illustrateReviewedAudition({...h.args,...settings,
+      judge:async(step,...rest)=>step.startsWith('page_')?{} as any:h.args.judge(step,...rest)})).rejects.toThrow('audition_review_unusable');
+    expect(h.args.render.mock.calls.filter(c=>c[0].startsWith('page_'))).toHaveLength(9);
+    expect([...h.saved.keys()].filter(k=>k.startsWith('diagnostic_render_'))).toHaveLength(9);
+    expect(h.saved.has('reviewed_audition_manifest')).toBe(false);
+  });
+  it.each(['defect','uncertain'] as const)('material-scene opt-in repairs only a bound positive defect (%s)',async verdict=>{
+    const h=harness({book:typedFixture(),coverage:true,pages:[1],judge:step=>step.startsWith('page_')?{environment:{verdict,issues:[issue('continuity','visual_language')]}}:{}});
+    await illustrateReviewedAudition({...h.args,pageAttempts:1,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    const page=h.saved.get('page_1') as SavedPage,context=h.contexts.get('page_1_0_qa'),canonical=context.references;
+    const before=h.args.render.mock.calls.length;
+    const fixed=await repairReviewedAuditionPage({page:1,prefix:'r1_',consumedAttemptsBefore:1,prior:page.chosen,context,contextSha:page.contextSha,
+      canonical,predecessor:null,check:h.args.check,render:h.args.render,judge:h.args.judge,identity:h.args.identity,save:h.args.save,materialScene:true});
+    if(verdict==='uncertain'){expect(fixed.corrected).toBeNull();expect(h.args.render.mock.calls.length).toBe(before);}
+    else{expect(fixed.corrected?.status).toBe('qa_supported');expect(fixed.corrected?.sceneRepair?.version).toBe('audition-local-material-scene/v1');
+      const call=h.args.render.mock.calls[h.args.render.mock.calls.length-1]!;expect(call[3]).toBe('book_scene_edit');expect((call[2] as any[])[0]).toEqual(page.chosen.candidate);
+      expect(h.args.identity.mock.calls[h.args.identity.mock.calls.length-1]?.[0]).toBe('r1_page_1_1_identity');}
+  });
+});
+
 describe('local anatomical scene repair through the EXISTING bounded loop', () => {
   const clarityFixture=async()=>{
     const h=harness({book:typedFixture(),coverage:true});

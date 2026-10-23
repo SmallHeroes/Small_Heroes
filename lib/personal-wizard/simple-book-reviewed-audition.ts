@@ -79,6 +79,8 @@ export type AuditionAnatomyRecovery = { version: typeof AUDITION_ANATOMY_VERSION
   consumedAttemptsBefore: number; maxNewAttempts: number }[] };
 /** A full visual diagnostic is NOT admission: retain saved HOLDs, create missing frames once, then review the complete cohort. */
 export const AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION = 'audition-full-book-diagnostic/v1' as const;
+/** Fresh owner-approved full-book diagnostic: draw the full cohort before page judging, never an acceptance override. */
+export const AUDITION_FRESH_COHORT_VERSION = 'audition-fresh-cohort/v1' as const;
 export type AuditionFullBookDiagnostic = { version: typeof AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION;
   pages: { page: number; prior: SavedPage; consumedAttemptsBefore: number }[] };
 type Impact = typeof AUDITION_IMPACTS[number];
@@ -571,7 +573,7 @@ export const identityUsable = (identity: PageChildResemblanceVisionResult | null
 export type AttemptStatus = 'unavailable' | 'review_unusable' | 'identity_unusable' | 'ineligible_safety' | 'review_invalid' | 'held' | 'qa_supported';
 export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null; review: AuditionReview | null;
   assessment: AuditionAssessment | null; status: AttemptStatus; error?: string; identity?: PageChildResemblanceVisionResult | null;
-  sceneRepair?: { version: typeof AUDITION_LOCAL_ANATOMY_REPAIR_VERSION; parentImageSha: string; parentContextSha: string; targetActorIds: string[];
+  sceneRepair?: { version: typeof AUDITION_LOCAL_ANATOMY_REPAIR_VERSION | 'audition-local-material-scene/v1'; parentImageSha: string; parentContextSha: string; targetActorIds: string[];
     clarity?: AnatomyClarityRequest & {requestSha:string} } };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
 
@@ -996,6 +998,8 @@ export async function repairReviewedAuditionPage(a: { page: number; prefix: stri
   context: unknown; contextSha: string; canonical: AuditionImage[]; predecessor: AuditionImage | null; check: () => void;
   render: Render; judge: Judge; identity: Parameters<typeof judgeReviewedAuditionCandidate>[0]['identity'];
   clarity?: AnatomyClarityRequest;
+  /** Fresh native trial opt-in: also repair a positively bound material scene defect, never uncertainty/detail/safety. */
+  materialScene?: true;
   save: (name: string, value: unknown) => void }) {
   if (!Number.isInteger(a.page) || a.page < 0 || a.page > 8 || !/^r[0-9]{1,2}_$/.test(a.prefix) || !a.prior.candidate ||
       !Number.isInteger(a.consumedAttemptsBefore) || a.consumedAttemptsBefore < 1 || a.consumedAttemptsBefore >= REVIEWED_AUDITION_POLICY.pageAttempts ||
@@ -1013,8 +1017,23 @@ export async function repairReviewedAuditionPage(a: { page: number; prefix: stri
   }
   // Malformed/unknown answers, safety and citation failures cannot be turned into paid image corrections.
   if (!['held','qa_supported'].includes(parent.status)) return { status:'stopped_unusable_or_unsafe_parent' as const, parent, corrected:null };
-  const plan = auditionLocalAnatomyRepairPlan(parent,a.context,a.contextSha,a.canonical,
+  const anatomyPlan = auditionLocalAnatomyRepairPlan(parent,a.context,a.contextSha,a.canonical,
     anatomyPoseStrategy(auditionAttemptFindings(parent)),a.clarity);
+  const material = parent.assessment?.findings.filter(f => f.bound && !f.derived && f.verdict === 'defect' &&
+    ['story','identity','continuity'].includes(f.impact)) ?? [];
+  const plan = anatomyPlan ?? (a.materialScene && parent.status === 'held' && material.length &&
+    a.canonical.length === 4 && !parent.assessment?.safetyBlocked && !parent.assessment?.invalidCitations ? {
+      prompt: `Edit only the supplied failed scene to resolve these independently reviewed material defects:\n${material.map(f =>
+        `${f.impact} / ${f.requirement}: ${f.note}`).join('\n')}\nKeep the original story action, cast, identity, style and all unaffected content unchanged.
+Image1 is the scene edit target; images2/3/4 are child/companion/entity design authorities, NOT scene replacements.
+Do not add an event, character or physical state that the source does not establish. Keep anatomy readable; no invented limb or prop.
+FROZEN SOURCE AND CANON (data, not text to paint): ${canonicalJson(a.context)}`,
+      references: [parent.candidate!, ...a.canonical.slice(0,3)], mode: 'book_scene_edit' as const,
+      roles: ['scene_edit_target','child_design_authority','companion_design_authority','entity_design_authority'] as const,
+      provenance: { version:'audition-local-material-scene/v1' as const, parentImageSha:parent.candidate!.imageSha,
+        parentContextSha:a.contextSha,targetActorIds:[] as string[],clarity:undefined as (AnatomyClarityRequest & {requestSha:string})|undefined,
+        defects:material.map(f=>({impact:f.impact,requirement:f.requirement,note:f.note})) },
+    } : null);
   if (!plan) return { status:'no_verified_structural_defect' as const, parent, corrected:null };
   a.check(); const step=`${a.prefix}page_${a.page}_${a.consumedAttemptsBefore}`;
   const candidate=await a.render(step,plan.prompt,plan.references,plan.mode,plan.roles); a.check();
@@ -1116,6 +1135,8 @@ export async function illustrateReviewedAudition(args: {
   localAnatomyRepair?: true;
   /** Separate native one-use diagnostic authority only, never a normal resume or approval of the retained samples. */
   fullBookDiagnostic?: AuditionFullBookDiagnostic;
+  /** Native spend-grant opt-in only; fresh, one attempt/frame, full coverage, no sample/resume/legacy continuation. */
+  freshCohort?: typeof AUDITION_FRESH_COHORT_VERSION;
 }) {
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
@@ -1155,6 +1176,9 @@ export async function illustrateReviewedAudition(args: {
         p.page !== p.prior.pageNumber || p.consumedAttemptsBefore < p.prior.chosen.attempt + 1 ||
         p.maxNewAttempts !== (i === 0 ? 0 : 2) || p.prior.status !== (i === 0 ? 'qa_supported' : 'held')))) fail('audition_anatomy_parent');
   const diagnostic = args.fullBookDiagnostic;
+  const freshCohort = args.freshCohort;
+  if (freshCohort && (freshCohort !== AUDITION_FRESH_COHORT_VERSION || args.resume || args.sample || diagnostic || calibration ||
+      args.anatomyRecovery || args.pageAttempts !== 1 || !args.structuralAnatomy || args.localAnatomyRepair)) fail('audition_fresh_cohort_scope');
   if (diagnostic && (diagnostic.version !== AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION || !args.structuralAnatomy ||
       topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || calibration || args.anatomyRecovery || !args.resume || args.resume.interrupted ||
       args.resume.rereview || Object.keys(args.resume.pages).length || !args.sample ||
@@ -1177,13 +1201,14 @@ export async function illustrateReviewedAudition(args: {
   const reusedRoles = (['entities', 'locations'] as const).filter(role => args.reuseSheets?.[role] !== undefined);
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
   if (!frames.length || frames.some(n => !Number.isInteger(n) || n < 0 || n > args.book.narrativeSpreads)) fail('audition_page_scope');
+  if (freshCohort && frames.length !== args.book.narrativeSpreads + 1) fail('audition_fresh_cohort_scope');
   const sample = args.sample ? [...args.sample] : null;
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
   if (diagnostic && (frames.length !== args.book.narrativeSpreads + 1 || diagnostic.pages.length !== 2 ||
       diagnostic.pages.some(p => !frames.includes(p.page)))) fail('audition_diagnostic_scope');
   // Diagnostic drawing is body-first, cover last; the final reader remains cover-first. Ordinary sample admission is unchanged.
-  const order = diagnostic ? [...frames.filter(n => n > 0), ...(frames.includes(0) ? [0] : [])]
+  const order = diagnostic || freshCohort ? [...frames.filter(n => n > 0), ...(frames.includes(0) ? [0] : [])]
     : sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
   if (calibration && (!args.resume || calibration.version !== (coverage ? AUDITION_COVERAGE_CONTINUATION_VERSION : continuation ? AUDITION_TOPOLOGY_CONTINUATION_VERSION : AUDITION_CALIBRATION_VERSION) || !sample ||
       canonicalJson(calibration.pages.map(p => p.page)) !== canonicalJson(sample) ||
@@ -1451,7 +1476,7 @@ export async function illustrateReviewedAudition(args: {
   };
   const pages: SavedPage[] = [];
   const diagnosticCandidates = new Map<number, AuditionImage>();
-  if (diagnostic) for (const pageNumber of order) {
+  if (diagnostic || freshCohort) for (const pageNumber of order) {
     if (diagnosticParents.has(pageNumber)) continue;
     args.check();
     const packet = args.ownerAcceptance === undefined ? currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current)
@@ -1460,11 +1485,11 @@ export async function illustrateReviewedAudition(args: {
     const prompt = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${ANATOMY_RENDER_RULES}`;
     const rendered = await attemptStep(args.check, () => args.render(`${prefix}page_${pageNumber}_0`, prompt, canonical, 'book_identity'));
     if ('error' in rendered) {
-      args.save(`halted_${prefix}diagnostic_render_${pageNumber}`, { version: diagnostic.version, pageNumber, attempt: 0, error: rendered.error });
+      args.save(`halted_${prefix}diagnostic_render_${pageNumber}`, { version: diagnostic?.version ?? freshCohort, pageNumber, attempt: 0, error: rendered.error });
       return fail('audition_diagnostic_render');
     }
     diagnosticCandidates.set(pageNumber, rendered.value);
-    args.save(`diagnostic_render_${pageNumber}`, { version: diagnostic.version, pageNumber, attempt: 0, candidate: rendered.value,
+    args.save(`diagnostic_render_${pageNumber}`, { version: diagnostic?.version ?? freshCohort, pageNumber, attempt: 0, candidate: rendered.value,
       recipeSha256: previewSha(canonicalJson({ prompt, references: canonical, mode: 'book_identity' })), status: 'pending_review' });
   }
   let heldSample = false;
@@ -1484,7 +1509,7 @@ export async function illustrateReviewedAudition(args: {
       if (diagnosticParent.contextSha !== contextSha) fail('audition_diagnostic_parent');
       pages.push(diagnosticParent); continue;
     }
-    if (diagnostic) {
+    if (diagnostic || freshCohort) {
       const candidate = diagnosticCandidates.get(pageNumber) ?? fail('audition_diagnostic_render');
       const result = await judgeCandidate('page', String(pageNumber), 0, candidate, context, contextSha, checks.requirementIds,
         canonical, predecessor, checks.uniqueLandmarks);
@@ -1492,7 +1517,7 @@ export async function illustrateReviewedAudition(args: {
       const chosen = selectAuditionAttempt('page', [result]) ?? fail(`audition_page_${pageNumber}_unavailable`);
       const saved: SavedPage = { pageNumber, contextSha, requirementIds: checks.requirementIds, attempts: [result], chosen,
         status: attemptStatus('page', chosen) };
-      pages.push(saved); args.save(`page_${pageNumber}_diagnostic`, saved); continue;
+      pages.push(saved); args.save(freshCohort ? `page_${pageNumber}` : `page_${pageNumber}_diagnostic`, saved); continue;
     }
     const spec = calibration?.pages.find(s => s.page === pageNumber);
     if (spec) {
@@ -1577,7 +1602,8 @@ export async function illustrateReviewedAudition(args: {
     scope: { frames: heldSample ? presented.map(p => p.pageNumber) : frames, complete,
       ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}),
       ...(args.pageAttempts !== undefined ? { pageAttempts } : {}), ...(reusedRoles.length ? { reusedSheets: reusedRoles } : {}) },
-    status: diagnostic ? 'diagnostic_audition' : heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
+    ...(freshCohort ? { freshCohort: { version: freshCohort, purpose: 'whole-book visual evaluation, not admission', renderThenReview: true, renderOrder: order } } : {}),
+    status: diagnostic || freshCohort ? 'diagnostic_audition' : heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },
     pageDeferred: designs.pageDeferred,

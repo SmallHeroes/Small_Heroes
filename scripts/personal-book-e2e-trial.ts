@@ -1,0 +1,323 @@
+/** ONE newly approved full-book trial. Reuses engine stages; never reopens a historical book authority. Dry by default. */
+import 'server-only';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { z } from 'zod';
+import OpenAI from 'openai';
+import { previewSha } from '../lib/local-story-preview';
+import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
+import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
+import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
+import { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
+import { runSimpleStoryboardDiagnostic, type SimpleStoryboardDiagnosticCall } from '../lib/personal-wizard/simple-storyboard-diagnostic';
+import type { StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
+import { prepareSourceCitationCorrection, applySourceCitationCorrection } from '../lib/personal-wizard/story-source-citations';
+import { currentPersonalStoryboardFrame } from '../lib/personal-wizard/storyboard';
+import { CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_TECHNIQUE_MANIFEST, resolveChildAnchorTechnique } from '../lib/personal-wizard/child-anchor-style';
+import { SimpleBookBudget } from '../lib/personal-wizard/simple-book-budget';
+import { illustrateReviewedAudition, AUDITION_FRESH_COHORT_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+  auditionPageContext, referenceStatus, repairReviewedAuditionPage, selectAuditionAttempt, attemptStatus,
+  type SavedPage, type SavedSheet } from '../lib/personal-wizard/simple-book-reviewed-audition';
+import { AuditionMeter, auditionAdapters, auditionMeterRules, keyReader, loadReviewedBook, loadReviewedStoryboard,
+  reviewedBookLayoutSchema, type MeterRules } from './personal-simple-book-reviewed-audition';
+import { readAuditionImage } from './personal-simple-book-illustrator';
+import { childAnchorJudges } from './personal-child-anchor-judges';
+import { anchorAuthority, inspectedAnchor, FRESH_BOOK_STORYBOARD_PRESENCE_PINNED, flooredReviewRule } from './personal-fresh-book-driver';
+import { stageRules, replaySettlement } from './personal-new-book-experiment';
+import { prepareCausalWire, createOpusCausalTransport, createAstraCausalTransport, type WirePolicy, type TransportReply } from './personal-causal-trial-adapters';
+import { prepareOpusStoryboardWire, createOpusStoryboardTransport, plannerRequest } from './personal-opus-storyboard-transport';
+import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
+import { exclusiveJson, exclusiveText, realDirectory } from './personal-causal-trial-journal';
+import { longCallFetch } from './personal-long-call-fetch';
+
+export const BOOK_E2E_TRIAL = Object.freeze({ id:'owner-new-book-e2e-20261023/v1', pages:8, apiCapMicroUsd:7_000_000,
+  maxResourceMicroUsd:6_000_000, maxApiCalls:98, sourceRepairs:1, storyboardAttempts:3, citationCorrections:1, pageAttempts:3,
+  authorityRoot:'C:/GNart/Work/book-authority', claim:'owner-new-book-e2e-20261023.claim.json', outcome:'owner-new-book-e2e-20261023.outcome.json',
+  priorBook:'C:/GNart/Work/book-renders/fresh-book-usd7-20261018',
+  routes:{writing:'claude-opus-5-5/claude-max',quality:'gpt-6.1-sol',images:'gpt-image-2/low',numericIdentity:'gpt-4o',identityThreshold:.70} });
+const hash=z.string().regex(/^[a-f0-9]{64}$/), absolute=z.string().refine(path.isAbsolute);
+const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
+const read=(file:string):any=>{const s=lstatSync(file);if(!s.isFile()||s.isSymbolicLink()||s.size>32_000_000)fail('trial_data_file');return JSON.parse(readFileSync(file,'utf8'));};
+const shaFile=(file:string)=>previewSha(readFileSync(file));
+const same=(a:unknown,b:unknown)=>canonicalJson(a)===canonicalJson(b);
+const source=path.resolve(__dirname,'..');
+const git=(...args:string[])=>execFileSync('git',args,{cwd:source,encoding:'utf8'}).trim();
+export const trialConfigSchema=z.object({version:z.literal('book-e2e-trial-config/v1'),cycle:z.literal(BOOK_E2E_TRIAL.id),
+  ownerFile:absolute,ownerSha:hash,bookDir:absolute,profileFile:absolute,profileSha:hash,
+  executable:absolute,executableSha256:hash,keyFile:absolute}).strict();
+export type TrialConfig=z.infer<typeof trialConfigSchema>;
+export const trialProfileSchema=z.object({version:z.literal('book-e2e-trial-profile/v1'),seed:z.string().min(8).max(120),
+  child:z.object({name:z.string().min(2),age:z.number().int().min(3).max(8),gender:z.enum(['boy','girl']),
+    design:z.string().min(40).max(1500),wardrobe:z.string().min(5),fictional:z.literal(true)}).strict(),
+  companionId:z.string().min(3),request:z.unknown(),childAnchor:z.literal(CHILD_ANCHOR_MATERIALITY_VERSION)}).strict();
+export type TrialProfile=z.infer<typeof trialProfileSchema>;
+const CONTRACTS=Object.freeze({actorOwnedAppearance:true,momentContract:true,landmarkKindContract:true,sceneLocationContract:true,
+  compilerRulesContract:true,drawnInstantContract:true,visibleMomentContract:true,selfCheckContract:true,reviewImpactPolicy:true,
+  selfCheckNames:true,claimBasisContract:true,stagingFields:true,calibrationContract:true,presenceContract:true} as const);
+const PINNED=[...new Set([...FRESH_BOOK_STORYBOARD_PRESENCE_PINNED,'scripts/personal-book-e2e-trial.ts',
+  'lib/personal-wizard/audition-anatomy.ts','lib/personal-wizard/landmark-topology.ts','lib/personal-wizard/storyboard-presence.ts',
+  'lib/personal-wizard/storyboard-calibration.ts','lib/companions.ts','lib/style01-prompt-core.ts','lib/personal-wizard/options.ts'])];
+function inside(root:string,file:string){const rel=path.relative(path.resolve(root),path.resolve(file));return rel!==''&&!rel.startsWith('..')&&!path.isAbsolute(rel);}
+export function validateTrialProfile(raw:unknown,root=source){
+  const p=trialProfileSchema.parse(raw),options=resolvePersonalWizardOptions(root),prepared=prepareSimpleStory(p.request,options,p.seed),c=prepared.accepted.canonical;
+  if(prepared.book.pages!==8||prepared.accepted.containsFixtureData||c.appearance.photo!=='none'||c.companion.id!==p.companionId||
+    c.child.name!==p.child.name||c.child.age!==p.child.age||c.child.address!==p.child.gender||p.companionId==='lion_shaket')fail('trial_profile_scope');
+  return {profile:p,options,prepared};
+}
+/** Pure admission checks. No folder/meter/client/key is created by the dry plan. */
+export function planBookTrial(config:TrialConfig){
+  trialConfigSchema.parse(config);
+  if(shaFile(config.ownerFile)!==config.ownerSha||shaFile(config.profileFile)!==config.profileSha)fail('trial_input_changed');
+  const owner=readFileSync(config.ownerFile,'utf8');
+  if(!owner.includes('2026-10-23')||!owner.includes('ONE NEW')||!owner.includes('יש אישור לתשלום'))fail('trial_owner_record');
+  const context=validateTrialProfile(read(config.profileFile));
+  if(path.resolve(config.keyFile)!==path.resolve('C:/GNart/Work/Small_Heroes/.env.local'))fail('trial_existing_key_scope');
+  if(git('status','--porcelain')||git('branch','--show-current')!=='claude/book-render-20261009')fail('trial_source_changed');
+  realDirectory(path.dirname(config.bookDir));realDirectory(BOOK_E2E_TRIAL.authorityRoot);
+  if(inside(source,config.bookDir)||inside(BOOK_E2E_TRIAL.priorBook,config.bookDir)||
+    path.resolve(config.bookDir)===path.resolve(BOOK_E2E_TRIAL.priorBook)||existsSync(config.bookDir))fail('trial_output_scope');
+  if(existsSync(path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.claim))||existsSync(path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.outcome)))fail('trial_consumed');
+  const exe=lstatSync(config.executable);if(!exe.isFile()||exe.isSymbolicLink()||shaFile(config.executable)!==config.executableSha256)fail('trial_executable_pin');
+  const companion=context.options.companions.find(c=>c.id===context.profile.companionId)!;
+  const companionPath=path.join(source,'public',companion.image.slice(1));
+  const technique=resolveChildAnchorTechnique(source);
+  return {version:'book-e2e-trial-grant/v1',cycle:BOOK_E2E_TRIAL.id,configSha:previewSha(canonicalJson(config)),ownerSha:config.ownerSha,
+    profileSha:config.profileSha,engine:{head:git('rev-parse','HEAD'),branch:git('branch','--show-current')},
+    pins:Object.fromEntries([...PINNED,...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
+    companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
+    requestId:context.prepared.accepted.requestId,limits:{...BOOK_E2E_TRIAL},contracts:CONTRACTS,
+    visual:{freshCohort:AUDITION_FRESH_COHORT_VERSION,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
+      materialSceneRepair:true,detailNonblocking:true,productionQualified:false}};
+}
+export type TrialGrant=ReturnType<typeof planBookTrial>;
+/** Reader and storyboard rules retain the ordinary reservation floor. Everything else uses the original adapters' exact rule. */
+export const trialApiRules:MeterRules=step=>{
+  const text=/^s[0-3]_(final_review|comparison|storyboard_review|citation_correction)$/.exec(step);
+  if(text)return flooredReviewRule(stageRules.text[text[1]==='citation_correction'?'comparison':text[1]]);
+  if(Object.prototype.hasOwnProperty.call(stageRules.childAnchor,step))return stageRules.childAnchor[step];
+  return auditionMeterRules(step);
+};
+export class TrialApiMeter extends AuditionMeter{
+  constructor(root:string,readonly prefix=''){super(root,BOOK_E2E_TRIAL.apiCapMicroUsd,BOOK_E2E_TRIAL.maxApiCalls,0,0,trialApiRules);}
+  override run<T>(step:string,wire:unknown,maximum:number,dispatch:()=>Promise<{value:T;estimatedMicroUsd:number|null;receipt:unknown}>){
+    return super.run(this.prefix+step,wire,maximum,dispatch);
+  }
+}
+/** Shared Max journal, with the tighter trial guard before every session. Reported resource cost is never called an API charge. */
+export class TrialMaxBudget extends SimpleBookBudget{
+  constructor(root:string,readonly prefix:string){super(root,0);}
+  override snapshot(){
+    const s=super.snapshot();
+    for(const name of readdirSync(this.root).filter(n=>n.endsWith('.receipt.json'))){
+      const r=read(path.join(this.root,name)),done=read(path.join(this.root,name.replace('.receipt.','.result.')));
+      let raw:any;try{raw=JSON.parse(r.raw.stdout);}catch{if(done.completed===false&&r.estimatedMicroUsd===null&&done.estimatedMicroUsd===null)continue;fail('trial_max_raw');}
+      const cost=typeof raw.total_cost_usd==='number'?Math.ceil(raw.total_cost_usd*1e6):null;
+      if(cost!==r.estimatedMicroUsd||cost!==done.estimatedMicroUsd||done.completed===true&&(r.raw.termination?.code!==0||
+        !same(Object.keys(raw.modelUsage??{}),['claude-opus-5-5'])))fail('trial_max_raw');
+    }
+    return s;
+  }
+  override run<T>(step:string,wire:unknown,maximum:number,dispatch:()=>Promise<{value:T;estimatedMicroUsd:number|null;receipt:unknown}>){
+    if(maximum!==2_000_000)fail('trial_max_session_guard');
+    const state=this.snapshot();
+    if(state.stopped||state.accountedMicroUsd+maximum>BOOK_E2E_TRIAL.maxResourceMicroUsd)fail('trial_max_cap');
+    return super.run(this.prefix+step,wire,maximum,dispatch);
+  }
+}
+const admittedStatus=(s:string)=>s==='review_supported'||s==='review_supported_with_notes';
+export async function executeBookTrial(config:TrialConfig,grantFile:string,grantSha:string,signal:AbortSignal,log:(s:string)=>void){
+  if(shaFile(grantFile)!==grantSha)fail('trial_grant_changed');
+  const grant=read(grantFile) as TrialGrant,plan=planBookTrial(config);
+  if(!same(grant,plan))fail('trial_plan_changed');
+  const configDigest=previewSha(canonicalJson(config));
+  const currentInputs=()=>{
+    if(signal.aborted||shaFile(grantFile)!==grantSha||shaFile(config.ownerFile)!==grant.ownerSha||
+      shaFile(config.profileFile)!==grant.profileSha||previewSha(canonicalJson(config))!==configDigest||
+      git('rev-parse','HEAD')!==grant.engine.head||git('branch','--show-current')!==grant.engine.branch||git('status','--porcelain'))fail('trial_binding_changed');
+    for(const [file,sha]of Object.entries(grant.pins))if(shaFile(path.join(source,file))!==sha)fail('trial_source_pin');
+    if(shaFile(grant.companion.file)!==grant.companion.sha)fail('trial_companion_pin');
+  };
+  currentInputs();
+  const claimFile=path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.claim),outcomeFile=path.join(BOOK_E2E_TRIAL.authorityRoot,BOOK_E2E_TRIAL.outcome);
+  exclusiveJson(claimFile,{cycle:BOOK_E2E_TRIAL.id,grantSha,configSha:configDigest,ownerSha:grant.ownerSha,bookDir:grant.bookDir,engine:grant.engine});
+  const claimSha=shaFile(claimFile);
+  const guard=()=>{currentInputs();if(shaFile(claimFile)!==claimSha||existsSync(outcomeFile))fail('trial_claim_changed');};
+  mkdirSync(config.bookDir);const imageDir=path.join(config.bookDir,'illustrations');mkdirSync(imageDir);
+  const apiRoot=path.join(config.bookDir,'paid-stages'),maxRoot=path.join(config.bookDir,'claude-max-stages');
+  const meter=new TrialApiMeter(apiRoot),max=new TrialMaxBudget(maxRoot,'');
+  const {profile,options,prepared}=validateTrialProfile(read(config.profileFile));
+  const key=keyReader(config.keyFile);
+  const save=(name:string,value:unknown)=>exclusiveJson(path.join(config.bookDir,`${name}.json`),value);
+  const policy:WirePolicy={executable:config.executable,executableSha256:config.executableSha256,workspace:config.bookDir,maxWireBytes:104000,
+    rates:{opus:replaySettlement.rates.opus,astra:replaySettlement.rates.sol},openAIReviewModel:'gpt-6.1-sol',astraInlineReferences:true,
+    plannerSchema:'definition-names/v1'};
+  let citationUsed=0,sourceRepairUsed=0,boardAttempts=0,finalTextDir='text';
+  save('request',{version:'local-simple-wizard-request/v1',requestId:prepared.accepted.requestId,optionsFingerprint:prepared.accepted.optionsFingerprint,
+    request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:BOOK_E2E_TRIAL.id});
+  const baseCurrent={request:prepared.accepted.canonical,options};
+  const stageIO=(index:number)=>{
+    const dir=path.join(config.bookDir,index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
+    const budget=new TrialMaxBudget(maxRoot,`s${index}_`),api=new TrialApiMeter(apiRoot,`s${index}_`),
+      writingPolicy={...policy,workspace:path.join(dir,'cli-workspace')},opus=createOpusCausalTransport(writingPolicy),
+      reader=createAstraCausalTransport({key,rates:replaySettlement.rates.sol,model:'gpt-6.1-sol',inlineReferences:true,fetch:longCallFetch(660000)});
+    let draft:unknown=null;
+    const dispatch=(call:any,role:'opus'|'astra')=>({...call,role,conversationKey:`trial:${grant.requestId}:${index}:${call.stage}`});
+    const doRead=async(call:any,s:AbortSignal)=>{
+      guard();const d=dispatch(call,'astra'),wire=prepareCausalWire(d,writingPolicy,2_000_000),rule=trialApiRules(`s${index}_${call.stage}`),reserve=rule?.reserve(wire)??fail('trial_reader_wire');
+      return api.run(call.stage,wire,reserve,async()=>{const r=await reader(wire,d,s);return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
+    };
+    const visual=async(call:SimpleStoryboardDiagnosticCall,s:AbortSignal)=>{
+      guard();
+      if(call.stage==='storyboard'){
+        if(boardAttempts++>=BOOK_E2E_TRIAL.storyboardAttempts)fail('trial_storyboard_cap');
+        const file=path.join(dir,'storyboard-instructions.txt');exclusiveText(file,plannerRequest(call).instructions);
+        const wire=prepareOpusStoryboardWire(call,writingPolicy,file);
+        return budget.run('storyboard',wire,2_000_000,async()=>{
+          const r=await createOpusStoryboardTransport(writingPolicy)(wire,call,s);draft=r.output;return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
+      }
+      const payload=simpleWizardVisualPayload(call,'gpt-6.1-sol'),reserve=trialApiRules(`s${index}_storyboard_review`)?.reserve(payload)??fail('trial_review_wire');
+      return api.run('storyboard_review',payload,reserve,async()=>{
+        const raw=await new OpenAI({apiKey:key(),baseURL:'https://api.openai.com/v1',maxRetries:0,logLevel:'off',fetch:longCallFetch(660000)})
+          .responses.create(payload,{signal:s,timeout:600000});
+        const settled=replaySettlement.answer(replaySettlement.rates.sol,call.maxOutputTokens,'gpt-6.1-sol',raw),
+          receipt={raw,usage:settled.usage,estimatedMicroUsd:settled.estimatedMicroUsd,model:raw.model,stage:'storyboard_review'};
+        if(!settled.valid)throw Object.assign(new Error('trial_review_invalid'),{receipt});
+        let value:unknown;try{const {decodePersonalBookProviderOutput}=await import('../lib/personal-wizard/book-openai');value=decodePersonalBookProviderOutput(call,JSON.parse(raw.output_text));}
+        catch{throw Object.assign(new Error('trial_review_schema'),{receipt});}
+        return{value,estimatedMicroUsd:settled.estimatedMicroUsd,receipt};
+      });
+    };
+    return{dir,visual,draft:()=>draft,
+      opus:async(call:any,s:AbortSignal)=>{guard();const d=dispatch(call,'opus'),file=path.join(dir,`${call.stage}-instructions.txt`);exclusiveText(file,call.instructions);
+        const wire=prepareCausalWire(d,writingPolicy,2_000_000,file);
+        return budget.run(call.stage,wire,2_000_000,async()=>{const r=await opus(wire,d,s);return{value:r,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});},
+      reader:doRead,
+      correctReading:async(stage:any,numbered:any,raw:unknown,s:AbortSignal)=>{
+        if(citationUsed++>=BOOK_E2E_TRIAL.citationCorrections)fail('trial_citation_used');
+        const correction=prepareSourceCitationCorrection(numbered,raw);
+        exclusiveJson(path.join(dir,'citation-correction-request.json'),{stage,failed:raw,correctionDigest:correction.correctionDigest,body:correction.body});
+        const answer=await doRead({stage:'citation_correction',instructions:correction.instructions,input:correction.input,schema:correction.schema,maxOutputTokens:16000},s);
+        const applied=applySourceCitationCorrection(numbered,raw,correction,answer);
+        exclusiveJson(path.join(dir,'citation-correction.json'),applied);return applied.corrected;
+      }};
+  };
+  let result:Awaited<ReturnType<typeof runSimpleWizardBook>>|null=null;
+  const finish=(status:string,extra:Record<string,unknown>={})=>{
+    const snapshot=(read:()=>unknown)=>{try{return read();}catch(error){return{status:'unreconciled',knownMicroUsd:null,error:(error as any)?.code??'accounting_replay_failed',furtherPaymentAllowed:false};}};
+    const accounting={api:snapshot(()=>meter.snapshot()),claudeMax:snapshot(()=>max.snapshot()),claudeMaxNote:'reported resource, separate from API, not invoice'};
+    save('final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:BOOK_E2E_TRIAL.id,claimSha,grantSha,status,accounting,...extra,
+      runtimeEligible:false,productAccepted:false,productionQualified:false});return{status,accounting,...extra};
+  };
+  try{
+    let io=stageIO(0);
+    const runFlow=(io:ReturnType<typeof stageIO>,repair?:{prior:unknown;readings:unknown[]})=>runSimpleWizardBook({...baseCurrent,seed:profile.seed,signal,
+      reservedWritingUsd:2,...CONTRACTS,...(repair?{repair}:{}),opus:io.opus,reader:io.reader,visual:io.visual,correctReading:io.correctReading,
+      publish:view=>log(`phase ${view.phase}`)});
+    result=await runFlow(io);
+    const saveText=()=>{exclusiveJson(path.join(io.dir,'simple-book-result.json'),result);
+      if(result?.storyboard){exclusiveJson(path.join(io.dir,'visual_simple_book_result.json'),result);exclusiveJson(path.join(io.dir,'owned_storyboard_draft.json'),io.draft());}};
+    saveText();
+    if(result.status==='story_held'){
+      if(sourceRepairUsed++>=BOOK_E2E_TRIAL.sourceRepairs)fail('trial_source_repair_used');
+      const prior=result;io=stageIO(1);finalTextDir='text_1';result=await runFlow(io,{prior:prior.source,readings:prior.readings});saveText();
+    }
+    if(result.status==='story_held')return finish('held_source');
+    let repair:StoryboardRepair|undefined;
+    while(!admittedStatus(result.status)&&result.storyboard&&boardAttempts<BOOK_E2E_TRIAL.storyboardAttempts){
+      const old=result.storyboard;
+      repair={parentStoryboardDigest:old.storyboardDigest,draft:io.draft(),review:old.rawReview,...(repair?{parentRepair:repair}:{}),
+        parentCompile:{selfCheckNames:true,stagingFields:true}};
+      const index=(boardAttempts+(sourceRepairUsed?1:0));io=stageIO(index);finalTextDir=path.basename(io.dir);
+      exclusiveJson(path.join(io.dir,'storyboard_repair_input.json'),repair);
+      const board=await runSimpleStoryboardDiagnostic({...baseCurrent,writerResult:result.source,signal,...CONTRACTS,repair,generate:io.visual});
+      result={...result,status:board.status,storyboard:board};saveText();
+    }
+    if(!result.storyboard||!admittedStatus(result.status))return finish('held_storyboard',{storyboardAttempts:boardAttempts});
+    guard();
+    const layoutBase={version:'reviewed-book-layout/v1',seed:profile.seed,childDesign:profile.child.design,storyboardDir:finalTextDir,
+      childDir:'child',childImage:'reference_child.png',savedCompanion:null,childAnchor:profile.childAnchor,childAnchorPose:CHILD_ANCHOR_POSE_V2} as const;
+    const board=loadReviewedStoryboard(config.bookDir,source,reviewedBookLayoutSchema.parse(layoutBase));
+    const childDir=path.join(config.bookDir,'child'),childImages=path.join(childDir,'illustrations');mkdirSync(childDir);mkdirSync(childImages);
+    const childIO=auditionAdapters({directory:childImages,meter,key,signal,guard}),judges=childAnchorJudges({bytesOf:i=>readAuditionImage(childImages,i),meter,key,signal,guard});
+    const anchor=anchorAuthority(profile,board.book.plan.wardrobe,CHILD_ANCHOR_POSE_V2);
+    const childSave=(name:string,v:unknown)=>exclusiveJson(path.join(childDir,`${name}.json`),v);
+    childSave('context',anchor.context);
+    const child=await inspectedAnchor({anchor,images:childImages,render:childIO.render,style:judges.inspectedStyle,design:judges.inspectedDesign,
+      check:guard,save:childSave,log,visibilityRecovery:true});
+    if(child.status!=='passed')return finish('held_child',{disposition:child.disposition});
+    childSave('reference_child_adoption',{name:'child',context:anchor.context,candidate:child.candidate,authority:'new_book_trial_reviewed_passed',anchor:child.record});
+    const layout=reviewedBookLayoutSchema.parse({...layoutBase,childImage:child.candidate.imageName});save('book-layout',layout);
+    const loaded=loadReviewedBook(config.bookDir,source,undefined,layout);
+    const art=auditionAdapters({directory:imageDir,meter,key,signal,guard});
+    const childRef=await art.writeImage('reference_child.png',loaded.childBytes),companionRef=await art.writeImage('reference_companion.png',loaded.companionBytes);
+    const saved=new Map<string,any>();
+    const saveArt=(name:string,v:unknown)=>{saved.set(name,v);save(name,v);};
+    let manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>;
+    try{
+      manifest=await illustrateReviewedAudition({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
+        child:childRef,companion:companionRef,companionDescription:loaded.companionDescription,render:art.render,judge:art.judge,identity:art.identity,
+        check:guard,save:saveArt,pageAttempts:1,freshCohort:AUDITION_FRESH_COHORT_VERSION,structuralAnatomy:true,
+        landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+        progress:e=>{log(`${e.phase} ${e.name} attempt${e.attempt+1}: ${e.status}`);if(e.status==='ineligible_safety')fail('trial_safety_stop');}});
+    }catch(error){
+      save('diagnostic-review-stop',{code:(error as any)?.code??'review_failed',drawnFrames:[...saved.keys()].filter(n=>n.startsWith('diagnostic_render_'))});
+      writeTrialReader(config.bookDir,result.source.manuscript,saved,[],meter.snapshot(),max.snapshot());
+      throw error;
+    }
+    const sheets={entities:saved.get('sheet_entities') as SavedSheet,locations:saved.get('sheet_locations') as SavedSheet},references=referenceStatus(sheets),
+      canonical=[childRef,companionRef,references.entities.image,references.locations.image];
+    const selected:SavedPage[]=Array.from({length:9},(_,n)=>saved.get(`page_${n}`) as SavedPage);
+    for(const page of selected){
+      let last=page.attempts[page.attempts.length-1];
+      for(let attempt=page.attempts.length;attempt<BOOK_E2E_TRIAL.pageAttempts&&page.status==='held';attempt++){
+        // Keep sufficient reservation for one edit, its full review and identity. A lack of headroom is not an unknown charge.
+        if(meter.snapshot().cumulativeAccountedMicroUsd+1_400_000>BOOK_E2E_TRIAL.apiCapMicroUsd)break;
+        const packet=currentPersonalStoryboardFrame(loaded.book,loaded.rawReview,page.pageNumber,loaded.current),
+          prior=selected.find(p=>p.pageNumber===page.pageNumber-1),seq=loaded.book.sequence.pages,
+          predecessor=page.pageNumber>=2&&prior&&seq[page.pageNumber-1].sceneId===seq[page.pageNumber-2].sceneId?prior.chosen.candidate:null,
+          context=auditionPageContext(loaded.book,packet.context,page.pageNumber,loaded.companionDescription,canonical,references,predecessor,
+            'landmark-design-head/v1',LANDMARK_COVERAGE_TOPOLOGY_VERSION,true);
+        // The judged predecessor stays the first-pass candidate, even after that earlier page gets a new selected candidate.
+        if(context.contextSha!==page.contextSha)break;
+        const fixed=await repairReviewedAuditionPage({page:page.pageNumber,prefix:'r1_',consumedAttemptsBefore:attempt,prior:last,
+          context:context.context,contextSha:context.contextSha,canonical,predecessor,check:guard,render:art.render,judge:art.judge,identity:art.identity,
+          materialScene:true,save:(name,v)=>saveArt(`repair_${page.pageNumber}_${attempt}_${name}`,v)});
+        if(!fixed.corrected)break;
+        page.attempts.push(fixed.corrected);last=fixed.corrected;
+        page.chosen=selectAuditionAttempt('page',page.attempts)!;page.status=attemptStatus('page',page.chosen);
+        save(`page_${page.pageNumber}_selection_${attempt}`,page);
+        log(`page ${page.pageNumber} repair${attempt}: ${fixed.corrected.status}`);
+        if(['review_unusable','identity_unusable','review_invalid','ineligible_safety'].includes(fixed.corrected.status))fail('trial_unusable_repair_stop');
+      }
+    }
+    save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,detailNonblocking:true,productAccepted:false});
+    writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot());
+    return finish('full_book_diagnostic',{pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
+      supported:selected.filter(p=>p.status==='qa_supported').length,fullCoverage:selected.length===9,sourceRepairUsed,storyboardAttempts:boardAttempts,
+      viewer:path.join(config.bookDir,'viewer','index.html')});
+  }catch(error){
+    if(!existsSync(outcomeFile))finish('failed_trial',{code:(error as any)?.code??'trial_failure'});
+    throw error;
+  }
+}
+/** Review UI only: exact source text and selected images; candidate-only frames never masquerade as QA-supported. */
+export function writeTrialReader(dir:string,story:{title:string;pages:{pageNumber:number;text:string}[]},saved:Map<string,any>,selected:SavedPage[],api:unknown,max:unknown){
+  const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+  const frames=Array.from({length:9},(_,n)=>{
+    const p=selected.find(p=>p.pageNumber===n)??saved.get(`page_${n}`),candidate=p?.chosen?.candidate??saved.get(`diagnostic_render_${n}`)?.candidate;
+    if(!candidate)return`<section><h2>${n===0?'כריכה':`עמוד ${n}`}</h2><p>לא נוצר איור. אין כאן השלמת ספר.</p></section>`;
+    return`<section id="p${n}"><h2>${n===0?esc(story.title):`עמוד ${n}`}</h2><img src="../illustrations/${esc(candidate.imageName)}" alt="${n===0?'כריכה':`עמוד ${n}`}"/><article><p class="story">${n?esc(story.pages.find(p=>p.pageNumber===n)?.text):esc(story.title)}</p><p>QA: <b dir="ltr">${esc(p?.status??'not_reviewed')}</b> · ${p?.attempts?.length??1} ניסיונות</p><ul>${(p?.chosen?.assessment?.findings??[]).map((f:any)=>`<li><b dir="ltr">${esc(f.impact)}</b>: ${esc(f.note)}</li>`).join('')}</ul>${p?.attempts?.length>1?`<details><summary>כל הניסיונות שנשמרו</summary>${p.attempts.map((a:any)=>a.candidate?`<figure><img loading="lazy" src="../illustrations/${esc(a.candidate.imageName)}"/><figcaption>${a.attempt+1} — ${esc(a.status)}</figcaption></figure>`:'').join('')}</details>`:''}</article></section>`;
+  }).join('');
+  const viewer=path.join(dir,'viewer');if(!existsSync(viewer))mkdirSync(viewer);
+  exclusiveText(path.join(viewer,'index.html'),`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(story.title)}</title><style>body{margin:0;background:#f6f2e8;color:#222;font:18px/1.7 system-ui}header,footer{padding:30px;max-width:1100px;margin:auto}section{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:25px;padding:30px;max-width:1200px;margin:20px auto;background:white;border-radius:16px}h2{grid-column:1/-1}img{width:100%;height:auto;border-radius:10px}.story{font-size:23px;white-space:pre-line}pre{white-space:pre-wrap;overflow-wrap:anywhere}figure{margin:15px 0}@media(max-width:750px){section{display:block;padding:16px}.story{font-size:21px}}</style><header><h1>${esc(story.title)}</h1><p>ספר ניסוי חדש — כריכה ושמונה עמודים. הערות detail אינן חוסמות; HOLD אינו אישור מוצר. כל הטיוטות, הרפרנסים, הביקורות והעלויות נשמרו בתיקיית הספר.</p></header>${frames}<footer><h2>חשבונאות אמיתית — API ו־Max בנפרד</h2><pre dir="ltr">${esc(JSON.stringify({api,claudeMaxResource:max,note:'Max reported resource, not API invoice'},null,2))}</pre></footer></html>`);
+}
+async function cli(){
+  const args=process.argv.slice(2),at=(flag:string)=>args[args.indexOf(flag)+1];
+  if(!args.includes('--config'))fail('trial_arguments');
+  const config=trialConfigSchema.parse(read(at('--config')));
+  if(!args.includes('--execute'))return planBookTrial(config);
+  if(!args.includes('--grant')||!args.includes('--grant-sha'))fail('trial_arguments');
+  return executeBookTrial(config,at('--grant'),at('--grant-sha'),new AbortController().signal,s=>console.log(JSON.stringify({at:new Date().toISOString(),event:s})));
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(__filename))cli().then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(JSON.stringify({error:e?.code??e?.message??'trial_failed'}));process.exitCode=1;});

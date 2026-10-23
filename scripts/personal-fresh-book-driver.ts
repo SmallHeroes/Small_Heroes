@@ -4094,7 +4094,7 @@ type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'style
  * The anchor's authority from THIS book: the configured design, the storyboard's wardrobe, the request the renderer plans, its context.
  * `pose` (opt-in): the pose contract version the request and the context are both built under (absent: production's request, unchanged).
  */
-function anchorAuthority(profile: FreshBookProfile, wardrobe: string, pose?: ChildAnchorPoseVersion) {
+export function anchorAuthority(profile: Pick<FreshBookProfile, 'child' | 'childAnchor'>, wardrobe: string, pose?: ChildAnchorPoseVersion) {
   const child: ChildAnchorChild = { age: profile.child.age, gender: profile.child.gender, design: profile.child.design, wardrobe };
   const technique = resolveChildAnchorTechnique(workspace()), request = pose ? childAnchorPoseDescriptionRequest(child, pose) : childAnchorDescriptionRequest(child);
   assertChildAnchorRenderPlan(request.prompt, technique.length, request.referenceMode);
@@ -4195,7 +4195,7 @@ function anchorCorrection(anchor: ReturnType<typeof anchorAuthority>, first: Pic
  * defect (or, opt-in under a pose contract, a typed-visibility hold), judged again under the SAME context (an earlier image's PASS never
  * carries). All three dimensions of the final candidate must pass.
  */
-async function inspectedAnchor(a: AttemptIO & { anchor: ReturnType<typeof anchorAuthority>; images: string; visibilityRecovery?: true }) {
+export async function inspectedAnchor(a: AttemptIO & { anchor: ReturnType<typeof anchorAuthority>; images: string; visibilityRecovery?: true }) {
   const { technique, request, context, child } = a.anchor;
   const refs = technique.map((t, i) => {
     const imageName = `style_ref_${i + 1}.png`, file = path.join(a.images, imageName);
