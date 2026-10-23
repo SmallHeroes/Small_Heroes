@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Sol same-book real render — ALL9 IMAGES, diagnostic delivery; QA/UI HOLD (2026-10-24)
+
+- Independent code/operator/grant PASSc34e84d9 at62b4d9cb preceded one actual native execution of grant402754f1.
+  The complete bundle/repair input now loads,child style/design/age passed,entities autorepair supported. Locations sheet remains held.
+  All8body images plus cover were actually drawn,one initial render each. No source restart,attempt reset or extra Max call.
+- Native2026-10-23T21:36:45.118Z..21:51:52.861Z,exit1/failed_trial/audition_review_unusable:page3 Sol response is actually
+  incomplete/max_output_tokens,output12000 equals wirecap12000. Usage/cost known;not a complete negative pixel judgment,quota/key
+  failure or unknown charge. Partial JSON was not promoted. Cover/pages4-8 unreviewed;p1/2 held with identity passed at.70.
+  Numeric framing detail is nonblocking;separate landmark/occluded accessory/drawn-instant findings remain. No final-selection.
+- CumulativeAPI1881266base+86599cache-write=1967865microUSD/7m,30calls/98;new25calls1483302. Unknown/unsettled/pending0.
+  Max1609594 reported resource/6cumulative logical attempts stays separate,notAPIinvoice/not0. All3board attempts consumed.
+  Prices are conservative usage-tariff estimates,not invoices. Remaining budget does not reopen consumed grant/paid retries.
+- Sole read-only outcome reviewer accuracyPASS98fe37f2:4875actual controls0 plus28HTTP comparisons,1802oldhashes/55pins/53oldbook
+  files preserved,all9PNGs/8texts exact. This is accounting/preservation accuracy,NOT pixel/UI/product or engine-completionPASS.
+- Diagnostic ReaderV2 http://localhost:3118/dev/local-reader?book=naomi-fox-sol-20261023 loads all9assetSHAs/HTTP200,voice:null,
+  sourceQa:incomplete,product/productionfalse. Old3117momreader untouched. Existing ReaderV2 presentation is verifiedP1HOLD:
+  desktop1280x720 page7 cover-crop cuts Uri's face;418px text box hides618px content. DOM completeness is not readability.
+  Mobile unverified. Native full-source HTML has full square images/text but p3coarselynot_reviewed(actualreview_unusable).
+- Q=ART/r3-sol-bundle-checkpoint-20261024:DELIVERY-AND-ENGINE-REPORT.txt,INDEPENDENT-RENDER-OUTCOME-QA.txt,
+  BROWSER-VERIFICATION.txt,reader-http-verification-final.json and stable screenshots. Local full-source viewer remains in
+  ART/new-book-reader-safe-20261023/viewer/index.html. FileURLbrowseropening was policy-blocked;no bypass or alternate network route.
+- Sol route is now explicit/shared for future author/editor/planner;actual current author/editor source remains priorMax,not rerun.
+  Next general engineering priorities are complete bounded pixel-review output capacity,reader image/text geometry and shared visible
+  landmark/accessory applicability. No story-specific/manual repair,gates relaxed,production defaults changed or unapproved retry.
+  This checkpoint is terminal/consumed,automaticresume/paymentfalse. Fullcheck historicalRED stays;no broad suites repeated.
+  Outcome closure is docs-only after released QA,whole tsc required;no push/merge/deploy,cleanup,newtask/key/agent/worktree/automation.
+
 ## Sol complete storyboard bundle / zero-spend checkpoint — OFFLINE VERIFIED, independent gate next (2026-10-24)
 
 - The released R2 grant2fe97294 actually ran once at011b9dc9:exit1/audition_repair_binding,claimcf04f760/outcomef6af3960 consumed.

@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Sol real full rendered cohort — diagnostic delivered, response capacity / reader geometry next (2026-10-24)
+
+- Codee6934178/docs62b4d9cb independently gated;actual bundle checkpoint consumed once. All8body+coverLOW rendered,child
+  accepted,entities autorepair supported,locations held. Prior text remainsMax-authored/edited;Sol planned,not a rewritten book.
+- Nativeexit1:page3 quality response incomplete/max_output_tokens12000(actualwirecap),not a complete rejection. p1/2held;
+  cover/p4-8unreviewed. Original failures/raw/claims remain. No unknown costs,reset,extra source/planner call or automatic resume.
+- API1967865/7m,30/98calls;new25/1483302. Max1609594 reported resource separate,notinvoice. AccuracyPASS98fe37f2 verified
+  4875actual controls+28HTTPcomparisons,1802history/55pins. Rendered set is real,NOT all-supported/pixel/UI/productPASS.
+- Local diagnostic reader3118?book=naomi-fox-sol-20261023 serves exact9PNG/text,without narration,sourceQa incomplete.
+  Confirmed existingReaderV2P1:face crop + overflow-hidden long Hebrew text at1280x720;mobile notverified. Full-source nativeHTML
+  remains alternative with coarsep3not_reviewed label(actualreview_unusable). Old3117momreader/oldbook unchanged.
+- Next general fixes:bounded pixel-review output/cardinality budget,accessible full Hebrew and critical image geometry,shared
+  visible ownership/occlusion contract. No page/name whitelist,partial-answerPASS or stricter cosmetic blocker. Evidence/report in
+  ART/r3-sol-bundle-checkpoint-20261024. Current grant terminal;new paid recovery must be exact/prospectively gated,not recycled.
+
 ## General complete-bundle integration — fixed same-book no-spend checkpoint (2026-10-24)
 
 - R2 actualnative1/audition_repair_binding preserved as failed/outcomef6af3960;independentaccuracyPASSd5ccdc31 confirmed missing repair
