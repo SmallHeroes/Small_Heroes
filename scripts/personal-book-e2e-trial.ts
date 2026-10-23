@@ -41,6 +41,7 @@ import { STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION } from '../lib/personal-wiza
 import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
 import { observeClaudeQuotaStop, trialFailureDetails, claudeQuotaStop, type ClaudeQuotaStop } from '../lib/personal-wizard/claude-resource-stop';
 import { SOL_WRITING, prepareSolWritingWire, createSolWritingTransport, solWritingMeterRule, solWritingRuleFor } from './personal-sol-writing-transport';
+import { SOL_CACHE_BUDGET, solCacheWriteAdjustment, solCacheReserveMargin } from './personal-sol-cache-budget';
 
 export const BOOK_E2E_TRIAL = Object.freeze({ id:'owner-new-book-e2e-20261023/v1', pages:8, apiCapMicroUsd:7_000_000,
   maxResourceMicroUsd:6_000_000, maxApiCalls:98, sourceRepairs:1, storyboardAttempts:3, citationCorrections:1, pageAttempts:3,
@@ -345,9 +346,12 @@ export async function planBookSolReceiptRecovery(config:TrialConfig,approvalRaw:
   for(const[file,sha]of Object.entries(old.parent.files))if(shaFile(path.join(config.bookDir,file))!==sha)fail('trial_receipt_history');
   const replay=await replayTrialSolStoryboard(config,old),files:Record<string,string>={},walk=(dir:string)=>{for(const n of readdirSync(dir)){const f=path.join(dir,n),s=lstatSync(f);
     if(s.isSymbolicLink())fail('trial_receipt_file');if(s.isDirectory())walk(f);else if(s.isFile())files[path.relative(config.bookDir,f)]=shaFile(f);else fail('trial_receipt_file');}};walk(config.bookDir);
+  const adjustedApi=new TrialApiMeter(path.join(config.bookDir,'paid-stages'),'',true).snapshot();
   return{...base,version:SOL_RECEIPT_RECOVERY.version,approval,writing:SOL_WRITING,contracts:old.contracts,limits:old.limits,
     pins:{...base.pins,'scripts/personal-sol-writing-transport.ts':shaFile(path.join(source,'scripts/personal-sol-writing-transport.ts')),
-      'lib/personal-wizard/storyboard-state-parity.ts':shaFile(path.join(source,'lib/personal-wizard/storyboard-state-parity.ts'))},
+      'lib/personal-wizard/storyboard-state-parity.ts':shaFile(path.join(source,'lib/personal-wizard/storyboard-state-parity.ts')),
+      'scripts/personal-sol-cache-budget.ts':shaFile(path.join(source,'scripts/personal-sol-cache-budget.ts'))},
+    pricing:{version:SOL_CACHE_BUDGET,inheritedBaseMicroUsd:api.cumulativeAccountedMicroUsd,inheritedAdjustedApi:adjustedApi},
     parent:{...old.parent,grantFile:parentGrantFile,grantSha:shaFile(parentGrantFile),claimFile:parentClaimFile,claimSha:shaFile(parentClaimFile),outcomeFile:parentOutcomeFile,outcomeSha:shaFile(parentOutcomeFile),files,ancestorFiles},
     receiptRecovery:{version:'known-output-decode-recovery/v1',resultSha:previewSha(canonicalJson(replay.result)),draftSha:previewSha(canonicalJson(replay.draft)),providerCalls:0},
     remaining:{sourceWriting:0,sourceRepairs:0,citationCorrections:0,newStoryboardReviews:0,storyboardAttemptsAlreadyConsumed:3,storyboardAttempts:0,childAttempts:2,pageAttempts:3}};
@@ -375,8 +379,24 @@ export async function runTrialSourceImpact(review:ReturnType<typeof prepareSourc
   }
 }
 export class TrialApiMeter extends AuditionMeter{
-  constructor(root:string,readonly prefix=''){super(root,BOOK_E2E_TRIAL.apiCapMicroUsd,BOOK_E2E_TRIAL.maxApiCalls,0,0,trialApiRules);}
-  override run<T>(step:string,wire:unknown,maximum:number,dispatch:()=>Promise<{value:T;estimatedMicroUsd:number|null;receipt:unknown}>){
+  constructor(root:string,readonly prefix='',readonly cacheWritePricing=false){super(root,BOOK_E2E_TRIAL.apiCapMicroUsd,BOOK_E2E_TRIAL.maxApiCalls,0,0,trialApiRules);}
+  override snapshot(){
+    const base=super.snapshot();if(!this.cacheWritePricing)return base;
+    let cacheWriteAdjustmentMicroUsd=0,pendingCacheWriteReserveMicroUsd=0;
+    for(const name of readdirSync(this.root).filter(n=>n.endsWith('.claim.json'))){
+      const at=(kind:string)=>path.join(this.root,name.replace('.claim.',`.${kind}.`)),claim=read(at('claim')),wire=read(at('wire'));
+      if(!existsSync(at('result'))){pendingCacheWriteReserveMicroUsd+=solCacheReserveMargin(wire,claim.maximumMicroUsd);continue;}
+      const result=read(at('result'));if(result.estimatedMicroUsd===null)continue; // Original unknown gates still stop all further spend.
+      const receipt=existsSync(at('receipt'))?read(at('receipt')):read(at('failure')).receipt;
+      cacheWriteAdjustmentMicroUsd+=solCacheWriteAdjustment(wire,receipt?.raw);
+    }
+    const total=base.cumulativeAccountedMicroUsd+cacheWriteAdjustmentMicroUsd+pendingCacheWriteReserveMicroUsd;
+    if(!Number.isSafeInteger(total))fail('trial_sol_cache_pricing');
+    return{...base,cumulativeAccountedMicroUsd:total,cacheWritePricing:SOL_CACHE_BUDGET,cacheWriteAdjustmentMicroUsd,pendingCacheWriteReserveMicroUsd,
+      baseLedgerAccountedMicroUsd:base.cumulativeAccountedMicroUsd,pricingNote:'raw tariff upper-bound estimate; no cached-read discount; not invoice'};
+  }
+  override async run<T>(step:string,wire:unknown,maximum:number,dispatch:()=>Promise<{value:T;estimatedMicroUsd:number|null;receipt:unknown}>){
+    if(this.cacheWritePricing&&this.snapshot().cumulativeAccountedMicroUsd+maximum+solCacheReserveMargin(wire,maximum)>this.capMicroUsd)fail('audition_budget_exhausted');
     return super.run(this.prefix+step,wire,maximum,dispatch);
   }
 }
@@ -442,7 +462,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     sourceAdmissionSha&&shaFile(path.join(config.bookDir,'source-impact-admission.json'))!==sourceAdmissionSha)fail('trial_claim_changed');};
   if(!parent)mkdirSync(config.bookDir);const imageDir=path.join(config.bookDir,'illustrations');if(!parent)mkdirSync(imageDir);
   const apiRoot=path.join(config.bookDir,'paid-stages'),maxRoot=path.join(config.bookDir,'claude-max-stages');
-  const meter=new TrialApiMeter(apiRoot),max=new TrialMaxBudget(maxRoot,'');
+  const meter=new TrialApiMeter(apiRoot,'',!!receiptRecovery),max=new TrialMaxBudget(maxRoot,'');
   const {profile,options,prepared}=validateTrialProfile(read(config.profileFile));
   const key=keyReader(config.keyFile);
   const save=(name:string,value:unknown)=>exclusiveJson(path.join(config.bookDir,`${name}.json`),value);
