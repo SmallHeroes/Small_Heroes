@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Complete-artwork reader / prospective smaller cast v2 — bounded zero-spend fix (2026-10-24)
+
+- Codee0d3cf96:common ReaderV2contain for cover/body/turns,paper mobile prose,accessible text scroll/reset,touch fence and actual
+  viewport height below diagnostic banner. Existing images/text/quality records stay unchanged;no book-specific layout coordinates.
+- Explicit framingv2 target30/40/50%,actor55% ceiling,8%margin;v1/absence unchanged;exact grant/layout/context and shared judge
+  contract agree. Detail stays nonblocking. Current consumedv1book is not reinterpreted/re-rendered;futurev2pixel test not claimed.
+-136focusedtests0/10files,npxwholetsc0;36settled actual browser states/fourviewports andall9assetSHAs checked;1953history
+  preserved. Earlier UI-height/proof-niqqud expectation errors retained/corrected. No broadcheckGREEN or all-pixel/productPASS.
+- Additive reader3119;API/Max unchanged,0newcalls/images. Frozen independent reader/framing QA is next before technical completion.
+  No paid retry,production,push/deploy,cleanup,newtask/worktree/agent/key/monitor. Owner judges the visible paper-margin tradeoff.
+
 ## Sol real full rendered cohort — diagnostic delivered, response capacity / reader geometry next (2026-10-24)
 
 - Codee6934178/docs62b4d9cb independently gated;actual bundle checkpoint consumed once. All8body+coverLOW rendered,child

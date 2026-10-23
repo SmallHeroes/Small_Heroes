@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Complete-artwork reader + smaller prospective cast — offline verified, independent QA next (2026-10-24)
+
+- Direct owner request:smaller characters and no essential content cut by the reader. Sourcee0d3cf96(parent7dd92ecc),same
+  claude/book-render-20261009;zero paid calls/images. The actual square source had been magnified by portrait cover-fit/mask overflow.
+- Shared ReaderV2 now opts into complete-artwork contain:cover/body/static and physical-turn textures fit source proportions,with
+  intentional paper margins. Cover title has its own paper area. Mobile adapter uses separate paper prose;captionless stayscaptionless.
+  Desktop/mobile prose is focusable/scrollable,scene-key reset;touch scroll in prose cannot turn a page. A real grid reserves the local
+  diagnostic banner,and scoped mobile height overrides the late legacy100dvh rule. No source text/image/QA/claim/outcome was changed.
+- Opt-in reader-safe-scene-framing/v2 is a general camera target:wide30%,medium40%,close50%,actor ceiling55%,edge margin8%.
+  Smaller authored targets are retained;relative actor scale/world/action/identity unchanged. v1/absence preserve historical semantics
+  and exact output. Native layout/grant must name the same version;v1/v2cross-binding refuses. Numeric drift remains nonblocking detail,
+  not a retry engine. Existing paid book keepsv1;newv2source pixels are NOT proven without a future explicit fresh render authority.
+-136focused tests/10files exit0;npx --no-install tsc --noEmit0 before codecommit. Tests-first2pass/8fail retained;initial affected
+ 128pass/1old overlay expectation updated under new requirement. No broad/fullcheck rerun;historicalRED not relabeled.
+- Actual browser36settled cover/body states at1280x720/390x844/320x568/844x390:all9PNGs load unchanged,contain/full artwork in
+  viewport,prose within viewport and overflowauto/keyboard focus. Physical transition settling is explicitly awaited;viewport reset.
+  Initial height-defect and mid-animation captures retained but NOT stable-layout proofs. Stable screenshots and raw geometry saved.
+- Additive localhost3119/dev/local-reader?book=naomi-fox-sol-20261023 uses same manifest/9images/sourceQa incomplete;1953prior
+  protected hashes preserved. Main proof first compared raw niqqud to display text incorrectly;corrected to EXISTING shared
+  formatHebrewForDisplay,not a source/gate change. API1967865/30 andMax1609594resource separate remain as before.
+- Q=ART/r3-reader-fit-20261024. Next:docsLAST/frozen range and same authorized independent read-only reviewer;no provider,grant,
+  semantic HOLD promotion,production/deploy/push,manual art/story edits,new task/worktree/key/agent/monitor or cleanup. Product review
+  remains Guy's;this reader fit does not close prior missing/truncated pixel QA or certify a whole-book productPASS.
+
 ## Sol same-book real render — ALL9 IMAGES, diagnostic delivery; QA/UI HOLD (2026-10-24)
 
 - Independent code/operator/grant PASSc34e84d9 at62b4d9cb preceded one actual native execution of grant402754f1.
