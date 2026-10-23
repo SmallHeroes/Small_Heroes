@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## General storyboard state parity + quota diagnostics — focused QA corrections complete, independent re-gate pending (2026-10-23)
+## General storyboard state parity + quota diagnostics — independent CODE PASS, no new model/pixel verdict (2026-10-23)
 
 - Direct owner request: fix the engine and test it, not manually repair this story or reopen the consumed trial. Code9ce9615b
   (parent e18ba8a3) introduces explicit storyboard-state-parity/v1; code30037074 corrects two independent quota-observation findings.
@@ -29,8 +29,12 @@
   provenance checks, NOT a new literary/pixel judgment. Replay deliberately stops before any semantic review/provider.
 - Q=ART/r3-storyboard-state-parity-20261023 holds Decision Gate, focused logs/exits, real replay and preservation evidence. ZERO new
   API/Max/image/audio calls, keys or grants. Existing failed_trial/claim/outcome/accounting and current mom reader remain untouched.
-- Next: docsLAST/clean corrected immutable range to SAME authorized independent read-only reviewer. Max weekly availability is still externally
-  blocked; no consumed command retry, model switch, paid continuation, automatic monitor, production/Wizard/push/deploy or cleanup.
+- SAME independent re-gate PASS962af0d4 on exacte18ba8a3..401c8c4d:original9counterexample semantics9/9exit0,228/228affected0,
+  actual saved replay0/313preserved/9exactframes;17source+81artifact pins matched at review. F1/F2closed;initialHOLD+allRED retained.
+  Code/strict-diagnostic scope ONLY,not fresh semantic/pixel/product evidence or a paid-continuation grant. Docs-only closure follows.
+- Remaining live dependency: Max account availability has not been reverified; the actual last refusal was weekly429. A future same-book
+  checkpoint/remaining-attempt-bound route must select the new contract prospectively and obtain fresh review; not an old command retry.
+  No model switch, paid continuation, automatic monitor, production/Wizard/push/deploy or cleanup. No new illustrations claimed.
 
 ## New reader-safe book trial — TERMINAL Claude Max weekly-quota block; NO new illustrations (2026-10-23)
 

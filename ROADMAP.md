@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-## General state parity correction — first QA findings fixed, independent re-gate pending (2026-10-23)
+## General state parity correction — independently code-verified, live continuation still separate (2026-10-23)
 
 - Owner-approved general fix at9ce9615b: explicit storyboard-state-parity/v1 aligns planner, reviewer, compiler-derived fixed/mutable
   authority, end-page ledger and depicted instant. No second ledger/classifier, blanket overlap ban, story-specific edit or retroactivePASS.
@@ -12,10 +12,13 @@
   Focused code30037074 validates complete known nested usage and affirmative full provider message; no money/attempt/old-outcome change.
   Tests-first15RED retained,final228affectedtests0/11files/no skips, nonincremental whole-projecttsc0;313hashes and9exact old frame packets; new-review request
   94742/104000bytes. Synthetic/callback/saved-replay proof only, no fresh semantic or pixel validation. Earlier enum-expectationRED retained
-  and fixed; initial independent HOLD/RED preserved, historical fullcheckRED unchanged. Q=r3-storyboard-state-parity-20261023; next SAME
-  independent read-only re-gate at clean corrected docsHEAD. Engineering correction round1/2,not a new provider attempt/claim/grant.
-- ZERO provider/key/image/audio/grant work. External Max quota remains the actual live dependency. A future same-book continuation must be
-  separately checkpoint/remaining-attempt-bound and reviewed, not a rerun of the consumed command or silent policy/model change.
+  and fixed; initial independent HOLD/RED preserved, historical fullcheckRED unchanged. Q=r3-storyboard-state-parity-20261023.
+- SAME independent re-gate PASS962af0d4 at401c8c4d:228/228affected +9/9unchanged counterexamples,actual saved replay0/313preserved/
+  9exactframes,17source+81evidence pins. F1/F2closed on engineering correction1/2. Code/diagnostic proof only,not a provider attempt,
+  model/pixel/product verdict or grant. Docs-only close;reviewed implementation bytes unchanged.
+- ZERO provider/key/image/audio/grant work. Max availability has not been reverified after the actual weekly refusal. A future same-book
+  continuation must be separately checkpoint/remaining-attempt-bound and reviewed,select the new contract prospectively and obtain fresh
+  model review,not a rerun of the consumed command or silent policy/model change. No new illustrated book or automatic resume claimed.
 
 ## New reader-safe book trial — EXTERNAL Max quota block, framing-pixel validation still pending (2026-10-23)
 
