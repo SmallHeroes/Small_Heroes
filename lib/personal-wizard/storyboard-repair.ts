@@ -34,7 +34,7 @@ export type StoryboardAttemptExtension = { version: typeof STORYBOARD_ATTEMPT_EX
  * them); `extension` an owner's bounded attempt extension. All absent: exactly the original shape.
  */
 export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown; review: unknown; parentRepair?: StoryboardRepair;
-  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][]; parentCompile?: { selfCheckNames: true; stagingFields?: true };
+  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][]; parentCompile?: { selfCheckNames: true; stagingFields?: true; selfCheckSourceSpans?: true };
   extension?: StoryboardAttemptExtension };
 /** At most this many repairs above the first held storyboard. */
 const MAX_REPAIR_DEPTH = 3;
@@ -76,8 +76,8 @@ export function assertStoryboardRepair(repair: unknown, depth = 0, ancestorExten
       !r.draft || typeof r.draft !== 'object' || Array.isArray(r.draft) || !r.review || typeof r.review !== 'object' || Array.isArray(r.review)) fail('repair_policy');
   if ('addedContracts' in r! && (!Array.isArray(r!.addedContracts) || !r!.addedContracts.length ||
       new Set(r!.addedContracts).size !== r!.addedContracts.length || r!.addedContracts.some(c => !(REPAIR_ADDABLE_CONTRACTS as readonly string[]).includes(c)))) fail('repair_policy');
-  if ('parentCompile' in r! && JSON.stringify(r!.parentCompile) !== JSON.stringify({ selfCheckNames: true }) &&
-      JSON.stringify(r!.parentCompile) !== JSON.stringify({ selfCheckNames: true, stagingFields: true })) fail('repair_policy');
+  if ('parentCompile' in r! && (!r!.parentCompile || r!.parentCompile.selfCheckNames !== true ||
+      Object.entries(r!.parentCompile).some(([k, v]) => !['selfCheckNames', 'stagingFields', 'selfCheckSourceSpans'].includes(k) || v !== true))) fail('repair_policy');
   // The extension is the outermost repair's; an ancestor carries one only as the previous extension a v2 extension above names (exactly that
   // one), and a v2 extension's parent is itself a repair carrying it.
   const extension = 'extension' in r! ? r!.extension : undefined;

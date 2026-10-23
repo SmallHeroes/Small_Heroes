@@ -7,7 +7,7 @@ import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalSto
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
 import { DRAWN_INSTANT_REVIEW_ADDENDUM } from './storyboard-drawn-instant';
-import { SELF_CHECK_REVIEW_ADDENDUM } from './storyboard-self-check';
+import { SELF_CHECK_REVIEW_ADDENDUM, SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM } from './storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_ADDENDUM } from './storyboard-review-impact';
 import { CLAIM_BASIS_REVIEW_ADDENDUM, CLAIM_BASIS_SELF_CHECK_REVIEW_RULE, CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE } from './storyboard-claim-basis';
 import { CALIBRATION_REVIEW_IMPACT_ADDENDUM, CALIBRATION_REVIEW_ADDENDUM, calibrationClaimBasisReviewAddendum, calibrationSelfCheckReviewAddendum } from './storyboard-calibration';
@@ -29,7 +29,7 @@ export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
  * and its own addendum closes the instruction; the presence contract (which needs the calibration) appends its rule after it.
  */
 export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
-  selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true; presenceContract?: true }) => {
+  selfCheckContract?: true; selfCheckSourceSpans?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true; presenceContract?: true }) => {
   const calibrated = contracts.calibrationContract && contracts.claimBasisContract;
   return PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
     + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
@@ -39,7 +39,8 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (contracts.claimBasisContract ? '\n' + (calibrated ? calibrationClaimBasisReviewAddendum() : CLAIM_BASIS_REVIEW_ADDENDUM) : '')
     + (contracts.claimBasisContract && contracts.stagingFields ? '\n' + CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE : '')
     + (calibrated ? '\n' + CALIBRATION_REVIEW_ADDENDUM : '')
-    + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '');
+    + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '')
+    + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '');
 };
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
@@ -83,6 +84,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   reviewImpactPolicy?: true;
   /** Opt-in compile-level self-check section-name resolution (needs the self-check; no call or source changes); absent keeps the exact compile. */
   selfCheckNames?: true;
+  /** Opt-in compile-only actual source-span overlap. The planner request stays unchanged; the new book and review carry its marker. */
+  selfCheckSourceSpans?: true;
   /** Opt-in claim basis (storyboard-claim-basis/v1: needs the moments, drawn-instant, self-check and typed-review contracts); absent keeps the exact existing calls. */
   claimBasisContract?: true;
   /** Opt-in compile-level claim-basis staging fields (storyboard-claim-basis-staging-fields/v1; the review reads it); absent keeps the exact compile and review. */
@@ -92,6 +95,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   /** Opt-in presence (storyboard-presence/v1: needs the calibration; the planner's instructions, schema and compile, and the review's rule); absent keeps the exact existing calls. */
   presenceContract?: true;
 }) {
+  if (args.selfCheckSourceSpans !== undefined && (args.selfCheckSourceSpans !== true || args.selfCheckContract !== true)) fail('self_check_source_spans_policy');
   if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
   if (args.calibrationContract !== undefined && (args.calibrationContract !== true || args.claimBasisContract !== true)) fail('calibration_policy');
   if (args.presenceContract !== undefined && (args.presenceContract !== true || args.calibrationContract !== true)) fail('presence_policy');
@@ -148,7 +152,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
       ...(args.presenceContract ? { presenceContract: true as const } : {}) } }), args.signal,
-    args.selfCheckNames || args.stagingFields ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}) }
+    args.selfCheckNames || args.stagingFields || args.selfCheckSourceSpans ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}),
+      ...(args.selfCheckSourceSpans ? { selfCheckSourceSpans: true as const } : {}) }
       : undefined);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.

@@ -27,6 +27,9 @@ import { DIAGNOSIS_CAUSES, changedSections, draftSections, type StoryboardDiagno
  * Absent, nothing changes: no source, digest, schema, instruction or packet byte differs.
  */
 export const STORYBOARD_SELF_CHECK_VERSION = 'storyboard-self-check/v1' as const;
+/** Compile-only correction: actual unambiguous source-interval overlap, not mere quotation containment. */
+export const STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION = 'storyboard-self-check-source-spans/v1' as const;
+export const SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM = `KEY-EVENT SOURCE SPANS (storyboard-self-check-source-spans/v1): the compiler also permits two exact, uniquely located same-page quotations whose source intervals share a complete word. This proves only structural provenance, not that they describe the same consequential instant. Independently judge the selected event, drawn instant, state and all manuscript fidelity; never infer semantic support from the compiler marker.`;
 export const SELF_CHECK_EVENT_KINDS = ['action', 'discovery', 'joke', 'emotion', 'dialogue', 'aftermath'] as const;
 const quote = z.string().trim().min(1).max(400);
 const short = (n: number) => z.string().trim().min(1).max(n);
@@ -98,6 +101,18 @@ type Sequence = z.infer<typeof bookSequenceSchema>;
 const fail = (code: string): never => { throw Error(`storyboard_self_check_${code}`); };
 const overlaps = (a: string, b: string) => a.includes(b) || b.includes(a);
 
+/** Existing containment is unchanged. New partial overlaps require unique exact occurrences and a complete source word in the intersection. */
+export function keyEventSourceOverlap(text: string, a: string, b: string): boolean {
+  if (!a || !b || !text.includes(a) || !text.includes(b)) return false;
+  if (overlaps(a, b)) return true;
+  const x = text.indexOf(a), y = text.indexOf(b);
+  if (text.indexOf(a, x + 1) !== -1 || text.indexOf(b, y + 1) !== -1) return false;
+  const start = Math.max(x, y), end = Math.min(x + a.length, y + b.length);
+  if (start >= end) return false;
+  return [...text.matchAll(/[\p{L}\p{N}][\p{L}\p{M}\p{N}]*/gu)]
+    .some(word => word.index! >= start && word.index! + word[0].length <= end);
+}
+
 /**
  * Opt-in, versioned SECTION-NAME RESOLUTION for a resolution's `changed` list (storyboard-self-check-names/v1). The v1 instruction names
  * book-level sections only as `book:...`, while the engine's names are `book:<group>.<key>`, so a planner can name a section it truly
@@ -126,9 +141,10 @@ export function resolveSelfCheckSections(names: readonly string[], sections: Rea
  */
 export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewPlan; sequence: Sequence; moments: StoryboardMoments }, texts: readonly string[],
   repair?: { diagnosis: StoryboardDiagnosis | null; parentDraft: unknown; candidateDraft: unknown },
-  options?: { sectionNames?: true; ignoredRefs?: ReadonlySet<string>; alsoChanged?: readonly string[] }): StoryboardSelfCheck {
-  if (options !== undefined && (Object.keys(options).some(k => k !== 'sectionNames' && k !== 'ignoredRefs' && k !== 'alsoChanged') ||
+  options?: { sectionNames?: true; sourceSpans?: true; ignoredRefs?: ReadonlySet<string>; alsoChanged?: readonly string[] }): StoryboardSelfCheck {
+  if (options !== undefined && (Object.keys(options).some(k => k !== 'sectionNames' && k !== 'sourceSpans' && k !== 'ignoredRefs' && k !== 'alsoChanged') ||
       (options.sectionNames !== undefined && options.sectionNames !== true) || (options.ignoredRefs !== undefined && !(options.ignoredRefs instanceof Set)) ||
+      (options.sourceSpans !== undefined && options.sourceSpans !== true) ||
       (options.alsoChanged !== undefined && !Array.isArray(options.alsoChanged))))
     fail('options');
   const s = selfCheckSchema.parse(raw);
@@ -155,7 +171,8 @@ export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewP
     if (frame.events.some(e => !quoted(e.quote)) || new Set(frame.events.map(e => e.quote)).size !== frame.events.length) fail('event_quote');
     const key = frame.events[frame.keyEvent!], depicted = book.moments.frames[n].depicted;
     const last = frame.events.reduce((x, e) => texts[n].indexOf(e.quote) > texts[n].indexOf(x.quote) ? e : x);
-    if (depicted ? !overlaps(key.quote, depicted.evidence) : key !== last) fail('key_event_instant');
+    if (depicted ? !(options?.sourceSpans ? keyEventSourceOverlap(texts[n], key.quote, depicted.evidence)
+      : overlaps(key.quote, depicted.evidence)) : key !== last) fail('key_event_instant');
     if (frame.events.some(e => e.consequential) && !key.consequential) fail('key_event_not_consequential');
   });
   // Two design authorities for one id must be reconciled: every invariant attribute, the prop design's own phrase, agreement.

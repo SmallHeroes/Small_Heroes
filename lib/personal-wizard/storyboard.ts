@@ -25,7 +25,7 @@ import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } f
 import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_ATTEMPT_EXTENSION_V2, assertStoryboardRepair, storyboardRepairFindings,
   type StoryboardRepair } from './storyboard-repair';
 import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
-import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck,
+import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck,
   type StoryboardSelfCheck } from './storyboard-self-check';
 import { STORYBOARD_REVIEW_IMPACT_VERSION, storyboardReviewIssueSchema, storyboardReviewRefs, storyboardImpactDisposition, storyboardFrameClaims } from './storyboard-review-impact';
 import { storyboardDiagnosis, diagnosisDigest, chainAttempts, changedSections, STORYBOARD_MAX_ATTEMPTS, type ChainAttempt, type StoryboardDiagnosis } from './storyboard-diagnosis';
@@ -77,6 +77,8 @@ type BookData = {
   reviewImpact?: typeof STORYBOARD_REVIEW_IMPACT_VERSION;
   /** Present only when compiled under the opt-in self-check section-name resolution (storyboard-self-check-names/v1). */
   selfCheckNames?: typeof STORYBOARD_SELF_CHECK_NAMES_VERSION;
+  /** Compile-only source interval correction; participates in the book digest, review input and every frame context. */
+  selfCheckSourceSpans?: typeof STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION;
   /** Present only under the opt-in claim-basis contract: its marker and every hidden-entity override the compiler dropped. */
   claimBasis?: { version: typeof CLAIM_BASIS_CONTRACT_VERSION; hiddenOverridesDropped: HiddenOverride[] };
   /** Present only when compiled under the opt-in claim-basis staging-fields correction (storyboard-claim-basis-staging-fields/v1). */
@@ -412,13 +414,14 @@ These roles are distinct from supporting cast and scene props. Preserve the supp
  * sources only) lets a frame's staging name its own plan direction fields (storyboard-claim-basis-staging-fields/v1), likewise compile-level
  * and marked. Absent: exactly the existing compile.
  */
-export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true; stagingFields?: true }): PersonalStoryboard {
+export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true; stagingFields?: true; selfCheckSourceSpans?: true }): PersonalStoryboard {
   assertSource(source);
   if (options !== undefined) {
     const keys = Object.keys(options);
-    if (!keys.length || keys.some(k => k !== 'selfCheckNames' && k !== 'stagingFields') ||
+    if (!keys.length || keys.some(k => k !== 'selfCheckNames' && k !== 'stagingFields' && k !== 'selfCheckSourceSpans') ||
         ('selfCheckNames' in options && (options.selfCheckNames !== true || !source.selfCheckContract))) fail('self_check_names_policy');
     if ('stagingFields' in options && (options.stagingFields !== true || !source.claimBasisContract)) fail('staging_fields_policy');
+    if ('selfCheckSourceSpans' in options && (options.selfCheckSourceSpans !== true || !source.selfCheckContract)) fail('self_check_source_spans_policy');
   }
   const object = rawDraft && typeof rawDraft === 'object' ? rawDraft as Record<string, unknown> : null;
   if (!source.momentContract && object && 'moments' in object) fail('moments_not_enabled');
@@ -448,8 +451,8 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     options?.stagingFields ? { stagingFields: true } : undefined);
   if (source.presenceContract) validatePresence(moments!.frames as unknown as Parameters<typeof validatePresence>[0], compiled.plan, compiled.sequence, texts);
   // Self-check: bound to this plan, these page texts and (for a diagnosed repair) the diagnosis and what this draft changed from its parent.
-  const checkOptions = options?.selfCheckNames || basis
-    ? { ...(options?.selfCheckNames ? { sectionNames: true as const } : {}), ...(basis ? { ignoredRefs: droppedRefs(basis.dropped),
+  const checkOptions = options?.selfCheckNames || options?.selfCheckSourceSpans || basis
+    ? { ...(options?.selfCheckNames ? { sectionNames: true as const } : {}), ...(options?.selfCheckSourceSpans ? { sourceSpans: true as const } : {}), ...(basis ? { ignoredRefs: droppedRefs(basis.dropped),
       ...(source.repair ? { alsoChanged: changedSections(source.repair.draft, rawDraft) } : {}) } : {}) } : undefined;
   // Under the claim basis what a candidate changed is measured on the contract's neutral view of both drafts (adopting its shape or dropping
   // a hidden annotation is never a change); otherwise on the raw drafts, exactly as before.
@@ -469,6 +472,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     n => new Set(((moments!.frames[n] as unknown as { staging?: { ref: string }[] }).staging ?? []).map(s => s.ref)));
   const presence = source.presenceContract ? { version: STORYBOARD_PRESENCE_VERSION, components: [...PRESENCE_COMPONENTS] } : undefined;
   const selfCheckNames = options?.selfCheckNames ? STORYBOARD_SELF_CHECK_NAMES_VERSION : undefined;
+  const selfCheckSourceSpans = options?.selfCheckSourceSpans ? STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION : undefined;
   const stagingFields = options?.stagingFields ? CLAIM_BASIS_STAGING_FIELDS_VERSION : undefined;
   // Calibration: a ledger relation carried unseen with a moving actor refuses (storyboard-relation-lifetime/v1), and the planner's visual-state
   // map binds to the visual language's own words and to changes of mutable attributes (storyboard-state-source/v1); both structural only.
@@ -497,6 +501,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}), ...(compilerRules ? { compilerRules } : {}),
     ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}), ...(visibleMoment ? { visibleMoment } : {}),
     ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}), ...(selfCheckNames ? { selfCheckNames } : {}),
+    ...(selfCheckSourceSpans ? { selfCheckSourceSpans } : {}),
     ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}), ...(calibration ? { calibration } : {}),
     ...(presence ? { presence } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
@@ -505,7 +510,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...compiled, ...(moments ? { moments } : {}), ...(landmarkKind ? { landmarkKind } : {}), ...(sceneLocation ? { sceneLocation } : {}),
     ...(compilerRules ? { compilerRules } : {}), ...(repair ? { repair } : {}), ...(drawnInstant ? { drawnInstant } : {}),
     ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}),
-    ...(selfCheckNames ? { selfCheckNames } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}),
+    ...(selfCheckNames ? { selfCheckNames } : {}), ...(selfCheckSourceSpans ? { selfCheckSourceSpans } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}),
     ...(calibration ? { calibration } : {}), ...(presence ? { presence } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
@@ -540,7 +545,7 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
     ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
     narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}),
     ...(book.landmarkKind ? { landmarkKindContract: { version: book.landmarkKind, landmarks: landmarkKinds(book.plan.continuity!, book.sequence.mutableAttributes) } } : {}),
-    ...(book.selfCheck ? { selfCheck: book.selfCheck } : {}),
+    ...(book.selfCheck ? { selfCheck: book.selfCheck } : {}), ...(book.selfCheckSourceSpans ? { selfCheckSourceSpans: book.selfCheckSourceSpans } : {}),
     ...(book.reviewImpact ? { reviewImpact: { version: book.reviewImpact, reviewRefs: storyboardReviewRefs(book, reviewPlanFields(book)) } } : {}),
     // Claim basis: the stable source spans a citation names (the frozen page texts, split deterministically).
     ...(book.claimBasis ? { claimBasis: { version: book.claimBasis.version, sourceSpans: sourceSpans(previewStoryEvidence(source.story).texts) } } : {}),
@@ -679,7 +684,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     .map(i => { const citation = (i as unknown as { citation: string }).citation; return { ref: i.ref, citation, text: verifier.text(citation)! }; }) : [];
   const context = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: book.sourceDigest,
     storyboardDigest: book.storyboardDigest, reviewDigest: decision.reviewDigest,
-    requestId: book.requestId, pageNumber, text,
+    requestId: book.requestId, pageNumber, text, ...(book.selfCheckSourceSpans ? { selfCheckSourceSpans: book.selfCheckSourceSpans } : {}),
     companion: { id: source.request.companion.id, description: source.companionDescription },
     visual: selectedDraftQaContext(plan, pageNumber), sequence,
     ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
@@ -769,7 +774,7 @@ function drawnSequenceState(book: PersonalStoryboard, pageNumber: number, ledger
 export async function authorPersonalStoryboard(source: Source, author: (call: {
   instructions: string; input: Source['planningInput'];
   schema: ReturnType<typeof storyboardDraftSchema>; signal: AbortSignal;
-}) => Promise<unknown>, signal: AbortSignal, compile?: { selfCheckNames?: true; stagingFields?: true }) {
+}) => Promise<unknown>, signal: AbortSignal, compile?: { selfCheckNames?: true; stagingFields?: true; selfCheckSourceSpans?: true }) {
   assertSource(source);
   if (signal.aborted) fail('cancelled');
   let raw: unknown;
