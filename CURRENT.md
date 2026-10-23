@@ -1,6 +1,29 @@
 # SmallHeroes — Current Technical State
 
-## ONE new book to test reader-safe framing — offline connection ready for independent gate (2026-10-23)
+## New reader-safe book trial — TERMINAL Claude Max weekly-quota block; NO new illustrations (2026-10-23)
+
+- Exact new one-use trial owner-reader-safe-book-20261023/v1 ran at09b35d7e after independent code/unused-grant/operatorPASS4a4f3448:
+  185focusedtests0 plus424controls (including273preservation hashes/31mockedoperator cases), fresh identical native plan and sole writer.
+- Actual native15:49:05.469Z..15:59:53.974Z,648.505seconds,exit1/no timeout. New eight-page source "השלולית שברחה" passed text readings
+  directly; first storyboard held_contradiction.43checks/37supported/6blockingrows/7issueentries/4refs reduce to3families: fixed-vs-mutable
+  puddle colour, p1endstate vs depicted earlier instant, p4consequential failed catch. P4 DOES contain a literal one-second catch; the hold
+  is a semantic fidelity/moment judgment, not proof of a compiler bug or unsupported action. No retroactive verdict reclassification.
+- Automatic bounded second planner attempt was refused immediately: real Claude Max api_error_status429/weekly limit; provider message
+  reports reset Oct25,04:00Asia/Jerusalem. Raw0usage/resource,empty modelUsage,CLIexit1/killConfirmed; no completed second plan. The parent
+  fixed claim is consumed and outcome remains failed_trial/code trial_failure. Budget headroom does NOT reset it or provide a new grant.
+- Accounting replay:API10774+20600+82110=113484microUSD/3calls of7m,unknownCost0/unknownOutcome0/unsettled0. Max author238441+editor269905+
+  board1101248+refusal0=1609594microUSD reported resource,4logicalattempts,unknown0,stopped; separate from API,NOT invoice. No model switch.
+- ZERO child/reference-sheet/image/narration calls or new PNGs; no new reader was started. Existing mom-reader/book/audio remain intact.
+  reader-safe-scene-framing/v1 is code-tested, NOT pixel-validated by this failed trial. All38newbook files and273old preservation entries
+  remain hash-bound. SAME independent outcome-accuracyPASS690e77d4:355actual-record/decoder/ledger/hash controls0; no provider or source edit.
+- Q=ART/r3-new-book-framing-20261023: immutable reports, TERMINAL-AUDIT inventory, original429, native receipts, exact grant/claim/outcome,
+  eight-page STORY-TEXT-NOT-ILLUSTRATED.txt. Independent harness wire/normalized-shape RED retained and correctly decoded; not engine RED.
+  Whole-project nonincremental terminal-tsc-1 exit0; no broad/fullcheck rerun; historic fullcheckRED/stale/timeouts unchanged.
+- External block: Max account availability, not exhausted trial budget or numeric framing. Future SAME-book continuation needs bounded
+  checkpoint/remaining-attempt binding and independent gate; current consumed command cannot be rerun. No automatic resume scheduled,
+  extra monitor, new key, alternate account/model, second book, production/Wizard/push/deploy/cleanup. Local docsLAST only; product not accepted.
+
+## Historical pre-run checkpoint: new reader-safe book connection ready for independent gate (2026-10-23)
 
 - Guy directly requested a NEW book after framing-code QA. Fixed owner-reader-safe-book-20261023/v1 is a separate explicit one-use trial,
   not reopening consumed owner-new-book-e2e-20261023/v1. Same conservative7mAPI/6mMax-resource separately,98APIcalls;old caps/counters intact.

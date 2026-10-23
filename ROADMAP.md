@@ -1,6 +1,20 @@
 # SmallHeroes — Roadmap
 
-## New reader-safe book trial — code ready, awaiting exact independent execution gate (2026-10-23)
+## New reader-safe book trial — EXTERNAL Max quota block, framing-pixel validation still pending (2026-10-23)
+
+- The ONE new trial actually ran at09b35d7e after exact independentPASS/fresh preflight. Eight new source pages/first storyboard produced;
+  first board held on fixed/mutable colour, endstate/instant distinction and semantic failed-catch moment. Not six independent defects.
+- Second planner attempt refused with actual429 weekly Max limit (reported reset Oct25,04:00Asia/Jerusalem), nativeexit1/no timeout.
+  Consumed claim/outcome failed_trial preserved; no reset/repin/model switch. Zero child/sheets/PNGs/audio/newreader; no demonstrated framing
+  improvement. Existing mom book,all273preservedfiles untouched. Source codePASS is not book/pixel/productPASS.
+- API113484microUSD/3knowncalls of7m;Max1609594reportedresource/4logicalattempts of6m separately,not invoice;unknown0/unsettled0. SAME
+  independent outcome-accuracyPASS690e77d4/355controls0 verifies38newfiles,raw429,actual decoded review and strict accounting replay.
+  Q=r3-new-book-framing-20261023 holds report,text,receipts and frozeninventory. terminalnonincrementaltsc0;historicfullcheckRED retained.
+- Next dependency: remove external Max availability block, then a separately bound/QA'd SAME-book continuation with original evidence and
+  remaining counts,not another fresh book/consumed execute. Prospective general improvements: typed quota pause/checkpoint, invariant/state
+  overlap self-check and endstate/instant parity. No such recovery is implemented/authorized by this report, no scheduled auto-resume.
+
+## Historical pre-run checkpoint: new framing trial code ready for exact independent gate (2026-10-23)
 
 - Owner asked ONE NEW book;fixed new one-use owner-reader-safe-book-20261023/v1,not old consumed slot reset. Codea1ce938c;7mAPI/6mMaxresource
   separately,98APIcalls,bounded existing attempts/.70/LOW. Reuse native pipeline with new framing and existing source-span compiler options.
