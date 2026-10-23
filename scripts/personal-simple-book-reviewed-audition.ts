@@ -16,7 +16,7 @@ import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } f
 import { getCompanionById } from '../lib/companions';
 import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
-import { READER_SAFE_FRAMING_VERSION } from '../lib/storybook-scene-framing';
+import { READER_SAFE_FRAMING_VERSIONS, type ReaderSafeFramingVersion } from '../lib/storybook-scene-framing';
 import { STORYBOARD_STATE_PARITY_VERSION } from '../lib/personal-wizard/storyboard-state-parity';
 import type { StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
@@ -82,7 +82,7 @@ export const reviewedBookLayoutSchema = z.object({ version: z.literal('reviewed-
    */
   childAnchorPose: z.enum(childAnchorPoseVersions).optional(),
   /** Explicit prospective scene presentation; a paid run must also name the same marker in its grant. Never changes sheets/anchors. */
-  readerFraming: z.literal(READER_SAFE_FRAMING_VERSION).optional() }).strict()
+  readerFraming: z.enum(READER_SAFE_FRAMING_VERSIONS).optional() }).strict()
   .refine(l => l.childAnchorPose === undefined || l.childAnchor !== undefined, 'audition_layout_child_anchor_pose')
   // v2 binds the materiality contract's occlusion record: only beside the materiality acceptance.
   .refine(l => l.childAnchorPose !== CHILD_ANCHOR_POSE_V2 || l.childAnchor === CHILD_ANCHOR_MATERIALITY_VERSION, 'audition_layout_child_anchor_pose');
@@ -415,7 +415,7 @@ export const auditionGrantSchema = z.object({
   version: z.literal('audition-spend-grant/v1'),
   approvalReference: z.string().trim().min(30).max(2000),
   book: z.object({ requestId: hash, storyboardDigest: hash,
-    readerFraming: z.literal(READER_SAFE_FRAMING_VERSION).optional() }).strict(),
+    readerFraming: z.enum(READER_SAFE_FRAMING_VERSIONS).optional() }).strict(),
   ledger: z.object({ priorKnownApiMicroUsd: z.number().int().nonnegative(),
     /** An earlier call's still-unknown cost carried by an owner-approved continuation (never known spend). Absent on every legacy grant. */
     carriedUnresolvedMicroUsd: z.number().int().positive().optional(),
@@ -465,7 +465,7 @@ export function grantReferenceStatus(references: GrantReferences): ReferenceStat
   return { entities: status(references.entities), locations: status(references.locations) };
 }
 
-export function readAuditionGrant(file: string, book: { requestId: string; storyboardDigest: string; readerFraming?: typeof READER_SAFE_FRAMING_VERSION }) {
+export function readAuditionGrant(file: string, book: { requestId: string; storyboardDigest: string; readerFraming?: ReaderSafeFramingVersion }) {
   const grant = auditionGrantSchema.parse(read(file));
   if (grant.book.requestId !== book.requestId || grant.book.storyboardDigest !== book.storyboardDigest) fail('audition_grant_book');
   if (grant.book.readerFraming !== book.readerFraming) fail('audition_grant_reader_framing');

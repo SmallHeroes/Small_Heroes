@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import ReaderV2 from '@/app/book/[id]/read-v2/reader-v2';
-import shellStyles from '@/app/book/[id]/read-v2/read-v2-shell.module.css';
+import localStyles from './local-reader.module.css';
 import { localReaderPayload } from '@/lib/local-reader-preview';
 import { loadLocalReaderPreview } from '@/lib/local-reader-preview-store';
 import '../../landing/main.css';
@@ -13,7 +13,7 @@ export default async function LocalNarratedReader({ searchParams }: {
   const id = typeof query.book === 'string' ? query.book : '';
   const preview = await loadLocalReaderPreview(id).catch(() => null);
   if (!preview) notFound();
-  return <div className={shellStyles.shell} data-reader-authority={preview.version} dir="rtl">
+  return <div className={localStyles.frame} data-reader-authority={preview.version} dir="rtl">
     <aside style={{ padding: '8px 16px', background: '#fff4cc', color: '#433b21', fontSize: 14, textAlign: 'center' }}>
       ספר ניסוי מקומי · {preview.voice ? `קריינות ${preview.voice.label}` : 'ללא קריינות'} · בדיקות איכות האיורים טרם הושלמו · לא אישור מוצר או ייצור
     </aside>

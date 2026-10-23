@@ -1,0 +1,13 @@
+/* The diagnostic banner is a real grid row, never hidden beneath a 100dvh reader. */
+.frame {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.frame > :global(main) {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}

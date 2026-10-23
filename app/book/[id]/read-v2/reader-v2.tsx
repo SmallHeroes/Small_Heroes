@@ -613,6 +613,11 @@ export default function ReaderV2({
   }, [nextManual, prevManual, status]);
 
   const onTouchStart = useCallback((event: React.TouchEvent) => {
+    // A scroll inside accessible prose must not become an accidental page-turn gesture.
+    if (event.target instanceof Element && event.target.closest('[data-reader-prose]')) {
+      touchStartXRef.current = null;
+      return;
+    }
     touchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
   }, []);
 
@@ -810,6 +815,7 @@ export default function ReaderV2({
 
   return (
     <main
+      data-artwork-fit="contain"
       className={`${styles.root} ${status === 'ready' ? styles.rootReaderReady : ''}`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}

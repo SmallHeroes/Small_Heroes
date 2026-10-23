@@ -40,7 +40,8 @@ export function MobileBookPage({ page, isCurrent }: Props) {
         </div>
       ) : null}
       {page.showText && paperPanel ? (
-        <div className={styles.mobilePaperPanel} dir="rtl">
+        <div key={page.sceneId} className={styles.mobilePaperPanel} dir="rtl" data-reader-prose
+          role="region" aria-label="טקסט הסיפור" tabIndex={isCurrent ? 0 : -1}>
           <div className={styles.mobilePaperProse}>
             {splitIntoSentences(page.text).map((sentence, i) => (
               <p key={i} className={styles.sentence}>

@@ -752,14 +752,14 @@ describe('shared Reader page-turn contract', () => {
     expect(css).not.toContain('rgba(30, 20, 10, 0.24)');
   });
 
-  it('keeps all visible mobile prose over the illustration', () => {
-    expect(mobileTextPresentationFor('A short line for the page.', 'overlay')).toBe('overlay');
+  it('keeps all visible mobile prose on accessible paper without obscuring the illustration', () => {
+    expect(mobileTextPresentationFor('A short line for the page.', 'overlay')).toBe('paper_panel');
 
     const denseCopy = Array.from(
       { length: MOBILE_OVERLAY_LIMITS.words + 1 },
       (_, index) => `word${index}`,
     ).join(' ');
-    expect(mobileTextPresentationFor(denseCopy, 'overlay')).toBe('overlay');
+    expect(mobileTextPresentationFor(denseCopy, 'overlay')).toBe('paper_panel');
   });
 
   it('uses one desktop surface, 22px prose, matched cover/open height, and a viewport-safe root', () => {
@@ -875,7 +875,7 @@ describe('shared Reader page-turn contract', () => {
     expect(reader).toContain('devLayoutFlags = EMPTY_DEV_LAYOUT_FLAGS');
     expect(reader).not.toContain('devLayoutFlags = {}');
     expect(mobilePage).toContain("page.textPresentation === 'paper_panel'");
-    expect(mobileAdapter).toContain("return 'overlay';");
+    expect(mobileAdapter).toContain("return 'paper_panel';");
     expect(mobileAdapter).not.toContain("return shortEnoughForOverlay ? 'overlay' : 'paper_panel';");
     expect(css).toContain('.mobilePaperPanel');
     expect(css).toContain('width: 44px');

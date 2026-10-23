@@ -83,7 +83,9 @@ export function DesktopBookPageSideSurface({
   return (
     <div className={styles.openPageRight}>
       {spread.showText ? (
-        <div className={styles.openTextSafe}>
+        <div key={spread.sceneId} className={styles.openTextSafe} data-reader-prose
+          role={textureOnly ? undefined : 'region'} aria-label="טקסט הסיפור"
+          tabIndex={isCurrent && !textureOnly ? 0 : -1}>
           <div className={`${styles.proseBody} ${styles.storyText}`}>
             {splitIntoSentences(spread.text).map((sentence, index) => (
               <p key={index} className={styles.sentence}>

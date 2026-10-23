@@ -2176,6 +2176,114 @@
   }
 }
 
+/* Complete-artwork policy — the shared reader, including physical-turn textures.
+   Fit the whole source; do not rely on an image model to anticipate a destructive crop.
+   Warm paper margins are intentional when a square/landscape source meets a portrait page. */
+.rootReaderReady[data-artwork-fit='contain'] .pageCanvas.tplCover {
+  background: #f7f3eb;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .coverBleedImg,
+.rootReaderReady[data-artwork-fit='contain'] .leftPageMaskedIllustration .illustrationImg,
+.rootReaderReady[data-artwork-fit='contain'] .openPageIllustration .illustrationImg,
+.rootReaderReady[data-artwork-fit='contain'] .mobileIllustration .illustrationImg {
+  object-fit: contain;
+  object-position: center center;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .illustrationFrame.leftPageMaskedIllustration,
+.rootReaderReady[data-artwork-fit='contain'] .leftPageMaskedIllustration.illustrationPlaceholder {
+  --left-illustration-overflow: 0%;
+  left: calc(var(--book-image-mask-window-x) + 1%);
+  top: calc(var(--book-image-mask-window-y) + 1%);
+  width: calc(var(--book-image-mask-window-w) - 2%);
+  height: calc(var(--book-image-mask-window-h) - 2%);
+  background: var(--book-paper-bg, #f7f3eb);
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .openTextSafe {
+  display: block;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 6px 2px;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .openTextSafe .storyText {
+  width: 100%;
+  min-height: 0;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .coverBleed {
+  top: 25%;
+  right: 6%;
+  bottom: 5%;
+  left: 6%;
+  background: #f7f3eb;
+  box-shadow: none;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .coverTitleOverlay {
+  top: 2%;
+  left: 7%;
+  right: 7%;
+  max-height: 21%;
+  overflow-y: auto;
+  padding: 8px 4px;
+  gap: 4px;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .coverTitleGradient {
+  display: none;
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .coverBrandTag,
+.rootReaderReady[data-artwork-fit='contain'] .coverDisplayTitle {
+  color: #392e21;
+  text-shadow: none;
+  border-color: rgba(71, 53, 31, .25);
+}
+
+.rootReaderReady[data-artwork-fit='contain'] .coverDisplayTitle {
+  font-size: clamp(20px, 3dvh, 30px);
+}
+
+@media (max-width: 1023px) {
+  .rootReaderReady[data-artwork-fit='contain'] .mobileScene {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  .rootReaderReady[data-artwork-fit='contain'] .pageCanvas.tplCover {
+    height: min(88dvh, calc(100vw + 150px)) !important;
+    min-height: 0 !important;
+    max-height: 88dvh !important;
+    margin: auto;
+    background: #f7f3eb;
+  }
+
+  .rootReaderReady[data-artwork-fit='contain'] .mobileScenePaperPanel {
+    grid-template-rows: minmax(0, min(48dvh, calc(100vw - 24px))) minmax(0, 1fr);
+  }
+
+  .rootReaderReady[data-artwork-fit='contain'] .mobileIllustration {
+    padding: 12px;
+    box-sizing: border-box;
+    background: #f7f3eb;
+  }
+
+  .rootReaderReady[data-artwork-fit='contain'] .mobilePaperPanel {
+    padding: 18px 28px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .rootReaderReady[data-artwork-fit='contain'] .mobileEdgeNav {
+    top: clamp(90px, 20dvh, 200px);
+    bottom: auto;
+    height: 44px;
+  }
+}
+
 /* Sticker slots — zero footprint when empty */
 .stickerSlot {
   position: absolute;

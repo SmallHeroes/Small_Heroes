@@ -13,7 +13,8 @@ export function mobileTextPresentationFor(
 ): MobileTextPresentation {
   if (!showText || treatment === 'captionless') return 'captionless';
   void text;
-  return 'overlay';
+  // Keep complete artwork visible; prose must not hide a face/action or overflow the screen.
+  return 'paper_panel';
 }
 
 export function storySceneToMobilePage(scene: StoryScene, bookTitle: string): MobilePage {
