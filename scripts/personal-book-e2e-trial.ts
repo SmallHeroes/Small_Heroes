@@ -288,6 +288,71 @@ export function planBookSolContinuation(config:TrialConfig,approvalRaw:SolContin
     remaining:{sourceWriting:0,sourceRepairs:0,citationCorrections:0,storyboardAttemptsAlreadyConsumed:2,storyboardAttempts:1,childAttempts:2,pageAttempts:3}};
 }
 export type SolContinuationGrant=ReturnType<typeof planBookSolContinuation>;
+export const SOL_RECEIPT_RECOVERY=Object.freeze({version:'reader-safe-sol-receipt-recovery/v1',
+  claim:'owner-reader-safe-book-sol-receipt-recovery-20261023.claim.json',outcome:'owner-reader-safe-book-sol-receipt-recovery-20261023.outcome.json'});
+/** Same shared decoder in CJS and ESM launchers. A loader failure is never relabelled as model/schema evidence. */
+export function decodeTrialStoryboardReview(call:SimpleStoryboardDiagnosticCall,raw:any){
+  const settled=replaySettlement.answer(replaySettlement.rates.sol,call.maxOutputTokens,'gpt-6.1-sol',raw),
+    receipt={raw,usage:settled.usage,estimatedMicroUsd:settled.estimatedMicroUsd,model:raw?.model,stage:'storyboard_review'};
+  if(!settled.valid)throw Object.assign(new Error('trial_review_invalid'),{receipt});
+  try{return{value:decodePersonalBookProviderOutput(call,JSON.parse(raw.output_text)),estimatedMicroUsd:settled.estimatedMicroUsd!,receipt};}
+  catch(error){throw Object.assign(new Error('trial_review_schema'),{receipt,decodeCause:error instanceof SyntaxError?'malformed_json':(error as any)?.code??'decoder_failed'});}
+}
+/** Provider-free exact-wire recovery. The same prospectively reviewed contract, not a new verdict or a model retry. */
+export async function replayTrialSolStoryboard(config:TrialConfig,old:SolContinuationGrant){
+  const contracts={...CONTRACTS,selfCheckSourceSpans:true as const,stateParityContract:true as const};
+  if(!same(old.contracts,contracts))fail('trial_receipt_contract');
+  const held=read(old.parent.sourceFile),{options,prepared}=validateTrialProfile(read(config.profileFile)),root=path.join(config.bookDir,'paid-stages'),
+    planner=read(path.join(root,'sol_storyboard.receipt.json')),failed=read(path.join(root,'sol_storyboard_review.failure.json'));
+  if(failed.code!=='audition_stage_failed'||failed.message!=='trial_review_schema')fail('trial_receipt_failure_kind');
+  let draft:unknown=null,calls=0;
+  const board=await runSimpleStoryboardDiagnostic({request:prepared.accepted.canonical,writerResult:held.source,options,signal:new AbortController().signal,
+    ...contracts,repair:{...read(old.parent.repairFile),addedContracts:['stateParityContract']} as StoryboardRepair,generate:async call=>{
+      calls++;
+      if(call.stage==='storyboard'){
+        if(!same(prepareSolWritingWire(call),read(path.join(root,'sol_storyboard.wire.json'))))fail('trial_receipt_planner_wire');
+        draft=decodePersonalBookProviderOutput(call,JSON.parse(planner.raw.output_text));
+        if(!same(draft,planner.output))fail('trial_receipt_planner_output');return draft;
+      }
+      if(!same(simpleWizardVisualPayload(call,'gpt-6.1-sol'),read(path.join(root,'sol_storyboard_review.wire.json'))))fail('trial_receipt_review_wire');
+      return decodeTrialStoryboardReview(call,failed.receipt.raw).value;
+    }});
+  if(calls!==2||!admittedStatus(board.status))fail('trial_receipt_not_admitted');
+  return{result:{...held,status:board.status,storyboard:board},draft,replayedCalls:calls,providerCalls:0 as const};
+}
+/** A single fixed downstream successor of a fully priced local decode failure. No new text/planner/review calls are allowed. */
+export async function planBookSolReceiptRecovery(config:TrialConfig,approvalRaw:SolContinuationApproval){
+  const approval=solContinuationApprovalSchema.parse(approvalRaw),base=planTrialInputs(config,true,true);
+  if(shaFile(approval.ownerFile)!==approval.ownerSha||shaFile(approval.operatorFile)!==approval.operatorSha||
+    !readFileSync(approval.ownerFile,'utf8').includes('תכניס אותו למסלול וצא לדרך'))fail('trial_receipt_approval');
+  const parentGrantFile=path.join(path.dirname(config.ownerFile),'../r3-sol-writing-continuation-20261023/grant-STAGED.json'),old=read(parentGrantFile) as SolContinuationGrant,
+    parentClaimFile=path.join(READER_SAFE_BOOK_TRIAL.authorityRoot,SOL_TRIAL_CONTINUATION.claim),parentOutcomeFile=path.join(READER_SAFE_BOOK_TRIAL.authorityRoot,SOL_TRIAL_CONTINUATION.outcome),
+    claim=read(parentClaimFile),outcome=read(parentOutcomeFile);
+  if(old.version!==SOL_TRIAL_CONTINUATION.version||old.cycle!==base.cycle||claim.cycle!==base.cycle||outcome.cycle!==base.cycle||
+    shaFile(parentGrantFile)!==claim.grantSha||claim.grantSha!==outcome.grantSha||shaFile(parentClaimFile)!==outcome.claimSha||
+    old.configSha!==base.configSha||claim.configSha!==base.configSha||old.profileSha!==base.profileSha||old.ownerSha!==base.ownerSha||old.bookDir!==base.bookDir||
+    !same(old.companion,base.companion)||!same(old.approval.availabilityOutcomes,approval.availabilityOutcomes)||
+    !same(old.contracts,{...base.contracts,stateParityContract:true})||!same(old.limits,{...base.limits,routes:{...base.limits.routes,writing:'gpt-6.1-sol/openai_responses'}})||
+    outcome.status!=='failed_trial'||outcome.code!=='review_callback_failed'||!outcome.originalTerminalOutcomePreserved||
+    old.remaining.storyboardAttemptsAlreadyConsumed!==2||old.remaining.storyboardAttempts!==1||
+    existsSync(path.join(config.bookDir,'child'))||readdirSync(path.join(config.bookDir,'illustrations')).length||existsSync(path.join(config.bookDir,'text_sol_recovered')))fail('trial_receipt_parent');
+  for(const name of[SOL_RECEIPT_RECOVERY.claim,SOL_RECEIPT_RECOVERY.outcome])if(existsSync(path.join(READER_SAFE_BOOK_TRIAL.authorityRoot,name)))fail('trial_receipt_consumed');
+  const api=new TrialApiMeter(path.join(config.bookDir,'paid-stages')).snapshot(),max=new TrialMaxBudget(path.join(config.bookDir,'claude-max-stages'),'').snapshot();
+  if(!same(api,outcome.accounting.api)||!same(max,outcome.accounting.claudeMax)||api.calls!==5||api.failed!==1||api.unknownCost||api.unknownOutcome||
+    api.reservedUnsettledMicroUsd||api.repeatedFailure||max.unknownAttemptCosts||!same(outcome.accounting.claudeMaxAvailability,old.parent.availabilityAccounting))fail('trial_receipt_accounting');
+  const ancestorFiles={...old.parent.ancestorFiles,[old.parent.grantFile]:old.parent.grantSha,[old.parent.claimFile]:old.parent.claimSha,[old.parent.outcomeFile]:old.parent.outcomeSha};
+  for(const[file,sha]of Object.entries(ancestorFiles))if(shaFile(file)!==sha)fail('trial_receipt_ancestor');
+  for(const[file,sha]of Object.entries(old.parent.files))if(shaFile(path.join(config.bookDir,file))!==sha)fail('trial_receipt_history');
+  const replay=await replayTrialSolStoryboard(config,old),files:Record<string,string>={},walk=(dir:string)=>{for(const n of readdirSync(dir)){const f=path.join(dir,n),s=lstatSync(f);
+    if(s.isSymbolicLink())fail('trial_receipt_file');if(s.isDirectory())walk(f);else if(s.isFile())files[path.relative(config.bookDir,f)]=shaFile(f);else fail('trial_receipt_file');}};walk(config.bookDir);
+  return{...base,version:SOL_RECEIPT_RECOVERY.version,approval,writing:SOL_WRITING,contracts:old.contracts,limits:old.limits,
+    pins:{...base.pins,'scripts/personal-sol-writing-transport.ts':shaFile(path.join(source,'scripts/personal-sol-writing-transport.ts')),
+      'lib/personal-wizard/storyboard-state-parity.ts':shaFile(path.join(source,'lib/personal-wizard/storyboard-state-parity.ts'))},
+    parent:{...old.parent,grantFile:parentGrantFile,grantSha:shaFile(parentGrantFile),claimFile:parentClaimFile,claimSha:shaFile(parentClaimFile),outcomeFile:parentOutcomeFile,outcomeSha:shaFile(parentOutcomeFile),files,ancestorFiles},
+    receiptRecovery:{version:'known-output-decode-recovery/v1',resultSha:previewSha(canonicalJson(replay.result)),draftSha:previewSha(canonicalJson(replay.draft)),providerCalls:0},
+    remaining:{sourceWriting:0,sourceRepairs:0,citationCorrections:0,newStoryboardReviews:0,storyboardAttemptsAlreadyConsumed:3,storyboardAttempts:0,childAttempts:2,pageAttempts:3}};
+}
+export type SolReceiptRecoveryGrant=Awaited<ReturnType<typeof planBookSolReceiptRecovery>>;
 /** Reader and storyboard rules retain the ordinary reservation floor. Everything else uses the original adapters' exact rule. */
 export const trialApiRules:MeterRules=step=>{
   if(['sol_author','sol_editor','sol_storyboard'].includes(step))return solWritingRuleFor(step.slice(4) as 'author'|'editor'|'storyboard');
@@ -341,13 +406,15 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const trial=bookTrialPolicy(config.cycle),readerSafe=config.cycle===READER_SAFE_BOOK_TRIAL.id,
     contracts={...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{})};
   if(shaFile(grantFile)!==grantSha)fail('trial_grant_changed');
-  const grant=read(grantFile) as TrialGrant|SourceContinuationGrant|StoryboardSpanGrant|SolContinuationGrant,
+  const grant=read(grantFile) as TrialGrant|SourceContinuationGrant|StoryboardSpanGrant|SolContinuationGrant|SolReceiptRecoveryGrant,
+    receiptRecovery=grant.version===SOL_RECEIPT_RECOVERY.version?grant as SolReceiptRecoveryGrant:null,
     sol=grant.version===SOL_TRIAL_CONTINUATION.version?grant as SolContinuationGrant:null,
+    solFamily=sol??receiptRecovery,
     spanning=grant.version==='book-e2e-storyboard-source-spans/v1',completing=grant.version==='book-e2e-source-impact-completion/v1',
     isSourceContinuation=completing||grant.version==='book-e2e-source-impact-continuation/v1',
-    parent=sol?sol.parent:spanning?(grant as StoryboardSpanGrant).parent:isSourceContinuation?(grant as SourceContinuationGrant).parent:null,
-    plan=sol?planBookSolContinuation(config,sol.approval):spanning?planBookStoryboardSpanContinuation(config):isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
-  if(sol&&!runtimeGuard)fail('trial_sol_runtime_lease');
+    parent=solFamily?solFamily.parent:spanning?(grant as StoryboardSpanGrant).parent:isSourceContinuation?(grant as SourceContinuationGrant).parent:null,
+    plan=receiptRecovery?await planBookSolReceiptRecovery(config,receiptRecovery.approval):sol?planBookSolContinuation(config,sol.approval):spanning?planBookStoryboardSpanContinuation(config):isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
+  if(solFamily&&!runtimeGuard)fail('trial_sol_runtime_lease');
   if(!same(grant,plan))fail('trial_plan_changed');
   const configDigest=previewSha(canonicalJson(config));
   const currentInputs=()=>{
@@ -357,7 +424,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       git('rev-parse','HEAD')!==grant.engine.head||git('branch','--show-current')!==grant.engine.branch||git('status','--porcelain'))fail('trial_binding_changed');
     for(const [file,sha]of Object.entries(grant.pins))if(shaFile(path.join(source,file))!==sha)fail('trial_source_pin');
     if(shaFile(grant.companion.file)!==grant.companion.sha)fail('trial_companion_pin');
-    if(sol&&(shaFile(sol.approval.ownerFile)!==sol.approval.ownerSha||shaFile(sol.approval.operatorFile)!==sol.approval.operatorSha))fail('trial_sol_approval');
+    if(solFamily&&(shaFile(solFamily.approval.ownerFile)!==solFamily.approval.ownerSha||shaFile(solFamily.approval.operatorFile)!==solFamily.approval.operatorSha))fail('trial_sol_approval');
     if(parent){
       for(const [file,sha]of Object.entries(parent.files))if(shaFile(path.join(config.bookDir,file))!==sha)fail('trial_source_parent_changed');
       for(const [file,sha]of [[parent.grantFile,parent.grantSha],[parent.claimFile,parent.claimSha],[parent.outcomeFile,parent.outcomeSha]])if(shaFile(file)!==sha)fail('trial_source_parent_changed');
@@ -365,8 +432,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     }
   };
   currentInputs();
-  const claimFile=path.join(trial.authorityRoot,sol?SOL_TRIAL_CONTINUATION.claim:spanning?STORYBOARD_SPANS.claim:completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:trial.claim),
-    outcomeFile=path.join(trial.authorityRoot,sol?SOL_TRIAL_CONTINUATION.outcome:spanning?STORYBOARD_SPANS.outcome:completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:trial.outcome);
+  const claimFile=path.join(trial.authorityRoot,receiptRecovery?SOL_RECEIPT_RECOVERY.claim:sol?SOL_TRIAL_CONTINUATION.claim:spanning?STORYBOARD_SPANS.claim:completing?SOURCE_COMPLETION.claim:parent?SOURCE_SUCCESSOR.claim:trial.claim),
+    outcomeFile=path.join(trial.authorityRoot,receiptRecovery?SOL_RECEIPT_RECOVERY.outcome:sol?SOL_TRIAL_CONTINUATION.outcome:spanning?STORYBOARD_SPANS.outcome:completing?SOURCE_COMPLETION.outcome:parent?SOURCE_SUCCESSOR.outcome:trial.outcome);
   exclusiveJson(claimFile,{cycle:trial.id,grantSha,configSha:configDigest,ownerSha:grant.ownerSha,bookDir:grant.bookDir,engine:grant.engine,
     ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,sourceSha:parent.sourceSha}:{} )});
   const claimSha=shaFile(claimFile);
@@ -380,25 +447,27 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const key=keyReader(config.keyFile);
   const save=(name:string,value:unknown)=>exclusiveJson(path.join(config.bookDir,`${name}.json`),value);
   const policy=wirePolicy(config,config.bookDir),continuationTextIndex=completing||spanning?3:2;
-  let citationUsed=sol?0:parent?1:0,sourceRepairUsed=sol?0:parent?1:0,boardAttempts=sol?sol.remaining.storyboardAttemptsAlreadyConsumed:spanning?2:0,
-    finalTextDir=sol?'text_sol':spanning?'text_4_source_spans':parent?`text_${continuationTextIndex}`:'text';
+  let citationUsed=solFamily?0:parent?1:0,sourceRepairUsed=solFamily?0:parent?1:0,boardAttempts=solFamily?solFamily.remaining.storyboardAttemptsAlreadyConsumed:spanning?2:0,
+    finalTextDir=receiptRecovery?'text_sol_recovered':sol?'text_sol':spanning?'text_4_source_spans':parent?`text_${continuationTextIndex}`:'text';
   if(!parent)save('request',{version:'local-simple-wizard-request/v1',requestId:prepared.accepted.requestId,optionsFingerprint:prepared.accepted.optionsFingerprint,
     request:prepared.accepted.canonical,consent:'fictional_new_full_book_trial',cycle:trial.id});
   const baseCurrent={request:prepared.accepted.canonical,options};
   const providerState:{stop:ClaudeQuotaStop|null}={stop:null};
   const observeProviderStop=<T>(dispatch:()=>Promise<T>)=>observeClaudeQuotaStop(dispatch,stop=>{providerState.stop=stop;log('phase provider_quota_exhausted');});
   const stageIO=(index:number,replay=false)=>{
-    const dir=path.join(config.bookDir,sol?'text_sol':replay?'text_4_source_spans':index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
+    const dir=path.join(config.bookDir,receiptRecovery?'text_sol_recovered':sol?'text_sol':replay?'text_4_source_spans':index===0?'text':`text_${index}`);mkdirSync(dir);mkdirSync(path.join(dir,'cli-workspace'));
     const budget=new TrialMaxBudget(maxRoot,`s${index}_`),api=new TrialApiMeter(apiRoot,sol?'sol_':`s${index}_`),
       writingPolicy={...policy,workspace:path.join(dir,'cli-workspace')},opus=createOpusCausalTransport(writingPolicy),
       reader=createAstraCausalTransport({key,rates:replaySettlement.rates.sol,model:'gpt-6.1-sol',inlineReferences:true,fetch:longCallFetch(660000)});
     let draft:unknown=null;
     const dispatch=(call:any,role:'opus'|'astra')=>({...call,role,conversationKey:`trial:${grant.requestId}:${index}:${call.stage}`});
     const doRead=async(call:any,s:AbortSignal)=>{
+      if(receiptRecovery)fail('trial_receipt_no_text_dispatch');
       guard();const d=dispatch(call,'astra'),wire=prepareCausalWire(d,writingPolicy,2_000_000),rule=trialApiRules(`s${index}_${call.stage}`),reserve=rule?.reserve(wire)??fail('trial_reader_wire');
       return api.run(call.stage,wire,reserve,async()=>{const r=await reader(wire,d,s);return{value:r.output,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});
     };
     const visual=async(call:SimpleStoryboardDiagnosticCall,s:AbortSignal)=>{
+      if(receiptRecovery)fail('trial_receipt_no_text_dispatch');
       guard();
       if(call.stage==='storyboard'){
         if(replay){
@@ -423,16 +492,11 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
         guard();
         const raw=await new OpenAI({apiKey:key(),baseURL:'https://api.openai.com/v1',maxRetries:0,logLevel:'off',fetch:longCallFetch(660000)})
           .responses.create(payload,{signal:s,timeout:600000});
-        const settled=replaySettlement.answer(replaySettlement.rates.sol,call.maxOutputTokens,'gpt-6.1-sol',raw),
-          receipt={raw,usage:settled.usage,estimatedMicroUsd:settled.estimatedMicroUsd,model:raw.model,stage:'storyboard_review'};
-        if(!settled.valid)throw Object.assign(new Error('trial_review_invalid'),{receipt});
-        let value:unknown;try{const {decodePersonalBookProviderOutput}=await import('../lib/personal-wizard/book-openai');value=decodePersonalBookProviderOutput(call,JSON.parse(raw.output_text));}
-        catch{throw Object.assign(new Error('trial_review_schema'),{receipt});}
-        return{value,estimatedMicroUsd:settled.estimatedMicroUsd,receipt};
+        return decodeTrialStoryboardReview(call,raw);
       });
     };
     return{dir,visual,draft:()=>draft,
-      opus:async(call:any,s:AbortSignal)=>{guard();const d=dispatch(call,'opus'),file=path.join(dir,`${call.stage}-instructions.txt`);exclusiveText(file,call.instructions);
+      opus:async(call:any,s:AbortSignal)=>{if(receiptRecovery)fail('trial_receipt_no_text_dispatch');guard();const d=dispatch(call,'opus'),file=path.join(dir,`${call.stage}-instructions.txt`);exclusiveText(file,call.instructions);
         const wire=prepareCausalWire(d,writingPolicy,2_000_000,file);
         return budget.run(call.stage,wire,2_000_000,async()=>{const r=await observeProviderStop(()=>opus(wire,d,s));return{value:r,estimatedMicroUsd:r.estimatedMicroUsd,receipt:r};});},
       reader:doRead,
@@ -449,10 +513,10 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const finish=(status:string,extra:Record<string,unknown>={})=>{
     const snapshot=(read:()=>unknown)=>{try{return read();}catch(error){return{status:'unreconciled',knownMicroUsd:null,error:(error as any)?.code??'accounting_replay_failed',furtherPaymentAllowed:false};}};
     const accounting={api:snapshot(()=>meter.snapshot()),claudeMax:snapshot(()=>max.snapshot()),claudeMaxNote:'reported resource, separate from API, not invoice',
-      ...(sol?{claudeMaxAvailability:sol.parent.availabilityAccounting,writingRoute:SOL_WRITING}: {})};
-    save(sol?'sol-continuation-final-accounting':spanning?'storyboard-source-spans-final-accounting':completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:trial.id,claimSha,grantSha,status,accounting,...extra,
+      ...(solFamily?{claudeMaxAvailability:solFamily.parent.availabilityAccounting,writingRoute:SOL_WRITING}: {})};
+    save(receiptRecovery?'sol-receipt-recovery-final-accounting':sol?'sol-continuation-final-accounting':spanning?'storyboard-source-spans-final-accounting':completing?'source-impact-completion-final-accounting':parent?'source-impact-final-accounting':'final-accounting',accounting);exclusiveJson(outcomeFile,{cycle:trial.id,claimSha,grantSha,status,accounting,...extra,
       ...(parent?{parentClaimSha:parent.claimSha,parentOutcomeSha:parent.outcomeSha,
-        ...(sol?{originalTerminalOutcomePreserved:true,originalStoryboardHoldPreserved:true}:{originalLiteraryHoldPreserved:true})}:{}),
+        ...(solFamily?{originalTerminalOutcomePreserved:true,originalStoryboardHoldPreserved:true,...(receiptRecovery?{receiptRecovery:receiptRecovery.receiptRecovery}:{})}:{originalLiteraryHoldPreserved:true})}:{}),
       runtimeEligible:false,productAccepted:false,productionQualified:false});return{status,accounting,...extra};
   };
   try{
@@ -461,7 +525,13 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       reservedWritingUsd:2,...contracts,...(repair?{repair}:{}),opus:io.opus,reader:io.reader,visual:io.visual,correctReading:io.correctReading,
       publish:view=>log(`phase ${view.phase}`)});
     let sourceAdmission:ReturnType<typeof compileSourceImpactReview>|undefined;
-    if(sol){
+    if(receiptRecovery){
+      const recovered=await replayTrialSolStoryboard(config,read(receiptRecovery.parent.grantFile));
+      if(previewSha(canonicalJson(recovered.result))!==receiptRecovery.receiptRecovery.resultSha||previewSha(canonicalJson(recovered.draft))!==receiptRecovery.receiptRecovery.draftSha)fail('trial_receipt_replay_changed');
+      result=recovered.result;io.draft=()=>recovered.draft;
+      exclusiveJson(path.join(io.dir,'receipt-recovery-provenance.json'),{...receiptRecovery.receiptRecovery,parentOutcomeSha:receiptRecovery.parent.outcomeSha,originalFailedOutcomePreserved:true,newProviderCalls:0});
+      log('phase saved_sol_review_recovered_without_provider');
+    }else if(sol){
       const held=read(sol.parent.sourceFile),repair={...read(sol.parent.repairFile),addedContracts:['stateParityContract']} as StoryboardRepair;
       exclusiveJson(path.join(io.dir,'storyboard_repair_input.json'),repair);
       const board=await runSimpleStoryboardDiagnostic({...baseCurrent,writerResult:held.source,signal,...CONTRACTS,selfCheckSourceSpans:true,stateParityContract:true,repair,generate:io.visual});
