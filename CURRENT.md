@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Reader-safe scene framing — prospective NONBLOCKING guidance, independent code PASS (2026-10-23)
+
+- Guy requests smaller characters, roughly70% maximum, while explicitly keeping framing NONBLOCKING. General engine change, not an edit
+  of the current book. reader-safe-scene-framing/v1 keeps smaller authored targets: wide<=35%, normal<=50%, planned close<=65%;70% is a
+  visible-foreground-actor drawing ceiling, NOT the normal target or a new stop/retry gate. Exact numeric drift remains detail.
+- Central40%source width/80%height protects the essential visible cast/gesture/prop only under the declared square/center-cover envelope
+  retaining>=40%width/>=80%height. Camera back, canonical relative size/world/action unchanged; no promise for arbitrary crops/aspects.
+- Code925bea59: explicit layout/current-frame opt-in, matching grant.book.readerFraming required BOTH directions before output/key/provider;
+  admission/resume pins it. Historical saved frames are verified first unchanged; prospective render+QA context/instruction agree and have
+  new hashes. No production/Wizard/shared-style defaults, child/sheet prompts, canvas/model/quality/caps/.70identity changed.
+- SAME owner-authorized independent codePASS db109c6c:90/90focused +140/140native/pin/replay controls0; exact9legacy saved-packet matches,
+  all212book files preserved; actual grant mismatches stop before output, resume mismatch before provider. Nonincremental whole-project
+  tsc0; historical fullcheckRED/timeouts/stale failures unchanged, no broad suite rerun. Source-only local commit/unpushed; docsLAST.
+- Q=ART/r2-reader-safe-framing-20261023: DG, frozenrange, tests/exits, native-proof, independent report and handoff.0provider/keyreads/renders,
+  no unused real spend grant, no old grant/claim/attempt/ledger reset. Same current mom reader/book/images/audio/diagnostic verdicts unchanged.
+- Limit/next: this is prompt/context/code proof, NOT demonstrated new-pixel improvement or productPASS. Enable the explicit same marker in
+  layout AND grant only for a future approved unused run, with normal exact preflight. Existing square-image reader crop and verified text
+  clipping remain separate unresolved engine/reader issues; this milestone does not change CSS, render portrait images or fix old pixels.
+
 ## Actual narrated ReaderV2 DELIVERED locally — mom title + all8 pages (2026-10-23)
 
 - Owner-approved narration completed at clean be19ee80:9single ElevenLabs/mom/eleven_v3 calls, nativeexit0,

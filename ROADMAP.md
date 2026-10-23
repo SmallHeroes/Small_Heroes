@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Reader-safe scene framing — code PASS, nonblocking and prospective (2026-10-23)
+
+- Owner asks smaller cast and about70% ceiling, NOT a new book blocker. Code925bea59 adds reader-safe-scene-framing/v1 at actual scene
+  prompt/frame/judge/native seams: wide35%/normal50%/close65% target maxima, keep smaller authored targets,70% drawing ceiling only.
+- Essential visible cast/action/props share declared central40%width/80%height center-cover-safe envelope. Camera backs up, no independent
+  companion shrink, missing actors, story/canon edits or arbitrary viewport guarantee. Existing material/safety/identity/.70 gates unchanged.
+- Explicit layout/current marker must equal grant marker; admission/resume binds it. Absence gives exact legacy bytes; historical records
+  remain frozen. SAME independentPASS db109c6c:90focused+140nativecontrols0,9exactlegacy packet matches,212book files unchanged,tsc0.
+- No provider/keyreads/renders/new spend grant, no production/Wizard/canvas/reader CSS/default switch; local/unpushed, docsLAST. Future unused
+  approved render must explicitly choose matching policy in layout+grant. Pixel compliance still unproven; existing reader crop/text-fit
+  defects remain open separately. Current local mom-narrated reader and all source images/audio retain their previous state.
+
 ## New fox book: real mom narration + working local ReaderV2 DELIVERED (2026-10-23)
 
 - All9requestedclips completed native0/356.754285s; originalcover+8images/exacttexts unchanged. Existing momvoice/eleven_v3,
