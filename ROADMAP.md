@@ -1,13 +1,15 @@
 # SmallHeroes — Roadmap
 
-## Reader desktop fill + full-image cover — independent presentation gate next (2026-10-24)
+## Reader desktop fill + full-image cover — independent display PASS, owner visual judgment (2026-10-24)
 
 - Owner-approved visual adjustment,not another book/render. Explicit shared presentation used by local previews only;legacy/
   production contain unchanged. Desktop picture fills width with centered heightcrop;smaller13..18px prose fits current8pages.
   Cover image fills page with designed title overlay on desktop/mobile;mobile body remains unchanged. No text/PNG/ledger changes.
 -93focusedtests/whole tsc0;32actualdesktop text-fit checks at4sizes,390x844mobile,screenshots/console0. Initial real overflow
   evidence retained and corrected. Same book on3121;3120kept forcomparison;219protectedfiles. Q=ART/r5-reader-desktop-fill-20261024.
--Next independent readonly exactrange gate,then owner eyeball. The existing paid-book quality remains incomplete;presentation
+-Independent readonly exactrange f47ddb55..437e4a14 PASS:9tests/native0,1140bounded mostly-hash controls;supplied cover/desktop
+  captures inspected,author32fit checks reconciled. Actual19.2%total centered heightcrop/13.44px small-desktop type are explicit
+  product trade-offs;not an independent live/accessibility/mobile typography gate. Owner eyeball next. Bookquality incomplete;presentation
   success does not promote held/unusable/unreviewed pages. No production activation,push,provider cost or new grant.
 
 ## New portrait book delivered — full coverage, quality pipeline not complete (2026-10-24)

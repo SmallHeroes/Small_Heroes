@@ -15,7 +15,11 @@
   old3120runtime kept unchanged;219book/history hashes and10copied assets/manifest preserved. Existing bookquality still incomplete.
 - Focused93tests0 (incl3new tests-first RED controls),whole npx tsc0;React checklist adds only primitive prop/CSS,no new hook/fetch/
   dependency. Full-storyverification localUI->devAPI->hash-boundfiles->same8texts/ninePNGs. Historical fullcheckRED not green.
-  Independent read-only frozen re-gate next;no production/push/new render/paid recovery or claim/grant modification.
+  Independent read-only display PASS at437e4a14:9focused tests/native0 and1140bounded controls (mostly hashes,not pixels).
+  Q/INDEPENDENT-QA.txt SHA383adbb314c3dbed509c3e8ae2b0c2db698c0457cdf37cf70347703175c2660d;COMPLETE/RELEASE.
+  Reviewer inspected supplied cover/desktop captures and reconciled author32fit checks;not an independent live/mobile-typography
+  or accessibility audit. Actual centered verticalcrop19.2%total/small-desktop13.44px remain owner visual trade-offs. Reader3121
+  delivered for product judgment;no production/push/new render/paid recovery or claim/grant modification. Bookquality unchanged.
 
 ## New portrait Sol book delivered for judgment — full art, incomplete quality (2026-10-24)
 
