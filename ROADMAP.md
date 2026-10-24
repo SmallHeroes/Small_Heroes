@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Same new portrait book — review input headroom and saved-output continuation (2026-10-24)
+
+- Original new-book run produced admitted text+successful planner,then local input_limit before the review.6calls/428183accounted/
+  unknown0/Max0;all old outcomes preserved. No child/art yet. Not a story/judge HOLD or another book allowance.
+- General review-only208kcontent/240kwire opt-in preserves exact evidence/instructions/outputschema;old104k/128k/planner unchanged.
+  Pure receipt-bound replay avoids repeating author/editor/citation/firstplanner;same-book successor inherits all old costs/attempts.
+  First review remainsunused,2originalplanners left,child2/page3,USD7/98total. Code4621f21c;190tests/tsc/nativecodeplan0;2008preserved.
+- Native actual packet121055content/139315wire now fits;synthetic possible repair78676fitsoldcap(no real verdict). New exact grant
+  and independent re-gate next;only then paid review/child/9portraitframes/Reader. Product/pixel acceptance still pending. No push.
+
 ## New full portrait Sol book — fresh authority, independent gate next (2026-10-24)
 
 - Owner explicitly approves one new story/previously unseen companion through all8pages+cover+Reader,not an old-book retry.

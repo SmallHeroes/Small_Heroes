@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Same portrait book — known-cost input-limit checkpoint, independent re-gate next (2026-10-24)
+
+- Original execution7d6d8dba exited1/input_limit BEFORE first storyboard-review claim,child or art. Actual Sol author/editor/
+  final/comparison/citation/planner6calls settled:412724base+15459cache=428183microUSD;unknown0/unsettled0;Max0. Title
+  "כרטיס לפעמון",fictionalIdo6+pandaAnat. Text admitted,planner succeeded;not a judge rejection or permission reset.
+- Measured same compiled packet121055content bytes(input107669+instructions13386),over104000;actual wire139315 also over
+  old128000provider boundary. Q=ART/r4-portrait-review-input-recovery-20261024. General opt-in storyboard-review-input-capacity/v1
+  allows208000content/240000wire REVIEW ONLY. Keeps complete source/plan/instruction/schema bytes;legacy/planner caps unchanged.
+  Actual reserve735494(floor600000)+ordinarycachemargin,within original USD7. SourceDigest16defbdc/storyboardDigest3c87535e same.
+- Code4621f21c over7d6d8dba. Pure saved-Sol replay binds original author/editor/readers/citation/planner wires/raw/output/usage,
+  reconstructs source/plan without providers. Fixed one-use technical successor follows consumed original grant/claim/failedoutcome,
+  same config/profile/bookDir and cumulative ledger. No author/editor/citation re-dispatch;first review unused,then only2remaining
+  original planners;child2/page3. No old grant repin,newbook or extra allowance. Original failed outcome remains failed.
+- Main190selected tests0,final whole tsc0;native CJS recovery codeplan02b18765... passes with0provider,2008historyhashes intact.
+  Prospective repair size78676 under original104000 confirmed with synthetic HOLD only(NOT actual judgment),so no planner cap
+  expansion. Probe's first serialized-book WeakMap refusal was a harness mistake;recompile-v2control passes,original RED retained.
+  Earlier recovery-tsc typingRED retained/fixed. Historical fullcheck remainsRED,not promoted by focused suites.
+- Next docsLAST/exact unused successor grant/independent readonly QA;then original first review and downstream only after PASS.
+  New portrait PNGs/Reader not yet produced. No further payment during diagnosis/fix. Previous3119Reader and all old records intact.
+
 ## New portrait Sol book — offline route ready for independent QA (2026-10-24)
 
 - Direct owner approval: ONE fresh fictional story/new companion/full8pages+cover+localReader; Q=ART/r4-new-book-portrait-20261024.
