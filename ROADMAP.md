@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Same Ido/panda book — narrated Reader delivered for listening (2026-10-24)
+
+- Owner-requested existing mom narration:exacttitle+8pages,9single ElevenLabs/v3calls,native0,354.53seconds. Reader3124 retains
+  approved portrait/art/text/presentation;3123immutable.327400conservative microUSD;book2639510/7m,unknown0;no newimages/Max/key.
+- Operator empty-usage F1 fixed before provider:16VM+4gate controls0,oldHOLD/RED preserved. Independent actual-outcome accuracy
+  PASS1467bounded predominantly hash/receipt checks+9ffprobe/9ffmpegdecodes;429history/189old/newapp/19assets intact. Q=ART/
+  r8-reader-mom-narration-20261024. Author actualdesktop/mobileplayback,pause/resume/manualmapping/end,HTTP18asset/ranges verified.
+- Guy listening/product judgment next;not pronunciation/image-quality/productionPASS. Original nativefailed/incompletequality
+  unchanged. No new source engine/layout change or paid retry. Publicpushstillblocked;no publication/deploy follows.
+
 ## Reader prose inset polish — independent display PASS, authorized branch push (2026-10-24)
 
 - Owner-directed12%right/8%left prose margins,~9.09%narrower,keepsRTL/right/vertical center and13..18pxfont. Shortdesktop1.4

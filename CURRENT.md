@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Same portrait book — mom narration delivered locally (2026-10-24)
+
+- Direct owner request adds narration to the existing Ido/panda book, not another story or render. Exact executed source829ae221;
+  Q=ART/r8-reader-mom-narration-20261024. Existing ElevenLabs mom/eleven_v3/he/Natural0.5, title+all8pages,9singlePOSTs, native0.
+  No source engine/layout/provider/voice/default change; same exact texts/nine portrait PNGs. New credential-free Reader3124,
+  old3123 preserved. Original failed_trial/incomplete image quality and productAcceptedfalse remain.
+- Actual9MP3s decoded,354.533877seconds.327400conservative budget microUSD + prior native2312110 =2639510/7000000;
+  separate261920list estimate, neither is an invoice. Header usage/output known, no retry/reset/newkey/OpenAI/Max/image call.
+  Fixed global narration claim consumed once; original native40calls unchanged, total49including this explicit9call supplement.
+- Independent initial operator HOLD caught blank character-cost coercion; strict trimmed digits preserves true0 but rejects blank,
+  malformed/unknown before furtherPOSTs. Original HOLD/plan/RED retained. Corrected exact unused plane6612725/operatorba3d5ad1
+  PASS:16operatorVM/four acquisition cases0. Actual outcome accuracy PASS:1467mostly-hash/receipt controls0 plus ffprobe9/ffmpeg9
+  actual decodes0;429history hashes,189old/new runtime copies and19assets preserved. Q/INDEPENDENT-OUTCOME-QA.txt
+  SHA535bfaf84829c3f7deab443ff6446d9045128edf51740efef195d593fecb8b4b, COMPLETE/RELEASE;not listening/product PASS.
+- Author actual UI verifies cover-to-page1 autoplay,pause-stable/resume,nine clip mappings/manualpages,last-page natural end,
+  mobile390x844playback;viewport reset and cover ready,console0. Existing mobile bottom pausebar stays hidden;handsfree/edge arrows
+  unchanged. HTTP18assets200/hashmatch/range206/invalid416/missing404. Initial pre-Ready fetch error retained;no server restart.
+  Initial execution permission refusal occurred before any process/claim;renewed same-command review accepted fictional-only-text
+  evidence. See VERIFICATION-NOTES,VERIFIED-BROWSER and delivery report. Hebrew pronunciation/pace acceptance remains Guy's.
+- Docs-only local closure follows source-preserving QA. No publication/order/DB/storage/production or push; prior public-push
+  refusal remains unresolved. Historical fullcheck RED is not rerun or promoted; this milestone adds no source-code diff.
+
 ## Reader narrower Hebrew column — independent display PASS, authorized push next (2026-10-24)
 
 - Owner asks less text width,more right whitespace/extra wrapping,thenpush. Same current task/source claude/book-render-20261009
