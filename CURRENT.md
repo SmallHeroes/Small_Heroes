@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Portrait canvas — independent native-contract PASS, no new generated art (2026-10-24)
+
+- Sole authorized read-only reviewer PASS on4a0c90d1..589d53c1(codef73cf022);clean/ahead51 at gate. Report SHA256
+  6da681ccd5b77ad303cb94d91595eb66aa377ddf665fd88ac0fff8fa9b6614b0 in ART/r3-portrait-canvas-20261024.
+  No verified blocker. Independent22focusedtests0 plus4364bounded assertions0,including1958history hashes twice (not4364pixel tests).
+- Independent real adapter+AuditionMeter with synthetic PNG/provider verifies1024x1536accepts;1024square/landscape refuse,
+  each one call/known680microUSD/failed1/unknown0/unsettled0/no candidate/no retry.24purpose/version plans keep sheets/anchors
+  square;16grant/layout combinations admit only identical markers;30legacybyte cases and9actualframe contexts rederived.
+- Actual native dry preview with Q-only cloned v3layout produces all9portrait contexts. ORIGINAL-PIXEL-DIMENSIONS.json confirms
+  all9original PNGs still1024x1024. Prospective files are NOT adopted layouts/grants or execution permission. No paid claim exists.
+- Main187selected tests and whole tsc0 preserved;reviewer field-name harness RED retained/additively corrected,not an engine
+  finding. Historical fullcheckRED stays. This closes the code/request/response contract,NOT actual fresh portrait AI composition.
+- Existing book/layout/grants/claims/attempts/quality/reader3119/API1967865/30/Max1609594 remain unchanged;0newprovider/0images.
+  Newv3requires a fresh exact authorized native run,not an old consumed grant or silent migration. Production/reader defaults,
+  model/LOW/0.70/semantic gates unchanged. Outcome closure docs-only after released review;no push/deploy or automatic paid resume.
+
 ## Portrait source canvas v3 — offline code verified, independent gate next (2026-10-24)
 
 - Owner explicitly wants vertical source artwork, not square. Verified cause: experimental reviewed LOW renderer hardcodes

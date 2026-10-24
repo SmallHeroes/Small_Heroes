@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Portrait canvas — independent code gate complete; generated pixels not yet tested (2026-10-24)
+
+- Exact4a0c90d1..589d53c1/codef73cf022 received independent PASS.22focused tests0;4364bounded assertions include1958history
+  hashes twice,24purpose/version cases,16nativegrant pairs,30legacybyte cases and9actualsaved frame contexts. No verified blocker.
+- Real adapter+meter synthetic returns prove portraitaccept/square-landscaperefuse,knowncost/no candidate/no retry. Actual native
+  zero-provider preview binds all9prospectivev3contexts;old9PNG dimensions confirmed square and unmodified. No new paid grant/run.
+- Main187tests/whole tsc0;harness REDs and historical fullcheckRED retained. Code-contract completion is not new portrait visual
+  or product PASS. All old authority/quality/accounting/3119reader unchanged. Future actual portrait needs exact fresh gated scope.
+
 ## Portrait source output — versioned general engine fix, independent QA next (2026-10-24)
 
 - Verified square source is the experimental LOW renderer's explicit1024x1024,not Sol/reader. Production still has portrait.
