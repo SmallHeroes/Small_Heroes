@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Story experience — owner rejection and prospective offline correction (2026-10-24)
+
+- Guy listened to the whole Ido/panda book and REJECTED story quality: boring development, therapeutic-feeling voice,
+  excessive sounds/refrain, slow rhythm and an uninteresting companion. Images/alignment were praised; no visual/layout change.
+  This is an additive product finding, not a rewrite of the paid reviewers/raw/outcome or their historical technical results.
+- Verified actual source: SOL6.1 author/editor, theme:null/just_for_fun, there_and_back,494words/eight pages. Editor strengthened
+  the ticket refrain; final reviewer ALREADY had development/voice criteria yet returned zero findings. Do not claim a missing
+  critic or an inadvertent therapy topic, or infer that another model fixes this. Normal TTS separately turns89fullstops into89
+  ellipses; pacing contribution is a hypothesis until listening comparison, not the explanation for a thin plot.
+- Q=ART/r9-story-experience-20261024; DECISION-GATE.md and DIAGNOSIS-HE.txt. Added explicit delight-first/v1 at the EXISTING
+  injected simple-book flow, engine personal-simple-story/delight-v1: author/editor prioritise unfolding experience, interplay
+  and natural Hebrew over manufactured sounds/refrains; editor can repair thin structure, within ordinary-edit authority.
+  Source admission reconstructs the frozen policy; bounded repair inherits it and cannot switch. Matching existing review
+  packets use the same citation compiler/materiality classifier. No extra stages, candidate/rubric engine, event/sound quota,
+  companion-specific patch, model/transport/budget/threshold/default/production change. Old v1 calls remain the default.
+- Final focused serial checks:200tests in4files +14selected existing flow tests passed;167flow cases intentionally filtered,
+  not suite-wide PASS. Whole nonincremental tsc0. Real old source admitted/two readings recompiled with identical old author/
+  editor calls and review packet digests;698book/narration file/link hashes preserved. Initial synthetic-fixture and wrapper-
+  expectation RED retained/corrected; no source validator weakened. Fullcheck remains historical RED, not rerun/promoted.
+- ZERO real provider/image/audio/Max calls, no new key/claim/authority use or counter reset. Consumed book/narration grants and
+  reader3124 untouched. Independent read-only QA pending against the focused local commit; author cannot self-award PASS.
+  This proves wiring/compatibility only: no fresh story or literary improvement proven. Next product proof is a separately
+  scoped text-only trial/blind reading before another illustrated book; no automatic paid rerun from old unused budget.
+
 ## Same portrait book — mom narration delivered locally (2026-10-24)
 
 - Direct owner request adds narration to the existing Ido/panda book, not another story or render. Exact executed source829ae221;

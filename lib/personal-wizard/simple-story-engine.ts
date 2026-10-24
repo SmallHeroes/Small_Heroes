@@ -10,6 +10,8 @@ import { personalStoryPlanSchema, personalManuscriptSchema, personalStoryResultS
 import { measureStoryText } from './story-text-metrics';
 import { getCompanionById } from '../companions';
 import { companionAppearanceStateAuthorityIssues } from '../companion-appearance-state';
+import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_AUTHOR_INSTRUCTIONS, DELIGHT_EDITOR_INSTRUCTIONS,
+  type SimpleStoryExperience } from './simple-story-experience';
 
 /**
  * Simple story engine: one Opus author call writes the whole book prose-first,
@@ -87,13 +89,13 @@ Look for:
 Return the complete edited story, every page map field updated to match it exactly (in Hebrew), and a short list of your main changes.`;
 
 const line = z.string().min(1).max(700);
-const storyFields = (pages: number) => ({
+const storyFields = (pages: number, experience?: SimpleStoryExperience) => ({
   title: z.string().min(1).max(120).describe('The book title.'),
   pages: z.array(z.object({ text: z.string().min(20).max(1500).describe('The full text of this page (one double spread).') }).strict())
     .min(pages).max(pages).describe(`Exactly ${pages} pages of story text, in reading order.`),
   childGoal: line.describe('What the child wants in this story, in one sentence.'),
   companionWant: line.describe('What the companion wants in this story, in one sentence.'),
-  comicPromise: line.describe('The main running joke or comic engine of the book.'),
+  comicPromise: line.describe(experience ? 'The central comic or playful pleasure of the story; a recurring gag is optional.' : 'The main running joke or comic engine of the book.'),
   pageMap: z.array(z.object({
     location: line.describe('Where this page happens.'),
     transitionReason: line.describe('Why the story arrives at this page\'s situation; for page 1, how the story begins.'),
@@ -110,8 +112,8 @@ const storyFields = (pages: number) => ({
   }).strict()).min(1).max(4).describe('One to four pages where the child meets the theme or, with no theme, where the child\'s own choice or action turns the story.'),
   ending: line.describe('How the story ends, in one sentence.'),
 });
-export const simpleStoryDraftSchema = (pages: number) => z.object(storyFields(pages)).strict();
-export const simpleStoryEditSchema = (pages: number) => z.object({ ...storyFields(pages),
+export const simpleStoryDraftSchema = (pages: number, experience?: SimpleStoryExperience) => z.object(storyFields(pages, experience)).strict();
+export const simpleStoryEditSchema = (pages: number, experience?: SimpleStoryExperience) => z.object({ ...storyFields(pages, experience),
   editorChanges: z.array(z.string().min(1).max(400)).max(12).describe('Your main changes, briefly.') }).strict();
 export type SimpleStoryDraft = z.infer<ReturnType<typeof simpleStoryDraftSchema>>;
 
@@ -214,7 +216,8 @@ function companionAppearance(id: string) {
 
 const APPEARANCE_TASK = 'Take only physical appearance (body, anatomy, colours, markings, scale and accessories) from book.companion.appearance. Personality, feelings and plot motifs in this legacy visual text are not authority; literary tendencies come from book.companion.character, and the current role comes from this adventure. Physical details are constraints, not a plot or a prose checklist; an allowed appearance state needs support in this story. Unresolved means no declared colour, exact scale or permanent accessory, not permission to invent them; use the supplied character embodiment.';
 
-export function prepareSimpleStory(input: unknown, options: PersonalWizardOptions, seed = '') {
+export function prepareSimpleStory(input: unknown, options: PersonalWizardOptions, seed = '', experience?: SimpleStoryExperience) {
+  if (experience !== undefined && experience !== SIMPLE_STORY_EXPERIENCE) fail('simple_story_experience_invalid');
   // Same acceptance, identity, companion authority and brief as the current writer.
   const { accepted, brief } = preparePersonalStory(input, options);
   const shape = pickStoryShape(accepted.requestId, seed);
@@ -225,8 +228,9 @@ export function prepareSimpleStory(input: unknown, options: PersonalWizardOption
     companion: { shortName: companionShortName(character.name), character, appearance: companionAppearance(character.companionId) },
     theme: brief.topic ?? null, avoidSubjects: brief.excludedSubjects,
     storyShape: shape.spine, pages: brief.beats, wordsPerPage: simpleStoryWordTarget(brief.child.age),
+    ...(experience ? { storyExperience: experience } : {}),
   };
-  return { version: SIMPLE_STORY_ENGINE_VERSION, accepted, brief, seed, shape, book };
+  return { version: experience ? SIMPLE_STORY_DELIGHT_VERSION : SIMPLE_STORY_ENGINE_VERSION, accepted, brief, seed, shape, book };
 }
 export type PreparedSimpleStory = ReturnType<typeof prepareSimpleStory>;
 export type SimpleStoryCall = { stage: 'author' | 'editor'; instructions: string; input: string; schema: ZodTypeAny; maxOutputTokens: number };
@@ -239,14 +243,18 @@ export type SimpleEditorGuidance = {
 
 export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
-  return { stage: 'author', instructions: SIMPLE_AUTHOR_INSTRUCTIONS, schema: simpleStoryDraftSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
+  const experience = prepared.book.storyExperience;
+  return { stage: 'author', instructions: experience ? DELIGHT_AUTHOR_INSTRUCTIONS : SIMPLE_AUTHOR_INSTRUCTIONS,
+    schema: simpleStoryDraftSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book,
       task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. ${APPEARANCE_TASK} Keep companion descriptions consistent with that physical appearance.` }) };
 }
 export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleStoryDraft, findings: readonly string[],
   guidance?: SimpleEditorGuidance): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
-  return { stage: 'editor', instructions: SIMPLE_EDITOR_INSTRUCTIONS, schema: simpleStoryEditSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
+  const experience = prepared.book.storyExperience;
+  return { stage: 'editor', instructions: experience ? DELIGHT_EDITOR_INSTRUCTIONS : SIMPLE_EDITOR_INSTRUCTIONS,
+    schema: simpleStoryEditSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },
       mechanicalFindings: [...findings], ...(guidance ? { readerObservations: guidance } : {}),
       task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK} Check and correct conflicting draft descriptions.` +
@@ -340,7 +348,7 @@ export type SimpleStoryGenerate = (call: SimpleStoryCall) => Promise<{ output: u
  * and a book whose edited text fails a hard check is not produced.
  */
 export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: SimpleStoryGenerate, args: { model: string; reservedUsd: number }) {
-  const source = { version: 'personal-simple-writing-source/v1' as const, engineVersion: SIMPLE_STORY_ENGINE_VERSION,
+  const source = { version: 'personal-simple-writing-source/v1' as const, engineVersion: prepared.version,
     requestId: prepared.accepted.requestId, optionsFingerprint: prepared.accepted.optionsFingerprint,
     characterDigest: prepared.brief.companion.characterDigest, bookDigest: digest(prepared.book) };
   const usage: StoryUsage[] = [], costs: (number | null)[] = [];

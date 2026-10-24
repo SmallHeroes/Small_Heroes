@@ -12,6 +12,7 @@ import { preparePersonalStory } from './story-writer';
 import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 import { opusOutputContract } from '../../scripts/personal-causal-trial-adapters';
 import { SOL_WRITING } from './sol-writing-route';
+import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_REVIEW_INSTRUCTIONS } from './simple-story-experience';
 import { replaySettlement } from '../../scripts/personal-response-settlement';
 
 export const CURRENT_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1' as const;
@@ -23,7 +24,7 @@ const MODEL = CAUSAL_MODELS.opus; // Existing approved diagnostic authority, not
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const micro = z.number().finite().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const usage = z.object({ inputTokens: micro, outputTokens: micro }).strict();
-const binding = z.object({ version: z.literal('personal-simple-writing-source/v1'), engineVersion: z.literal(SIMPLE_STORY_ENGINE_VERSION),
+const binding = z.object({ version: z.literal('personal-simple-writing-source/v1'), engineVersion: z.enum([SIMPLE_STORY_ENGINE_VERSION, SIMPLE_STORY_DELIGHT_VERSION]),
   requestId: hash, optionsFingerprint: hash, characterDigest: hash, bookDigest: hash }).strict();
 const cliReceipt = z.object({ version: z.literal('simple-cli-receipt-projection/v1'), stage: z.enum(['author', 'editor']),
   callDigest: hash, outputDigest: hash, recordDigest: hash, sessionId: z.string().uuid(), model: z.literal(MODEL),
@@ -54,14 +55,20 @@ const callDigest = (call: SimpleStoryCall) => digest({ i: call.instructions, x: 
 export class SimpleStorySourceError extends Error { constructor(readonly code: string) { super(`simple_story_source_${code}`); } }
 const fail = (code: string): never => { throw new SimpleStorySourceError(code); };
 
+/** Reconstruct from the immutable source contract, never the caller's current preference or a default upgrade. */
+function prepareFromEvidence(request: unknown, options: PersonalWizardOptions, raw: unknown) {
+  const candidate = z.object({ seed: z.string(), source: binding }).passthrough().parse(raw);
+  return prepareSimpleStory(request, options, candidate.seed,
+    candidate.source.engineVersion === SIMPLE_STORY_DELIGHT_VERSION ? SIMPLE_STORY_EXPERIENCE : undefined);
+}
+
 /** Exactly the existing HOLD predicate, shared by approval and repair admission. */
 export function simpleStoryFindingIsMaterial(f: { severity: string; kind: string }) {
   return f.severity === 'blocking' || f.kind !== 'preference' && f.kind !== 'improvement' && f.severity !== 'polish';
 }
 
 export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpleStoryResult, options: PersonalWizardOptions) {
-  const candidate = z.object({ seed: z.string() }).passthrough().parse(result.simpleSource.evidence);
-  const prepared = prepareSimpleStory(request, options, candidate.seed);
+  const prepared = prepareFromEvidence(request, options, result.simpleSource.evidence);
   const evidence = evidenceSchema(prepared.book.pages).parse(result.simpleSource.evidence);
   const repaired = result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || result.simpleSource.version === SOL_REPAIRED_SOURCE_VERSION;
   const baseline = result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || result.simpleSource.version === SOL_REPAIRED_SOURCE_VERSION
@@ -69,7 +76,11 @@ export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpl
   const original = compileSimpleStory(prepared, baseline, result.accounting, repaired);
   const document = (r: typeof original) => ({ plan: r.plan, manuscript: r.manuscript,
     characterDigest: prepared.brief.companion.characterDigest });
-  return causalReviewPackets(preparePersonalStory(request, options), document(original), document(result));
+  const packets = causalReviewPackets(preparePersonalStory(request, options), document(original), document(result));
+  if (prepared.version === SIMPLE_STORY_DELIGHT_VERSION) {
+    for (const packet of Object.values(packets)) packet.instructions += DELIGHT_REVIEW_INSTRUCTIONS;
+  }
+  return packets;
 }
 
 /** All material claims or no repair. No scores, summaries, preferences, proposed fixes or silent cap omissions. */
@@ -95,8 +106,8 @@ export function prepareSimpleStoryRepair(request: unknown, priorRaw: unknown, re
         criterion: f.criterion, original: structuredClone(f.original), revised: structuredClone(f.revised), explanation: f.explanation }];
     }));
     if (!findings.length || findings.length > 6) return fail('repair_finding_limit');
-    const seed = z.object({ seed: z.string() }).passthrough().parse(prior.simpleSource.evidence).seed;
-    const prepared = prepareSimpleStory(request, options, seed), priorEvidence = evidenceSchema(prepared.book.pages).parse(prior.simpleSource.evidence);
+    const prepared = prepareFromEvidence(request, options, prior.simpleSource.evidence);
+    const priorEvidence = evidenceSchema(prepared.book.pages).parse(prior.simpleSource.evidence);
     const guidance: SimpleEditorGuidance = { version: 'source-bound-simple-editor-guidance/v1', requestId: prior.requestId,
       targetDigest: digest(priorEvidence.edited), readingDigests: readings.map(causalDigest), findings };
     if (Buffer.byteLength(canonicalJson(guidance), 'utf8') > 12000) return fail('repair_guidance_limit');
@@ -167,11 +178,10 @@ export function admitCurrentSimpleStorySource(request: unknown, raw: unknown, op
     const model = sol ? SOL_WRITING.model : MODEL;
     if (simpleSource.author.model !== model || simpleSource.editor.model !== model) return fail('receipt_route');
     (simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || simpleSource.version === SOL_REPAIRED_SOURCE_VERSION ? personalSimpleRepairResultSchema : personalStoryResultSchema).parse(common);
-    const candidate = z.object({ seed: z.string() }).passthrough().parse(simpleSource.evidence);
-    const prepared = prepareSimpleStory(request, options, candidate.seed);
+    const prepared = prepareFromEvidence(request, options, simpleSource.evidence);
     if (prepared.book.companion.appearance.status !== 'registry_declared') return fail('appearance_unresolved');
     const evidence = evidenceSchema(prepared.book.pages).parse(simpleSource.evidence);
-    const expectedBinding = { version: 'personal-simple-writing-source/v1', engineVersion: SIMPLE_STORY_ENGINE_VERSION,
+    const expectedBinding = { version: 'personal-simple-writing-source/v1', engineVersion: prepared.version,
       requestId: prepared.accepted.requestId, optionsFingerprint: prepared.accepted.optionsFingerprint,
       characterDigest: prepared.brief.companion.characterDigest, bookDigest: digest(prepared.book) };
     if (canonicalJson(evidence.source) !== canonicalJson(expectedBinding) || evidence.shape !== prepared.shape.id) return fail('writing_binding');
@@ -238,8 +248,7 @@ export function createRepairedSimpleStorySource(request: unknown, prior: unknown
 export function createCurrentSimpleStorySource(request: unknown, generated: { result: unknown; evidence: unknown },
   records: { author: unknown; editor: unknown }, options: PersonalWizardOptions, writingModel: SimpleWritingModel = MODEL): CurrentSimpleStoryResult {
   try {
-    const seed = z.object({ seed: z.string() }).passthrough().parse(generated.evidence).seed;
-    const prepared = prepareSimpleStory(request, options, seed);
+    const prepared = prepareFromEvidence(request, options, generated.evidence);
     const evidence = evidenceSchema(prepared.book.pages).parse(generated.evidence);
     if (writingModel !== MODEL && writingModel !== SOL_WRITING.model) return fail('receipt_route');
     const project = writingModel === SOL_WRITING.model ? projectSimpleSolReceipt : projectSimpleCliReceipt;
