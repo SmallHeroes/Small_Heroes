@@ -17,6 +17,7 @@ import { generationTimeoutMs, type StoryModel } from './story-config';
 import { BOOK_LIMITS, personalBookOutputLimits } from './book-config';
 import type { BookVisualCall, PersonalBookProvider } from './book-runner';
 import type { StoryUsage } from './story-contract';
+import { storyboardReviewCapacity } from './storyboard-review-capacity';
 
 export class BookProviderError extends Error {
   providerUsage?: StoryUsage;
@@ -24,6 +25,8 @@ export class BookProviderError extends Error {
 }
 const hash = /^[a-f0-9]{64}$/;
 export function personalBookProviderSchema(call: BookVisualCall) {
+  const capacity = storyboardReviewCapacity(call.context.reviewCapacity);
+  if (capacity && call.stage !== 'review') throw new BookProviderError('book_provider_context');
   if (call.context.actorOwnedAppearance !== undefined && call.context.actorOwnedAppearance !== true) throw new BookProviderError('book_provider_context');
   if (call.context.momentContract !== undefined && call.context.momentContract !== true) throw new BookProviderError('book_provider_context');
   if (call.context.landmarkKindContract !== undefined && call.context.landmarkKindContract !== true) throw new BookProviderError('book_provider_context');
@@ -139,8 +142,10 @@ export function personalBookProviderPayload(call: BookVisualCall, model: StoryMo
     if (call.maxOutputTokens !== expectedTokens) throw new BookProviderError('book_provider_context');
     const payload = { model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions: call.instructions + '\nProvider output: ordered arrays have NO pageNumber; book/continuity start with cover. Review fixed groups have NO category/hash/pageNumber metadata.',
-      input: call.input, max_output_tokens: call.maxOutputTokens, text: { format: zodTextFormat(schema, `personal_book_${call.stage}`) } };
-    if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > BOOK_LIMITS.inputBytesPerCall) throw new BookProviderError('book_provider_input_limit');
+      input: call.input, max_output_tokens: call.maxOutputTokens, text: { format: zodTextFormat(schema, `personal_book_${call.stage}`) },
+      ...(call.context.reviewCapacity ? { metadata: { storyboard_review_capacity: call.context.reviewCapacity } } : {}) };
+    const capacity = storyboardReviewCapacity(call.context.reviewCapacity);
+    if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > (capacity?.wireBytes ?? BOOK_LIMITS.inputBytesPerCall)) throw new BookProviderError('book_provider_input_limit');
     return payload;
 }
 

@@ -21,6 +21,8 @@ export async function runSimpleWizardBook(args: {
   opus: (call: SimpleStoryCall, signal: AbortSignal) => Promise<TransportReply>;
   /** Explicit prospective writer route; absence keeps the historical CLI/Opus source contract. */
   writingModel?: SimpleWritingModel;
+  /** Prospective review-only transport headroom; never changes planner or semantic criteria. */
+  reviewCapacity?: import('./storyboard-review-capacity').StoryboardReviewCapacity;
   reader: (call: SimpleBookReadingCall, signal: AbortSignal) => Promise<unknown>;
   visual: (call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<unknown>;
   publish: (view: SimpleBookView) => void; reservedWritingUsd: number;
@@ -61,7 +63,7 @@ export async function runSimpleWizardBook(args: {
   if (repair && repair.prepared.seed !== args.seed) fail('simple_book_repair_seed');
   if (repair && args.writingModel && repair.prior.accounting.model !== args.writingModel) fail('simple_book_repair_model');
   const bindingValue = () => ({ request: args.request, options: args.options, seed: args.seed, ...(args.repair ? { repair: args.repair } : {}),
-    ...(args.writingModel ? { writingModel: args.writingModel } : {}) });
+    ...(args.writingModel ? { writingModel: args.writingModel } : {}), ...(args.reviewCapacity ? { reviewCapacity: args.reviewCapacity } : {}) });
   const binding = canonicalJson(bindingValue());
   const check = () => {
     if (args.signal.aborted) fail('simple_book_cancelled');
@@ -120,7 +122,7 @@ export async function runSimpleWizardBook(args: {
   if (material) { publish('held'); return { status: 'story_held' as const, source, generated, readings, storyboard: null, runtimeEligible: false as const }; }
   publish('storyboard');
   const storyboard = await runSimpleStoryboardDiagnostic({ request: args.request, writerResult: source,
-    options: args.options, signal: args.signal, actorOwnedAppearance: args.actorOwnedAppearance,
+    options: args.options, signal: args.signal, actorOwnedAppearance: args.actorOwnedAppearance, reviewCapacity: args.reviewCapacity,
     ...(args.momentContract ? { momentContract: true as const } : {}), ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
     ...(args.sceneLocationContract ? { sceneLocationContract: true as const } : {}),
     ...(args.compilerRulesContract ? { compilerRulesContract: true as const } : {}),

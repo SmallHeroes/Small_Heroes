@@ -626,8 +626,11 @@ const visualModel = (call: SimpleStoryboardDiagnosticCall) => call.stage === 're
 const plannerRequestDigest = (call: SimpleStoryboardDiagnosticCall) => previewSha(canonicalJson(plannerRequest(call)));
 /** The largest storyboard or review request this experiment sends (the provider payload builder's own input limit). */
 const VISUAL_WIRE_LIMIT = BOOK_LIMITS.inputBytesPerCall;
+import { storyboardReviewCapacity } from '../lib/personal-wizard/storyboard-review-capacity';
 function visualReservation(call: SimpleStoryboardDiagnosticCall, payload: unknown) {
-  const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > VISUAL_WIRE_LIMIT) fail('new_book_wire_limit');
+  const capacity = storyboardReviewCapacity((payload as any)?.metadata?.storyboard_review_capacity);
+  if (capacity && call.stage !== 'review') fail('new_book_review_capacity_stage');
+  const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > (capacity?.wireBytes ?? VISUAL_WIRE_LIMIT)) fail('new_book_wire_limit');
   return wireReservation(wireBytes, call.maxOutputTokens, visualRate(call));
 }
 /**

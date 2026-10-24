@@ -17,6 +17,7 @@ import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
 import { stateParityReviewerCalibration, STATE_PARITY_REVIEW_ADDENDUM } from './storyboard-state-parity';
+import { storyboardReviewCapacity, type StoryboardReviewCapacity } from './storyboard-review-capacity';
 
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
 export const SIMPLE_STORYBOARD_INPUT_LIMIT = 104_000;
@@ -65,6 +66,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   request: unknown; writerResult: unknown; options: PersonalWizardOptions; signal: AbortSignal;
   generate: (call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<unknown>;
   inputByteLimit?: number;
+  /** REVIEW only; keeps complete input bytes and planner/default capacities unchanged. */
+  reviewCapacity?: StoryboardReviewCapacity;
   actorOwnedAppearance?: true;
   /** Opt-in drawn-instant/page-meaning contract; absent keeps the exact existing calls. */
   momentContract?: true;
@@ -107,6 +110,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   if (args.presenceContract !== undefined && (args.presenceContract !== true || args.calibrationContract !== true)) fail('presence_policy');
   if (args.stateParityContract !== undefined && (args.stateParityContract !== true || args.calibrationContract !== true || args.visibleMomentContract !== true)) fail('state_parity_policy');
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
+  const reviewCapacity = storyboardReviewCapacity(args.reviewCapacity);
+  if (reviewCapacity && args.inputByteLimit !== undefined) fail('input_policy');
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
@@ -129,15 +134,16 @@ export async function runSimpleStoryboardDiagnostic(args: {
       fail('source_changed');
     }
   };
-  const measure = (instructions: string, input: string) => {
+  const measure = (instructions: string, input: string, stage: 'storyboard' | 'review' = 'storyboard') => {
     const contentBytes = Buffer.byteLength(instructions, 'utf8') + Buffer.byteLength(input, 'utf8');
-    if (contentBytes > limit) fail('input_limit');
-    return { contentBytes, contentByteLimit: limit, headroomBytes: limit - contentBytes };
+    const selectedLimit = stage === 'review' && reviewCapacity ? reviewCapacity.contentBytes : limit;
+    if (contentBytes > selectedLimit) fail('input_limit');
+    return { contentBytes, contentByteLimit: selectedLimit, headroomBytes: selectedLimit - contentBytes };
   };
   const dispatch = async (call: SimpleStoryboardDiagnosticCall) => {
     assertCurrent();
     const { schema: _schema, ...record } = call;
-    calls.push({ ...record, context: { ...record.context }, ...measure(call.instructions, call.input) });
+    calls.push({ ...record, context: { ...record.context }, ...measure(call.instructions, call.input, call.stage) });
     let output: unknown;
     try { output = await args.generate(call, args.signal); }
     catch { return fail(args.signal.aborted ? 'cancelled' : `${call.stage}_callback_failed`); }
@@ -175,7 +181,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),
       ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
-      ...(args.stateParityContract ? { stateParityContract: true as const } : {}) } });
+      ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
+      ...(reviewCapacity ? { reviewCapacity: reviewCapacity.version } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();
   // Supported, or (typed policy only) supported with bound detail notes, which the packets then carry.
