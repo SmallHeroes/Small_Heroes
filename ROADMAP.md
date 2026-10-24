@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Portrait source output — versioned general engine fix, independent QA next (2026-10-24)
+
+- Verified square source is the experimental LOW renderer's explicit1024x1024,not Sol/reader. Production still has portrait.
+  Codef73cf022 introduces opt-in framingv3/native1024x1536 cover/body/scene repair;anchors/sheets and oldv1/v2 stay square.
+- Source canvas is explicit in the same frame/QA contract and exact native grant version;request,wire reservation and actual
+  returned dimensions agree. Wrong-size response is counted/stopped,not stretched/retried. Smaller-camera targets preserved.
+-75focused+54trial+58selectednative tests0;233native deselected;whole tsc0.42legacybyte/3wire/9actualprospectiveframe checks0,
+  1958history preserved. Test-harness RED and tests-first RED retained. No broad/fullcheckGREEN or generatedportrait pixel claim.
+-0paid calls/images;current square book/3119reader/oldQA/consumed authority/accounting unchanged. No new run/permission or silent
+  migration of fixed trials. Exact futurev3paid source test remains separate after codeQA/fresh authority. DocsLAST/read-onlyQA next.
+
 ## Complete-artwork reader — independently gated and delivered locally (2026-10-24)
 
 - Exact7dd92ecc..011367f1/codee0d3cf96 passed sole read-only independent reviewer;32targetedtests0,21exactv1bytecases,

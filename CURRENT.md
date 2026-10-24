@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Portrait source canvas v3 — offline code verified, independent gate next (2026-10-24)
+
+- Owner explicitly wants vertical source artwork, not square. Verified cause: experimental reviewed LOW renderer hardcodes
+  1024x1024 in request,price rule and returned-image validation (trial path since2026-10-08/09);the production backend/default
+  remains1024x1536. All9saved page/cover wires are actually square. Neither Sol nor ReaderV2contain selected this size.
+- Code f73cf022(parent4a0c90d1) adds explicit reader-safe-scene-framing/v3:sourceCanvas1024x1536/2:3 plus unchanged v2camera
+  targets30/40/50%,55%ceiling/8%margin. Existing v1/v2/absence JSON,prompt and square wires remain exact. No old data migration.
+- Shared native renderer selects portrait only for bound v3book_identity/book_scene_edit scenes;child/style anchors and explicit
+  book_design sheets remain square. Actual runReviewedAudition/trial scene adapters receive the admitted layout marker;diagnostic
+  first-operation preview does too. Native grant/layout marker equality remains exact. No inference from filename/prompt/env.
+- Portrait wire must have its exact v3marker andLOW/gpt-image-2/n1/8192reservation;other size/marker combinations refuse.
+  Returned actual dimensions must match request;wrong square/landscape costs remain counted and no candidate is persisted/retried.
+  Shared actual frame/render/QA context binds the full canvas;numeric framing staysdetail and0.70/age/safety/uncertainty unchanged.
+-75focusedtests/5files,54trialtests/1file and58selectednative meter/plan cases exit0 (233deselected,not failures). Whole npx tsc0
+  on final bytes.42v1/v2exact-byte cases,3legacywire cases,9actualsaved frames prospectivev3,1958oldhashes preserved,provider0.
+  Tests-first9/13RED retained;later72/3RED was a new test beforeEach returning a mock as cleanup,corrected to void,not a gate change.
+- Q=ART/r3-portrait-canvas-20261024. This is offline code/fixture evidence,NOT fresh portrait generated art or new paid authority.
+  Current consumed book/layout/grants/claims/PNGs/quality remainv1/square/held;API1967865/30 andMax1609594resource unchanged.
+  Fixed historical trial constants/repair authorities are not reopened. Newv3requires exact fresh authorized layout/grant;old
+  production defaults/model/LOW/no-retry/accounting remain. Current reader3119 unchanged. No crop/stretch/pixel edit/rerender,
+  newtask/worktree/agent/key/monitor,production,push/deploy/cleanup. Next:docsLAST then same authorized read-only reviewer.
+
 ## Complete-artwork reader — independent code/live-reader PASS, zero-spend delivery (2026-10-24)
 
 - Independent read-only gate PASS for immutable7dd92ecc..011367f1 (codee0d3cf96,docsLAST011367f1), clean/ahead48 at review.
