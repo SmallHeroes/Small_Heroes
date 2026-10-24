@@ -1,5 +1,19 @@
 # SmallHeroes — Current Technical State
 
+## Reader narrower Hebrew column — owner-approved, independent gate next (2026-10-24)
+
+- Owner asks less text width,more right whitespace/extra wrapping,thenpush. Same current task/source claude/book-render-20261009
+  over901f8070;codeba0dadbc,2files. Q=ART/r7-reader-prose-inset-20261024.12%right/8%left replaces6%/6%:~9.09%narrower.
+  Actual1440textwidth460.92->419.02px;rightinset31.43->62.85px. Font13..18px/rightRTL/verticalauto-centering unchanged.
+- Initial19pxoverflow at1024x640fixed generally with1.4leading onlydesktop>=1024width/<=700height;normal1.5preserved. Final
+  32actual8page x4desktop sizes allfit/center<1px/formattedtextpreserved/nohorizontaloverflow. Actual dimensions and nativepage
+  asserted;initial wrong-tab/fixed-viewport campaign retained but not used as proof. Mobile390x844same geometry,font and overlay.
+-96focusedtests0,whole npx tsc0;test-first3pass/1fail retained. OldR6runtime/app189+assets10 and230protectedbook/history entries
+  preserved,newcredential-free3123preview,no newrender/provider/audio/text/ledger/quality or production-default change. Existing
+  mobile crop/gradient/scroll trade-offs and bookquality incomplete remain. Existing fullcheckRED not rerun/promoted.
+- Independent readonly four-file frozen re-gate next. Owner explicitly authorized normal push to existing named branch,including
+  its prior64unpushed commits;remote82dfb5a3verified beforework. No force/reset/merge/main/deploy;final remote verification inQ.
+
 ## Reader immersive mobile + centered desktop + landing handoff — independent display PASS (2026-10-24)
 
 - Direct owner request implemented in current task/source claude/book-render-20261009 over737ca6d6;codef5443856,7files.
