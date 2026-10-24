@@ -202,8 +202,7 @@ export const NEW_BOOK_SCALE_COMPARISON = Object.freeze({
   reuseSheets: Object.freeze(['locations'] as const),
 });
 const SOL = 'gpt-6.1-sol' as const;
-const RATES = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 },
-  sol: { inputMicroUsdPerToken: 2, outputMicroUsdPerToken: 10 } };
+import { RESPONSE_RATES as RATES, answerSettlement, replaySettlement } from './personal-response-settlement';
 /** Paid API calls per stage: two readers + storyboard + review; child render + judge, repair render + judge. */
 const TEXT_API_CALLS = 4, CHILD_API_CALLS = 4;
 /** The continuation calls the storyboard and its review only. */
@@ -637,21 +636,11 @@ function visualReservation(call: SimpleStoryboardDiagnosticCall, payload: unknow
  * with it live (visualSettlement), and it is the story readers' transport rule too (the same formula, pinned against that transport by test):
  * every replay or later read of saved records re-derives it and must find exactly what was recorded.
  */
-function answerSettlement(rate: Rates, outputCap: number, model: string, response: unknown) {
-  const r = (response && typeof response === 'object' ? response : {}) as { model?: unknown; service_tier?: unknown; status?: unknown;
-    output_text?: unknown; usage?: { input_tokens?: unknown; output_tokens?: unknown } | null };
-  const usage = safeUsage(r.usage ? { inputTokens: r.usage.input_tokens, outputTokens: r.usage.output_tokens } : null);
-  const estimatedMicroUsd = usage && r.model === model && r.service_tier === 'default'
-    ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
-  const valid = r.model === model && r.service_tier === 'default' && r.status === 'completed' && !!r.output_text && !!usage &&
-    usage.outputTokens <= outputCap;
-  return { usage, estimatedMicroUsd, valid };
-}
 /** A storyboard or review answer's settlement, from its raw provider response and the exact request (the live call settles with this). */
 function visualSettlement(call: SimpleStoryboardDiagnosticCall, payload: { model: string }, response: unknown) {
   return answerSettlement(visualRate(call), call.maxOutputTokens, payload.model, response);
 }
-export const replaySettlement = { answer: answerSettlement, rates: RATES };
+export { replaySettlement } from './personal-response-settlement';
 async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void;
   contracts: TextContracts; transports?: TextTransports; storyboardRepair?: StoryboardRepair;
   /** Opt-in: the storyboard call goes to the Opus planner on the Claude Max route (journaled in claudeMax), only for exactly this request. */

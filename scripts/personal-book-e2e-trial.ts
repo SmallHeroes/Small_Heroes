@@ -127,7 +127,7 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
     profileSha:config.profileSha,engine:{head:git('rev-parse','HEAD'),branch:git('branch','--show-current')},
     ...(config.cycle===PORTRAIT_BOOK_TRIAL.id?{operator:{file:config.operatorFile,sha:config.operatorSha}}:{}),
     pins:Object.fromEntries([...PINNED,...(readerSafe?['lib/storybook-scene-framing.ts','lib/local-story-preview.ts']:[]),
-      ...(portrait?['scripts/personal-sol-writing-transport.ts','scripts/personal-sol-cache-budget.ts','lib/personal-wizard/simple-book-flow.ts',
+      ...(portrait?['scripts/personal-sol-writing-transport.ts','scripts/personal-response-settlement.ts','scripts/personal-sol-cache-budget.ts','lib/personal-wizard/simple-book-flow.ts',
         'lib/personal-wizard/simple-story-source.ts','lib/personal-wizard/sol-writing-route.ts','lib/personal-wizard/storyboard-state-parity.ts']:[]),...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
     requestId:context.prepared.accepted.requestId,limits:{...trial},contracts:{...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true}: {}),...(portrait?{stateParityContract:true}:{})},

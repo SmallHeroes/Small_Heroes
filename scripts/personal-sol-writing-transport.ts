@@ -6,7 +6,7 @@ import type { SimpleStoryboardDiagnosticCall } from '../lib/personal-wizard/simp
 import { personalBookProviderPayload, decodePersonalBookProviderOutput } from '../lib/personal-wizard/book-openai';
 import { compactSchemaDefinitions } from './personal-opus-storyboard-transport';
 import { opusOutputContract, CausalTransportError, wireReservation, type TransportReply } from './personal-causal-trial-adapters';
-import { replaySettlement } from './personal-new-book-experiment';
+import { replaySettlement } from './personal-response-settlement';
 import type { MeterRule } from './personal-simple-book-reviewed-audition';
 import { hostFail } from './personal-causal-trial-journal';
 import { SOL_WRITING } from '../lib/personal-wizard/sol-writing-route';

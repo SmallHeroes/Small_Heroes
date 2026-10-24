@@ -12,7 +12,7 @@ import { preparePersonalStory } from './story-writer';
 import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 import { opusOutputContract } from '../../scripts/personal-causal-trial-adapters';
 import { SOL_WRITING } from './sol-writing-route';
-import { prepareSolWritingWire, solWritingRuleFor } from '../../scripts/personal-sol-writing-transport';
+import { replaySettlement } from '../../scripts/personal-response-settlement';
 
 export const CURRENT_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1' as const;
 export const REPAIRED_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1-repair' as const;
@@ -145,8 +145,9 @@ export function projectSimpleSolReceipt(call: SimpleStoryCall, raw: unknown): z.
       metadata: z.object({ reportedModel: z.literal(SOL_WRITING.model), serviceTier: z.literal('default'), responseId: z.string(),
         status: z.literal('completed'), kind: z.literal('provider_reported_usage_estimate_not_invoice') }).strict(),
     }).passthrough().parse(raw);
-    const wire = prepareSolWritingWire(call), settled = solWritingRuleFor(call.stage).settle(wire, saved, true);
-    if (!settled.coherent || settled.estimatedMicroUsd !== saved.estimatedMicroUsd || saved.metadata.responseId !== saved.raw.id) return fail('receipt_invalid');
+    const settled = replaySettlement.answer(replaySettlement.rates.sol, call.maxOutputTokens, SOL_WRITING.model, saved.raw);
+    if (!settled.valid || settled.estimatedMicroUsd !== saved.estimatedMicroUsd || canonicalJson(settled.usage) !== canonicalJson(saved.usage) ||
+        saved.metadata.responseId !== saved.raw.id) return fail('receipt_invalid');
     const output = call.schema.parse(saved.output), decoded = opusOutputContract(call).decode(JSON.parse(saved.raw.output_text));
     if (canonicalJson(saved.output) !== canonicalJson(output) || canonicalJson(output) !== canonicalJson(decoded)) return fail('receipt_output');
     return solReceipt.parse({ version: 'simple-responses-receipt-projection/v1', stage: call.stage, callDigest: callDigest(call),
