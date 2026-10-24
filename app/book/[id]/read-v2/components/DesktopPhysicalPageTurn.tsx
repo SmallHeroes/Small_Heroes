@@ -20,6 +20,7 @@ import {
 import {
   createDesktopPhysicalPageTurnSettler,
   createDesktopPhysicalPageTurnUnmountGuard,
+  desktopPhysicalPageTurnOpacity,
   DESKTOP_PHYSICAL_PAGE_TURN_MS,
   scheduleDesktopPhysicalPageTurnHandoff,
   type DesktopPhysicalPageTurn as DesktopPhysicalPageTurnState,
@@ -28,7 +29,6 @@ import {
 type PaperSide = DesktopBookPageSide;
 
 const PHYSICAL_TURN_FACE_BLEED_PX = 0.5;
-const PHYSICAL_TURN_HANDOFF_START = 0.88;
 
 function easeInOutSine(value: number): number {
   return -(Math.cos(Math.PI * value) - 1) / 2;
@@ -127,13 +127,11 @@ function setSheetPose(
   sourceRect: DOMRect,
   targetRect: DOMRect,
   progress: number,
+  timelineProgress = progress,
 ) {
   const clamped = Math.min(1, Math.max(0, progress));
   const arc = Math.sin(clamped * Math.PI);
-  const handoffOpacity = clamped <= PHYSICAL_TURN_HANDOFF_START
-    ? 1
-    : 1 - (clamped - PHYSICAL_TURN_HANDOFF_START) /
-      (1 - PHYSICAL_TURN_HANDOFF_START);
+  const handoffOpacity = desktopPhysicalPageTurnOpacity(timelineProgress);
   const targetOffsetY = targetRect.top - sourceRect.top;
   const scaleY = sourceRect.height > 0
     ? 1 + (targetRect.height / sourceRect.height - 1) * clamped
@@ -244,6 +242,13 @@ export function DesktopPhysicalPageTurn({
 
     const animate = (now: number) => {
       const elapsed = Math.min(1, (now - startedAt) / DESKTOP_PHYSICAL_PAGE_TURN_MS);
+      if (elapsed >= 1) {
+        // The decoded incoming spread is already the static base. Finish pose,
+        // overlay removal and navigation release in the same scheduled frame;
+        // do not leave an invisible sheet holding the navigation lock.
+        settler.settle();
+        return;
+      }
       setSheetPose(
         overlay,
         sheet,
@@ -252,15 +257,9 @@ export function DesktopPhysicalPageTurn({
         sourceRect,
         targetRect,
         easeInOutSine(elapsed),
+        elapsed,
       );
-      if (elapsed < 1) {
-        frame = window.requestAnimationFrame(animate);
-      } else {
-        // The incoming static spread has been mounted below the sheet since the
-        // turn started. The shared settle path hides that exact canonical DOM
-        // for a painted frame before unmounting the overlay.
-        settler.settle();
-      }
+      frame = window.requestAnimationFrame(animate);
     };
 
     frame = window.requestAnimationFrame(animate);

@@ -16,17 +16,36 @@ describe('explicit full-page reader presentation, not a source-image change', ()
     expect(route).toContain('presentation="desktop-full-page"');
     expect(route).not.toMatch(/ido|naomi|panda|page_\d/);
   });
-  it('fills only desktop body images and compacts prose without hiding overflow', () => {
+  it('widens and safely centers desktop prose without hiding overflow', () => {
     const p = presentation();
     expect(p).toContain('@media (min-width: 1024px)');
     expect(p).toContain('.leftPageMaskedIllustration .illustrationImg');
     expect(p).toContain('.openPageIllustration .illustrationImg');
     expect(p).toContain('object-fit: cover');
     expect(p).toContain('font-size: clamp(13px, 2.1dvh, 18px)');
-    expect(p).toContain('line-height: 1.38');
+    expect(p).toContain('line-height: 1.5');
     expect(p).toMatch(/\.openTextSafe\s*\{[^}]*overflow-y: auto;/s);
-    expect(p).not.toContain('.mobileIllustration');
-    expect(p).not.toContain('.mobilePaperProse');
+    expect(p).toMatch(/\.openTextSafe\s*\{[^}]*display: flex;[^}]*flex-direction: column;/s);
+    expect(p).toContain('margin-block: auto');
+    expect(p).toContain('flex-shrink: 0');
+    expect(p).toMatch(/\.openTextSafe\s*\{[^}]*right: 6%;[^}]*left: 6%;/s);
+  });
+  it('opts mobile into full-viewport artwork with accessible bounded gradient prose', () => {
+    expect(reader()).toContain("immersive={presentation === 'desktop-full-page'}");
+    const mobile = fs.readFileSync(path.join(root, 'components/MobileBookPage.tsx'), 'utf8');
+    expect(mobile).toContain('immersive = false');
+    expect(mobile).toContain('data-mobile-immersive');
+    expect(mobile).toContain('splitTextByRhythm(page.text)');
+    expect(mobile).toContain('page.showText &&');
+    expect(mobile).toContain('data-reader-prose');
+    expect(mobile).toContain('aria-label="טקסט הסיפור"');
+    const p = presentation();
+    expect(p).toContain('@media (max-width: 1023px)');
+    expect(p).toContain('[data-mobile-immersive]');
+    expect(p).toContain('.mobileOverlayProse');
+    expect(p).toContain('overscroll-behavior: contain');
+    expect(p).toContain('overflow-y: auto');
+    expect(p).not.toContain('line-clamp');
   });
   it('uses full-image cover with a legible overlay and no book-specific asset or title', () => {
     const p = presentation();

@@ -35,6 +35,7 @@ import {
   createDesktopPhysicalPageTurnUnmountGuard,
   desktopPhysicalPageTurnIsAvailable,
   desktopPhysicalPageTurnImagesAreReady,
+  desktopPhysicalPageTurnOpacity,
   scheduleDesktopPhysicalPageTurnHandoff,
 } from '../../app/book/[id]/read-v2/components/useDesktopPhysicalPageTurn';
 
@@ -198,7 +199,7 @@ describe('shared Reader page-turn contract', () => {
     expect(engine).toContain('data-physical-turn-texture-index');
     expect(engine).toContain('nominalSliceWidth');
     expect(engine).toContain('PHYSICAL_TURN_FACE_BLEED_PX');
-    expect(engine).toContain('PHYSICAL_TURN_HANDOFF_START');
+    expect(engine).toContain('desktopPhysicalPageTurnOpacity(timelineProgress)');
     expect(engine).toContain('overlay.style.opacity');
     expect(engine).toContain("overlay.style.visibility = 'hidden'");
     expect(engine).not.toContain('data-physical-turn-final-landing');
@@ -478,7 +479,7 @@ describe('shared Reader page-turn contract', () => {
     expect(getReaderImageCacheState(url)).toBe('unknown');
   });
 
-  it('provides a cancellable two-frame painted handoff, including RAF handle zero', () => {
+  it('finishes pose and navigation together in one cancellable frame, including RAF handle zero', () => {
     const callbacks = new Map<number, FrameRequestCallback>();
     const events: string[] = [];
     let nextFrame = 0;
@@ -506,9 +507,8 @@ describe('shared Reader page-turn contract', () => {
 
     expect(events).toEqual([]);
     runFrame(0, 16);
-    expect(events).toEqual(['final-hidden']);
-    runFrame(1, 32);
     expect(events).toEqual(['final-hidden', 'complete']);
+    expect(callbacks.size).toBe(0);
 
     cancel();
     expect(callbacks.size).toBe(0);
@@ -520,19 +520,44 @@ describe('shared Reader page-turn contract', () => {
       () => events.push('cancelled-complete'),
     );
     cancelBeforePaint();
-    runFrame(2, 48);
+    runFrame(1, 32);
     expect(events).toEqual(['final-hidden', 'complete']);
 
-    const cancelBetweenFrames = scheduleDesktopPhysicalPageTurnHandoff(
+    const cancelAfterCompletion = scheduleDesktopPhysicalPageTurnHandoff(
       requestFrame,
       cancelFrame,
       () => events.push('partial-hidden'),
       () => events.push('partial-complete'),
     );
-    runFrame(3, 64);
-    cancelBetweenFrames();
-    runFrame(4, 80);
-    expect(events).toEqual(['final-hidden', 'complete', 'partial-hidden']);
+    runFrame(2, 48);
+    cancelAfterCompletion();
+    expect(events).toEqual(['final-hidden', 'complete', 'partial-hidden', 'partial-complete']);
+    expect(callbacks.size).toBe(0);
+  });
+
+  it('keeps the sheet visible until the actual final time window, not the eased pose tail', () => {
+    expect(desktopPhysicalPageTurnOpacity(0)).toBe(1);
+    expect(desktopPhysicalPageTurnOpacity(0.88)).toBe(1);
+    expect(desktopPhysicalPageTurnOpacity(0.94)).toBe(1);
+    expect(desktopPhysicalPageTurnOpacity(0.97)).toBeCloseTo(0.5, 6);
+    expect(desktopPhysicalPageTurnOpacity(1)).toBe(0);
+    expect(desktopPhysicalPageTurnOpacity(2)).toBe(0);
+    expect(desktopPhysicalPageTurnOpacity(-1)).toBe(1);
+    expect(desktopPhysicalPageTurnOpacity(Number.NaN)).toBe(1);
+  });
+
+  it('does not complete if final-pose work synchronously cancels its handoff', () => {
+    let queued: FrameRequestCallback | undefined;
+    let cancel: () => void = () => undefined;
+    const events: string[] = [];
+    cancel = scheduleDesktopPhysicalPageTurnHandoff(
+      callback => { queued = callback; return 0; },
+      () => undefined,
+      () => { events.push('pose'); cancel(); },
+      () => events.push('complete'),
+    );
+    queued?.(16);
+    expect(events).toEqual(['pose']);
   });
 
   it.each([
@@ -563,13 +588,12 @@ describe('shared Reader page-turn contract', () => {
     expect(cancelled).toEqual(['animation', 'watchdog']);
     expect(callbacks).toHaveLength(1);
     callbacks[0]?.(16);
-    expect(callbacks).toHaveLength(2);
-    callbacks[1]?.(32);
+    expect(callbacks).toHaveLength(1);
     expect(events).toEqual(['final-hidden', 'complete']);
 
     settler.cancel();
     settler.settle();
-    expect(callbacks).toHaveLength(2);
+    expect(callbacks).toHaveLength(1);
   });
 
   it('clears a genuinely unmounted turn without aborting a Strict Mode effect replay', () => {

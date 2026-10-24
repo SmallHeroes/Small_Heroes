@@ -809,7 +809,7 @@ export default function ReaderV2({
           ) : null}
         </div>
         <div className={styles.mobileOnly}>
-          {mobilePage ? <MobileBookPage page={mobilePage} isCurrent /> : null}
+          {mobilePage ? <MobileBookPage page={mobilePage} isCurrent immersive={presentation === 'desktop-full-page'} /> : null}
           {sceneFooter}
         </div>
       </>

@@ -6,20 +6,29 @@ import { readerImageIsPaintReady } from '../useAdjacentImagePreload';
 
 export const DESKTOP_PHYSICAL_PAGE_TURN_MS = 560;
 
+/** Fade only in the final 6% of elapsed time, not the longer eased-pose tail. */
+export function desktopPhysicalPageTurnOpacity(timelineProgress: number): number {
+  const progress = Number.isFinite(timelineProgress)
+    ? Math.min(1, Math.max(0, timelineProgress))
+    : 0;
+  return Math.min(1, Math.max(0, (1 - progress) / 0.06));
+}
+
 export function scheduleDesktopPhysicalPageTurnHandoff(
   requestFrame: (callback: FrameRequestCallback) => number,
   cancelFrame: (handle: number) => void,
   applyFinalPoseAndHide: () => void,
   complete: () => void,
 ): () => void {
-  let completeFrame: number | null = null;
+  let cancelled = false;
   const settleFrame = requestFrame(() => {
+    if (cancelled) return;
     applyFinalPoseAndHide();
-    completeFrame = requestFrame(complete);
+    if (!cancelled) complete();
   });
   return () => {
+    cancelled = true;
     cancelFrame(settleFrame);
-    if (completeFrame !== null) cancelFrame(completeFrame);
   };
 }
 
