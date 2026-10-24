@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Reader narrower Hebrew column — owner-approved, independent gate next (2026-10-24)
+## Reader narrower Hebrew column — independent display PASS, authorized push next (2026-10-24)
 
 - Owner asks less text width,more right whitespace/extra wrapping,thenpush. Same current task/source claude/book-render-20261009
   over901f8070;codeba0dadbc,2files. Q=ART/r7-reader-prose-inset-20261024.12%right/8%left replaces6%/6%:~9.09%narrower.
@@ -11,8 +11,12 @@
 -96focusedtests0,whole npx tsc0;test-first3pass/1fail retained. OldR6runtime/app189+assets10 and230protectedbook/history entries
   preserved,newcredential-free3123preview,no newrender/provider/audio/text/ledger/quality or production-default change. Existing
   mobile crop/gradient/scroll trade-offs and bookquality incomplete remain. Existing fullcheckRED not rerun/promoted.
-- Independent readonly four-file frozen re-gate next. Owner explicitly authorized normal push to existing named branch,including
-  its prior64unpushed commits;remote82dfb5a3verified beforework. No force/reset/merge/main/deploy;final remote verification inQ.
+- Independent readonly exact901f8070..af4f930d PASS:10focusedtests native0,1054bounded predominantly hash/CSS/preservation
+  controls0. Supplied desktop capture inspected and32final author DOMrows reconciled;not independent live/accessibility/FPS
+  or product/book-quality acceptance. Q/INDEPENDENT-QA.txt SHA0bbcb0148ed8cecf49b4ce0f7bafc27deeaa54dcbcbdfae37a25a8731ee8b53a,
+  COMPLETE/RELEASE. Owner explicitly authorized normal push to existing named branch,including its prior64unpushed commits;
+  remote82dfb5a3verified beforework. Closure docs only afterQA;actual native push result/remote-tip verification go toQ/PUSH.json
+  and Q/CLOSURE.json. No force/reset/merge/main/deploy;this narrow PASS does not re-certify historical outgoing commits.
 
 ## Reader immersive mobile + centered desktop + landing handoff — independent display PASS (2026-10-24)
 

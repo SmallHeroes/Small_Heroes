@@ -1,12 +1,14 @@
 # SmallHeroes — Roadmap
 
-## Reader prose inset polish — independent gate then authorized branch push (2026-10-24)
+## Reader prose inset polish — independent display PASS, authorized branch push (2026-10-24)
 
 - Owner-directed12%right/8%left prose margins,~9.09%narrower,keepsRTL/right/vertical center and13..18pxfont. Shortdesktop1.4
   leading prevents measured19pxoverflow;normal1.5unchanged. Codeba0dadbc over901f8070;96tests/tsc0,32actualdesktopfitchecks.
 - Mobile/cover/turnengine/defaults/PNG/text/ledger/bookqualityunchanged,230protectedentries/oldR6runtimekept;newpreview3123.
-  Q=ART/r7-reader-prose-inset-20261024. Exact frozen independent read-only gate next,then owner-authorized normal push to
-  claude/book-render-20261009 with remote-tip verification. No main/merge/deploy/force or extra paid authority.
+  Q=ART/r7-reader-prose-inset-20261024. Exact901f8070..af4f930d independent read-only PASS:10tests0,1054mostly-hash/CSScontrols0;
+  supplied screenshot inspected/32authorDOMrows reconciled,not independent live/product/accessibility/FPS proof. Report inQ,
+  COMPLETE/RELEASE. Owner-authorized normal push to claude/book-render-20261009 includes prior64outgoingcommits,not newly
+  certified by this narrow gate. Actual push/remote-tip result inQ/PUSH.json+closure. No main/merge/deploy/force or extra spend.
 
 ## Reader responsive polish — independent display PASS, owner visual judgment (2026-10-24)
 
