@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Reader desktop fill + full-image cover — independent presentation gate next (2026-10-24)
+
+- Owner-approved visual adjustment,not another book/render. Explicit shared presentation used by local previews only;legacy/
+  production contain unchanged. Desktop picture fills width with centered heightcrop;smaller13..18px prose fits current8pages.
+  Cover image fills page with designed title overlay on desktop/mobile;mobile body remains unchanged. No text/PNG/ledger changes.
+-93focusedtests/whole tsc0;32actualdesktop text-fit checks at4sizes,390x844mobile,screenshots/console0. Initial real overflow
+  evidence retained and corrected. Same book on3121;3120kept forcomparison;219protectedfiles. Q=ART/r5-reader-desktop-fill-20261024.
+-Next independent readonly exactrange gate,then owner eyeball. The existing paid-book quality remains incomplete;presentation
+  success does not promote held/unusable/unreviewed pages. No production activation,push,provider cost or new grant.
+
 ## New portrait book delivered — full coverage, quality pipeline not complete (2026-10-24)
 
 - Actual new story "כרטיס לפעמון"/Ido6+pandaAnat:8body illustrations+cover,all1024x1536 and exacttext in local3120Reader.

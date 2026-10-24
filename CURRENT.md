@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Reader full-page preview — owner-approved desktop/cover presentation (2026-10-24)
+
+- Owner asks full-width desktop art accepting slight height crop,significantly smaller no-scroll prose,and designed full-image
+  cover. Same task/worktree claude/book-render-20261009 overf47ddb55;Q=ART/r5-reader-desktop-fill-20261024. No provider/image/audio cost.
+- Shared ReaderV2 adds explicit desktop-full-page option;only generic local preview route opts in. Default complete-artwork and
+  production callers stay contained. Static/physical-turn use the same surface/CSS. Desktop artfills exactmaskwindow,centercover
+  (~19.2%combinedverticalcrop),no horizontal crop. Cover fills page with title/brand gradient overlay;no new artwork/text rewrite.
+- Desktop compact font13..18px/1.38leading/.2emparagraphs;overflowauto retained for arbitrary long/accessibility fallback,not hidden.
+  All8 actual texts fit without scrolling at1024x640/1280x720/1440x900/1920x1080:32live checks on final bytes. Earlier UIoverflows
+  (page6at16.2px and7pxsmallviewportoverflow) preserved and fixed;navigation harness auto-advance miscount also retained,not enginebug.
+- Mobile body stayscontain/17.16px at390x844,unchanged paper layout;cover is full-image as requested. Browser screenshots/metrics,
+  normal viewportreset and marked user tab. Consoleerrors0;server only Fast Refresh reload warnings. Reader3121samebook ID,
+  old3120runtime kept unchanged;219book/history hashes and10copied assets/manifest preserved. Existing bookquality still incomplete.
+- Focused93tests0 (incl3new tests-first RED controls),whole npx tsc0;React checklist adds only primitive prop/CSS,no new hook/fetch/
+  dependency. Full-storyverification localUI->devAPI->hash-boundfiles->same8texts/ninePNGs. Historical fullcheckRED not green.
+  Independent read-only frozen re-gate next;no production/push/new render/paid recovery or claim/grant modification.
+
 ## New portrait Sol book delivered for judgment — full art, incomplete quality (2026-10-24)
 
 - Supersedes the prospective/not-yet-produced entries below. Actual "כרטיס לפעמון", fictional Ido6+pandaAnat, has ALL9 real
