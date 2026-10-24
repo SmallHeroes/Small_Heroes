@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Story experience — general offline route ready, literary improvement unproven (2026-10-24)
+
+- Owner rejected the narrated Ido/panda STORY while praising images/alignment. Actual theme:null/just_for_fun; final reader had
+  literary criteria but returned0findings. Do not attribute this to a missing judge, a selected therapy theme or a proven model fault.
+- General explicit delight-first/v1 source policy now reaches existing author/editor/source/review/repair/flow. Prioritise
+  unfolding experience, companion interplay and natural Hebrew; no fixed sound/laugh/event quota or new QA engine. Defaultv1,
+  physical/safety/name/age constraints and all consumed grants unchanged. Required new-policy output literal is metadata only.
+- Code93111eb1 first received independent P1/HOLD for actual old-writer receipt reuse; focused correction227c5a80 re-gated
+  engineeringPASS. Author220focusedtests/whole nonincrementaltsc0; independent22targetedtests plus actualraw negatives/tagged
+  positives/boundedrepair and reallegacy698preservation entries0. Original RED/HOLD preserved; historical fullcheck not green.
+- Q=ART/r9-story-experience-20261024. ZERO new real API/image/audio/Max calls, no new key/book/manual manuscript edit/push/deploy.
+  Current reader remains the OLD story; product acceptance rejected. Next evidence is a separately scoped fresh TEXT-only trial
+  before another illustrated/narrated book. No fresh story or listeningA/B here;89normalTTSellipses are a separate unisolated
+  pacing contributor, unchanged. This is readiness for product testing, not a claim that a more delightful story was produced.
+
 ## Same Ido/panda book — narrated Reader delivered for listening (2026-10-24)
 
 - Owner-requested existing mom narration:exacttitle+8pages,9single ElevenLabs/v3calls,native0,354.53seconds. Reader3124 retains

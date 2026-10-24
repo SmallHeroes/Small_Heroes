@@ -25,7 +25,10 @@
   editor calls and review packet digests;698book/narration file/link hashes preserved. Initial synthetic-fixture and wrapper-
   expectation RED retained/corrected; no source validator weakened. Fullcheck remains historical RED, not rerun/promoted.
 - ZERO real provider/image/audio/Max calls, no new key/claim/authority use or counter reset. Consumed book/narration grants and
-  reader3124 untouched. Independent read-only re-gate pending against the corrective local commit; author cannot self-award PASS.
+  reader3124 untouched. Independent read-only engineering re-gate PASS at227c5a80 after held93111eb1, complete rangee4bcee0d..
+  227c5a80:actual oldauthor/editorraw+parsed-onlytag reject,taggedsyntheticsource/repair positive,22targetedtests0,reallegacy698
+  replay0. Q/INDEPENDENT-REGATE.txt SHAa10c52587d66a660d59b2d55a545fa01574b5edb75e051c0a39e16f17b3b4d95. Original HOLD/RED
+  preserved. Narrow PASS is engineering/compatibility, not provider-origin cryptography, literary quality or product acceptance.
   This proves wiring/compatibility only: no fresh story or literary improvement proven. Next product proof is a separately
   scoped text-only trial/blind reading before another illustrated book; no automatic paid rerun from old unused budget.
 
