@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-## Reader responsive polish — implementation verified, independent gate next (2026-10-24)
+## Reader responsive polish — independent display PASS, owner visual judgment (2026-10-24)
 
 - Owner-requested general local-preview mobile fullscreen image+bottom gradient/accessibly scrollable text;full mobile cover.
   Desktop wider/RTL/right/vertically centered prose;shared desktop turn removes invisible locked tail via single-frame landing.
@@ -8,7 +8,9 @@
 - Codef5443856 over737ca6d6;96focusedtests+whole tsc0. Author live32desktop checks all8texts fit/centered at4sizes;32mobile
   checks preserve all formatted text/art-full-frame/nohorizontaloverflow,actual longtextEnd access,forward+backhand-off observed.
   All initial RED/overflow/harness evidence retained. Q=ART/r6-reader-responsive-turn-20261024;Reader3122,old3121preserved.
-- Independent readonly frozen re-gate next,then Guy eyeball. Mobile cover-fit crop and lower gradient/scroll region are explicit
+- Independent readonly exact737ca6d6..4378c906 PASS:36tests0,1145mostly-hash/SSR/scheduler controls0;sixdefault SSR matches,
+  supplied captures inspected,author64DOMchecks/motion reconciled. Report inQ,COMPLETE/RELEASE;not independent live/FPS proof.
+  Guy eyeball next. Mobile cover-fit crop and lower gradient/scroll region are explicit
   display trade-offs,especially landscape;not universal crop safety,accessibility certification or FPS guarantee. No newimages/
   spend/bookqualityPASS,provider authority,production,push or grant change. Existing native bookquality remains incomplete.
 

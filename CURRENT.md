@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Reader immersive mobile + centered desktop + landing handoff — independent gate next (2026-10-24)
+## Reader immersive mobile + centered desktop + landing handoff — independent display PASS (2026-10-24)
 
 - Direct owner request implemented in current task/source claude/book-render-20261009 over737ca6d6;codef5443856,7files.
   Q=ART/r6-reader-responsive-turn-20261024. No provider/render/audio cost or book/text/ledger/authority change;old3121kept.
@@ -24,7 +24,11 @@
   Raw niqqud comparison mismatch explained by unchanged formatter,not story loss. MobileEnd measured after smooth scroll settled.
 - React checklist:primitive optional prop,no new effect/fetch/dependency;general surfaces and defaults retained. Local full-story
   verification UI->devAPI->hash-bound existing9PNGs/manifest;consoleerrors0. Credential-free3122preview,189appfiles/10assets.
-  Historical fullcheckRED stays historical;not rerun or green. Independent exact frozen range read-only re-gate next,no paid work,
+  Historical fullcheckRED stays historical;not rerun or green. Independent exact737ca6d6..4378c906 display/timing PASS:36focused
+  tests native0 plus1145bounded mostly-hash/SSR/scheduler controls native0;sixdefault SSR cases identicaltoBASE. Report
+  Q/INDEPENDENT-QA.txt SHA35b803aba1ac4e8d99f09498c98a09266be1f9b919c60bb078c20d69da2ae437,COMPLETE/RELEASE.
+  Supplied captures/authorDOM/motion independently reconciled,not independent live/FPS/device/accessibility proof. Reviewer
+  CSS-mock RED retained/corrected additively,not source regression. Reader3122delivered for Guy's visual judgment. No paid work,
   production activation,push,source book quality upgrade or new grant follows from this presentation milestone.
 
 ## Reader full-page preview — owner-approved desktop/cover presentation (2026-10-24)
