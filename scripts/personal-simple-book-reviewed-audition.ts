@@ -764,8 +764,14 @@ export const digestImages = (value: unknown): unknown => JSON.parse(JSON.stringi
  * references and an optional same-scene predecessor, each at high detail with its role, plus today's instruction and strict schema.
  * Shared by the paid judge and by saved-evidence admission, which rebuilds it from the actual bytes and requires exact equality.
  */
+export const AUDITION_REVIEW_CAPACITY_VERSION = 'audition-review-capacity/v1' as const;
+export function auditionReviewOutputCap(version?: typeof AUDITION_REVIEW_CAPACITY_VERSION) {
+  if (version !== undefined && version !== AUDITION_REVIEW_CAPACITY_VERSION) fail('audition_review_capacity');
+  return version === AUDITION_REVIEW_CAPACITY_VERSION ? 24000 : 12000;
+}
 export async function auditionJudgePayload(args: { candidate: AuditionImage; candidateBytes: Buffer; context: unknown; contextSha: string;
-  refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page' }) {
+  refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page'; reviewCapacity?: typeof AUDITION_REVIEW_CAPACITY_VERSION }) {
+  const outputCap = auditionReviewOutputCap(args.reviewCapacity);
   const buffer = args.candidateBytes, meta = await sharp(buffer).metadata();
   const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
   const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
@@ -781,7 +787,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
   return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
       ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-    max_output_tokens: 12000, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
+    ...(args.reviewCapacity ? { metadata: { review_capacity_version: args.reviewCapacity } } : {}),
+    max_output_tokens: outputCap, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
       auditionAnatomyCast(args.context) ? 'personal_audition_pixels_anatomy_v2'
         : auditionLandmarkTopology(args.context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'personal_audition_pixels_topology_v2'
         : auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
@@ -792,9 +799,11 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
 /** A render: its pricing label and claim maximum (every prompt byte and reference at the image input rate, plus its output reservation). */
 const RENDER_PRICING = 'image_input_8_output_30_conservative_no_cache';
 export const renderMaximum = (prompt: string, references: number) => Buffer.byteLength(prompt, 'utf8') * 8 + references * 8192 * 8 + 8192 * 30;
-/** A pixel review: its cost (Sol at the default tier, long-input rate included) and a usable answer (complete, at most 12,000 output tokens). */
+/** A pixel review: actual Sol default-tier cost, complete within its explicitly bound legacy12000/prospective24000 output cap. */
 const reviewCost = (raw: any) => raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
-const reviewAnswered = (raw: any) => raw.status === 'completed' && raw.model === REVIEW_MODEL && !!raw.output_text && !!raw.usage && !(raw.usage.output_tokens > 12000);
+const reviewAnswered = (raw: any, cap = 12000) => raw.status === 'completed' && raw.model === REVIEW_MODEL && !!raw.output_text && !!raw.usage && !(raw.usage.output_tokens > cap);
+const validReviewCapacity = (wire: any) => wire?.max_output_tokens === 12000 && wire.metadata?.review_capacity_version === undefined ||
+  wire?.max_output_tokens === 24000 && wire.metadata?.review_capacity_version === AUDITION_REVIEW_CAPACITY_VERSION;
 /** An identity measurement: its cost (a known gpt-4o model with usage) and a usable answer (HTTP 2xx, at most 180 completion tokens). */
 const IDENTITY_MODEL = 'gpt-4o', IDENTITY_MODELS = [IDENTITY_MODEL, 'gpt-4o-2024-08-06', 'gpt-4o-2024-11-20'];
 export const IDENTITY_MAXIMUM_MICRO_USD = 50000;
@@ -815,9 +824,9 @@ export const auditionRenderRule: MeterRule = {
   settle: (_wire, receipt, completed) => ({ estimatedMicroUsd: auditionUsageCost(receipt?.raw?.usage, 'image'), coherent: !completed || receipt?.model === 'gpt-image-2' }),
 };
 export const auditionReviewRule: MeterRule = {
-  reserve: wire => wire?.model === REVIEW_MODEL && wire.service_tier === 'default' && wire.max_output_tokens === 12000 ? SOL_PIXEL_REVIEW_SLOT_MICRO_USD : null,
-  settle: (_wire, receipt, completed) => { const raw = receipt?.raw;
-    return { estimatedMicroUsd: raw == null ? null : reviewCost(raw), coherent: !completed || raw != null && reviewAnswered(raw) }; },
+  reserve: wire => wire?.model === REVIEW_MODEL && wire.service_tier === 'default' && validReviewCapacity(wire) ? SOL_PIXEL_REVIEW_SLOT_MICRO_USD : null,
+  settle: (wire, receipt, completed) => { const raw = receipt?.raw;
+    return { estimatedMicroUsd: raw == null ? null : reviewCost(raw), coherent: validReviewCapacity(wire) && (!completed || raw != null && reviewAnswered(raw, wire.max_output_tokens)) }; },
 };
 export const auditionIdentityRule: MeterRule = {
   reserve: wire => wire?.model === IDENTITY_MODEL && wire.max_tokens === 180 ? IDENTITY_MAXIMUM_MICRO_USD : null,
@@ -919,7 +928,7 @@ export async function sendReview(payload: Awaited<ReturnType<typeof auditionJudg
 /** Same semantic request, explicitly different transport wire; its metadata binds the pre-transport request without a self-referential hash. */
 export function durableReviewPayload(payload: Awaited<ReturnType<typeof auditionJudgePayload>>) {
   return { ...payload, background: true as const, store: false,
-    metadata: { semantic_request_sha256: previewSha(canonicalJson(digestImages(payload))) } };
+    metadata: { ...payload.metadata, semantic_request_sha256: previewSha(canonicalJson(digestImages(payload))) } };
 }
 /** The EXACT renderer's pure dry plan, shared by native first-operation admission. No key, provider or image write. */
 export function auditionRenderPlan(directory: string, prompt: string, refs: AuditionImage[],
@@ -960,6 +969,8 @@ export function causeChain(error: unknown) {
 export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void;
   /** Exact admitted layout/grant marker; scene-only portrait,never inferred from prompt/step/cwd. */
   readerFraming?: ReaderSafeFramingVersion;
+  /** More room for the same review contract, explicitly granted; legacy/default wires stay12000. */
+  reviewCapacity?: typeof AUDITION_REVIEW_CAPACITY_VERSION;
   /** Opt-in: steps whose request must be exactly a known one (a re-review re-sends the lost request): checked before the claim. */
   expectedWire?: Readonly<Record<string, string>>;
   /** Fixed native diagnostic operations only, each still atomically single-use in the ORIGINAL cumulative meter. */
@@ -967,6 +978,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   /** Native grant opt-in, never a CLI/default switch. Reconciliation names just ONE existing job and cannot claim a new generation. */
   durableReviews?: { version: typeof DURABLE_REVIEW_VERSION; resumeStep?: string } }) {
   readerSceneImageSize(args.readerFraming); // Unknown explicit contracts refuse before any claim or key read.
+  auditionReviewOutputCap(args.reviewCapacity);
   if (args.durableReviews && args.durableReviews.version !== DURABLE_REVIEW_VERSION) fail('audition_durable_policy');
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
@@ -1019,7 +1031,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     predecessor: AuditionImage | null, kind: 'sheet' | 'page') => {
     checkStep(step);
     const payload = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha, refs: refs.map(r => bytesOf(r)),
-      predecessor: predecessor ? bytesOf(predecessor) : null, kind });
+      predecessor: predecessor ? bytesOf(predecessor) : null, kind, reviewCapacity: args.reviewCapacity });
     // The crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
     checkStep(step);
     const wire = digestImages(args.durableReviews ? durableReviewPayload(payload) : payload), expected = args.expectedWire?.[step];
@@ -1040,7 +1052,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
             wireFile: path.join(args.meter.root, `${step}.wire.json`), ...(args.durableReviews.resumeStep === step ? { resume: true as const } : {}) } } : {}) });
         const estimatedMicroUsd = reviewCost(raw);
         const receipt = { raw, estimatedMicroUsd };
-        if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
+        if (!reviewAnswered(raw, payload.max_output_tokens)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
         try { return { value: (kind === 'page' ? auditionPageReviewSchemaForContext(context) : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
         catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
       };

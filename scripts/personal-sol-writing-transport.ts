@@ -9,9 +9,8 @@ import { opusOutputContract, CausalTransportError, wireReservation, type Transpo
 import { replaySettlement } from './personal-new-book-experiment';
 import type { MeterRule } from './personal-simple-book-reviewed-audition';
 import { hostFail } from './personal-causal-trial-journal';
-
-export const SOL_WRITING = Object.freeze({ version: 'sol-writing-responses/v1', model: 'gpt-6.1-sol' as const,
-  route: 'openai_responses' as const, maxWireBytes: 104000, timeoutMs: 600000, minimumReserveMicroUsd: 600000 });
+import { SOL_WRITING } from '../lib/personal-wizard/sol-writing-route';
+export { SOL_WRITING } from '../lib/personal-wizard/sol-writing-route';
 type TextCall = Pick<CausalDispatch, 'stage' | 'instructions' | 'input' | 'schema' | 'maxOutputTokens'>;
 export type SolWritingCall = TextCall | SimpleStoryboardDiagnosticCall;
 export type SolWritingWire = { version: typeof SOL_WRITING.version; model: typeof SOL_WRITING.model; stage: 'author' | 'editor' | 'storyboard';
@@ -48,6 +47,8 @@ export const solWritingMeterRule: MeterRule = {
   reserve: (w: SolWritingWire) => validWire(w) ? w.reservedMicroUsd : null,
   settle: (w: SolWritingWire, receipt, completed) => {
     if (!validWire(w)) return { estimatedMicroUsd: null, coherent: false };
+    // A thrown transport with no receipt is an UNKNOWN charge, not a corrupt or free completed answer.
+    if (!completed && receipt == null) return { estimatedMicroUsd: null, coherent: true };
     const s = replaySettlement.answer(replaySettlement.rates.sol, w.outputCap, SOL_WRITING.model, receipt?.raw);
     return { estimatedMicroUsd: s.estimatedMicroUsd, coherent: (!completed || s.valid) && receipt?.stage === w.stage &&
       receipt?.metadata?.reportedModel === receipt?.raw?.model && JSON.stringify(receipt?.usage ?? null) === JSON.stringify(s.usage) };

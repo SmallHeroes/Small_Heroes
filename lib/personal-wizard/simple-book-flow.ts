@@ -2,7 +2,7 @@ import 'server-only';
 import type { PersonalWizardOptions } from './options';
 import { prepareSimpleStory, writeSimpleStory, compileSimpleStory, type SimpleStoryCall } from './simple-story-engine';
 import { createCurrentSimpleStorySource, createRepairedSimpleStorySource, prepareSimpleStoryRepair,
-  simpleStoryFindingIsMaterial, type CurrentSimpleStoryResult } from './simple-story-source';
+  simpleStoryFindingIsMaterial, type CurrentSimpleStoryResult, type SimpleWritingModel } from './simple-story-source';
 import { CausalExperimentError, causalReviewPackets, causalSourceReviewPacket, compileCausalSourceReading, type CausalReading } from './story-causal-experiment';
 import { preparePersonalStory } from './story-writer';
 import { canonicalJson } from './request-acceptance';
@@ -19,6 +19,8 @@ export type SimpleBookReadingCall = { stage: 'final_review' | 'comparison'; inst
 export async function runSimpleWizardBook(args: {
   request: unknown; options: PersonalWizardOptions; seed: string; signal: AbortSignal;
   opus: (call: SimpleStoryCall, signal: AbortSignal) => Promise<TransportReply>;
+  /** Explicit prospective writer route; absence keeps the historical CLI/Opus source contract. */
+  writingModel?: SimpleWritingModel;
   reader: (call: SimpleBookReadingCall, signal: AbortSignal) => Promise<unknown>;
   visual: (call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<unknown>;
   publish: (view: SimpleBookView) => void; reservedWritingUsd: number;
@@ -57,7 +59,9 @@ export async function runSimpleWizardBook(args: {
   const view = emptySimpleBookView(prepared.accepted.requestId);
   const repair = args.repair ? prepareSimpleStoryRepair(args.request, args.repair.prior, args.repair.readings, args.options) : null;
   if (repair && repair.prepared.seed !== args.seed) fail('simple_book_repair_seed');
-  const bindingValue = () => ({ request: args.request, options: args.options, seed: args.seed, ...(args.repair ? { repair: args.repair } : {}) });
+  if (repair && args.writingModel && repair.prior.accounting.model !== args.writingModel) fail('simple_book_repair_model');
+  const bindingValue = () => ({ request: args.request, options: args.options, seed: args.seed, ...(args.repair ? { repair: args.repair } : {}),
+    ...(args.writingModel ? { writingModel: args.writingModel } : {}) });
   const binding = canonicalJson(bindingValue());
   const check = () => {
     if (args.signal.aborted) fail('simple_book_cancelled');
@@ -84,9 +88,9 @@ export async function runSimpleWizardBook(args: {
       view.original = { title: draft.title, pages: draft.pages.map((p: { text: string }, i: number) => ({ pageNumber: i + 1, text: p.text })) };
     }
     return { output: receipt.output, usage: receipt.usage, estimatedUsd: receipt.estimatedMicroUsd / 1e6 };
-  }, { model: CAUSAL_MODELS.opus, reservedUsd: args.reservedWritingUsd });
+  }, { model: args.writingModel ?? CAUSAL_MODELS.opus, reservedUsd: args.reservedWritingUsd });
   check();
-  source = createCurrentSimpleStorySource(args.request, generated, records as Record<'author' | 'editor', TransportReply>, args.options);
+  source = createCurrentSimpleStorySource(args.request, generated, records as Record<'author' | 'editor', TransportReply>, args.options, args.writingModel);
   }
   view.edited = { title: source.manuscript.title, pages: source.manuscript.pages };
   publish('story_review');
