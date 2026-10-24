@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Reader immersive mobile + centered desktop + landing handoff — independent gate next (2026-10-24)
+
+- Direct owner request implemented in current task/source claude/book-render-20261009 over737ca6d6;codef5443856,7files.
+  Q=ART/r6-reader-responsive-turn-20261024. No provider/render/audio cost or book/text/ledger/authority change;old3121kept.
+- Existing explicit local-preview presentation now opts MobileBookPage into full available-reader image/cover plus warm bottom
+  gradient. Captionless/showText guards and legacy default paper-panel adapter unchanged. Text region is focusable,RTL/right,
+  bounded to preserve visible art,internally scrollable;actual360x640End reaches final paragraph without changing page. Source
+  rhythm helper used where available;current legacy adapter compacts whitespace and strips display niqqud exactly as before.
+- Desktop safe region widens8%to6%sideinsets,1.5leading/.16emgaps,13..18pxfont,auto-blockmargins centers fitting copy and leaves
+  overflowing copy top-accessible. Static and moving surface stay identical. Final32/32actualpages at1024x640/1280x720/
+  1440x900/1920x1080fit,centerwithin1px,RTL/right,nohorizontaloverflow,all pre-existing formatted text retained.
+- Shared desktop physical turn now fades against final6%elapsed time,not an eased-pose tail;final pose/hide/navigation release
+  use one cancellable RAF,retaining560msgeometry/watchdog/idempotency/StrictMode/decode/reduced-motion/mobile guards. Forward+
+  backward real bounded DOM samples no longer observed opacity0+locked overlay;these are not high-speed/FPS proof.
+- Mobile32checks(8pages x390x844/360x640/430x932/844x390):image exactly fills available reader below truthful banner,all formatted
+  text reachable,nohorizontaloverflow,gradient<=55%readerheight. Narrow/dense/landscape copy scrolls;no universal no-scroll claim.
+  Cover also fills reader. cover-fit intentionally crops source sides/height depending aspect,especially landscape;no universal
+  crop-safe/face-unobstructed claim. Source PNGs intact;Guy must judge these display trade-offs. Original bookquality incomplete.
+- Tests-first30pass/5fail native1;first implementation93pass/2oldtwo-frame assertions fail,then corrected contract. Final96pass/
+  0fail/0skip native0;whole npx tsc0. Test-only callback annotation initiallytsc2 then fixed;all RED receipts preserved. One5px
+  small-desktop overflow fixed by general paragraph spacing;FastRefresh/reset interrupted campaign retained,not product failure.
+  Raw niqqud comparison mismatch explained by unchanged formatter,not story loss. MobileEnd measured after smooth scroll settled.
+- React checklist:primitive optional prop,no new effect/fetch/dependency;general surfaces and defaults retained. Local full-story
+  verification UI->devAPI->hash-bound existing9PNGs/manifest;consoleerrors0. Credential-free3122preview,189appfiles/10assets.
+  Historical fullcheckRED stays historical;not rerun or green. Independent exact frozen range read-only re-gate next,no paid work,
+  production activation,push,source book quality upgrade or new grant follows from this presentation milestone.
+
 ## Reader full-page preview — owner-approved desktop/cover presentation (2026-10-24)
 
 - Owner asks full-width desktop art accepting slight height crop,significantly smaller no-scroll prose,and designed full-image
