@@ -16,7 +16,7 @@ describe('explicit full-page reader presentation, not a source-image change', ()
     expect(route).toContain('presentation="desktop-full-page"');
     expect(route).not.toMatch(/ido|naomi|panda|page_\d/);
   });
-  it('widens and safely centers desktop prose without hiding overflow', () => {
+  it('uses a narrower RTL prose column with more right inset and safe vertical centering', () => {
     const p = presentation();
     expect(p).toContain('@media (min-width: 1024px)');
     expect(p).toContain('.leftPageMaskedIllustration .illustrationImg');
@@ -28,7 +28,9 @@ describe('explicit full-page reader presentation, not a source-image change', ()
     expect(p).toMatch(/\.openTextSafe\s*\{[^}]*display: flex;[^}]*flex-direction: column;/s);
     expect(p).toContain('margin-block: auto');
     expect(p).toContain('flex-shrink: 0');
-    expect(p).toMatch(/\.openTextSafe\s*\{[^}]*right: 6%;[^}]*left: 6%;/s);
+    expect(p).toMatch(/\.openTextSafe\s*\{[^}]*right: 12%;[^}]*left: 8%;/s);
+    expect(p).toContain('@media (min-width: 1024px) and (max-height: 700px)');
+    expect(p).toContain('line-height: 1.4');
   });
   it('opts mobile into full-viewport artwork with accessible bounded gradient prose', () => {
     expect(reader()).toContain("immersive={presentation === 'desktop-full-page'}");
