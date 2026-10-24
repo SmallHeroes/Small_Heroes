@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## New full portrait Sol book — fresh authority, independent gate next (2026-10-24)
+
+- Owner explicitly approves one new story/previously unseen companion through all8pages+cover+Reader,not an old-book retry.
+  Fixed portrait-cycle/pinned operator/profile (fictionalIdo6+pandaAnat);USD7/98calls;Soltext/planning/quality,gptimage2LOW,
+  gpt4o numericidentity/.70;Max0/audio0. Old permissions/outputs not reset or rewritten. No production/push/secondbook.
+- 54c72084..08a80bc2 adds explicit Responses source/repair provenance,shared unchanged settlement extraction for safe CJS imports,
+  new fixed route,v3portrait and opt-in24000quality output headroom without looser gates. 208focusedtests/whole tsc/nativeimport0.
+  Native SOURCE-cwd code dryplan passes;1964protected files unchanged. Earlier REDs/refusals retained,fullcheck stays historicalRED.
+- Next: docsLAST/independentread-only code+exactunusedplan/grant/operator QA;only then one claimed native execution. Inspect actual
+  image dimensions,cast/framing/anatomy/identity/Hebrew sequence and Reader desktop/mobile;product acceptance remains Guy's.
+
 ## Portrait canvas — independent code gate complete; generated pixels not yet tested (2026-10-24)
 
 - Exact4a0c90d1..589d53c1/codef73cf022 received independent PASS.22focused tests0;4364bounded assertions include1958history

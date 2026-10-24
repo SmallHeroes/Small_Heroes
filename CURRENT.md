@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## New portrait Sol book — offline route ready for independent QA (2026-10-24)
+
+- Direct owner approval: ONE fresh fictional story/new companion/full8pages+cover+localReader; Q=ART/r4-new-book-portrait-20261024.
+  New profile Ido6/panda_anat (canonical existing front reference; not found in prior illustrated-book profiles). No manual story/plot.
+- Fixed owner-portrait-book-20261024/v1 is separate from consumed old cycles. USD7/98APIcalls;Max0;LOW;Solwriting/quality;
+  numericgpt4o/.70;v3portrait1024x1536scene/cover and unchanged square anchors/sheets. Source1repair/storyboard3/citation1/page3.
+- Code963b8e5d, correction08a80bc2 over54c72084. Prospective Sol source/repair versions validate actual Responses model/tier/id/output/
+  usage/cost with the SAME extracted raw-settlement formula. Historical v1/CLI source and grants unchanged. Typed review capacity
+  opt-in24000 fixes prior incomplete12000response headroom; same judgement schema/instructions/semantic gates,ordinary600000reserve.
+  Cache-write upper-bound adjustment now on both stage/global meters for this new policy;unknowns still stop. Operator is hash-pinned.
+- Native-fixed208focused tests0,whole npx tsc0,CJS-native import0. Earlier REDs retained: synthetic exception-wrapper expectation,
+  test-only snapshot-union typing, import-cycle initialization (real,diagnosed/fixed),missing-receipt UNKNOWN classification. Native
+  planner first refused cwd outside source as designed; exact SOURCE-cwd dry plan passed,0provider/0key/0claim/newbook absent.
+- Code plan f5a2e744a5bf4096419738334e5143c78c0e30693076e7fec174acdae2dfd823 at08a80bc2. Protect1964oldfiles;
+  independent frozen range+exact unused docs-head grant/preflight next. No paid code/plan PASS self-awarded. Historical fullcheckRED
+  remains;this bounded suite is NOT fullcheckgreen. Existing3119Reader/oldbooks/ledgers/unknown history untouched. No push/production.
+
 ## Portrait canvas — independent native-contract PASS, no new generated art (2026-10-24)
 
 - Sole authorized read-only reviewer PASS on4a0c90d1..589d53c1(codef73cf022);clean/ahead51 at gate. Report SHA256
