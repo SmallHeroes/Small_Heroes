@@ -55,6 +55,8 @@ function sceneAllowsAudio(scene: StoryScene | null, fallbackBookAudio: string | 
 
 type Props = {
   source: ReaderBookSource;
+  /** Explicit presentation choice; does not alter source artwork or its quality status. */
+  presentation?: 'complete-artwork' | 'desktop-full-page';
   /** Dev-only QA flags from query string (stripped in production). */
   devLayoutFlags?: DevLayoutQueryFlags;
 };
@@ -75,6 +77,7 @@ export function storytimeNoAudioDwellMs(text: string): number {
 
 export default function ReaderV2({
   source,
+  presentation = 'complete-artwork',
   devLayoutFlags = EMPTY_DEV_LAYOUT_FLAGS,
 }: Props) {
   const bookId = readerSourceBookId(source);
@@ -816,6 +819,7 @@ export default function ReaderV2({
   return (
     <main
       data-artwork-fit="contain"
+      data-reader-presentation={presentation}
       className={`${styles.root} ${status === 'ready' ? styles.rootReaderReady : ''}`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
