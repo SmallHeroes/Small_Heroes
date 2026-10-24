@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## New portrait book delivered — full coverage, quality pipeline not complete (2026-10-24)
+
+- Actual new story "כרטיס לפעמון"/Ido6+pandaAnat:8body illustrations+cover,all1024x1536 and exacttext in local3120Reader.
+  General Sol source/portrait/input-capacity code gated before payment;cached paid source/planner reused without reset/repin.
+- Native ended EXIT1 after page7completed raw violated cross-field topology;pages1..6held,7review_unusable,8+coverunreviewed.
+  All images exist;no page repair loop ran. Held locations reference stays diagnostic. Reader is explicitly experimental/incomplete.
+- Final40knowncalls/2312110microUSD inclcache upper estimate,USD7cap,Max0,unknown0/unsettled0;2008oldhashes preserved. Sole
+  independent outcome5132controls PASS means accounting/preservation/delivery accuracy only. Live desktop/mobile author QA done.
+- Next general engineering: shared legal topology association/extent schema;explicit required in-world text vs no-text contract;
+  camera/pose-aware companion scale and source safe margins. Do not manually fix this story/old raw or equate coverage with quality.
+  Q=ART/r4-portrait-review-input-recovery-20261024;DELIVERY-REPORT.txt+independent reports+allraws/screenshots retained. Guy product gate.
+
 ## Same new portrait book — review input headroom and saved-output continuation (2026-10-24)
 
 - Original new-book run produced admitted text+successful planner,then local input_limit before the review.6calls/428183accounted/

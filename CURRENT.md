@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## New portrait Sol book delivered for judgment — full art, incomplete quality (2026-10-24)
+
+- Supersedes the prospective/not-yet-produced entries below. Actual "כרטיס לפעמון", fictional Ido6+pandaAnat, has ALL9 real
+  scene/cover PNGs1024x1536 and exact8page texts in local Reader http://localhost:3120/dev/local-reader?book=ido-panda-portrait-20261024.
+  Q=ART/r4-portrait-review-input-recovery-20261024; BOOK=ART/new-book-portrait-panda-20261024. No audio/Max/HIGH/production/push.
+- Recovery code4621f21c/docs9087e280 received independent4200controls+5focusedtests PASS for exact unused grant133a90aa;first
+  actual saved-planner review then admitted review_supported_with_notes. Original6calls/428183 and failed/input_limit outcome
+  preserved;no author/editor/citation/first-planner resend,grant repin,book reset or extra authority. Child/style/design/age passed.
+- Native actual successor EXIT1/failed_trial/audition_review_unusable,not successful quality completion. All9 frames rendered
+  BEFORE page reviews;pages1..6held with gpt4o identity~1/.70,7review_unusable,8+coverpending_review. No page repair loop ran.
+  Entities sheet passed attempt2;locations held attempt2 remains diagnostic. Numeric framing drift stayed detail/nonblocking.
+- Paid page7raw is completed/schema-valid,not truncated/unknown; different_object+containing_aggregate for toy_drawer/o2 violates
+  cross-field topology at landmark-topology.ts:198. Shared schema permits the invalid pair;future joint typed contract should
+  prevent emission without weakening assessor/legacy/duplicate gates. Separately actual p7render demands literal sticker words
+  and shared suffix forbids text/labels;future explicit in-scene-text state must align planner/render/reviewer,not a story patch.
+- Final cumulative40APIcalls:2200776base+111334cache-write upper estimate=2312110microUSD/7000000;unknowncost0/outcome0/
+  unsettled0,Max0calls. 20Sol/14imageLOW/6gpt4o. Cost is tariff estimate,not invoice. All old2008hashes preserved;source clean at
+  executed9087e280/ahead57. Native process/descendants ended. Separate Reader server remains local;old3119Reader untouched.
+- Independent outcome QA5132controls exit0 verifies40settlements,2008history+213book+189runtime files,9selected PNGs/exacttexts,
+  6real assessments/identity and unchanged p7refusal. Report SHA581914826238936d56308abbb4d46bdb3cd37c83087ad1ec30e1286d0c78e392.
+  PASS is ACCURACY/ACCOUNTING/PRESERVATION/DELIVERY ONLY,not engine/pixel/product PASS. Synthetic causal control NOT ADOPTED.
+- Author browser QA:1280x720desktop,390x844mobile,all8body pages/correctimage URLs,contain/natural1024x1536/nohorizontaloverflow,
+  scrollable Hebrew,consoleerrors0;viewportreset/tabmarkedDeliverable. Source-edge clipping in4/6 remains visible,not Reader crop.
+  SOURCE-MANIFEST/sourceQa=incomplete/productAccepted=false,raws/claims/viewer/screenshots/DELIVERY-REPORT.txt retained in Q.
+  Historical fullcheckRED remains;no redundant broad suite. Guy judges the book;future general fixes need their own frozen gate.
+
 ## Same portrait book — known-cost input-limit checkpoint, independent re-gate next (2026-10-24)
 
 - Original execution7d6d8dba exited1/input_limit BEFORE first storyboard-review claim,child or art. Actual Sol author/editor/
