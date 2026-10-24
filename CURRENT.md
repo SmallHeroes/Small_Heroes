@@ -15,12 +15,17 @@
   Source admission reconstructs the frozen policy; bounded repair inherits it and cannot switch. Matching existing review
   packets use the same citation compiler/materiality classifier. No extra stages, candidate/rubric engine, event/sound quota,
   companion-specific patch, model/transport/budget/threshold/default/production change. Old v1 calls remain the default.
-- Final focused serial checks:200tests in4files +14selected existing flow tests passed;167flow cases intentionally filtered,
+- First independent gate at93111eb1 found P1/F1: unchanged real v1 writer responses could be reprojected under the new call
+  because only schema descriptions differed. Original HOLD and both actual-receipt RED probes remain in Q. First focused
+  correction requires writingContractVersion in the ACTUAL new-policy author AND editor outputs, retained/validated in source
+  and bounded repair; no parsed-only backfill. Legacy schema/call bytes are unchanged. Real unchanged writer receipts now reject
+  simple_story_author_invalid; synthetic parsed-only decoration/raw mismatch, missing/wrong tags on both stages also reject.
+- Corrected final focused serial checks:206tests in4files +14selected existing flow tests passed;167flow cases intentionally filtered,
   not suite-wide PASS. Whole nonincremental tsc0. Real old source admitted/two readings recompiled with identical old author/
   editor calls and review packet digests;698book/narration file/link hashes preserved. Initial synthetic-fixture and wrapper-
   expectation RED retained/corrected; no source validator weakened. Fullcheck remains historical RED, not rerun/promoted.
 - ZERO real provider/image/audio/Max calls, no new key/claim/authority use or counter reset. Consumed book/narration grants and
-  reader3124 untouched. Independent read-only QA pending against the focused local commit; author cannot self-award PASS.
+  reader3124 untouched. Independent read-only re-gate pending against the corrective local commit; author cannot self-award PASS.
   This proves wiring/compatibility only: no fresh story or literary improvement proven. Next product proof is a separately
   scoped text-only trial/blind reading before another illustrated book; no automatic paid rerun from old unused budget.
 

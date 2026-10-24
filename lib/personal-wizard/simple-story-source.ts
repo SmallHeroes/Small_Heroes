@@ -12,7 +12,8 @@ import { preparePersonalStory } from './story-writer';
 import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 import { opusOutputContract } from '../../scripts/personal-causal-trial-adapters';
 import { SOL_WRITING } from './sol-writing-route';
-import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_REVIEW_INSTRUCTIONS } from './simple-story-experience';
+import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_REVIEW_INSTRUCTIONS,
+  type SimpleStoryExperience } from './simple-story-experience';
 import { replaySettlement } from '../../scripts/personal-response-settlement';
 
 export const CURRENT_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1' as const;
@@ -34,8 +35,8 @@ const solReceipt = cliReceipt.extend({ version: z.literal('simple-responses-rece
   sessionId: z.string().min(5).max(200), model: z.literal(SOL_WRITING.model),
   costKind: z.literal('provider_reported_usage_estimate_not_invoice') }).strict();
 const receipt = z.union([cliReceipt, solReceipt]);
-const evidenceSchema = (pages: number) => z.object({ source: binding, shape: z.string(), seed: z.string(), appearance: z.unknown(),
-  draft: simpleStoryDraftSchema(pages), draftCheck: z.unknown(), findings: z.array(z.string()), edited: simpleStoryDraftSchema(pages),
+const evidenceSchema = (pages: number, experience?: SimpleStoryExperience) => z.object({ source: binding, shape: z.string(), seed: z.string(), appearance: z.unknown(),
+  draft: simpleStoryDraftSchema(pages, experience), draftCheck: z.unknown(), findings: z.array(z.string()), edited: simpleStoryDraftSchema(pages, experience),
   editorChanges: z.array(z.string().min(1).max(400)).max(12), finalCheck: z.unknown(),
   calls: z.object({ author: hash, editor: hash }).strict() }).strict();
 
@@ -69,10 +70,10 @@ export function simpleStoryFindingIsMaterial(f: { severity: string; kind: string
 
 export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpleStoryResult, options: PersonalWizardOptions) {
   const prepared = prepareFromEvidence(request, options, result.simpleSource.evidence);
-  const evidence = evidenceSchema(prepared.book.pages).parse(result.simpleSource.evidence);
+  const evidence = evidenceSchema(prepared.book.pages, prepared.book.storyExperience).parse(result.simpleSource.evidence);
   const repaired = result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || result.simpleSource.version === SOL_REPAIRED_SOURCE_VERSION;
   const baseline = result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || result.simpleSource.version === SOL_REPAIRED_SOURCE_VERSION
-    ? evidenceSchema(prepared.book.pages).parse(originalSimpleStoryResultSchema.parse(result.simpleSource.repair.prior).simpleSource.evidence).edited : evidence.draft;
+    ? evidenceSchema(prepared.book.pages, prepared.book.storyExperience).parse(originalSimpleStoryResultSchema.parse(result.simpleSource.repair.prior).simpleSource.evidence).edited : evidence.draft;
   const original = compileSimpleStory(prepared, baseline, result.accounting, repaired);
   const document = (r: typeof original) => ({ plan: r.plan, manuscript: r.manuscript,
     characterDigest: prepared.brief.companion.characterDigest });
@@ -107,7 +108,7 @@ export function prepareSimpleStoryRepair(request: unknown, priorRaw: unknown, re
     }));
     if (!findings.length || findings.length > 6) return fail('repair_finding_limit');
     const prepared = prepareFromEvidence(request, options, prior.simpleSource.evidence);
-    const priorEvidence = evidenceSchema(prepared.book.pages).parse(prior.simpleSource.evidence);
+    const priorEvidence = evidenceSchema(prepared.book.pages, prepared.book.storyExperience).parse(prior.simpleSource.evidence);
     const guidance: SimpleEditorGuidance = { version: 'source-bound-simple-editor-guidance/v1', requestId: prior.requestId,
       targetDigest: digest(priorEvidence.edited), readingDigests: readings.map(causalDigest), findings };
     if (Buffer.byteLength(canonicalJson(guidance), 'utf8') > 12000) return fail('repair_guidance_limit');
@@ -180,7 +181,7 @@ export function admitCurrentSimpleStorySource(request: unknown, raw: unknown, op
     (simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || simpleSource.version === SOL_REPAIRED_SOURCE_VERSION ? personalSimpleRepairResultSchema : personalStoryResultSchema).parse(common);
     const prepared = prepareFromEvidence(request, options, simpleSource.evidence);
     if (prepared.book.companion.appearance.status !== 'registry_declared') return fail('appearance_unresolved');
-    const evidence = evidenceSchema(prepared.book.pages).parse(simpleSource.evidence);
+    const evidence = evidenceSchema(prepared.book.pages, prepared.book.storyExperience).parse(simpleSource.evidence);
     const expectedBinding = { version: 'personal-simple-writing-source/v1', engineVersion: prepared.version,
       requestId: prepared.accepted.requestId, optionsFingerprint: prepared.accepted.optionsFingerprint,
       characterDigest: prepared.brief.companion.characterDigest, bookDigest: digest(prepared.book) };
@@ -228,7 +229,7 @@ export function createRepairedSimpleStorySource(request: unknown, prior: unknown
   const editor = sol ? projectSimpleSolReceipt(ready.call, rawReceipt) : projectSimpleCliReceipt(ready.call, rawReceipt);
   const output = ready.call.schema.parse(z.object({ output: z.unknown() }).passthrough().parse(rawReceipt).output);
   const { editorChanges, ...rawEdited } = output;
-  const edited = simpleStoryDraftSchema(ready.prepared.book.pages).parse(rawEdited);
+  const edited = simpleStoryDraftSchema(ready.prepared.book.pages, ready.prepared.book.storyExperience).parse(rawEdited);
   const finalCheck = checkSimpleStory(ready.prepared, edited);
   const draftCheck = checkSimpleStory(ready.prepared, ready.priorEvidence.draft);
   const evidence = { ...ready.priorEvidence, shape: ready.prepared.shape.id, appearance: ready.prepared.book.companion.appearance,
@@ -249,7 +250,7 @@ export function createCurrentSimpleStorySource(request: unknown, generated: { re
   records: { author: unknown; editor: unknown }, options: PersonalWizardOptions, writingModel: SimpleWritingModel = MODEL): CurrentSimpleStoryResult {
   try {
     const prepared = prepareFromEvidence(request, options, generated.evidence);
-    const evidence = evidenceSchema(prepared.book.pages).parse(generated.evidence);
+    const evidence = evidenceSchema(prepared.book.pages, prepared.book.storyExperience).parse(generated.evidence);
     if (writingModel !== MODEL && writingModel !== SOL_WRITING.model) return fail('receipt_route');
     const project = writingModel === SOL_WRITING.model ? projectSimpleSolReceipt : projectSimpleCliReceipt;
     const author = project(simpleAuthorCall(prepared), records.author);

@@ -37,7 +37,8 @@ function cliReply(call: SimpleStoryCall, output: unknown, repair = false) {
       total_cost_usd: .1, modelUsage: { 'claude-opus-5-5': usage }, structured_output: output }) } };
 }
 function output(call: SimpleStoryCall) {
-  return call.stage === 'author' ? story() : { ...story(), editorChanges: ['Synthetic no-op edit, not literary improvement.'] };
+  const tagged = JSON.parse(call.input).book.storyExperience ? { ...story(), writingContractVersion: SIMPLE_STORY_DELIGHT_VERSION } : story();
+  return call.stage === 'author' ? tagged : { ...tagged, editorChanges: ['Synthetic no-op edit, not literary improvement.'] };
 }
 async function fixture(experience?: SimpleStoryExperience, sol = false) {
   const req = request(), p = prepareSimpleStory(req, options, seed, experience), records: Record<string, any> = {}, calls: SimpleStoryCall[] = [];
@@ -87,7 +88,9 @@ describe('prospective story experience, same engine and no provider', () => {
     const old = simpleAuthorCall(prepareSimpleStory(request(), options, seed));
     const next = simpleAuthorCall(prepareSimpleStory(request(), options, seed, SIMPLE_STORY_EXPERIENCE));
     const schema = (call: SimpleStoryCall) => zodTextFormat(call.schema, 'test').schema as any;
-    expect(Object.keys(schema(next).properties)).toEqual(Object.keys(schema(old).properties));
+    expect(Object.keys(schema(next).properties).filter(key => key !== 'writingContractVersion')).toEqual(Object.keys(schema(old).properties));
+    expect(schema(next).required).toContain('writingContractVersion');
+    expect(schema(old).properties).not.toHaveProperty('writingContractVersion');
     expect(Object.keys(schema(next).properties).slice(0, 2)).toEqual(['title', 'pages']);
     expect(schema(old).properties.comicPromise.description).toContain('running joke');
     expect(schema(next).properties.comicPromise.description).toContain('recurring gag is optional');
@@ -131,7 +134,7 @@ describe('prospective story experience, same engine and no provider', () => {
     expect(ready.prepared.version).toBe(SIMPLE_STORY_DELIGHT_VERSION);
     expect(ready.call.instructions).toBe(DELIGHT_EDITOR_INSTRUCTIONS);
     expect(ready.call.input).toContain('not a new story');
-    const edited = { ...story(), editorChanges: ready.guidance.findings.map(f => `${f.id} kept: Synthetic response, not quality proof.`) };
+    const edited = { ...ready.priorEvidence.edited, editorChanges: ready.guidance.findings.map(f => `${f.id} kept: Synthetic response, not quality proof.`) };
     const repaired = createRepairedSimpleStorySource(f.req, f.source, rs, cliReply(ready.call, edited, true), options, 1);
     expect(repaired.source.accounting.providerCalls).toBe(3);
     expect(repaired.source.simpleSource.author).toEqual(f.source.simpleSource.author);
@@ -179,7 +182,7 @@ describe('prospective story experience, same engine and no provider', () => {
     const ready = prepareSimpleStoryRepair(f.req, f.source, rs, options);
     const opus = vi.fn(async (call: SimpleStoryCall) => {
       expect(call.instructions).toBe(DELIGHT_EDITOR_INSTRUCTIONS);
-      return cliReply(call, { ...story(), editorChanges: ready.guidance.findings.map(f => `${f.id} kept: Synthetic repair response only.`) }, true);
+      return cliReply(call, { ...ready.priorEvidence.edited, editorChanges: ready.guidance.findings.map(f => `${f.id} kept: Synthetic repair response only.`) }, true);
     });
     const reader = vi.fn(async (_call: any) => { throw Error('synthetic_stop_at_repaired_reading'); });
     await expect(runSimpleWizardBook({ request: f.req, options, seed, repair: { prior: f.source, readings: rs },
@@ -199,5 +202,33 @@ describe('prospective story experience, same engine and no provider', () => {
     expect(simpleStoryFindingIsMaterial({ severity: 'meaningful', kind: 'issue' })).toBe(true);
     expect(simpleStoryFindingIsMaterial({ severity: 'meaningful', kind: 'preference' })).toBe(false);
     expect(simpleStoryFindingIsMaterial({ severity: 'polish', kind: 'issue' })).toBe(false);
+  });
+  it.each([false, true])('rejects legacy writer raw reused as new %s route output, including parsed-only tag backfill', async sol => {
+    const old = await fixture(undefined, sol), next = await fixture(SIMPLE_STORY_EXPERIENCE, sol);
+    expect(() => createCurrentSimpleStorySource(next.req, next.generated, old.records as any, options, sol ? SOL_WRITING.model : undefined)).toThrow();
+    const decorated = structuredClone(old.records);
+    for (const stage of ['author', 'editor']) decorated[stage].output.writingContractVersion = SIMPLE_STORY_DELIGHT_VERSION;
+    // In-memory decoration must not stand in for the unchanged provider/CLI raw response.
+    expect(() => createCurrentSimpleStorySource(next.req, next.generated, decorated as any, options, sol ? SOL_WRITING.model : undefined)).toThrow();
+    await expect(writeSimpleStory(next.p, async call => ({ output: old.records[call.stage].output,
+      usage: old.records[call.stage].usage, estimatedUsd: old.records[call.stage].estimatedMicroUsd / 1e6 }),
+    { model: sol ? SOL_WRITING.model : 'claude-opus-5-5', reservedUsd: 2 })).rejects.toThrow('simple_story_author_invalid');
+  });
+  it.each(['author', 'editor'] as const)('requires the literal in the actual %s response for every new-policy run', async stage => {
+    const p = prepareSimpleStory(request(), options, seed, SIMPLE_STORY_EXPERIENCE), calls: string[] = [];
+    await expect(writeSimpleStory(p, async call => {
+      calls.push(call.stage); const value: any = output(call);
+      if (call.stage === stage) delete value.writingContractVersion;
+      return { output: value, usage: { inputTokens: 10, outputTokens: 10 }, estimatedUsd: .1 };
+    }, { model: 'claude-opus-5-5', reservedUsd: 2 })).rejects.toThrow(`simple_story_${stage}_invalid`);
+    expect(calls).toEqual(stage === 'author' ? ['author'] : ['author', 'editor']);
+  });
+  it.each(['author', 'editor'] as const)('rejects a wrong %s output-contract literal instead of dropping it', async stage => {
+    const p = prepareSimpleStory(request(), options, seed, SIMPLE_STORY_EXPERIENCE);
+    await expect(writeSimpleStory(p, async call => {
+      const value: any = output(call);
+      if (call.stage === stage) value.writingContractVersion = SIMPLE_STORY_ENGINE_VERSION;
+      return { output: value, usage: { inputTokens: 10, outputTokens: 10 }, estimatedUsd: .1 };
+    }, { model: 'claude-opus-5-5', reservedUsd: 2 })).rejects.toThrow(`simple_story_${stage}_invalid`);
   });
 });

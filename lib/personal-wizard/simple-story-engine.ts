@@ -111,6 +111,8 @@ const storyFields = (pages: number, experience?: SimpleStoryExperience) => ({
     whatHelps: line.describe('What helps the child here; with no theme, what makes the choice work.'),
   }).strict()).min(1).max(4).describe('One to four pages where the child meets the theme or, with no theme, where the child\'s own choice or action turns the story.'),
   ending: line.describe('How the story ends, in one sentence.'),
+  ...(experience ? { writingContractVersion: z.literal(SIMPLE_STORY_DELIGHT_VERSION)
+    .describe('Required output-contract metadata, not part of the story prose. Return this exact literal.') } : {}),
 });
 export const simpleStoryDraftSchema = (pages: number, experience?: SimpleStoryExperience) => z.object(storyFields(pages, experience)).strict();
 export const simpleStoryEditSchema = (pages: number, experience?: SimpleStoryExperience) => z.object({ ...storyFields(pages, experience),
