@@ -19,7 +19,7 @@ describe('prospective reader-safe scene framing (guidance, not a judge)', () => 
     expect(() => readerSafeSceneFraming(version, 'medium', fraction)).toThrow('reader_safe_scene_framing_contract');
   });
   it('refuses an unknown explicit version/shot rather than silently falling back', () => {
-    expect(() => readerSafeSceneFraming('reader-safe-scene-framing/v3' as never, 'wide')).toThrow('contract');
+    expect(() => readerSafeSceneFraming('reader-safe-scene-framing/v4' as never, 'wide')).toThrow('contract');
     expect(() => readerSafeSceneFraming(null as never, 'wide')).toThrow('contract');
     expect(() => readerSafeSceneFraming(version, 'panorama' as never)).toThrow('contract');
   });

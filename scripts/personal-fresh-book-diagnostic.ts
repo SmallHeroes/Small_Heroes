@@ -162,7 +162,7 @@ export async function planFreshBookFullBookDiagnostic(config: FreshBookConfig, e
     check: () => { unchanged(); if (first) fail('fresh_book_diagnostic_preview'); } });
   } catch (e) { if (!first || (e as { code?: string }).code !== 'fresh_book_diagnostic_preview') throw e; }
   if (!first || first.step !== `r${markers}_page_${newFrames[0]}_0`) return refuse();
-  const payload = auditionRenderPlan(path.join(dir, 'illustrations'), first.prompt, first.refs, first.mode).wire;
+  const payload = auditionRenderPlan(path.join(dir, 'illustrations'), first.prompt, first.refs, first.mode, undefined, undefined, loaded.current.readerFraming).wire;
   unchanged();
   const roots = { bookFiles, authorityFiles };
   const plan = { version: AA.version, continuation: AA.version, cycle: FRESH_BOOK_CYCLE.id, ownerApproval: approval,

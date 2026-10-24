@@ -16,7 +16,7 @@ import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } f
 import { getCompanionById } from '../lib/companions';
 import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
-import { READER_SAFE_FRAMING_VERSIONS, type ReaderSafeFramingVersion } from '../lib/storybook-scene-framing';
+import { READER_SAFE_FRAMING_VERSIONS, READER_PORTRAIT_FRAMING_VERSION, readerSceneImageSize, type ReaderSafeFramingVersion } from '../lib/storybook-scene-framing';
 import { STORYBOARD_STATE_PARITY_VERSION } from '../lib/personal-wizard/storyboard-state-parity';
 import type { StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
@@ -807,7 +807,9 @@ const identityAnswered = (raw: any, status: unknown) => typeof status === 'numbe
  * label, never selects a cheaper rule; the cost always comes from the raw answer.
  */
 export const auditionRenderRule: MeterRule = {
-  reserve: wire => wire?.body?.model === 'gpt-image-2' && wire.body.quality === 'low' && wire.body.size === '1024x1024' && wire.body.n === 1 &&
+  reserve: wire => wire?.body?.model === 'gpt-image-2' && wire.body.quality === 'low' &&
+    (wire.body.size === '1024x1024' && wire.readerFraming === undefined ||
+      wire.body.size === '1024x1536' && wire.readerFraming === READER_PORTRAIT_FRAMING_VERSION) && wire.body.n === 1 &&
     typeof wire.body.prompt === 'string' && Array.isArray(wire.references) && wire.retries === 0 && wire.pricing === RENDER_PRICING &&
     wire.outputReservationTokens === 8192 ? renderMaximum(wire.body.prompt, wire.references.length) : null,
   settle: (_wire, receipt, completed) => ({ estimatedMicroUsd: auditionUsageCost(receipt?.raw?.usage, 'image'), coherent: !completed || receipt?.model === 'gpt-image-2' }),
@@ -922,15 +924,18 @@ export function durableReviewPayload(payload: Awaited<ReturnType<typeof audition
 /** The EXACT renderer's pure dry plan, shared by native first-operation admission. No key, provider or image write. */
 export function auditionRenderPlan(directory: string, prompt: string, refs: AuditionImage[],
   mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'identity' | 'anchor_photo_style_only' | 'style',
-  roles?: readonly BookDesignReferenceRole[], signal?: AbortSignal) {
+  roles?: readonly BookDesignReferenceRole[], signal?: AbortSignal, readerFraming?: ReaderSafeFramingVersion) {
+  const sceneSize = readerSceneImageSize(readerFraming);
+  const size = mode === 'book_identity' || mode === 'book_scene_edit' ? sceneSize : '1024x1024';
   const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(directory, r.imageName)), referenceMode: mode,
-    ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const,
+    ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size,
     modelOverride: 'gpt-image-2', signal, requestTimeoutMs: 180000 };
   const plan = planGPTImageRequest(input, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
   if (plan.referenceCountPassed !== refs.length) fail('audition_reference_truncated');
   if (plan.bodyWithoutBinaryImage.model !== 'gpt-image-2' || plan.bodyWithoutBinaryImage.quality !== 'low' ||
-      plan.bodyWithoutBinaryImage.size !== '1024x1024' || plan.bodyWithoutBinaryImage.n !== 1) fail('audition_image_price_contract');
+      plan.bodyWithoutBinaryImage.size !== size || plan.bodyWithoutBinaryImage.n !== 1) fail('audition_image_price_contract');
   const wire = { body: plan.bodyWithoutBinaryImage, mode: plan.apiMode, references: refs, ...(plan.referenceRoles ? { referenceRoles: plan.referenceRoles } : {}),
+    ...(size === '1024x1536' ? { readerFraming: READER_PORTRAIT_FRAMING_VERSION } : {}),
     retries: 0, deadlineMs: 180000, pricing: RENDER_PRICING, outputReservationTokens: 8192 };
   return { input, wire, maximumMicroUsd: renderMaximum(plan.finalPrompt, refs.length) };
 }
@@ -953,12 +958,15 @@ export function causeChain(error: unknown) {
 }
 /** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
 export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void;
+  /** Exact admitted layout/grant marker; scene-only portrait,never inferred from prompt/step/cwd. */
+  readerFraming?: ReaderSafeFramingVersion;
   /** Opt-in: steps whose request must be exactly a known one (a re-review re-sends the lost request): checked before the claim. */
   expectedWire?: Readonly<Record<string, string>>;
   /** Fixed native diagnostic operations only, each still atomically single-use in the ORIGINAL cumulative meter. */
   allowedSteps?: readonly string[];
   /** Native grant opt-in, never a CLI/default switch. Reconciliation names just ONE existing job and cannot claim a new generation. */
   durableReviews?: { version: typeof DURABLE_REVIEW_VERSION; resumeStep?: string } }) {
+  readerSceneImageSize(args.readerFraming); // Unknown explicit contracts refuse before any claim or key read.
   if (args.durableReviews && args.durableReviews.version !== DURABLE_REVIEW_VERSION) fail('audition_durable_policy');
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
@@ -985,7 +993,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'identity' | 'anchor_photo_style_only' | 'style',
     roles?: readonly BookDesignReferenceRole[]) => {
     checkStep(step); const bytes = refs.map(bytesOf);
-    const { input, wire, maximumMicroUsd } = auditionRenderPlan(args.directory, prompt, refs, mode, roles, args.signal);
+    const { input, wire, maximumMicroUsd } = auditionRenderPlan(args.directory, prompt, refs, mode, roles, args.signal, args.readerFraming);
     const expected = args.expectedWire?.[step];
     if (expected !== undefined && previewSha(canonicalJson(wire)) !== expected) fail('audition_rereview_wire');
     return args.meter.run(step, wire, maximumMicroUsd, async () => {
@@ -995,7 +1003,8 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
         const cost = auditionUsageCost(generated.usage, 'image');
         if (generated.model !== 'gpt-image-2' || generated.fallbackUsed) throw Object.assign(new ReviewedAuditionError('audition_image_model'), { receipt: { raw: digestImages(raw), estimatedMicroUsd: cost } });
         const meta = await sharp(generated.buffer).metadata();
-        if (meta.width !== 1024 || meta.height !== 1024) throw Object.assign(new ReviewedAuditionError('audition_image_dimensions'), { receipt: { raw: digestImages(raw), estimatedMicroUsd: cost } });
+        const [width, height] = input.size.split('x').map(Number);
+        if (meta.width !== width || meta.height !== height) throw Object.assign(new ReviewedAuditionError('audition_image_dimensions'), { receipt: { raw: digestImages(raw), estimatedMicroUsd: cost } });
         const candidate = await writeImage(`${step}.png`, generated.buffer); cancelled();
         return { value: candidate, estimatedMicroUsd: cost, receipt: { raw: digestImages(raw), estimatedMicroUsd: cost, model: generated.model, candidate } };
       } catch (error) {
@@ -1272,6 +1281,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     diagnosticSteps = frames.flatMap(n => ['', '_qa', '_identity'].map(s => `${prefix}page_${n}_0${s}`));
   }
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}),
+    readerFraming: loaded.current.readerFraming,
     expectedWire, ...(diagnosticSteps ? { allowedSteps: diagnosticSteps } : {}),
     ...(args.coverageOrphanRecovery || args.anatomyRecovery || diagnostic ? { durableReviews: { version: DURABLE_REVIEW_VERSION } } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);

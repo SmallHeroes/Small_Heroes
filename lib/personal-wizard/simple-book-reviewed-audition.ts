@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
 import { previewSha } from '../local-story-preview';
 import { STYLE_01_SHARED } from '../style01-prompt-core';
-import { readerSafeSceneFraming } from '../storybook-scene-framing';
+import { readerSafeSceneFraming, READER_PORTRAIT_FRAMING_VERSION } from '../storybook-scene-framing';
 import { qualityDisposition, previewQualityContextSha, QUALITY_CATEGORIES, PREVIEW_JUDGE_INSTRUCTION } from '../local-preview-quality';
 import { BOOK_SEQUENCE_ROLES } from '../local-book-sequence';
 import { currentPersonalStoryboardFrame, type PersonalStoryboard } from './storyboard';
@@ -801,7 +801,8 @@ function readerFramingJudgeInstruction(context: unknown) {
     const expected = readerSafeSceneFraming(framing.version, framing.shot, framing.authoredChildHeightFraction ?? undefined);
     if (canonicalJson(framing) !== canonicalJson(expected)) fail('audition_reader_framing_contract');
   } catch { return fail('audition_reader_framing_contract'); }
-  if (framing.version === 'reader-safe-scene-framing/v2') return `\nREADER-SAFE SCENE FRAMING (${framing.version}): context.packet.readerFraming is the render's prospective presentation target,replacing ONLY the older occupancy target. Compare the complete source image,not a magnified crop. Wide/normal targets are30–40%,close at most50%,visible-actor ceiling55%,not the target. The reader contains the complete source;safeActionRect is an8% edge margin,not the legacy narrow portrait-crop strip. Numeric occupancy/safe-area drift alone is detail,never a new HOLD or retry. Actual missing required action,illegible required identity,anatomy or safety retains its existing impact and actual requirement. No reinterpretation of previous pixels or verdicts.`;
+  if (framing.version === 'reader-safe-scene-framing/v2' || framing.version === READER_PORTRAIT_FRAMING_VERSION) return `\nREADER-SAFE SCENE FRAMING (${framing.version}): context.packet.readerFraming is the render's prospective presentation target,replacing ONLY the older occupancy target. Compare the complete source image,not a magnified crop. Wide/normal targets are30–40%,close at most50%,visible-actor ceiling55%,not the target. The reader contains the complete source;safeActionRect is an8% edge margin,not the legacy narrow portrait-crop strip. Numeric occupancy/safe-area drift alone is detail,never a new HOLD or retry. Actual missing required action,illegible required identity,anatomy or safety retains its existing impact and actual requirement. No reinterpretation of previous pixels or verdicts.` +
+    (framing.version === READER_PORTRAIT_FRAMING_VERSION ? '\nSource canvas is native1024x1536portrait2:3 as bound by context.packet.readerFraming.sourceCanvas. Compare this complete vertical image,not a square crop or old source. Numeric cast occupancy remains nonblocking detail;do not reinterpret old evidence as this new canvas.' : '');
   return `\nREADER-SAFE SCENE FRAMING (${framing.version}): context.packet.readerFraming is the render's prospective presentation target, replacing ONLY the source plan's older occupancy target. Compare the complete source image, not a magnified crop. Target and 70% ceiling are different; wide/normal targets remain smaller. The central safeActionRect covers the essential visible actors and story interaction, not every background feature. Numeric occupancy/safe-area drift alone is detail, never a new HOLD or retry. A real missing required action, illegible required identity, anatomy or safety defect still has its existing impact and must cite its actual requirement; never hide it as framing detail. No reinterpretation of previous pixels or verdicts.`;
 }
 

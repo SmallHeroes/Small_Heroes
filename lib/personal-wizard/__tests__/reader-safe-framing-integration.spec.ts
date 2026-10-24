@@ -55,7 +55,7 @@ describe('actual frame/context and native-layout opt-in', () => {
     expect(reviewedBookLayoutSchema.parse(LEGACY_BOOK_LAYOUT)).toEqual(LEGACY_BOOK_LAYOUT);
     expect(LEGACY_BOOK_LAYOUT).not.toHaveProperty('readerFraming');
     expect(reviewedBookLayoutSchema.parse({ ...LEGACY_BOOK_LAYOUT, readerFraming: version }).readerFraming).toBe(version);
-    for (const readerFraming of [null, true, '', 'reader-safe-scene-framing/v3'])
+    for (const readerFraming of [null, true, '', 'reader-safe-scene-framing/v4'])
       expect(reviewedBookLayoutSchema.safeParse({ ...LEGACY_BOOK_LAYOUT, readerFraming }).success).toBe(false);
   });
   it.each(['version', 'target', 'rect', 'impact', 'missing'])('rejects a forged %s in the judge contract', field => {

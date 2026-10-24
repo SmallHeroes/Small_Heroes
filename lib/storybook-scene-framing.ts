@@ -1,22 +1,32 @@
 /** Prospective scene-presentation guidance only. Never a pixel verdict or permission to render. */
 export const READER_SAFE_FRAMING_VERSION = 'reader-safe-scene-framing/v1' as const;
 export const READER_FIT_FRAMING_VERSION = 'reader-safe-scene-framing/v2' as const;
-export const READER_SAFE_FRAMING_VERSIONS = [READER_SAFE_FRAMING_VERSION, READER_FIT_FRAMING_VERSION] as const;
+export const READER_PORTRAIT_FRAMING_VERSION = 'reader-safe-scene-framing/v3' as const;
+export const READER_SAFE_FRAMING_VERSIONS = [READER_SAFE_FRAMING_VERSION, READER_FIT_FRAMING_VERSION, READER_PORTRAIT_FRAMING_VERSION] as const;
 export type ReaderSafeFramingVersion = typeof READER_SAFE_FRAMING_VERSIONS[number];
 type Shot = 'wide' | 'medium' | 'close';
+
+/** Native scene transport size. Historical versions/absence remain square; reference sheets never use this as their size. */
+export function readerSceneImageSize(version?: ReaderSafeFramingVersion): '1024x1024' | '1024x1536' {
+  if (version !== undefined && !READER_SAFE_FRAMING_VERSIONS.includes(version)) throw Error('reader_safe_scene_framing_contract');
+  return version === READER_PORTRAIT_FRAMING_VERSION ? '1024x1536' : '1024x1024';
+}
 
 /** Preserve smaller authored targets. A ceiling must never become the default character size. */
 export function readerSafeSceneFraming(version: ReaderSafeFramingVersion, shot: Shot, authoredChildHeightFraction?: number) {
   if (!READER_SAFE_FRAMING_VERSIONS.includes(version) || !['wide', 'medium', 'close'].includes(shot) ||
       authoredChildHeightFraction !== undefined && (!Number.isFinite(authoredChildHeightFraction) ||
         authoredChildHeightFraction <= 0 || authoredChildHeightFraction > 1)) throw Error('reader_safe_scene_framing_contract');
-  if (version === READER_FIT_FRAMING_VERSION) {
+  if (version === READER_FIT_FRAMING_VERSION || version === READER_PORTRAIT_FRAMING_VERSION) {
     const target = shot === 'wide' ? .3 : shot === 'close' ? .5 : .4;
     return { version, scope: 'cover_and_body_scenes_only' as const, profile: 'complete_source_contain_reader' as const,
       shot, authoredChildHeightFraction: authoredChildHeightFraction ?? null,
       targetChildHeightFraction: Math.min(authoredChildHeightFraction ?? target, target),
       maximumVisibleActorHeightFraction: .55,
       safeActionRect: { left: .08, top: .08, right: .92, bottom: .92 },
+      ...(version === READER_PORTRAIT_FRAMING_VERSION ? {
+        sourceCanvas: { width: 1024, height: 1536, size: '1024x1536' as const, aspectRatio: '2:3' as const },
+      } : {}),
       sourcePlanUnchanged: true as const, ratioDeviationImpact: 'detail' as const };
   }
   const shotTargetMaximum = shot === 'wide' ? .35 : shot === 'close' ? .65 : .5;
@@ -35,11 +45,12 @@ export function readerSafeSceneFraming(version: ReaderSafeFramingVersion, shot: 
 
 export function readerSafeSceneFramingPrompt(framing: ReturnType<typeof readerSafeSceneFraming>) {
   const percent = (fraction: number) => Math.round(fraction * 10000) / 100;
-  if (framing.version === READER_FIT_FRAMING_VERSION) return `READER-SAFE SCENE FRAMING (${framing.version}; complete-artwork presentation guidance, not a new acceptance gate):
+  if (framing.version === READER_FIT_FRAMING_VERSION || framing.version === READER_PORTRAIT_FRAMING_VERSION) return `READER-SAFE SCENE FRAMING (${framing.version}; complete-artwork presentation guidance, not a new acceptance gate):
 - Pull the CAMERA BACK. Target the child's visible height at about ${percent(framing.targetChildHeightFraction)}% of the COMPLETE source image height. Wide/normal scenes target30–40%;even planned close scenes target at most50%. No visible foreground actor should exceed55%;that ceiling is NOT the target.
 - Draw the whole interaction with substantial environmental context and clear breathing room above,below and around every visible actor. Keep essential faces,hands,feet/tail and the story object inside x=8–92%,y=8–92%;no giant isolated face and no essential action at the edge.
 - The reader contains the COMPLETE source image;do not enlarge the cast for a hypothetical portrait crop. A group can spread naturally across the source rather than crowding into a narrow central strip. Preserve each character's canonical size relative to the others and grounded perspective;never shrink only the companion,hide required cast,change anatomy/identity or invent another event/location.
-- This prospective version changes drawing occupancy/composition only;source world,cast,action and plan remain unchanged. Numeric framing drift alone is detail and does NOT trigger HOLD,retries or a new render. Actual loss of required story action,identity or safety remains subject to existing requirements. Do not draw measurement labels,rectangles or borders.`;
+- This prospective version changes drawing occupancy/composition only;source world,cast,action and plan remain unchanged. Numeric framing drift alone is detail and does NOT trigger HOLD,retries or a new render. Actual loss of required story action,identity or safety remains subject to existing requirements. Do not draw measurement labels,rectangles or borders.` +
+    (framing.version === READER_PORTRAIT_FRAMING_VERSION ? '\n- SOURCE CANVAS: native1024x1536pixels,portrait2:3. Compose directly for the full vertical canvas,not a square composition with empty bands. Extend the environment naturally above/below the whole interaction;never stretch,crop or enlarge the cast to fill the page. The native request and returned pixels must match this canvas.' : '');
   return `READER-SAFE SCENE FRAMING (${framing.version}; presentation guidance, not a new acceptance gate):
 - Target the child's visible height at about ${percent(framing.targetChildHeightFraction)}% of the COMPLETE source image height. Normal scenes stay around 35–50% or the smaller authored target; wide scenes at most 35%, planned close scenes at most 65%. The 70% ceiling is NOT the target.
 - No visible foreground actor's silhouette should occupy more than 70% of source image height. Leave air above/below and space around the cast. For normal/wide shots keep mostly full figures and substantial environmental context. A planned close shot may crop intentionally, but must retain the meaningful hands/face/object interaction, never a giant isolated face.

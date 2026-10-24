@@ -695,7 +695,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     const layout=reviewedBookLayoutSchema.parse({...layoutBase,childImage:child.candidate.imageName});save('book-layout',layout);
     const loaded=loadReviewedBook(config.bookDir,source,undefined,layout);
     if(readerSafe&&loaded.current.readerFraming!==grant.visual.readerFraming)fail('trial_reader_framing_binding');
-    const art=auditionAdapters({directory:imageDir,meter,key,signal,guard});
+    const art=auditionAdapters({directory:imageDir,meter,key,signal,guard,readerFraming:loaded.current.readerFraming});
     const childRef=await art.writeImage('reference_child.png',loaded.childBytes),companionRef=await art.writeImage('reference_companion.png',loaded.companionBytes);
     const saved=new Map<string,any>();
     const saveArt=(name:string,v:unknown)=>{saved.set(name,v);save(name,v);};
