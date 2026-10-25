@@ -248,10 +248,17 @@ export type SimpleEditorGuidance = {
     revised: { pageNumber: number; quote: string }[]; explanation: string }[];
 };
 
+/** Derived book/brief fields must still agree with the original accepted age before either writer call. */
+function assertPreparedChildAge(prepared: PreparedSimpleStory) {
+  const age = prepared.accepted.canonical.child.age;
+  if (prepared.book.child.age !== age || prepared.brief.child.age !== age) fail('story_child_profile_binding');
+  assertChildStoryProfile(prepared.book.childStoryProfile!, age);
+}
+
 export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   const experience = prepared.book.storyExperience;
-  if (experience === SIMPLE_CHILD_EXPERIENCE) assertChildStoryProfile(prepared.book.childStoryProfile!, prepared.book.child.age);
+  if (experience === SIMPLE_CHILD_EXPERIENCE) assertPreparedChildAge(prepared);
   return { stage: 'author', instructions: experience === SIMPLE_CHILD_EXPERIENCE ? CHILD_AUTHOR_INSTRUCTIONS : experience ? DELIGHT_AUTHOR_INSTRUCTIONS : SIMPLE_AUTHOR_INSTRUCTIONS,
     schema: simpleStoryDraftSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book,
@@ -263,7 +270,7 @@ export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleSto
   guidance?: SimpleEditorGuidance): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   const experience = prepared.book.storyExperience;
-  if (experience === SIMPLE_CHILD_EXPERIENCE) assertChildStoryProfile(prepared.book.childStoryProfile!, prepared.book.child.age);
+  if (experience === SIMPLE_CHILD_EXPERIENCE) assertPreparedChildAge(prepared);
   return { stage: 'editor', instructions: experience === SIMPLE_CHILD_EXPERIENCE ? CHILD_EDITOR_INSTRUCTIONS : experience ? DELIGHT_EDITOR_INSTRUCTIONS : SIMPLE_EDITOR_INSTRUCTIONS,
     schema: simpleStoryEditSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },

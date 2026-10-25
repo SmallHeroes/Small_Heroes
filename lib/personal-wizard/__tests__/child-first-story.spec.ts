@@ -94,6 +94,15 @@ describe('child-first exact age and story focus (provider-free, not literary pro
     expect(() => simpleAuthorCall(p)).toThrow('story_child_profile_binding');
     expect(() => simpleEditorCall(p, {} as any, [])).toThrow('story_child_profile_binding');
   });
+  it.each([false,true])('rejects co-mutated book/profile age against the accepted request, including brief drift (%s)', driftBrief => {
+    const p = prepareSimpleStory(request(4), options, 'child-focus', SIMPLE_CHILD_EXPERIENCE);
+    const draft = syntheticOutput(simpleAuthorCall(p));
+    p.book.child.age = 8; p.book.childStoryProfile = childStoryProfile(8);
+    if (driftBrief) p.brief.child.age = 8;
+    expect(p.accepted.canonical.child.age).toBe(4);
+    expect(() => simpleAuthorCall(p)).toThrow('story_child_profile_binding');
+    expect(() => simpleEditorCall(p, draft as any, [])).toThrow('story_child_profile_binding');
+  });
   it('keeps chosen fear/theme explicit but not compulsory for a just-for-fun story', () => {
     const req = request(4), topic = options.topics[0];
     const themed = { ...req, noDifficulty: false, facts: [...req.facts,
