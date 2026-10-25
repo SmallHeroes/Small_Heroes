@@ -175,9 +175,10 @@ export function compileCausalEdit(prepared: PreparedStory, original: StoryReview
     revised, disposition: held ? 'held' as const : 'model_supported' as const, runtimeEligible: false as const };
 }
 
-export function causalReviewPackets(prepared: PreparedStory, original: StoryReviewDocument, revised: StoryReviewDocument) {
-  const existing = prepareStoryTextReview(prepared, original, revised);
-  const packets = { original: prepareOriginalStoryTextReview(prepared, original), final: existing.final, comparison: existing.comparison };
+export function causalReviewPackets(prepared: PreparedStory, original: StoryReviewDocument, revised: StoryReviewDocument,
+  childProfile?: import('./simple-story-child-policy').ChildStoryProfile) {
+  const existing = prepareStoryTextReview(prepared, original, revised, childProfile);
+  const packets = { original: prepareOriginalStoryTextReview(prepared, original, childProfile), final: existing.final, comparison: existing.comparison };
   for (const [kind, packet] of Object.entries(packets)) addCausalCriticInstructions(kind, packet);
   return packets;
 }

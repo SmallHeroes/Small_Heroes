@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
 import { personalStoryPlanSchema, personalManuscriptSchema } from './story-contract';
 import type { PreparedStory } from './story-writer';
+import { assertChildStoryProfile, type ChildStoryProfile } from './simple-story-child-policy';
 
 const document = z.object({ plan: personalStoryPlanSchema, manuscript: personalManuscriptSchema,
   characterDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
@@ -12,7 +13,8 @@ const digest = (v: unknown) => createHash('sha256').update(canonicalJson(v)).dig
 const prose = (v: StoryReviewDocument) => ({ title: v.manuscript.title, pages: v.manuscript.pages.map(({ pageNumber, text }) => ({ pageNumber, text })) });
 
 /** Source-bound text QA packets, no SDK/dispatch/billing and no editor self-assessments. */
-export function prepareStoryTextReview(prepared: PreparedStory, rawOriginal: unknown, rawRevised: unknown) {
+export function prepareStoryTextReview(prepared: PreparedStory, rawOriginal: unknown, rawRevised: unknown, childProfile?: ChildStoryProfile) {
+  if (childProfile) assertChildStoryProfile(childProfile, prepared.brief.child.age);
   const original = document.parse(rawOriginal), revised = document.parse(rawRevised);
   const ids = new Set(prepared.brief.facts.map(f => f.id));
   for (const doc of [original, revised]) {
@@ -28,7 +30,8 @@ export function prepareStoryTextReview(prepared: PreparedStory, rawOriginal: unk
   // Deliberate allowlist. No planning/model/accounting/editor checks or semantic audit.
   const brief = { child: prepared.brief.child, facts: prepared.brief.facts, startingPlace: prepared.brief.startingPlace,
     companion: prepared.brief.companion, topic: prepared.brief.topic, resilienceMode: prepared.brief.resilienceMode,
-    excludedSubjects: prepared.brief.excludedSubjects, narrativeSpreads: prepared.brief.beats };
+    excludedSubjects: prepared.brief.excludedSubjects, narrativeSpreads: prepared.brief.beats,
+    ...(childProfile ? { childStoryProfile: structuredClone(childProfile) } : {}) };
   const finalText = prose(revised), originalText = prose(original);
   const final = { version: 'personal-story-text-review/final-v1', kind: 'model_literary_advisory_not_product_acceptance',
     sourceDigest: digest({ brief, finalText }), brief, manuscript: finalText,
@@ -42,8 +45,8 @@ export function prepareStoryTextReview(prepared: PreparedStory, rawOriginal: unk
 }
 
 /** Isolated original-only reading. Never includes the editor or a second version. */
-export function prepareOriginalStoryTextReview(prepared: PreparedStory, rawOriginal: unknown) {
-  const packet = prepareStoryTextReview(prepared, rawOriginal, rawOriginal).final;
+export function prepareOriginalStoryTextReview(prepared: PreparedStory, rawOriginal: unknown, childProfile?: ChildStoryProfile) {
+  const packet = prepareStoryTextReview(prepared, rawOriginal, rawOriginal, childProfile).final;
   return { ...packet, version: 'personal-story-text-review/original-v1',
     instructions: packet.instructions.replace('FINAL complete', 'ORIGINAL complete') };
 }

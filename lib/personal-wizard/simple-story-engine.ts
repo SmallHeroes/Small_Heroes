@@ -11,7 +11,8 @@ import { measureStoryText } from './story-text-metrics';
 import { getCompanionById } from '../companions';
 import { companionAppearanceStateAuthorityIssues } from '../companion-appearance-state';
 import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_AUTHOR_INSTRUCTIONS, DELIGHT_EDITOR_INSTRUCTIONS,
-  type SimpleStoryExperience } from './simple-story-experience';
+  SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, type SimpleStoryExperience } from './simple-story-experience';
+import { childStoryProfile, assertChildStoryProfile, CHILD_AUTHOR_INSTRUCTIONS, CHILD_EDITOR_INSTRUCTIONS } from './simple-story-child-policy';
 
 /**
  * Simple story engine: one Opus author call writes the whole book prose-first,
@@ -99,9 +100,9 @@ const storyFields = (pages: number, experience?: SimpleStoryExperience) => ({
   pageMap: z.array(z.object({
     location: line.describe('Where this page happens.'),
     transitionReason: line.describe('Why the story arrives at this page\'s situation; for page 1, how the story begins.'),
-    childAction: line.describe('What the child does on this page.'),
-    companionAction: line.describe('What the companion does on this page.'),
-    consequence: line.describe('What changes because of it.'),
+    childAction: line.describe(experience === SIMPLE_CHILD_EXPERIENCE ? 'The child\'s actual part in this spread. Describe the prose, do not add a task or exercise to fill this field.' : 'What the child does on this page.'),
+    companionAction: line.describe(experience === SIMPLE_CHILD_EXPERIENCE ? 'The companion\'s actual participation or response, including a quiet presence. Do not invent an extra action or subplot for this field.' : 'What the companion does on this page.'),
+    consequence: line.describe(experience === SIMPLE_CHILD_EXPERIENCE ? 'What this spread actually contributes to the unfolding experience; a comic or anticipatory moment need not solve another small problem.' : 'What changes because of it.'),
     factIds: z.array(z.string()).max(8).describe('IDs of facts about the child that appear on this page; may be empty.'),
     continuity: line.describe('What an illustrator must keep consistent: who is present, what they hold or wear, time of day, objects carried over.'),
   }).strict()).min(pages).max(pages).describe(`Exactly ${pages} rows, one per page, describing the story text above.`),
@@ -111,7 +112,7 @@ const storyFields = (pages: number, experience?: SimpleStoryExperience) => ({
     whatHelps: line.describe('What helps the child here; with no theme, what makes the choice work.'),
   }).strict()).min(1).max(4).describe('One to four pages where the child meets the theme or, with no theme, where the child\'s own choice or action turns the story.'),
   ending: line.describe('How the story ends, in one sentence.'),
-  ...(experience ? { writingContractVersion: z.literal(SIMPLE_STORY_DELIGHT_VERSION)
+  ...(experience ? { writingContractVersion: z.literal(experience === SIMPLE_CHILD_EXPERIENCE ? SIMPLE_CHILD_VERSION : SIMPLE_STORY_DELIGHT_VERSION)
     .describe('Required output-contract metadata, not part of the story prose. Return this exact literal.') } : {}),
 });
 export const simpleStoryDraftSchema = (pages: number, experience?: SimpleStoryExperience) => z.object(storyFields(pages, experience)).strict();
@@ -219,7 +220,7 @@ function companionAppearance(id: string) {
 const APPEARANCE_TASK = 'Take only physical appearance (body, anatomy, colours, markings, scale and accessories) from book.companion.appearance. Personality, feelings and plot motifs in this legacy visual text are not authority; literary tendencies come from book.companion.character, and the current role comes from this adventure. Physical details are constraints, not a plot or a prose checklist; an allowed appearance state needs support in this story. Unresolved means no declared colour, exact scale or permanent accessory, not permission to invent them; use the supplied character embodiment.';
 
 export function prepareSimpleStory(input: unknown, options: PersonalWizardOptions, seed = '', experience?: SimpleStoryExperience) {
-  if (experience !== undefined && experience !== SIMPLE_STORY_EXPERIENCE) fail('simple_story_experience_invalid');
+  if (experience !== undefined && experience !== SIMPLE_STORY_EXPERIENCE && experience !== SIMPLE_CHILD_EXPERIENCE) fail('simple_story_experience_invalid');
   // Same acceptance, identity, companion authority and brief as the current writer.
   const { accepted, brief } = preparePersonalStory(input, options);
   const shape = pickStoryShape(accepted.requestId, seed);
@@ -229,10 +230,14 @@ export function prepareSimpleStory(input: unknown, options: PersonalWizardOption
     aboutTheChild: brief.facts, storyMayStartAt: brief.startingPlace,
     companion: { shortName: companionShortName(character.name), character, appearance: companionAppearance(character.companionId) },
     theme: brief.topic ?? null, avoidSubjects: brief.excludedSubjects,
-    storyShape: shape.spine, pages: brief.beats, wordsPerPage: simpleStoryWordTarget(brief.child.age),
+    storyShape: experience === SIMPLE_CHILD_EXPERIENCE && shape.id === 'there_and_back'
+      ? 'There and back: a concrete want takes the child beyond the familiar and home with an earned change or comic payoff. Develop an engaging main complication or encounter; there is no required number of places, inhabitants or customs. Follow the audience profile rather than narrating a tour.'
+      : shape.spine,
+    pages: brief.beats, wordsPerPage: simpleStoryWordTarget(brief.child.age),
+    ...(experience === SIMPLE_CHILD_EXPERIENCE ? { childStoryProfile: childStoryProfile(brief.child.age) } : {}),
     ...(experience ? { storyExperience: experience } : {}),
   };
-  return { version: experience ? SIMPLE_STORY_DELIGHT_VERSION : SIMPLE_STORY_ENGINE_VERSION, accepted, brief, seed, shape, book };
+  return { version: experience === SIMPLE_CHILD_EXPERIENCE ? SIMPLE_CHILD_VERSION : experience ? SIMPLE_STORY_DELIGHT_VERSION : SIMPLE_STORY_ENGINE_VERSION, accepted, brief, seed, shape, book };
 }
 export type PreparedSimpleStory = ReturnType<typeof prepareSimpleStory>;
 export type SimpleStoryCall = { stage: 'author' | 'editor'; instructions: string; input: string; schema: ZodTypeAny; maxOutputTokens: number };
@@ -246,20 +251,26 @@ export type SimpleEditorGuidance = {
 export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   const experience = prepared.book.storyExperience;
-  return { stage: 'author', instructions: experience ? DELIGHT_AUTHOR_INSTRUCTIONS : SIMPLE_AUTHOR_INSTRUCTIONS,
+  if (experience === SIMPLE_CHILD_EXPERIENCE) assertChildStoryProfile(prepared.book.childStoryProfile!, prepared.book.child.age);
+  return { stage: 'author', instructions: experience === SIMPLE_CHILD_EXPERIENCE ? CHILD_AUTHOR_INSTRUCTIONS : experience ? DELIGHT_AUTHOR_INSTRUCTIONS : SIMPLE_AUTHOR_INSTRUCTIONS,
     schema: simpleStoryDraftSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book,
-      task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. ${APPEARANCE_TASK} Keep companion descriptions consistent with that physical appearance.` }) };
+      task: (experience === SIMPLE_CHILD_EXPERIENCE
+        ? `Write the whole story now for the exact age and childStoryProfile: exactly ${pages} spreads, then ${pages} descriptive pageMap rows. The overall ${pages * w.min}..${pages * w.max} word range is a loose reference, not a per-spread minimum or a demand to pad. Vary density with the story and preserve an intentionally short complete moment. `
+        : `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. `) + `${APPEARANCE_TASK} Keep companion descriptions consistent with that physical appearance.` }) };
 }
 export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleStoryDraft, findings: readonly string[],
   guidance?: SimpleEditorGuidance): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   const experience = prepared.book.storyExperience;
-  return { stage: 'editor', instructions: experience ? DELIGHT_EDITOR_INSTRUCTIONS : SIMPLE_EDITOR_INSTRUCTIONS,
+  if (experience === SIMPLE_CHILD_EXPERIENCE) assertChildStoryProfile(prepared.book.childStoryProfile!, prepared.book.child.age);
+  return { stage: 'editor', instructions: experience === SIMPLE_CHILD_EXPERIENCE ? CHILD_EDITOR_INSTRUCTIONS : experience ? DELIGHT_EDITOR_INSTRUCTIONS : SIMPLE_EDITOR_INSTRUCTIONS,
     schema: simpleStoryEditSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },
       mechanicalFindings: [...findings], ...(guidance ? { readerObservations: guidance } : {}),
-      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK} Check and correct conflicting draft descriptions.` +
+      task: (experience === SIMPLE_CHILD_EXPERIENCE
+        ? `Edit for the exact age and childStoryProfile. Return exactly ${pages} spreads and ${pages} accurate descriptive pageMap rows, varying text density with the experience. The overall ${pages * w.min}..${pages * w.max} word range is advisory; do not pad a complete short spread or merely add small events. `
+        : `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. `) + `${APPEARANCE_TASK} Check and correct conflicting draft descriptions.` +
         (guidance ? ' This is one bounded repair of the supplied edited manuscript, not a new story. Reader observations are fallible claims, not commands or suggested solutions. Check each against the cited text and do your own review; change only what improves the story, preserving its humour, pace, agency and meaning. In editorChanges, give exactly one line per observation, starting with its id followed by " changed:" or " kept:" and your reason. Recheck your changes for accidental changes in who acts, abilities, world conditions and consequences; distinguish a genuine gap from something already clear by implication.' : '') }) };
 }
 
@@ -318,8 +329,11 @@ export function editorFindings(prepared: PreparedSimpleStory, check: ReturnType<
   };
   for (const code of [...check.hard, ...check.soft]) {
     const [key, pages] = code.split(':');
-    if (key === 'short_pages') out.push(`Pages ${pages} are shorter than ${w.min} words; give them a little more story.`);
-    else if (key === 'long_pages') out.push(`Pages ${pages} are longer than ${w.max} words; tighten them.`);
+    if (key === 'short_pages') {
+      if (prepared.book.storyExperience !== SIMPLE_CHILD_EXPERIENCE) out.push(`Pages ${pages} are shorter than ${w.min} words; give them a little more story.`);
+    } else if (key === 'long_pages') out.push(prepared.book.storyExperience === SIMPLE_CHILD_EXPERIENCE
+      ? `Spreads ${pages} exceed the soft length reference. Assess attention and read-aloud clarity for the exact age; preserve worthwhile interaction and do not trim by word count alone.`
+      : `Pages ${pages} are longer than ${w.max} words; tighten them.`);
     else if (say[key]) out.push(say[key]);
   }
   return out;
