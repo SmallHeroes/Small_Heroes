@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Story momentum v4 + Opus-author role split (2026-10-25)
+
+- Owner product feedback: the R13 texts are boring. The owner chose an Opus 5.5 medium author with Sol 6.1 for every other stage.
+  Code b688388c over 05c99721 adds opt-in child-first/v4 (a positive momentum contract over the unchanged v3 age and shape
+  premises) and the roles-v1 writing source (Opus CLI author receipt, Sol editor receipt, no blended cost, no repair).
+  Old versions are byte-identical (640 call digests).
+- Next: Codex independent read-only QA of the code and the Q runner/plan. Then ONE text-only trial on R10's exact request and
+  seed, with at most 4 calls, no art or audio, and Max reported separately. Then Guy reads the draft and the edit against R10/R13.
+  Pre-registered failure: most spreads circle one object or problem with little change, or another block-construction plot,
+  or Guy does not want to keep reading. Not production, not a Wizard default, no push.
+
 ## General shape/age fit and two text trials (2026-10-25)
 
 - Owner approves bounded preparation and two text-only age4/8 stories. Code72c089af over0eeb50c8 adds opt-in child-first/v3:

@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Story momentum v4 + role-split author route — offline, awaiting Codex QA (2026-10-25)
+
+- Guy rejected R13 as boring (block construction, dialogue, a tiny problem, no movement) and routed the diagnosis and approach to
+  Claude via Codex's brief, choosing author = Claude Opus 5.5 medium and every other AI stage = Sol 6.1 as before.
+  Q = ART/claude-story-momentum-opus-author-20261025 (DIAGNOSIS.md, DECISION-GATE.txt). Base 05c99721, code b688388c.
+- Diagnosis (facts cited in Q/DIAGNOSIS.md):
+  - R10 and both R13 texts are all playroom block-construction stories, even R10's "journey" shape.
+  - The R13 author drafts already had that structure; the editor did not flatten them.
+  - v1's "Wonder" priority was removed at delight-v1, and every round since then has only added restraint.
+  - The critics judged conformance to that same restraint vocabulary.
+  - Under v1, the Opus author took a Lego-interest child into sneezing forests and soup mountains; that evidence is confounded by prompt and request.
+- Prospective opt-in child-first/v4 = v3's exact-age profile and shape-age premises unchanged, plus a positive momentum contract:
+  - an early surprise; each part changes the situation within ONE growing adventure;
+  - wonder; the starting place is a start, not a fence; interests are a flavour, not the plot;
+  - a static-story self-check.
+  The editor gets one matching protect-momentum paragraph; review packets get momentum questions under the UNCHANGED
+  severity, kind, materiality and citation rules. No quotas, mandatory chase or locations, new scorer or extra stage.
+- New source personal-simple-story-source/roles-v1:
+  - The author is the existing Claude CLI receipt (claude-opus-5-5, the --effort medium wire); the editor is the existing Sol Responses receipt.
+  - Each record is projected by its own provider's rules. accounting.model is the explicit label role-split/v1:…; estimatedUsd
+    is null, so a Max CLI list estimate is never summed with API dollars.
+  - Exact role/model admission; Sol-only or Opus-only sources cannot be relabelled; no repair (repair_route).
+  - Opus-only and Sol-only routes, repair, and all old raw are unchanged.
+- Evidence (provider-free; wiring, not literary quality):
+  - new spec 21 tests; 9 focused files 569/569; 17/17 source mutants killed;
+  - 640 legacy v1/delight/v2/v3 author+editor call digests across 14 shapes byte-identical to the pre-change capture;
+  - whole non-incremental tsc exit 0.
+  Historical full-check RED is not promoted.
+- Trial runner/plan in Q (operator.ts; not repo code):
+  - ONE case: R10's unchanged request and seed (there_and_back), so R10 is the baseline.
+  - At most 4 calls: author Opus via the pinned Claude Max CLI (sha 6d5be51f…, existing --max-budget-usd 2 guard,
+    reported separately); editor, final_review and comparison Sol at 600000 reserve each.
+  - API worst case 1.8M µ$ against the recorded 3084760 of the 7M cap. Any unknown stops; no retry or repair.
+  - Two variables change (policy and author model), so a better story is not attributed to Opus alone.
+  - No paid call before independent QA, a fresh grant and preflight.
+
 ## Shape/age fit — general v3 and two text-only trials (2026-10-25)
 
 - Guy approved the preceding reviewed proposal with "יאללה קדימה": bounded general shape preparation, explicit local
