@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Shape/age fit — general v3 and two text-only trials (2026-10-25)
+
+- Guy approved the preceding reviewed proposal with "יאללה קדימה": bounded general shape preparation, explicit local
+  runner, two fictional age4/8 texts for reading, no art/audio/Max/push. Q=ART/r13-age-pair-story-text-20261025; full scope,
+  monetary derivation, stop-check and exclusions in DECISION-GATE.txt. Same source/branch; base0eeb50c8, code72c089af.
+- New prospective explicit child-first/v3 resolves all14 existing shape IDs into positive general premises plus exact-age
+  interpretation. Chase, comic escalation, mystery and cumulative patterns remain valid creative choices, not banned
+  categories. Young listeners need directly graspable causes/reasons; older listeners can infer a fair delayed motive.
+  No cast/place/event/laugh quotas, automatic quality score or extra writer/reviewer stage. Same selected shape ID and
+  deterministic seeded selection; book binds version/id/age/band/premise/interpretation. Shared pre-call guard rejects
+  age/shape/premise drift before author/editor. Existing source reconstructs v3, numbered reviews/one repair inherit it.
+- Legacy default/delight-v1/child-first-v2 remain unchanged, including original strings/raw tags.252pre-change cases across
+  14shapes x6ages x3oldpolicies preserve504actual computed writer-wire digests.537focused serial tests0,106new-policy
+  cases including84shape/age combinations; new integration first RED2 then GREEN. Actual old-source/review replay and698
+  protected records/5R10pins also exact, original R10 comparison remains critic_evidence. Whole nonincremental tsc0. This is
+  engineering evidence only; historical fullcheck RED and old HOLDs are not promoted. Ages3..8 unchanged,9unsupported.
+- Trial predeclares something_missing for both ages to exercise the reported young-hidden-motive risk, not a convenient
+  post-output choice. First bounded deterministic seed per age is frozen before any provider. Same fictional Ido/panda
+  core request, changing age only; theme remains just_for_fun, no invented fear. Same broad family, not forced same plot.
+- New one-use family has exactly2cases/max8SOL6.1 calls (author/editor/final/comparison). R10's4knowncalls169715 and inherited
+  parent2809225/7000000 remain consumed/failed. Ordinary per-call reserve600000 unchanged. Journal slot exposure4800000
+  is NOT funded spend permission: the separate remaining aggregate4190775 and parent7m guards run before each claim and
+  inside the claimed key/provider callback without double-counting its pending reserve. New unknown stops all payment.
+  No retry/reset/Max/manual prose or judge repair; known local critic_evidence may retain case1failure and allow independent
+  case2 only under predeclared rules and known cost/output. Exact edited prose is delivered even when a review holds it.
+- Source/operator/plan/grant require immutable independent QA and new preflight before payment; actual trial outcome and
+  literary/product judgment are separate records in Q. No trial result or improvement is asserted by this code milestone.
+
 ## Child-first story — exact-age general policy, offline QA handoff (2026-10-25)
 
 - Guy approved the R11 diagnosis and general correction: a fun, funny, child-led story with pleasant comprehensible Hebrew,

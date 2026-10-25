@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## General shape/age fit and two text trials (2026-10-25)
+
+- Owner approves bounded preparation and two text-only age4/8 stories. Code72c089af over0eeb50c8 adds opt-in child-first/v3:
+  all14positive creative premises interpreted for exact age; same existing author/editor/source/review/repair/flow. No
+  new evaluator or generation stage, no banned plot category or quotas. Old default/delight-v1/child-first-v2 unchanged.
+-537focused tests0 including106newcases/84shape-age combinations;504oldwriter-wire digests exact across252cases. Whole
+  tsc0; initial RED2 and historical fullcheck RED retained. Q=ART/r13-age-pair-story-text-20261025; no age9 expansion.
+- Same fictional core profile/companion, only age changes; something_missing predeclared/shared before output. Native
+  plan/grant and independent source/operator gate precede at most8SOL6.1 calls, no art/audio/Max/push. Journal exposure
+  4.8m is not spend authority: inherited remaining4190775 plus parent2809225/7m guard and600000ordinary call reserve.
+  No consumed R10 reopen/reset; no retries/secret preflight/manual prose edits. Product evidence is the two exact texts
+  and honest reviews/costs, not a claim of enjoyment or success across all families. Fear-selected path not product-tested.
+
 ## Child-first exact-age story policy — offline implementation and bound independent gate (2026-10-25)
 
 - Owner approves general engine correction after R10: child protagonist, enjoyable funny development, pleasant understandable
