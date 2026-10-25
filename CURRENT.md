@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Critic-citation recovery — general, opt-in, offline (R15, 2026-10-25)
+
+- R14 outcome: the Opus-author v4 trial ran after Codex's round-2 PASS. It used 4 calls: API 101034 µ$ (cumulative 3185794 of
+  7M) and a Max list estimate of 217376 µ$, reported separately.
+  - Story "האף של קוביון": a portal into a land of blocks, a giant, a shrinking way home and the child's idea at the climax.
+    Guy: "הרבה יותר טוב".
+  - The comparison review was refused with critic_evidence: 3 of 11 references (see Codex outcome QA and
+    ART/claude-story-momentum-opus-author-20261025/OUTCOME-ADDENDUM-1.md): a dropped ו prefix, an anchor crossing a unit
+    boundary, and an off-by-one unit. R10 stopped on the same failure type.
+- Fix (code 98ed41d9 over 0a77fc1c), reusing the existing strict correction contract (story-source-citations-correction/v1):
+  - compileCausalSourceReadingWithCorrection: only for citation-only failures, ONE correction call through the caller's
+    dispatcher, then the unchanged apply and strict compile. Findings and valid references are byte-identical; provenance is
+    returned. Non-citation or binding failures make no call.
+  - Optional 'v2' correction wording states the three failure rules; 'v1' stays the byte-identical default (sha b4b0e1ef, from base).
+  - Per-row shape check split out of assertCausalReadingEvidence, with identical codes.
+  - simple-book-flow opt-in citationCorrector (exclusive with correctReading).
+  - Initial review packets and instructions are unchanged (that change would break exact R13/R14 replay); a version-gated
+    prevention wording remains a later option.
+- Evidence (provider-free):
+  - new spec 9/9; 7 focused files 453/453; fresh-book citation-correction describe 3/3; 12/12 mutants; whole tsc 0.
+  - The real-data "fresh-book same-book text recovery" describe was started but stopped by me after about 75 CPU-minutes,
+    following the earlier agreed no-hour-long-campaign practice (the whole file takes about 2.4 h). Not completed; the flow's
+    correctReading route is instead covered by the new spec.
+- Next: Codex QA (Q = ART/claude-critic-citation-recovery-20261025). Proposed, needing Guy's yes plus a fresh grant: ONE Sol
+  correction call (~$0.02–0.04) on R14's real failed comparison as the live proof. The R14 family stays terminal.
+
 ## Story momentum v4 + role-split author route — offline, awaiting Codex QA (2026-10-25)
 
 - Guy rejected R13 as boring (block construction, dialogue, a tiny problem, no movement) and routed the diagnosis and approach to

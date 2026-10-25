@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Critic-citation recovery (R15, 2026-10-25)
+
+- The R14 trial story was accepted as "much better" by Guy; its comparison review stopped on reference slips (3/11), the same
+  failure as R10. Code 98ed41d9 adds a general opt-in recovery: ONE bounded correction of only the refused references (the
+  existing v1 contract, clearer v2 wording), re-checked by the unchanged strict compiler, via a shared helper and a flow opt-in.
+- Next: Codex QA, then (Guy's yes) one ~$0.03 live proof on R14's real failed comparison. Later option: version-gated
+  prevention wording in the initial review instructions.
+
 ## Story momentum v4 + Opus-author role split (2026-10-25)
 
 - Owner product feedback: the R13 texts are boring. The owner chose an Opus 5.5 medium author with Sol 6.1 for every other stage.
