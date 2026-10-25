@@ -120,6 +120,11 @@ export function compileSourceCitationReview(review: PreparedSourceCitationReview
  */
 export const SOURCE_CITATION_CORRECTION_VERSION = 'story-source-citations-correction/v1';
 const CORRECTION_INSTRUCTIONS = 'Your earlier review of this story was recorded, but some of its citations failed the exact anchor check. For each listed reference only, return corrected startId, endId and anchor locating the SAME passage your finding meant, using only the listed units of that page and version, in order, spanning at most four units. The anchor is a contiguous 2 to 4 word span copied exactly from that range (one word only if the range has only one word): copy every word whole, with every letter attached to it, including any one-letter prefix joined to a Hebrew word; preserve letters, word order and negation. Nikud, invisible formatting marks and in-word geresh/apostrophe marks are ignored by the check; other punctuation separates words. You cannot change, add or drop any finding, its summary, severity, criterion, kind or explanation; they are not part of this answer. Return every listed path exactly once and nothing else.';
+/**
+ * Optional clearer wording of the SAME correction contract (body, schema, digest and validation unchanged). It spells out the
+ * location rules real reviews broke: a dropped one-letter prefix, a phrase crossing a unit boundary, and an off-by-one unit.
+ */
+const CORRECTION_INSTRUCTIONS_V2 = 'Your earlier review of this story was recorded, but some of its citations failed the exact location check. For each listed reference only, return corrected startId, endId and anchor that locate the SAME passage your finding meant, using only the listed units of that page and version. Work from the unit texts: startId is the unit that contains the first word of your anchor and endId is the unit that contains its last word; if the words run from one unit into the next, the range must include both units (in order, at most four units). The anchor is 2 to 4 consecutive words copied exactly from that range (one word only if the range has only one word): copy every word whole with every letter attached to it, including a one-letter Hebrew prefix such as ו, ה, ב, ל, כ, מ or ש joined to the word; preserve letters, word order and negation. Nikud, invisible formatting marks and in-word geresh/apostrophe marks are ignored by the check; other punctuation separates words. Before answering, check that each anchor appears word for word inside the units from startId to endId. You cannot change, add or drop any finding, its summary, severity, criterion, kind or explanation; they are not part of this answer. Return every listed path exactly once and nothing else.';
 const correctionSchema = z.object({ correctionDigest: z.string().regex(/^[a-f0-9]{64}$/),
   corrections: z.array(z.object({ path: z.string().regex(/^\d{1,2}\/(original|revised)\/[01]$/), startId: reference.shape.startId,
     endId: reference.shape.endId, anchor: reference.shape.anchor }).strict()).min(1).max(40) }).strict();
@@ -155,8 +160,12 @@ export function restoreSourceCitationReview(packet: unknown, instructions: unkno
   return review;
 }
 
-/** The one correction request for a failed answer. Refuses (critic_evidence) when nothing is invalid or a refused reference names no unit of its version. */
-export function prepareSourceCitationCorrection(review: PreparedSourceCitationReview, raw: unknown) {
+/**
+ * The one correction request for a failed answer. Refuses (critic_evidence) when nothing is invalid or a refused reference names no
+ * unit of its version. `instructions` selects only the wording ('v1' default, byte-identical for existing callers); the request body,
+ * schema and digest do not depend on it.
+ */
+export function prepareSourceCitationCorrection(review: PreparedSourceCitationReview, raw: unknown, instructions: 'v1' | 'v2' = 'v1') {
   const { output, invalid } = invalidSourceCitations(review, raw);
   if (!invalid.length) return fail('critic_evidence');
   const rows = invalid.map(item => {
@@ -169,7 +178,8 @@ export function prepareSourceCitationCorrection(review: PreparedSourceCitationRe
   const body = { version: SOURCE_CITATION_CORRECTION_VERSION, citationVersion: SOURCE_CITATION_VERSION, packetDigest: review.packetDigest,
     failedAnswerDigest: digest(output), invalid: rows };
   const correctionDigest = digest(body);
-  return { body, correctionDigest, instructions: CORRECTION_INSTRUCTIONS, input: canonicalJson({ correctionDigest, correction: body }), schema: correctionSchema };
+  return { body, correctionDigest, instructions: instructions === 'v2' ? CORRECTION_INSTRUCTIONS_V2 : CORRECTION_INSTRUCTIONS,
+    input: canonicalJson({ correctionDigest, correction: body }), schema: correctionSchema };
 }
 export type PreparedSourceCitationCorrection = ReturnType<typeof prepareSourceCitationCorrection>;
 

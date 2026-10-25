@@ -3,7 +3,8 @@ import type { PersonalWizardOptions } from './options';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryCall } from './simple-story-engine';
 import { createCurrentSimpleStorySource, createRepairedSimpleStorySource, prepareSimpleStoryRepair,
   simpleStoryFindingIsMaterial, simpleStoryReadingPackets, type CurrentSimpleStoryResult, type SimpleWritingModel } from './simple-story-source';
-import { CausalExperimentError, causalSourceReviewPacket, compileCausalSourceReading, type CausalReading } from './story-causal-experiment';
+import { CausalExperimentError, causalSourceReviewPacket, compileCausalSourceReading, compileCausalSourceReadingWithCorrection,
+  type CausalReading, type CitationCorrectionCall } from './story-causal-experiment';
 import type { SimpleStoryExperience } from './simple-story-experience';
 import { canonicalJson } from './request-acceptance';
 import { runSimpleStoryboardDiagnostic, type SimpleStoryboardDiagnosticCall } from './simple-storyboard-diagnostic';
@@ -56,7 +57,13 @@ export async function runSimpleWizardBook(args: {
    * correction (story-source-citations-correction/v1); the returned answer is compiled again under the same strict check. Absent: unchanged.
    */
   correctReading?: (stage: SimpleBookReadingCall['stage'], numbered: ReturnType<typeof causalSourceReviewPacket>, raw: unknown, signal: AbortSignal) => Promise<unknown>;
+  /**
+   * Opt-in general citation recovery (2026-10-25): the caller supplies only the dispatcher; the shared helper sends at most ONE bounded
+   * correction per reading, only for refused references, and returns its provenance. Exclusive with correctReading. Absent: unchanged.
+   */
+  citationCorrector?: (stage: SimpleBookReadingCall['stage'], call: CitationCorrectionCall, signal: AbortSignal) => Promise<unknown>;
 }) {
+  if (args.citationCorrector && args.correctReading) fail('simple_book_citation_correction_route');
   const repair = args.repair ? prepareSimpleStoryRepair(args.request, args.repair.prior, args.repair.readings, args.options) : null;
   const prepared = repair?.prepared ?? prepareSimpleStory(args.request, args.options, args.seed, args.storyExperience);
   if (repair && args.storyExperience !== undefined && prepared.book.storyExperience !== args.storyExperience) fail('simple_book_repair_policy');
@@ -101,7 +108,8 @@ export async function runSimpleWizardBook(args: {
   view.edited = { title: source.manuscript.title, pages: source.manuscript.pages };
   publish('story_review');
   const packets = simpleStoryReadingPackets(args.request, source, args.options);
-  const readings: CausalReading[] = [];
+  const readings: CausalReading[] = [], citationCorrections: { stage: SimpleBookReadingCall['stage']; provenance: unknown }[] = [];
+  const correctionRecord = () => citationCorrections.length ? { citationCorrections: structuredClone(citationCorrections) } : {};
   // Final-only judgment precedes comparison; neither gets the editor's claims.
   for (const [name, packet] of [['final_review', packets.final], ['comparison', packets.comparison]] as const) {
     check(); const numbered = causalSourceReviewPacket(packet);
@@ -109,7 +117,13 @@ export async function runSimpleWizardBook(args: {
       input: canonicalJson({ packetDigest: numbered.packetDigest, packet: numbered.packet }), schema: numbered.schema, maxOutputTokens: 16000 };
     const raw = await args.reader(call, args.signal); check();
     let reading: CausalReading;
-    try { reading = compileCausalSourceReading(packet, raw); }
+    if (args.citationCorrector) {
+      const result = await compileCausalSourceReadingWithCorrection(packet, raw, async call => {
+        const answer = await args.citationCorrector!(name, call, args.signal); check(); return answer;
+      });
+      reading = result.reading;
+      if (result.citationCorrection) citationCorrections.push({ stage: name, provenance: result.citationCorrection });
+    } else try { reading = compileCausalSourceReading(packet, raw); }
     catch (error) {
       if (!args.correctReading || !(error instanceof CausalExperimentError) || error.code !== 'critic_evidence') throw error;
       const corrected = await args.correctReading(name, numbered, raw, args.signal); check();
@@ -120,7 +134,7 @@ export async function runSimpleWizardBook(args: {
     publish('story_review');
   }
   const material = readings.some(r => r.findings.some(simpleStoryFindingIsMaterial));
-  if (material) { publish('held'); return { status: 'story_held' as const, source, generated, readings, storyboard: null, runtimeEligible: false as const }; }
+  if (material) { publish('held'); return { status: 'story_held' as const, source, generated, readings, storyboard: null, runtimeEligible: false as const, ...correctionRecord() }; }
   publish('storyboard');
   const storyboard = await runSimpleStoryboardDiagnostic({ request: args.request, writerResult: source,
     options: args.options, signal: args.signal, actorOwnedAppearance: args.actorOwnedAppearance, reviewCapacity: args.reviewCapacity,
@@ -146,5 +160,5 @@ export async function runSimpleWizardBook(args: {
   check();
   // A storyboard supported with bound detail notes (typed policy only) proceeds like a supported one; its packets carry the notes.
   publish(storyboard.status === 'review_supported' || storyboard.status === 'review_supported_with_notes' ? 'references_required' : 'held');
-  return { status: storyboard.status, source, generated, readings, storyboard, runtimeEligible: false as const };
+  return { status: storyboard.status, source, generated, readings, storyboard, runtimeEligible: false as const, ...correctionRecord() };
 }

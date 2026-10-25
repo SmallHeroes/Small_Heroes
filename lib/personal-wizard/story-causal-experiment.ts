@@ -11,7 +11,8 @@ import { storyEditorProviderSchema, decodeStoryEditorOutput } from './story-edit
 import { assertSemanticEditEvidence, semanticEditNeedsWork } from './story-semantic-audit';
 import { measureStoryText } from './story-text-metrics';
 import { prepareOriginalStoryTextReview, prepareStoryTextReview, type StoryReviewDocument } from './story-text-review';
-import { prepareSourceCitationReview, compileSourceCitationReview, SourceCitationError, SOURCE_CITATION_VERSION } from './story-source-citations';
+import { prepareSourceCitationReview, compileSourceCitationReview, SourceCitationError, SOURCE_CITATION_VERSION,
+  prepareSourceCitationCorrection, applySourceCitationCorrection, sourceCriticSchema } from './story-source-citations';
 
 export const CAUSAL_EXPERIMENT_VERSION = 'personal-causal-experiment/diagnostic-v2';
 export const causalDigest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
@@ -210,19 +211,25 @@ export function compileCausalReading(packet: CausalReviewPacket, raw: unknown) {
   const stage = assertCausalReadingEvidence(packet, parsed.data.findings);
   return { ...parsed.data, stage, kind: 'model_literary_advisory_not_product_acceptance' as const, runtimeEligible: false as const };
 }
+/** A row's kind and reference-presence rules: the structural evidence no citation correction can repair. */
+function assertCausalReadingRowShape(packet: CausalReviewPacket, row: { kind: string; original: unknown[]; revised: unknown[] }) {
+  const doc = 'manuscript' in packet ? packet.manuscript : null;
+  if (doc && !['issue', 'preference'].includes(row.kind)) causalFail('critic_comparison_leak');
+  if (!doc && row.kind === 'issue') causalFail('critic_comparison_kind');
+  if (!row.original.length && !row.revised.length) causalFail('critic_evidence');
+  if ('original' in packet && (!row.original.length || !row.revised.length)) causalFail('critic_evidence');
+}
 function assertCausalReadingEvidence(packet: CausalReviewPacket,
   findings: { kind: string; original: { pageNumber: number; quote: string }[]; revised: { pageNumber: number; quote: string }[] }[]) {
   const doc = 'manuscript' in packet ? packet.manuscript : null;
   for (const row of findings) {
-    if (doc && !['issue', 'preference'].includes(row.kind)) causalFail('critic_comparison_leak');
-    if (!doc && row.kind === 'issue') causalFail('critic_comparison_kind');
+    // Per row: shape first, then quotes. Every rule raises the same code as before, so the first failing row decides as before.
+    assertCausalReadingRowShape(packet, row);
     const original = 'original' in packet ? packet.original : packet.version.includes('/original-') ? doc : null;
     const revised = 'revised' in packet ? packet.revised : packet.version.includes('/final-') ? doc : null;
-    if (!row.original.length && !row.revised.length) causalFail('critic_evidence');
     for (const [refs, source] of [[row.original, original], [row.revised, revised]] as const) {
       if (refs.some(ref => !source?.pages[ref.pageNumber - 1]?.text.includes(ref.quote))) causalFail('critic_evidence');
     }
-    if ('original' in packet && (!row.original.length || !row.revised.length)) causalFail('critic_evidence');
   }
   return 'original' in packet ? 'comparison' as const : packet.version.includes('/original-') ? 'original_review' as const : 'final_review' as const;
 }
@@ -242,6 +249,34 @@ export function compileCausalSourceReading(packet: CausalReviewPacket, raw: unkn
   } catch (error) {
     if (error instanceof SourceCitationError) return causalFail(error.code);
     throw error;
+  }
+}
+export type CitationCorrectionCall = { stage: 'citation_correction'; instructions: string; input: string; schema: z.ZodTypeAny; maxOutputTokens: number };
+/**
+ * compileCausalSourceReading, plus at most ONE bounded citation correction (story-source-citations-correction/v1, v2 wording) when the
+ * answer fails ONLY on references the exact v1 check refuses. The dispatcher is called once, with exactly the refused paths; the strict
+ * apply/compile decides; findings, summary and valid references stay byte-identical. Anything else (binding, structure, a second
+ * failure) surfaces the same codes as the plain compile, with no further call. The failed answer is never modified.
+ */
+export async function compileCausalSourceReadingWithCorrection(packet: CausalReviewPacket, raw: unknown,
+  correct: (call: CitationCorrectionCall) => Promise<unknown>) {
+  try { return { reading: compileCausalSourceReading(packet, raw), citationCorrection: null }; }
+  catch (error) {
+    if (!(error instanceof CausalExperimentError) || error.code !== 'critic_evidence') throw error;
+    const output = sourceCriticSchema.safeParse(raw);
+    // A finding without the references its version requires is not a location slip: no call.
+    if (!output.success) throw error;
+    try { for (const row of output.data.findings) assertCausalReadingRowShape(packet, row); } catch { throw error; }
+    const numbered = causalSourceReviewPacket(packet);
+    let correction: ReturnType<typeof prepareSourceCitationCorrection>;
+    try { correction = prepareSourceCitationCorrection(numbered, raw, 'v2'); } catch { throw error; }
+    const answer = await correct({ stage: 'citation_correction', instructions: correction.instructions, input: correction.input,
+      schema: correction.schema, maxOutputTokens: 16000 });
+    let applied: ReturnType<typeof applySourceCitationCorrection>;
+    try { applied = applySourceCitationCorrection(numbered, raw, correction, answer); }
+    catch (failure) { if (failure instanceof SourceCitationError) return causalFail(failure.code); throw failure; }
+    return { reading: compileCausalSourceReading(packet, applied.corrected), citationCorrection: { ...applied.provenance,
+      instructions: 'v2' as const, instructionsDigest: causalDigest(correction.instructions), request: correction.body } };
   }
 }
 export type CausalReading = ReturnType<typeof compileCausalReading> | ReturnType<typeof compileCausalSourceReading>;
