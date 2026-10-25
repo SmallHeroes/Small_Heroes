@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## One new momentum book (R17, 2026-10-25)
+
+- Guy asked for a new illustrated book with a new companion and a new story on the updated engine. Code 9b437a16 adds one opt-in
+  cycle on the portrait book line: child-first/v4 written by an Opus 5.5 author on Claude Max (one session) and a Sol editor,
+  bounded citation recovery, the continuing $7 API ledger and an $8 cycle cap. The companion is bunny_ometz.
+- Next: Codex QA, then ONE run (cover + 8 spreads + local reader). After that, Guy's read and Codex outcome QA.
+
 ## Critic-citation recovery (R15, 2026-10-25)
 
 - The R14 trial story was accepted as "much better" by Guy; its comparison review stopped on reference slips (3/11), the same

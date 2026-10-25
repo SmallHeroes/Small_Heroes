@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## One new momentum book (R17) — offline, awaiting Codex QA (2026-10-25)
+
+- Owner: Guy asked for a new illustrated book by morning: a new companion, a new story, on the updated engine. His words are
+  verbatim in ART/claude-momentum-book-bunny-20261025/OWNER-APPROVAL.txt. R16 (the one-call citation proof) stays a passed but
+  unused gate; there is no retroactive PASS and no reset.
+- Code 9b437a16 (over a4288898) adds MOMENTUM_BOOK_TRIAL `owner-momentum-book-20261025/v1` to scripts/personal-book-e2e-trial.ts.
+  It is the portrait book line plus:
+  - child-first/v4, written by roles-v1:
+    - the Opus 5.5 medium author runs as ONE Claude Max CLI session, on its own journal, with a $2 allowance;
+    - Sol 6.1 medium is the editor;
+    - the Sol readings, storyboard and reviews are unchanged.
+  - momentumTextRoutes:
+    - the live fence is checked after each claim, before its provider;
+    - the R15 citationCorrector runs at most once per reading, each on its own metered step.
+  - Money:
+    - TrialApiMeter takes an optional prior, so the API ledger continues at 3185794 of $7 with no reset;
+    - TrialMaxBudget takes an explicit allowance;
+    - an optional shared $8 cycle cap (API plus this cycle's Max) is checked before every claim;
+    - the defaults keep older cycles exact.
+  - roles-v1 is not repairable, so a held text goes straight to the existing typed severity review. Stage folders and the reader
+    link follow from that.
+  - Also: owner-record terms, the new-companion rule (panda_anat now counts as used), grant version momentum-book-trial-grant/v1,
+    and extra pins.
+- Evidence (provider-free):
+  - new spec 9/9: the real flow, real meters and real transports on a fake fetch, plus the fences, caps and correction bounds;
+  - the 11 specs that import the trial script or drive these routes: 206/206;
+  - mutants 14/14 killed; tsc 0;
+  - code-head dry plan and preflight: the plan is admitted, 10 tampered inputs refuse, no key is read, no provider is called, and
+    the local Max login status is OK.
+- Not exercised before the paid run: executeBookTrial's momentum branch as a whole (the source-repair skip and the stage-folder
+  choice). These are covered only by reading the code and the dry plan.
+- Next: Codex QA of 9b437a16..docs plus the unused plan/grant. Then the execute lease, a preflight, and ONE run, followed by the
+  outcome report and Codex outcome QA. Product acceptance is Guy's.
+
 ## Critic-citation recovery — general, opt-in, offline (R15, 2026-10-25)
 
 - R14 outcome: the Opus-author v4 trial ran after Codex's round-2 PASS. It used 4 calls: API 101034 µ$ (cumulative 3185794 of
