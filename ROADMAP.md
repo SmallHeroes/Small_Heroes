@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-## Child-first exact-age story policy — offline implementation, independent gate next (2026-10-25)
+## Child-first exact-age story policy — offline implementation and bound independent gate (2026-10-25)
 
 - Owner approves general engine correction after R10: child protagonist, enjoyable funny development, pleasant understandable
   language, fear faced within the adventure, age changes plot/humour/inference/attention rather than merely word count.
@@ -8,9 +8,13 @@
   profiles3-4/5-6/7-8; actual supported input3..8 unchanged,9outofscope. New actual writer-output tag prevents oldraw relabeling;
   existing v1/delight-v1/defaults/materiality/safety/citation/repair/downstream gates preserved. No second evaluator or quotas.
 - Removes v2 itinerary/padding pressure, not useful quiet moments, imagery or repetition. No manual sample-story rewrite.
- 429focused provider-free tests/whole nonincrementaltsc0; real legacy source/review replay and698protected hashes/5R10pins0.
+  431focused provider-free tests/whole nonincrementaltsc0; real legacy source/review replay and698protected hashes/5R10pins0.
   Initial RED/fixture/typing corrections retained. Fullcheck remains historical RED. Q=ART/r12-age-child-story-20261025.
-- Independent read-only gate pending frozen docs handoff. ZERO new provider/Max/image/audio/key/claim/default/push/deploy.
+- First independent HOLD/P2 at62399009 found coherent bookage/profile drift before author/editor calls; normal preparation
+  stayed correct. Shared accepted-canonical-age guardeccd6e74 closes it, with two genuine RED then GREEN regressions for both
+  builders. Original HOLD/reviewer invalid fixture and corrected RED retained. Corrected immutable independent disposition
+  is Q/INDEPENDENT-REGATE.txt, exact range/inventory F1-FROZEN.json. No self-awarded independent PASS.
+- ZERO new provider/Max/image/audio/key/claim/default/push/deploy.
   R10's546word text and consumed4calls169715microUSD remain as delivered; comparison still failed, not retroactive PASS.
   Fresh text-only product evidence remains necessary: engineering checks do not establish enjoyment, repeat reading or a cure.
 

@@ -8,7 +8,7 @@
   and too little enjoyment. Its final critic returned0findings; comparison correctly remains critic_evidence for an omitted ו.
   Four consumed SOL calls169715microUSD/parent2809225 preserved; no retroactive literary or technical full-run PASS.
 - Source C:/GNart/Work/sh-book-render-20261009, claude/book-render-20261009. Basec4cc359d; codef4dc0bbf. Q=ART/
-  r12-age-child-story-20261025, DECISION-GATE.txt. New prospective explicit child-first/v2, personal-simple-story/child-first-v2,
+  r12-age-child-story-20261025, DECISION-GATE.txt; focused accepted-age correctioneccd6e74. New prospective explicit child-first/v2, personal-simple-story/child-first-v2,
   in the EXISTING author/editor/source/review/bounded-repair/flow; no second writer, critic, score or candidate engine.
 - Exact accepted age is retained in a deterministic structured profile:3-4 concrete immediate causality/followable surprise;
   5-6 connected attempts/anticipation;7-8 richer motives/inference/payoff. Plot, humour, language and attention differ, not just
@@ -22,12 +22,19 @@
   credible child action, possibly while still afraid, not a cure/lesson; no-theme invents no weakness. Removes there_and_back's
   required station itinerary and per-spread padding commands for v2 only; variable density and meaningful quiet moments allowed.
   Existing defaultv1/delight-first-v1 calls and saved contracts unchanged; no production/default selection upgrade.
-- Final serial provider-free regressions:429passed/0failed/0skipped across6files, native0;26new-policy tests included. Whole
-  nonincremental tsc native0 after two test-only typing corrections. Earlier missing-module/fixture/typing RED receipts retained,
+- First independent gate at62399009 was HOLD/P2: co-mutating book age+profile bypassed both pre-call guards while the accepted
+  canonical request remained4. Normal fresh preparation was correct; later source admission was not the defective boundary.
+  Focused general correctioneccd6e74 uses one shared guard: book/brief age must equal accepted.canonical.child.age, then the
+  exact profile is validated against that accepted age before BOTH builders. No new acceptance/hash engine or whole-object
+  cryptographic-forgery claim. Original HOLD SHA7db03754b05df3b6a6e841bd640fe2575f0527785d9b8c5754baffcf8aa5fc75 retained.
+- Corrected serial provider-free regressions:431passed/0failed/0skipped across6files, native0;28new-policy tests included.
+  Co-mutation regressions first RED2/26pass, then GREEN; independent original corrected-fixture probe RED retained. Whole
+  nonincremental tsc native0 after two initial test-only typing corrections. Earlier missing-module/fixture/typing RED retained,
   not source-validator weakening. Actual v1/delight-v1 source/call/review replay0;698protected book/narration hashes and5R10pins
   preserved, including R10 comparison rejection. Historical fullcheck RED unchanged, not rerun or promoted by focused checks.
 - ZERO real provider/Max/image/audio calls, no key/claim/reset/manual manuscript rewrite/push/deploy. Old Reader3124 unchanged.
-  Independent read-only QA requested for the immutable base-to-docs-head range; result belongs in Q/INDEPENDENT-QA.txt.
+  Independent original26tests/actuallegacy replay0 did not erase its HOLD. The corrected immutable re-gate disposition is
+  recorded separately in Q/INDEPENDENT-REGATE.txt; exact range/inventory in F1-FROZEN.json. No source writes during QA.
   No fresh story, literary improvement, age9 support or product acceptance is claimed by synthetic responses/engineering tests.
 
 ## Story experience — owner rejection and prospective offline correction (2026-10-24)
