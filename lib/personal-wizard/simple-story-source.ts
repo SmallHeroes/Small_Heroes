@@ -13,20 +13,32 @@ import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 import { opusOutputContract } from '../../scripts/personal-causal-trial-adapters';
 import { SOL_WRITING } from './sol-writing-route';
 import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_REVIEW_INSTRUCTIONS,
-  SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_EXPERIENCE, SIMPLE_CHILD_SHAPE_VERSION, type SimpleStoryExperience } from './simple-story-experience';
+  SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_EXPERIENCE, SIMPLE_CHILD_SHAPE_VERSION,
+  SIMPLE_CHILD_MOMENTUM_EXPERIENCE, SIMPLE_CHILD_MOMENTUM_VERSION, type SimpleStoryExperience } from './simple-story-experience';
 import { CHILD_REVIEW_INSTRUCTIONS } from './simple-story-child-policy';
+import { MOMENTUM_REVIEW_INSTRUCTIONS } from './simple-story-momentum-policy';
+import { SIMPLE_WRITING_ROLES } from './simple-writing-roles';
 import { replaySettlement } from '../../scripts/personal-response-settlement';
 
 export const CURRENT_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1' as const;
 export const REPAIRED_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1-repair' as const;
 export const SOL_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/sol-v1' as const;
 export const SOL_REPAIRED_SOURCE_VERSION = 'personal-simple-story-source/sol-v1-repair' as const;
-export type SimpleWritingModel = typeof CAUSAL_MODELS.opus | typeof SOL_WRITING.model;
+/** Opus CLI author + Sol Responses editor, each with its own receipt. Prospective; no repair version exists for it. */
+export const ROLES_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/roles-v1' as const;
+export type SimpleWritingModel = typeof CAUSAL_MODELS.opus | typeof SOL_WRITING.model | typeof SIMPLE_WRITING_ROLES.label;
 const MODEL = CAUSAL_MODELS.opus; // Existing approved diagnostic authority, not a production default.
+if (SIMPLE_WRITING_ROLES.author !== MODEL || SIMPLE_WRITING_ROLES.editor !== SOL_WRITING.model) throw Error('simple_story_source_roles');
+/** Which model each role must have, by the source's own immutable version, never by the caller's preference. */
+function writingRoute(version: string) {
+  if (version === ROLES_SIMPLE_SOURCE_VERSION) return { author: MODEL, editor: SOL_WRITING.model, label: SIMPLE_WRITING_ROLES.label, split: true } as const;
+  const model = version === SOL_SIMPLE_SOURCE_VERSION || version === SOL_REPAIRED_SOURCE_VERSION ? SOL_WRITING.model : MODEL;
+  return { author: model, editor: model, label: model, split: false } as const;
+}
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const micro = z.number().finite().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const usage = z.object({ inputTokens: micro, outputTokens: micro }).strict();
-const binding = z.object({ version: z.literal('personal-simple-writing-source/v1'), engineVersion: z.enum([SIMPLE_STORY_ENGINE_VERSION, SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_VERSION]),
+const binding = z.object({ version: z.literal('personal-simple-writing-source/v1'), engineVersion: z.enum([SIMPLE_STORY_ENGINE_VERSION, SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_VERSION, SIMPLE_CHILD_MOMENTUM_VERSION]),
   requestId: hash, optionsFingerprint: hash, characterDigest: hash, bookDigest: hash }).strict();
 const cliReceipt = z.object({ version: z.literal('simple-cli-receipt-projection/v1'), stage: z.enum(['author', 'editor']),
   callDigest: hash, outputDigest: hash, recordDigest: hash, sessionId: z.string().uuid(), model: z.literal(MODEL),
@@ -43,7 +55,7 @@ const evidenceSchema = (pages: number, experience?: SimpleStoryExperience) => z.
 
 // Separate from the old v3 editing receipt. Archive schemas remain readable, not current permission.
 const originalSimpleStoryResultSchema = personalStoryResultObjectSchema.extend({ simpleSource: z.object({
-  version: z.enum([CURRENT_SIMPLE_SOURCE_VERSION, SOL_SIMPLE_SOURCE_VERSION]), evidence: z.unknown(), author: receipt, editor: receipt,
+  version: z.enum([CURRENT_SIMPLE_SOURCE_VERSION, SOL_SIMPLE_SOURCE_VERSION, ROLES_SIMPLE_SOURCE_VERSION]), evidence: z.unknown(), author: receipt, editor: receipt,
 }).strict() }).strict();
 export const currentSimpleStoryResultSchema = z.union([originalSimpleStoryResultSchema,
   personalSimpleRepairResultObjectSchema.extend({ simpleSource: z.object({ version: z.enum([REPAIRED_SIMPLE_SOURCE_VERSION, SOL_REPAIRED_SOURCE_VERSION]), evidence: z.unknown(), author: receipt, editor: receipt,
@@ -60,8 +72,10 @@ const fail = (code: string): never => { throw new SimpleStorySourceError(code); 
 /** Reconstruct from the immutable source contract, never the caller's current preference or a default upgrade. */
 function prepareFromEvidence(request: unknown, options: PersonalWizardOptions, raw: unknown) {
   const candidate = z.object({ seed: z.string(), source: binding }).passthrough().parse(raw);
-  return prepareSimpleStory(request, options, candidate.seed,
-    candidate.source.engineVersion === SIMPLE_CHILD_SHAPE_VERSION ? SIMPLE_CHILD_SHAPE_EXPERIENCE : candidate.source.engineVersion === SIMPLE_CHILD_VERSION ? SIMPLE_CHILD_EXPERIENCE : candidate.source.engineVersion === SIMPLE_STORY_DELIGHT_VERSION ? SIMPLE_STORY_EXPERIENCE : undefined);
+  const version = candidate.source.engineVersion;
+  return prepareSimpleStory(request, options, candidate.seed, version === SIMPLE_CHILD_MOMENTUM_VERSION ? SIMPLE_CHILD_MOMENTUM_EXPERIENCE
+    : version === SIMPLE_CHILD_SHAPE_VERSION ? SIMPLE_CHILD_SHAPE_EXPERIENCE : version === SIMPLE_CHILD_VERSION ? SIMPLE_CHILD_EXPERIENCE
+      : version === SIMPLE_STORY_DELIGHT_VERSION ? SIMPLE_STORY_EXPERIENCE : undefined);
 }
 
 /** Exactly the existing HOLD predicate, shared by approval and repair admission. */
@@ -85,6 +99,8 @@ export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpl
     for (const packet of Object.values(packets)) packet.instructions += CHILD_REVIEW_INSTRUCTIONS;
   } else if (prepared.version === SIMPLE_CHILD_SHAPE_VERSION) {
     for (const packet of Object.values(packets)) packet.instructions += CHILD_REVIEW_INSTRUCTIONS.replace('Child-first/v2:', 'Child-first/v3:');
+  } else if (prepared.version === SIMPLE_CHILD_MOMENTUM_VERSION) {
+    for (const packet of Object.values(packets)) packet.instructions += MOMENTUM_REVIEW_INSTRUCTIONS;
   }
   return packets;
 }
@@ -93,7 +109,8 @@ export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpl
 export function prepareSimpleStoryRepair(request: unknown, priorRaw: unknown, readingsRaw: unknown[], options: PersonalWizardOptions) {
   try {
     // The literal old envelope prohibits repair chains before recursive admission can begin.
-    originalSimpleStoryResultSchema.parse(priorRaw);
+    // A role-split source has no repair contract yet: its editor route and lineage were never defined for repair.
+    if (originalSimpleStoryResultSchema.parse(priorRaw).simpleSource.version === ROLES_SIMPLE_SOURCE_VERSION) return fail('repair_route');
     const prior = admitCurrentSimpleStorySource(request, priorRaw, options);
     if (readingsRaw.length !== 2) return fail('repair_reading_binding');
     const packets = simpleStoryReadingPackets(request, prior, options);
@@ -180,9 +197,8 @@ export function admitCurrentSimpleStorySource(request: unknown, raw: unknown, op
     const result = currentSimpleStoryResultSchema.parse(raw);
     if (canonicalJson(raw) !== canonicalJson(result)) return fail('noncanonical');
     const { simpleSource, ...common } = result;
-    const sol = simpleSource.version === SOL_SIMPLE_SOURCE_VERSION || simpleSource.version === SOL_REPAIRED_SOURCE_VERSION;
-    const model = sol ? SOL_WRITING.model : MODEL;
-    if (simpleSource.author.model !== model || simpleSource.editor.model !== model) return fail('receipt_route');
+    const route = writingRoute(simpleSource.version);
+    if (simpleSource.author.model !== route.author || simpleSource.editor.model !== route.editor) return fail('receipt_route');
     (simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || simpleSource.version === SOL_REPAIRED_SOURCE_VERSION ? personalSimpleRepairResultSchema : personalStoryResultSchema).parse(common);
     const prepared = prepareFromEvidence(request, options, simpleSource.evidence);
     if (prepared.book.companion.appearance.status !== 'registry_declared') return fail('appearance_unresolved');
@@ -214,8 +230,10 @@ export function admitCurrentSimpleStorySource(request: unknown, raw: unknown, op
     const estimated = repair ? (author.estimatedMicroUsd + repair.prior.simpleSource.editor.estimatedMicroUsd + editor.estimatedMicroUsd) / 1e6 :
       author.estimatedMicroUsd / 1e6 + editor.estimatedMicroUsd / 1e6;
     const expectedUsage = repair ? [author.usage, repair.prior.simpleSource.editor.usage, editor.usage] : [author.usage, editor.usage];
-    if (result.accounting.model !== model || result.accounting.providerCalls !== (repair ? 3 : 2) || result.accounting.estimatedUsd !== estimated ||
-        estimated > result.accounting.reservedUsd || canonicalJson(result.accounting.usage) !== canonicalJson(expectedUsage) ||
+    // Role-split: no blended total (Max CLI list estimate + API usage estimate); each estimate is bound in its own receipt above.
+    if (result.accounting.model !== route.label || result.accounting.providerCalls !== (repair ? 3 : 2) ||
+        (route.split ? result.accounting.estimatedUsd !== null : result.accounting.estimatedUsd !== estimated || estimated > result.accounting.reservedUsd) ||
+        canonicalJson(result.accounting.usage) !== canonicalJson(expectedUsage) ||
         repair && (simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || simpleSource.version === SOL_REPAIRED_SOURCE_VERSION) &&
           result.accounting.reservedUsd !== repair.prior.accounting.reservedUsd + simpleSource.repair.reservedUsd) return fail('accounting_binding');
     if (repair && repair.guidance.findings.some(f => evidence.editorChanges.filter(s =>
@@ -256,14 +274,17 @@ export function createCurrentSimpleStorySource(request: unknown, generated: { re
   try {
     const prepared = prepareFromEvidence(request, options, generated.evidence);
     const evidence = evidenceSchema(prepared.book.pages, prepared.book.storyExperience).parse(generated.evidence);
-    if (writingModel !== MODEL && writingModel !== SOL_WRITING.model) return fail('receipt_route');
-    const project = writingModel === SOL_WRITING.model ? projectSimpleSolReceipt : projectSimpleCliReceipt;
-    const author = project(simpleAuthorCall(prepared), records.author);
-    const editor = project(simpleEditorCall(prepared, evidence.draft, evidence.findings), records.editor);
+    if (writingModel !== MODEL && writingModel !== SOL_WRITING.model && writingModel !== SIMPLE_WRITING_ROLES.label) return fail('receipt_route');
+    const version = writingModel === SIMPLE_WRITING_ROLES.label ? ROLES_SIMPLE_SOURCE_VERSION
+      : writingModel === SOL_WRITING.model ? SOL_SIMPLE_SOURCE_VERSION : CURRENT_SIMPLE_SOURCE_VERSION;
+    const route = writingRoute(version);
+    // Each role's record is projected by its own provider's rules; a CLI record never passes as a Responses one or vice versa.
+    const project = (model: string) => model === SOL_WRITING.model ? projectSimpleSolReceipt : projectSimpleCliReceipt;
+    const author = project(route.author)(simpleAuthorCall(prepared), records.author);
+    const editor = project(route.editor)(simpleEditorCall(prepared, evidence.draft, evidence.findings), records.editor);
     const result = personalStoryResultSchema.parse(generated.result);
     if (canonicalJson(generated.result) !== canonicalJson(result)) return fail('noncanonical');
-    return admitCurrentSimpleStorySource(request, { ...result,
-      simpleSource: { version: writingModel === SOL_WRITING.model ? SOL_SIMPLE_SOURCE_VERSION : CURRENT_SIMPLE_SOURCE_VERSION, evidence, author, editor } }, options);
+    return admitCurrentSimpleStorySource(request, { ...result, simpleSource: { version, evidence, author, editor } }, options);
   } catch (error) { if (error instanceof SimpleStorySourceError) throw error; return fail('invalid'); }
 }
 

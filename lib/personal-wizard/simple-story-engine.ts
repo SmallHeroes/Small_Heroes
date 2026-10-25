@@ -12,9 +12,18 @@ import { getCompanionById } from '../companions';
 import { companionAppearanceStateAuthorityIssues } from '../companion-appearance-state';
 import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_AUTHOR_INSTRUCTIONS, DELIGHT_EDITOR_INSTRUCTIONS,
   SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_EXPERIENCE, SIMPLE_CHILD_SHAPE_VERSION,
-  isChildStoryExperience, type SimpleStoryExperience } from './simple-story-experience';
+  SIMPLE_CHILD_MOMENTUM_EXPERIENCE, SIMPLE_CHILD_MOMENTUM_VERSION, isChildStoryExperience, usesShapeAgeResolution,
+  type SimpleStoryExperience } from './simple-story-experience';
 import { childStoryProfile, assertChildStoryProfile, CHILD_AUTHOR_INSTRUCTIONS, CHILD_EDITOR_INSTRUCTIONS } from './simple-story-child-policy';
 import { resolveChildStoryShape } from './simple-story-shape-policy';
+import { MOMENTUM_AUTHOR_INSTRUCTIONS, MOMENTUM_EDITOR_INSTRUCTIONS } from './simple-story-momentum-policy';
+import { SIMPLE_WRITING_ROLES } from './simple-writing-roles';
+
+/** The writing-contract version each explicit experience must return; one mapping for schema, preparation and source. */
+function experienceVersion(experience: SimpleStoryExperience) {
+  return experience === SIMPLE_CHILD_MOMENTUM_EXPERIENCE ? SIMPLE_CHILD_MOMENTUM_VERSION : experience === SIMPLE_CHILD_SHAPE_EXPERIENCE ? SIMPLE_CHILD_SHAPE_VERSION
+    : experience === SIMPLE_CHILD_EXPERIENCE ? SIMPLE_CHILD_VERSION : SIMPLE_STORY_DELIGHT_VERSION;
+}
 
 /**
  * Simple story engine: one Opus author call writes the whole book prose-first,
@@ -114,7 +123,7 @@ const storyFields = (pages: number, experience?: SimpleStoryExperience) => ({
     whatHelps: line.describe('What helps the child here; with no theme, what makes the choice work.'),
   }).strict()).min(1).max(4).describe('One to four pages where the child meets the theme or, with no theme, where the child\'s own choice or action turns the story.'),
   ending: line.describe('How the story ends, in one sentence.'),
-  ...(experience ? { writingContractVersion: z.literal(experience === SIMPLE_CHILD_SHAPE_EXPERIENCE ? SIMPLE_CHILD_SHAPE_VERSION : experience === SIMPLE_CHILD_EXPERIENCE ? SIMPLE_CHILD_VERSION : SIMPLE_STORY_DELIGHT_VERSION)
+  ...(experience ? { writingContractVersion: z.literal(experienceVersion(experience))
     .describe('Required output-contract metadata, not part of the story prose. Return this exact literal.') } : {}),
 });
 export const simpleStoryDraftSchema = (pages: number, experience?: SimpleStoryExperience) => z.object(storyFields(pages, experience)).strict();
@@ -226,7 +235,7 @@ export function prepareSimpleStory(input: unknown, options: PersonalWizardOption
   // Same acceptance, identity, companion authority and brief as the current writer.
   const { accepted, brief } = preparePersonalStory(input, options);
   const shape = pickStoryShape(accepted.requestId, seed);
-  const resolution = experience === SIMPLE_CHILD_SHAPE_EXPERIENCE ? resolveChildStoryShape(shape.id, brief.child.age) : undefined;
+  const resolution = usesShapeAgeResolution(experience) ? resolveChildStoryShape(shape.id, brief.child.age) : undefined;
   const character = brief.companion.character;
   const book = {
     child: { name: brief.child.name, age: brief.child.age, address: brief.child.address, homeTown: brief.child.residence },
@@ -241,7 +250,7 @@ export function prepareSimpleStory(input: unknown, options: PersonalWizardOption
     ...(resolution ? { storyShapeResolution: resolution } : {}),
     ...(experience ? { storyExperience: experience } : {}),
   };
-  return { version: experience === SIMPLE_CHILD_SHAPE_EXPERIENCE ? SIMPLE_CHILD_SHAPE_VERSION : experience === SIMPLE_CHILD_EXPERIENCE ? SIMPLE_CHILD_VERSION : experience ? SIMPLE_STORY_DELIGHT_VERSION : SIMPLE_STORY_ENGINE_VERSION, accepted, brief, seed, shape, book };
+  return { version: experience ? experienceVersion(experience) : SIMPLE_STORY_ENGINE_VERSION, accepted, brief, seed, shape, book };
 }
 export type PreparedSimpleStory = ReturnType<typeof prepareSimpleStory>;
 export type SimpleStoryCall = { stage: 'author' | 'editor'; instructions: string; input: string; schema: ZodTypeAny; maxOutputTokens: number };
@@ -257,7 +266,7 @@ function assertPreparedChildAge(prepared: PreparedSimpleStory) {
   const age = prepared.accepted.canonical.child.age;
   if (prepared.book.child.age !== age || prepared.brief.child.age !== age) fail('story_child_profile_binding');
   assertChildStoryProfile(prepared.book.childStoryProfile!, age);
-  if (prepared.book.storyExperience === SIMPLE_CHILD_SHAPE_EXPERIENCE) {
+  if (usesShapeAgeResolution(prepared.book.storyExperience)) {
     const selected = pickStoryShape(prepared.accepted.requestId,prepared.seed);
     const expected = resolveChildStoryShape(selected.id,age);
     if (prepared.shape.id !== selected.id || canonicalJson(prepared.book.storyShapeResolution) !== canonicalJson(expected) ||
@@ -269,7 +278,8 @@ export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall
   const { pages, wordsPerPage: w } = prepared.book;
   const experience = prepared.book.storyExperience;
   if (isChildStoryExperience(experience)) assertPreparedChildAge(prepared);
-  return { stage: 'author', instructions: isChildStoryExperience(experience) ? CHILD_AUTHOR_INSTRUCTIONS : experience ? DELIGHT_AUTHOR_INSTRUCTIONS : SIMPLE_AUTHOR_INSTRUCTIONS,
+  return { stage: 'author', instructions: experience === SIMPLE_CHILD_MOMENTUM_EXPERIENCE ? MOMENTUM_AUTHOR_INSTRUCTIONS
+    : isChildStoryExperience(experience) ? CHILD_AUTHOR_INSTRUCTIONS : experience ? DELIGHT_AUTHOR_INSTRUCTIONS : SIMPLE_AUTHOR_INSTRUCTIONS,
     schema: simpleStoryDraftSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book,
       task: (isChildStoryExperience(experience)
@@ -281,7 +291,8 @@ export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleSto
   const { pages, wordsPerPage: w } = prepared.book;
   const experience = prepared.book.storyExperience;
   if (isChildStoryExperience(experience)) assertPreparedChildAge(prepared);
-  return { stage: 'editor', instructions: isChildStoryExperience(experience) ? CHILD_EDITOR_INSTRUCTIONS : experience ? DELIGHT_EDITOR_INSTRUCTIONS : SIMPLE_EDITOR_INSTRUCTIONS,
+  return { stage: 'editor', instructions: experience === SIMPLE_CHILD_MOMENTUM_EXPERIENCE ? MOMENTUM_EDITOR_INSTRUCTIONS
+    : isChildStoryExperience(experience) ? CHILD_EDITOR_INSTRUCTIONS : experience ? DELIGHT_EDITOR_INSTRUCTIONS : SIMPLE_EDITOR_INSTRUCTIONS,
     schema: simpleStoryEditSchema(pages, experience), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },
       mechanicalFindings: [...findings], ...(guidance ? { readerObservations: guidance } : {}),
@@ -386,8 +397,10 @@ export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: 
     characterDigest: prepared.brief.companion.characterDigest, bookDigest: digest(prepared.book) };
   const usage: StoryUsage[] = [], costs: (number | null)[] = [];
   const known = () => costs.length > 0 && costs.every((c): c is number => c !== null);
+  // A role-split route keeps each provider's estimate in its own receipt instead of one blended total.
+  const separate = args.model === SIMPLE_WRITING_ROLES.label;
   const accounting = (): PersonalStoryResult['accounting'] => ({ model: args.model, providerCalls: usage.length, reservedUsd: args.reservedUsd,
-    estimatedUsd: known() ? (costs as number[]).reduce((a, b) => a + b, 0) : null, usage: [...usage], kind: 'usage_estimate_not_invoice' });
+    estimatedUsd: !separate && known() ? (costs as number[]).reduce((a, b) => a + b, 0) : null, usage: [...usage], kind: 'usage_estimate_not_invoice' });
   const call = async (c: SimpleStoryCall) => {
     const reply = await generate(c); usage.push(reply.usage); costs.push(reply.estimatedUsd);
     const parsed = c.schema.safeParse(reply.output);
