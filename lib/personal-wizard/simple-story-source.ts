@@ -13,7 +13,7 @@ import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 import { opusOutputContract } from '../../scripts/personal-causal-trial-adapters';
 import { SOL_WRITING } from './sol-writing-route';
 import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_REVIEW_INSTRUCTIONS,
-  SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, type SimpleStoryExperience } from './simple-story-experience';
+  SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_EXPERIENCE, SIMPLE_CHILD_SHAPE_VERSION, type SimpleStoryExperience } from './simple-story-experience';
 import { CHILD_REVIEW_INSTRUCTIONS } from './simple-story-child-policy';
 import { replaySettlement } from '../../scripts/personal-response-settlement';
 
@@ -26,7 +26,7 @@ const MODEL = CAUSAL_MODELS.opus; // Existing approved diagnostic authority, not
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const micro = z.number().finite().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const usage = z.object({ inputTokens: micro, outputTokens: micro }).strict();
-const binding = z.object({ version: z.literal('personal-simple-writing-source/v1'), engineVersion: z.enum([SIMPLE_STORY_ENGINE_VERSION, SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_CHILD_VERSION]),
+const binding = z.object({ version: z.literal('personal-simple-writing-source/v1'), engineVersion: z.enum([SIMPLE_STORY_ENGINE_VERSION, SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_VERSION]),
   requestId: hash, optionsFingerprint: hash, characterDigest: hash, bookDigest: hash }).strict();
 const cliReceipt = z.object({ version: z.literal('simple-cli-receipt-projection/v1'), stage: z.enum(['author', 'editor']),
   callDigest: hash, outputDigest: hash, recordDigest: hash, sessionId: z.string().uuid(), model: z.literal(MODEL),
@@ -61,7 +61,7 @@ const fail = (code: string): never => { throw new SimpleStorySourceError(code); 
 function prepareFromEvidence(request: unknown, options: PersonalWizardOptions, raw: unknown) {
   const candidate = z.object({ seed: z.string(), source: binding }).passthrough().parse(raw);
   return prepareSimpleStory(request, options, candidate.seed,
-    candidate.source.engineVersion === SIMPLE_CHILD_VERSION ? SIMPLE_CHILD_EXPERIENCE : candidate.source.engineVersion === SIMPLE_STORY_DELIGHT_VERSION ? SIMPLE_STORY_EXPERIENCE : undefined);
+    candidate.source.engineVersion === SIMPLE_CHILD_SHAPE_VERSION ? SIMPLE_CHILD_SHAPE_EXPERIENCE : candidate.source.engineVersion === SIMPLE_CHILD_VERSION ? SIMPLE_CHILD_EXPERIENCE : candidate.source.engineVersion === SIMPLE_STORY_DELIGHT_VERSION ? SIMPLE_STORY_EXPERIENCE : undefined);
 }
 
 /** Exactly the existing HOLD predicate, shared by approval and repair admission. */
@@ -83,6 +83,8 @@ export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpl
     for (const packet of Object.values(packets)) packet.instructions += DELIGHT_REVIEW_INSTRUCTIONS;
   } else if (prepared.version === SIMPLE_CHILD_VERSION) {
     for (const packet of Object.values(packets)) packet.instructions += CHILD_REVIEW_INSTRUCTIONS;
+  } else if (prepared.version === SIMPLE_CHILD_SHAPE_VERSION) {
+    for (const packet of Object.values(packets)) packet.instructions += CHILD_REVIEW_INSTRUCTIONS.replace('Child-first/v2:', 'Child-first/v3:');
   }
   return packets;
 }
