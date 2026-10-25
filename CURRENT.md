@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## Child-first story — exact-age general policy, offline QA handoff (2026-10-25)
+
+- Guy approved the R11 diagnosis and general correction: a fun, funny, child-led story with pleasant comprehensible Hebrew,
+  meaningful age-dependent plot/humour/attention, and believable strengthening inside the adventure rather than therapy.
+  Actual R10 text has546words/eight spreads (not the earlier Ido book's494); owner found too much micro-choreography/metaphor
+  and too little enjoyment. Its final critic returned0findings; comparison correctly remains critic_evidence for an omitted ו.
+  Four consumed SOL calls169715microUSD/parent2809225 preserved; no retroactive literary or technical full-run PASS.
+- Source C:/GNart/Work/sh-book-render-20261009, claude/book-render-20261009. Basec4cc359d; codef4dc0bbf. Q=ART/
+  r12-age-child-story-20261025, DECISION-GATE.txt. New prospective explicit child-first/v2, personal-simple-story/child-first-v2,
+  in the EXISTING author/editor/source/review/bounded-repair/flow; no second writer, critic, score or candidate engine.
+- Exact accepted age is retained in a deterministic structured profile:3-4 concrete immediate causality/followable surprise;
+  5-6 connected attempts/anticipation;7-8 richer motives/inference/payoff. Plot, humour, language and attention differ, not just
+  word counts. These are creative directions, not diagnoses/stereotypes. Existing input supports3..8 ONLY; age9 remains rejected,
+  not silently clamped or advertised. A product-wide age9 extension is outside this milestone.
+- Both author/editor calls and all three existing numbered review packets bind the same profile. Actual new-policy raw writer
+  output must carry its distinct contract literal; old raw/parsed-only relabels reject. Source reconstruction and one bounded
+  repair inherit the policy/age; existing chain limits, citation/materiality/safety/physical canon and visual HOLD remain.
+- New policy prioritises one worthwhile developing experience and an active child, companion interplay, concrete speakable
+  language and age-appropriate humour. No event/laugh/character quota or word blacklist. Selected fear/theme is faced through
+  credible child action, possibly while still afraid, not a cure/lesson; no-theme invents no weakness. Removes there_and_back's
+  required station itinerary and per-spread padding commands for v2 only; variable density and meaningful quiet moments allowed.
+  Existing defaultv1/delight-first-v1 calls and saved contracts unchanged; no production/default selection upgrade.
+- Final serial provider-free regressions:429passed/0failed/0skipped across6files, native0;26new-policy tests included. Whole
+  nonincremental tsc native0 after two test-only typing corrections. Earlier missing-module/fixture/typing RED receipts retained,
+  not source-validator weakening. Actual v1/delight-v1 source/call/review replay0;698protected book/narration hashes and5R10pins
+  preserved, including R10 comparison rejection. Historical fullcheck RED unchanged, not rerun or promoted by focused checks.
+- ZERO real provider/Max/image/audio calls, no key/claim/reset/manual manuscript rewrite/push/deploy. Old Reader3124 unchanged.
+  Independent read-only QA requested for the immutable base-to-docs-head range; result belongs in Q/INDEPENDENT-QA.txt.
+  No fresh story, literary improvement, age9 support or product acceptance is claimed by synthetic responses/engineering tests.
+
 ## Story experience — owner rejection and prospective offline correction (2026-10-24)
 
 - Guy listened to the whole Ido/panda book and REJECTED story quality: boring development, therapeutic-feeling voice,

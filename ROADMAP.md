@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Child-first exact-age story policy — offline implementation, independent gate next (2026-10-25)
+
+- Owner approves general engine correction after R10: child protagonist, enjoyable funny development, pleasant understandable
+  language, fear faced within the adventure, age changes plot/humour/inference/attention rather than merely word count.
+- Codef4dc0bbf overc4cc359d adds opt-in child-first/v2 in existing author/editor/source/review/repair/flow. Shared exact-age
+  profiles3-4/5-6/7-8; actual supported input3..8 unchanged,9outofscope. New actual writer-output tag prevents oldraw relabeling;
+  existing v1/delight-v1/defaults/materiality/safety/citation/repair/downstream gates preserved. No second evaluator or quotas.
+- Removes v2 itinerary/padding pressure, not useful quiet moments, imagery or repetition. No manual sample-story rewrite.
+ 429focused provider-free tests/whole nonincrementaltsc0; real legacy source/review replay and698protected hashes/5R10pins0.
+  Initial RED/fixture/typing corrections retained. Fullcheck remains historical RED. Q=ART/r12-age-child-story-20261025.
+- Independent read-only gate pending frozen docs handoff. ZERO new provider/Max/image/audio/key/claim/default/push/deploy.
+  R10's546word text and consumed4calls169715microUSD remain as delivered; comparison still failed, not retroactive PASS.
+  Fresh text-only product evidence remains necessary: engineering checks do not establish enjoyment, repeat reading or a cure.
+
 ## Story experience — general offline route ready, literary improvement unproven (2026-10-24)
 
 - Owner rejected the narrated Ido/panda STORY while praising images/alignment. Actual theme:null/just_for_fun; final reader had
