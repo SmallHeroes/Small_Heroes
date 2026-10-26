@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## R17 real local Wizard startup (2026-10-26)
+
+- R3 code PASS completed; actual secret-free server startup then revealed eager global environment validation before provider-free UI.
+- General local-only bootstrap correction c2e7fcbd: explicit dev/loopback/no-cloud/no-live-worker mode; service validation and enabled
+  intake auth/key ordering unchanged.142/142 affected tests, tsc0;7/7 real HTTP checks on3482. Separate code review requested.
+- Guy fills the actual Personal Wizard himself. Exact-intake R4 grant/budget QA precedes the same one paid book with Dad narration.
+  No R17 generation/claim/real intake yet; older claims/costs/failed startup/fullcheck RED retained. No push/production/UI automation.
+
+
 ## The R17 book through the Wizard, with Dad narration (2026-10-26)
 
 - Owner: one book, created end-to-end through the Personal Wizard, with paid illustrations and Dad narration in the Reader.

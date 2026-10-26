@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## R17 local Wizard bootstrap follow-up (2026-10-26, Codex continuation)
+
+- Guy asked Codex to continue Claude's work during the usage pause. R3 code/procedure QA completed first: independent 232/232,
+  tsc0, native dry-plan equality, 13 authority lifecycle checks; report INDEPENDENT-REGATE-R3.txt. Its PASS remains historical and
+  does not authorize payment. The R2 script-only grant remains unused; no real R17 intake, grant, claim or book exists yet.
+- Actual startup exposed a new integration failure before listening: instrumentation eagerly imported lib/env and required DB,
+  generation/Supabase/provider credentials for the provider-free local Wizard. Original stderr/start and failed HTTP probe retained.
+- General correction c2e7fcbd (parent0117c9b8): explicit PERSONAL_WIZARD_LOCAL_UI_ONLY plus preview flag, development-only,
+  loopback APP_URL/NEXT_PUBLIC_APP_URL, no Vercel markers and no live/native/simple workers. Only the eager bootstrap import is
+  deferred; lib/env validation is unchanged on service use. Ordinary/cloud/production startup still validates normally. Disabled
+  live-intake status no longer eagerly loads auth/DB; enabled intake keeps session/operator/key order unchanged.
+- Validation on final code: 142/142 in8 affected specs (26 new bootstrap cases), nonincremental tsc0. Default/production/payment,
+  service-on-use validation, lazy auth, intake and Wizard contracts covered. Expected initial RED and patch-format correction kept;
+  historical fullcheck RED remains, not rerun/promoted. Separate read-only review requested against0117c9b8..c2e7fcbd.
+- Real loopback HTTP on3482:7/7 exit0 (configured momentum route, landing linking Wizard, Wizard render, disabled live-intake status,
+  foreign-origin refusal, invalid-envelope refusal, missing-intake refusal). No browser/UI action, real request submission, secret
+  file/read/copy, auth/DB/provider call, payment, image/audio generation or change to story/voice/model/budget/attempts.
+  Network font-fetch retries were logged; HTML responses succeeded. No browser visual/interaction or actual creation claim.
+- Runtime/evidence: ART/claude-momentum-book-bunny-20261025/r3-local-server-20261026. Real source serves
+  http://127.0.0.1:3482/dev/personal-product -> /dev/personal-wizard; hidden loopback server, original failed3481 attempt preserved.
+- Next: finish separate code review/administrative handoff; Guy manually submits fictional age3..8/no-photo/short8/dad_v2/new
+  companion using manual facts entry. Then bind that exact intake through grant-round/prepare/new plan+grant+preflight and focused
+  R4 QA before any paid execution. Prior3185794/7m API, this-cycle Max2m and combined8m remain; narration1m stays inside those caps.
+
+
 ## R17 round 3 — the same book through the Personal Wizard, with Dad narration (2026-10-26, awaiting Codex QA)
 
 - Owner, 10/26: the R17 book should be created through the Wizard, with Dad narration, paid illustrations and a budget check, from
