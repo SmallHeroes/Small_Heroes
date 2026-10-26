@@ -108,6 +108,16 @@ const PINNED=[...new Set([...FRESH_BOOK_STORYBOARD_PRESENCE_PINNED,'scripts/pers
   'lib/personal-wizard/audition-anatomy.ts','lib/personal-wizard/landmark-topology.ts','lib/personal-wizard/storyboard-presence.ts',
   'lib/personal-wizard/storyboard-calibration.ts','lib/companions.ts','lib/style01-prompt-core.ts','lib/personal-wizard/options.ts',
   'lib/personal-wizard/source-review-impact.ts'])];
+/**
+ * The storyboard contracts of a run, shared by its plan and its execution: every board diagnostic of a fresh run (initial, held-source
+ * successor, repairs) receives exactly these. Momentum opts in from the start to the existing storyboard review INPUT capacity (the
+ * portrait book line needed it to reach review); that is distinct from the image audition review capacity. Others: exactly as before.
+ */
+export function trialRunContracts(cycle:TrialConfig['cycle'],portraitRecovery=false){
+  const momentum=cycle===MOMENTUM_BOOK_TRIAL.id,portrait=cycle===PORTRAIT_BOOK_TRIAL.id||momentum,readerSafe=cycle===READER_SAFE_BOOK_TRIAL.id||portrait;
+  return{...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{}),...(portrait?{stateParityContract:true as const}:{}),
+    ...(portraitRecovery||momentum?{reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version}:{})};
+}
 function inside(root:string,file:string){const rel=path.relative(path.resolve(root),path.resolve(file));return rel!==''&&!rel.startsWith('..')&&!path.isAbsolute(rel);}
 export function validateTrialProfile(raw:unknown,root=source){
   const p=trialProfileSchema.parse(raw),options=resolvePersonalWizardOptions(root),prepared=prepareSimpleStory(p.request,options,p.seed),c=prepared.accepted.canonical;
@@ -151,13 +161,14 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
       ...(portrait?['scripts/personal-sol-writing-transport.ts','scripts/personal-response-settlement.ts','scripts/personal-sol-cache-budget.ts','lib/personal-wizard/simple-book-flow.ts',
         'lib/personal-wizard/simple-story-source.ts','lib/personal-wizard/sol-writing-route.ts','lib/personal-wizard/storyboard-state-parity.ts']:[]),
       ...(momentum?['lib/personal-wizard/simple-story-experience.ts','lib/personal-wizard/simple-story-momentum-policy.ts','lib/personal-wizard/simple-writing-roles.ts',
-        'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts']:[]),...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
+        'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts','lib/personal-wizard/storyboard-review-capacity.ts']:[]),
+      ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
-    requestId:context.prepared.accepted.requestId,limits:{...trial},contracts:{...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true}: {}),...(portrait?{stateParityContract:true}:{})},
+    requestId:context.prepared.accepted.requestId,limits:{...trial},contracts:trialRunContracts(config.cycle),
     visual:{freshCohort:AUDITION_FRESH_COHORT_VERSION,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
       materialSceneRepair:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {}),
       ...(portrait?{reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION,writing:SOL_WRITING,pricing:SOL_CACHE_BUDGET}:{}),
-      ...(momentum?{writingRoles:SIMPLE_WRITING_ROLES,storyExperience:SIMPLE_CHILD_MOMENTUM_EXPERIENCE,
+      ...(momentum?{writingRoles:SIMPLE_WRITING_ROLES,storyExperience:SIMPLE_CHILD_MOMENTUM_EXPERIENCE,storyboardReviewCapacity:STORYBOARD_REVIEW_CAPACITY,
         citationCorrection:{version:SOURCE_CITATION_CORRECTION_VERSION,instructions:'v2',perReading:1}}:{})}};
 }
 export function planBookTrial(config:TrialConfig){return planTrialInputs(config);}
@@ -627,10 +638,10 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     isSourceContinuation=completing||grant.version==='book-e2e-source-impact-continuation/v1',
     parent=portraitRecovery?portraitRecovery.parent:solFamily?solFamily.parent:spanning?(grant as StoryboardSpanGrant).parent:isSourceContinuation?(grant as SourceContinuationGrant).parent:null,
     plan=portraitRecovery?await planPortraitReviewInputRecovery(config,portraitRecovery.approval):bundleRecovery?await planBookSolBundleContinuation(config,bundleRecovery.approval,bundleRecovery.parent.grantFile):receiptRecovery?await planBookSolReceiptRecovery(config,receiptRecovery.approval):sol?planBookSolContinuation(config,sol.approval):spanning?planBookStoryboardSpanContinuation(config):isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
-  const contracts={...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{}),...(portrait?{stateParityContract:true as const}:{}),
-    ...(portraitRecovery?{reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version}:{})};
+  const contracts=trialRunContracts(config.cycle,!!portraitRecovery);
   if((solFamily||portrait)&&!runtimeGuard)fail('trial_sol_runtime_lease');
   if(!same(grant,plan))fail('trial_plan_changed');
+  if(momentum&&!same(grant.contracts,contracts))fail('trial_contracts_binding');
   const configDigest=previewSha(canonicalJson(config));
   const currentInputs=()=>{
     runtimeGuard?.();
