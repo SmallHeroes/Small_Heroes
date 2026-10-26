@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## R17 round 2 — storyboard review capacity fix, awaiting Codex re-gate (2026-10-26)
+
+- Codex round 1 = HOLD with one finding, R17-F1 (P2).
+  - The momentum cycle never opted into storyboard-review-input-capacity/v1. That opt-in was set only for the portrait recovery.
+  - plan.visual.reviewCapacity is the IMAGE audition contract, a different one.
+  - Codex replayed the saved paid portrait workload under the R17 contracts. It stopped with input_limit after the planner and
+    before review, with review content of 121055 bytes.
+- Fix, code a5827128:
+  - trialRunContracts(cycle, portraitRecovery) is the single source of a run's storyboard contracts, used by both the plan and
+    executeBookTrial. So the initial flow board, the held-source successor and every board repair get the same object.
+  - Momentum opts in to the existing capacity: review only, 208000 content / 240000 wire bytes. Every other cycle gets exactly the
+    object it had before.
+  - The grant's contracts must equal the runtime contracts (trial_contracts_binding).
+  - The capacity file is pinned, and the marker and its bounds are in the grant.
+  - No planner or default limit, instruction, input, schema, evidence, judging, 0.70, money or attempt changed.
+- Evidence (provider-free):
+  - new spec 8/8:
+    - the run contracts;
+    - the exact executeBookTrial orchestration slice with virtual stage IO: the marker is present on the initial, successor and
+      repair boards for momentum, and absent for legacy portrait;
+    - the marked momentum review wire is admitted, while unmarked or oversized input still refuses.
+  - 12 focused specs 214/214; mutants 7/7, including the pre-fix semantics (6 tests fail); tsc 0.
+  - Artifact CAPACITY-REGRESSION.json: the real saved workload under the momentum contracts reaches review, with the review digest
+    equal to the saved replay and the momentum reservation admitting it. Under the legacy contracts it still stops with input_limit.
+- Next: Codex re-gate R2 (REGATE-REQUEST-R2.txt in Q). After a PASS, the one bunny book runs.
+
 ## One new momentum book (R17) — offline, awaiting Codex QA (2026-10-25)
 
 - Owner: Guy asked for a new illustrated book by morning: a new companion, a new story, on the updated engine. His words are

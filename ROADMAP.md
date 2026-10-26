@@ -6,6 +6,8 @@
   cycle on the portrait book line: child-first/v4 written by an Opus 5.5 author on Claude Max (one session) and a Sol editor,
   bounded citation recovery, the continuing $7 API ledger and an $8 cycle cap. The companion is bunny_ometz.
 - Next: Codex QA, then ONE run (cover + 8 spreads + local reader). After that, Guy's read and Codex outcome QA.
+- Round 1 HOLD (R17-F1): the momentum boards lacked the existing storyboard review input capacity. Fixed in a5827128 (one shared
+  run-contracts function, momentum opt-in, bound in the grant). Awaiting the Codex re-gate.
 
 ## Critic-citation recovery (R15, 2026-10-25)
 
