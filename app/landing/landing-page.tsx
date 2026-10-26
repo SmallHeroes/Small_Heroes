@@ -15,10 +15,17 @@ import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
-import { PersonalStoryMoment } from './personal-story-moment';
+import { PersonalHowItWorks } from './personal-how-it-works';
+import { PersonalProof } from './personal-proof';
+import { PERSONAL_COMPANION_LINES } from '@/content/personal-landing';
+import { PersonalWowHero } from './personal-wow/PersonalWowHero';
+import { PersonalCompanionCarousel, type PersonalFriendCard } from './personal-companion-carousel';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
+
+/* the preview's development one-liner in the shared hero's preview branch */
+const PERSONAL_PILOT_NOTE = 'תצוגת פיתוח. בסיום ההיכרות תקבלו כרטיס פרטים לעריכה, עדיין לא ספר מלא.';
 
 type SpotlightState = {
   slot: MvpMatrixCategoryPayload;
@@ -79,9 +86,11 @@ type LandingPageProps = {
   startHref: string;
   matrixCategories: MvpMatrixCategoryPayload[];
   personalPreview?: boolean;
+  /** Personal preview only: every friend the wizard offers, for the drifting friends row. */
+  personalCompanions?: PersonalFriendCard[];
 };
 
-export default function LandingPage({ content: L, startHref, matrixCategories, personalPreview = false }: LandingPageProps) {
+export default function LandingPage({ content: L, startHref, matrixCategories, personalPreview = false, personalCompanions }: LandingPageProps) {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   /* Optional same-tab prefill, expiring after 30 minutes. Browser access stays
@@ -149,63 +158,71 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
         </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
-        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'קטע לדוגמה', href: '#personal-story-example' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
+        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'דוגמה', href: '#example' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
 
         <main id="main">
-          <section className="hero">
-            <HeroDoodles />
-            <div className="wrap hero-wrap">
-              <div className="hero-text">
-                <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
-                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
-                  {/* keyed on the text: a new name re-mounts the line and it
-                      pops in (name-pop), so the change is felt, not swapped */}
-                  <span key={h1Line1} className="hero-h1-line name-pop">{h1Line1}</span>{' '}
-                  <span key={h1Line2} className="hero-h1-line hero-h1-line--accent name-pop">{h1Line2}</span>
-                </h1>
-                <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
+          {/* the preview stages the same words as a living book; the public hero is unchanged */}
+          {personalPreview ? (
+            <PersonalWowHero hero={L.hero} startHref={startHref} secondaryHref="#example" />
+          ) : (
+            <section className="hero">
+              <HeroDoodles />
+              <div className="wrap hero-wrap">
+                <div className="hero-text">
+                  <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
+                  <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
+                    {/* keyed on the text: a new name re-mounts the line and it
+                        pops in (name-pop), so the change is felt, not swapped */}
+                    <span key={h1Line1} className="hero-h1-line name-pop">{h1Line1}</span>{' '}
+                    <span key={h1Line2} className="hero-h1-line hero-h1-line--accent name-pop">{h1Line2}</span>
+                  </h1>
+                  <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
 
-                {!personalPreview ? <NameMoment child={child} onChange={onChildChange} /> : <p className="personal-pilot-note">תצוגת פיתוח. בסיום ההיכרות תקבלו כרטיס פרטים לעריכה, עדיין לא ספר מלא.</p>}
+                  {!personalPreview ? <NameMoment child={child} onChange={onChildChange} /> : <p className="personal-pilot-note">{PERSONAL_PILOT_NOTE}</p>}
 
-                <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
-                  <a
-                    href={startHref}
-                    className="btn-primary"
-                    data-event="landing_start_click"
-                  >
-                    <span key={ctaPrimary} className="name-pop">{ctaPrimary}</span>
-                  </a>
-                  {/* lands on the sample section — the book itself (a video of
-                      it, once Guy's clip exists). The gallery is a look, not a
-                      sample, so it is no longer the destination. */}
-                  <a href={personalPreview ? '#personal-story-example' : '#sample'} className="btn-light">
-                    {L.hero.ctaSecondary}
-                  </a>
+                  <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
+                    <a
+                      href={startHref}
+                      className="btn-primary"
+                      data-event="landing_start_click"
+                    >
+                      <span key={ctaPrimary} className="name-pop">{ctaPrimary}</span>
+                    </a>
+                    {/* lands on the sample section — the book itself (a video of
+                        it, once Guy's clip exists). The gallery is a look, not a
+                        sample, so it is no longer the destination. */}
+                    <a href={personalPreview ? '#how' : '#sample'} className="btn-light">
+                      {L.hero.ctaSecondary}
+                    </a>
+                  </div>
+                  {personalPreview ? <ul className="personal-hero-notes">{L.hero.ctaNotes.map((note) => <li key={note}>{note}</li>)}</ul> : null}
+
                 </div>
-                {personalPreview ? <ul className="personal-hero-notes">{L.hero.ctaNotes.map((note) => <li key={note}>{note}</li>)}</ul> : null}
 
-              </div>
-
-              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
-                {/* Guy's three story beats, now separate files, so the collage
-                    is composed in CSS and the beats can arrive IN ORDER —
-                    fear, then the friend, then walking out. Desktop keeps the
-                    3D cursor tilt (motion.ts, hover+fine-pointer only):
-                    rotation lives on .hero-float, so it never fights the
-                    per-panel reveal transforms. */}
-                <div className="hero-float">
-                  <HeroCollage />
+                <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
+                  {/* Guy's three story beats, now separate files, so the collage
+                      is composed in CSS and the beats can arrive IN ORDER —
+                      fear, then the friend, then walking out. Desktop keeps the
+                      3D cursor tilt (motion.ts, hover+fine-pointer only):
+                      rotation lives on .hero-float, so it never fights the
+                      per-panel reveal transforms. */}
+                  <div className="hero-float">
+                    <HeroCollage />
+                  </div>
+                  {/* Label the opening and outcome; the middle beat stays visual. */}
+                  <ol className="hero-captions" aria-hidden="true">
+                    <li>רגע של פחד</li>
+                    <li>יוצאת גאה</li>
+                  </ol>
                 </div>
-                {/* Label the opening and outcome; the middle beat stays visual. */}
-                <ol className="hero-captions" aria-hidden="true">
-                  <li>רגע של פחד</li>
-                  <li>יוצאת גאה</li>
-                </ol>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
-          {personalPreview ? <PersonalStoryMoment /> : null}
+          {/* the preview proves the promise straight after the hero: what a parent said and what it changed in
+              the story (site audit 2026-10-01); then it explains how it works, the recording first */}
+          {personalPreview ? <PersonalProof /> : null}
+          {personalPreview ? <PersonalHowItWorks startHref={startHref} /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
           {/* the storybook sky continues here and fades out inside this
@@ -245,6 +262,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
               <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.helps.lede}</p>
+              {/* the personal preview shows every friend the wizard offers as a drifting row (Guy 2026-10-05) */}
+              {personalPreview && personalCompanions ? (
+                <div data-reveal="up" data-reveal-delay="80">
+                  <PersonalCompanionCarousel friends={personalCompanions} startHref={startHref} />
+                </div>
+              ) : (
               <div className="mvp-challenge-grid mvp-challenge-grid--landing">
                 {matrixCategories.map((slot, index) => {
                   {/* Landing-side marketing copy per category; the wizard keeps
@@ -257,7 +280,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                     <CategoryChallengeCard
                       key={slot.category}
                       slot={displaySlot}
-                      lead={marketing?.lead}
+                      lead={personalPreview ? PERSONAL_COMPANION_LINES[slot.companion.id] : marketing?.lead}
                       as="button"
                       onClick={(event) => {
                         if (personalPreview) { window.location.assign(`${startHref}?companion=${encodeURIComponent(slot.companion.id)}`); return; }
@@ -276,6 +299,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                   );
                 })}
               </div>
+              )}
               <p className="helps-closing" data-reveal="fade" data-reveal-delay="380">{L.helps.closing}</p>
             </div>
           </section>
@@ -310,7 +334,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                     alt="המחשה - דוגמה לספר מותאם אישית"
                     loading="lazy"
                   />
-                  {personalPreview ? <figcaption>המחשת עיצוב בלבד, לא ספר אישי שהושלם</figcaption> : null}
                 </figure>
               </div>
             </div>
@@ -344,56 +367,59 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
           </section>
 
 
-          <section className="how-it-works-section how-section" id="how">
-            <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
-              <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
+          {/* the preview has its own how-it-works after the hero */}
+          {personalPreview ? null : (
+            <section className="how-it-works-section how-section" id="how">
+              <div className="wrap">
+                <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
+                <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
 
-              <div className="steps-row">
-                {/* the dashed trail that turns three cards into one journey */}
-                <svg
-                  className="how-trail"
-                  viewBox="0 0 1000 60"
-                  preserveAspectRatio="none"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M6,50 C280,2 720,2 994,50"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeDasharray="0.5 13"
-                  />
-                </svg>
-                {L.how.steps.map((step, index) => {
-                  /* presentation only: the "N. " prefix in the copy becomes a
-                     number chip; the content file stays untouched */
-                  const numbered = step.title.match(/^(\d+)\.\s*(.*)$/);
-                  return (
-                    <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
-                      <div className="how-step">
-                        <span className="how-step-num" aria-hidden="true">{numbered ? numbered[1] : index + 1}</span>
-                        <div className="landing-card-title">{numbered ? numbered[2] : step.title}</div>
-                        <p className="landing-card-body">{step.body}</p>
-                        {'emphasis' in step && step.emphasis ? (
-                          <p className="how-step-emphasis">{step.emphasis}</p>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+                <div className="steps-row">
+                  {/* the dashed trail that turns three cards into one journey */}
+                  <svg
+                    className="how-trail"
+                    viewBox="0 0 1000 60"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M6,50 C280,2 720,2 994,50"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeDasharray="0.5 13"
+                    />
+                  </svg>
+                  {L.how.steps.map((step, index) => {
+                    /* presentation only: the "N. " prefix in the copy becomes a
+                       number chip; the content file stays untouched */
+                    const numbered = step.title.match(/^(\d+)\.\s*(.*)$/);
+                    return (
+                      <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
+                        <div className="how-step">
+                          <span className="how-step-num" aria-hidden="true">{numbered ? numbered[1] : index + 1}</span>
+                          <div className="landing-card-title">{numbered ? numbered[2] : step.title}</div>
+                          <p className="landing-card-body">{step.body}</p>
+                          {'emphasis' in step && step.emphasis ? (
+                            <p className="how-step-emphasis">{step.emphasis}</p>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
 
-              <div className="how-foot" data-reveal="up" data-reveal-delay="300">
-                <p className="how-closing">{L.how.closing}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_start_click">
-                  {L.how.cta}
-                </a>
+                <div className="how-foot" data-reveal="up" data-reveal-delay="300">
+                  <p className="how-closing">{L.how.closing}</p>
+                  <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                    {L.how.cta}
+                  </a>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* למה הסיפורים שלנו עובדים אחרת — the story-craft argument */}
           <section className="section why-section" id="why">
@@ -447,11 +473,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
           {/* מי מאחורי זה + הגישה שלנו — אחרי אמון-המוצר, לפני המחירים */}
           <AboutSection about={L.about} />
 
+          {/* the personal preview drops the development band (Guy 2026-10-05); its FAQ keeps the status */}
+          {!personalPreview ? (
           <section className="early-stage-band" aria-label="הודעת השקה">
             <div className="wrap early-stage-band__inner">
               <p className="early-stage-band__line" data-reveal="fade">{L.earlyStage.line}</p>
             </div>
           </section>
+          ) : null}
 
           <section className="section pricing-section" id="pricing">
             <div className="wrap">

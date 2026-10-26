@@ -700,10 +700,25 @@
 
 /* ── Companion + intent ───────────────────────────────────── */
 
+/* All the friends (13 since 2026-10-05) in a still grid: three to a row on a phone, four from a tablet up;
+   a short last row is centred rather than left hanging on one side. */
 .companionGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
+}
+
+.companionGrid > .companionCard {
+  box-sizing: border-box; /* the basis includes the card's padding and border, so a full row really fits */
+  flex: 0 1 calc((100% - 2 * 12px) / 3);
+  min-inline-size: 0;
+}
+
+@media (min-width: 640px) {
+  .companionGrid > .companionCard {
+    flex-basis: calc((100% - 3 * 12px) / 4);
+  }
 }
 
 .companionCard {

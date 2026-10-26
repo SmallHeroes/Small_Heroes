@@ -1,0 +1,1029 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PERSONAL-WOW.CSS — the preview landing's storybook layer (preview only).
+   Round 3 of the direction proof, per Guy: no orange (it fights the purple
+   and yellow), no book, one headline size, bigger overlapping pictures, a
+   tag on every picture, several families. Purple and strong yellow are the
+   whole palette; the pictures bring the rest of the colour. Physical
+   left/right inside the stage on purpose: it is a composition.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --pw-page-2: #fffaf1;
+  /* the hero sky (Guy picked it over warm white and mint) */
+  --pw-sky-1: #e6f0ff;
+  --pw-sky-2: #f1f5ff;
+  --pw-sky-hand-over: #fcfbff;
+  /* the hero's floor, and exactly the first row of the section under it */
+  --pw-sky-floor: #f2f5ff;
+  /* where the glowing sky ends: the last row of "helps" and the wave into the dark room */
+  --pw-sky-dusk: #e9e7fb;
+  /* the hero's soft lights, reused down the page */
+  --pw-glow-sun: rgba(255, 215, 69, 0.2);
+  --pw-glow-plum: rgba(174, 123, 240, 0.17);
+  --pw-glow-sky: rgba(122, 170, 255, 0.18);
+  --pw-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── The type voice (preview only): Fredoka everywhere, a hand for the voice ── */
+.personal-product {
+  --font-suez: var(--font-fredoka);
+  --font-rubik: var(--font-fredoka);
+  --font-wow-display: var(--font-fredoka), 'Fredoka', sans-serif;
+  --font-wow-body: var(--font-fredoka), 'Fredoka', sans-serif;
+  --fd: var(--font-fredoka), 'Fredoka', sans-serif;
+  --fb: var(--font-fredoka), 'Fredoka', sans-serif;
+  font-family: var(--fb);
+}
+
+/* Suez shipped one weight, so its headings were set at 400; Fredoka needs its bold */
+.personal-product :is(h1, h2, h3, .section-h2, .sample-h2, .gallery-h2, .footer-h2, .landing-card-title, .value-card-title, .why-card-title, .trust-point__title, .price-name, .ph-title) {
+  font-weight: 700;
+}
+
+.personal-product .section-lede { font-size: clamp(18px, 1.9vw, 21px); }
+.personal-product :is(.value-card-body, .ph-body, .why-card-body, .trust-point__text, .faq-a p) { font-size: 17px; }
+
+/* ── Hero: a soft sky that keeps going ────────────────────────────────────
+   Per Guy (2026-10-01): the sky must not stop at the hero's floor. The top
+   layer settles every glow into one floor value over the last stretch, and
+   the section under the hero starts at that exact value and carries the sky
+   down to the value section's own wash, so hero -> how -> value is one run. */
+.pw-hero {
+  padding: 64px 0 40px;
+  background:
+    linear-gradient(180deg, rgba(242, 245, 255, 0) 72%, var(--pw-sky-floor) 100%),
+    radial-gradient(46% 50% at 8% 20%, rgba(255, 215, 69, 0.18), transparent 70%),
+    radial-gradient(42% 44% at 30% 70%, rgba(174, 123, 240, 0.14), transparent 70%),
+    linear-gradient(180deg, var(--pw-sky-1) 0%, var(--pw-sky-2) 58%, var(--pw-sky-floor) 100%);
+}
+
+/* ── The glowing sky runs on to the dark room ───────────────────────────
+   Per Guy (2026-10-01): the hero's soft, blurred light must not stop after
+   the hero and drop to white. "How it works", "what you get" and "helps"
+   keep the hero's floor tone and its glows (sun, plum, sky, alternating
+   sides), the last stretch of "helps" deepens a little into dusk, and the
+   dark room's wave takes exactly that dusk, so the page turns into night
+   without a white band. Every glow is sized and placed so its light has
+   faded to nothing before any section edge: no boundary ever cuts a glow. */
+.personal-product .personal-how {
+  background:
+    radial-gradient(620px 360px at 88% 300px, var(--pw-glow-sun), transparent 70%),
+    radial-gradient(660px 380px at 10% calc(100% - 310px), var(--pw-glow-plum), transparent 70%),
+    var(--pw-sky-floor);
+}
+
+.personal-product .value-section {
+  background:
+    radial-gradient(560px 300px at 8% 34%, var(--pw-glow-sky), transparent 70%),
+    radial-gradient(640px 330px at 90% 58%, var(--pw-glow-plum), transparent 70%),
+    var(--pw-sky-floor);
+}
+
+.personal-product .helps-section {
+  background:
+    linear-gradient(180deg, rgba(233, 231, 251, 0) 62%, var(--pw-sky-dusk) 100%),
+    radial-gradient(600px 340px at 10% 38%, var(--pw-glow-sun), transparent 70%),
+    radial-gradient(660px 340px at 88% 64%, var(--pw-glow-plum), transparent 70%),
+    linear-gradient(180deg, var(--pw-sky-floor) 0%, var(--pw-sky-floor) 40%, var(--pw-sky-dusk) 100%);
+}
+
+/* the dark room's wave is the previous section's colour dipping in: now the dusk */
+.personal-product #sample .section-wave path { fill: var(--pw-sky-dusk); }
+
+/* ── The proof, right under the hero (site audit 2026-10-01) ─────────────
+   What a parent said, and what it changed in the story. It sits inside the
+   same sky: it starts at the hero's floor tone and hands the same tone to
+   "how it works", and its two glows fade out well before either edge. The
+   parent's words keep the hero's hand and its yellow stickers; the story is
+   a book page, text first, with Yuval's approved picture. */
+.personal-product .personal-proof {
+  position: relative;
+  padding: clamp(56px, 7vw, 96px) 0 clamp(40px, 5vw, 72px);
+  scroll-margin-top: 90px;
+  background:
+    radial-gradient(560px 320px at 10% 30%, var(--pw-glow-sky), transparent 70%),
+    radial-gradient(600px 340px at 92% 64%, var(--pw-glow-sun), transparent 70%),
+    var(--pw-sky-floor);
+}
+
+.personal-proof .section-h2 { max-width: 22ch; margin-inline: auto; text-wrap: balance; }
+.personal-proof .section-lede { max-width: 46ch; margin-inline: auto; text-wrap: balance; }
+
+.pp-grid {
+  display: grid;
+  /* the parent's words, then the open book, which gets the room two equal pages need */
+  grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+  max-width: 1120px;
+  margin: clamp(28px, 4vw, 48px) auto 0;
+}
+
+.pp-label {
+  margin: 0 0 12px;
+  font-family: var(--fd);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--purple-600);
+}
+
+/* the parent's words, as the hero's speech bubble: white, a soft ring, the hand */
+.pp-bubble {
+  position: relative;
+  margin: 0 0 30px;
+  padding: 20px 24px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(40, 33, 74, 0.1), 0 0 0 3px var(--purple-100);
+  font-family: var(--font-playpen), 'Playpen Sans Hebrew', var(--fb);
+  font-weight: 500;
+  font-size: clamp(17px, 1.5vw, 20px);
+  line-height: 1.6;
+  color: var(--n-800);
+}
+
+.pp-bubble p { margin: 0; }
+.pp-bubble p + p { margin-top: 0.35em; }
+
+.pp-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  inset-inline-start: 40px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 0 0 5px 0;
+  transform: rotate(45deg);
+  box-shadow: 3px 3px 0 0 var(--purple-100);
+}
+
+/* what it became: the hero's sticker, then the moment in the story */
+.pp-links { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+
+.pp-links li {
+  display: flex;
+  /* sticker, arrow and story stay on one row; a long story line wraps beside its arrow, never under it */
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--n-900);
+}
+
+/* yellow stickers like the hero's: they are labels, not buttons */
+.pp-tag {
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 3px solid #fff;
+  background: var(--yellow-300);
+  box-shadow: 0 4px 10px rgba(40, 33, 74, 0.14);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  white-space: nowrap;
+  rotate: -2deg;
+}
+
+.pp-links li:nth-child(even) .pp-tag { rotate: 2deg; }
+.pp-into { display: inline-grid; flex: none; color: var(--purple-400); }
+.pp-into svg { width: 20px; height: 20px; }
+.pp-tag { flex: none; }
+.pp-became { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+
+/* ── The story as an open book (Guy 2026-10-05: "two sides the same size, it
+   should look like an open book, not UI") ─────────────────────────────────
+   A warm cover shows around the pages; two cream leaves of one size sit on
+   it, each shading softly into the binding, with the fold between them and
+   the stack of pages under them along the bottom. The words are on the
+   reading-side page and Yuval's picture faces them. */
+.pp-book {
+  position: relative;
+  margin: 0;
+  padding: 9px 11px 13px;
+  border-radius: 12px 12px 16px 16px;
+  background: linear-gradient(180deg, #d8a76e 0%, #c9925a 100%);
+  box-shadow: 0 28px 54px rgba(40, 33, 74, 0.2), 0 8px 16px rgba(40, 33, 74, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.pp-spread {
+  --pp-paper: #fffaf0;
+  --pp-binding: #eadcc3;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* both pages the same size */
+  border-radius: 4px 4px 6px 6px;
+  background: var(--pp-paper);
+  /* the closed pages under the open ones */
+  box-shadow: 0 2px 0 -1px #f4ead8, 0 4px 0 -2px #e3d2b4, 0 6px 0 -3px #f4ead8, 0 8px 0 -4px #dcc8a6;
+}
+
+/* the binding: a soft valley down the middle */
+.pp-spread::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 28px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, rgba(120, 88, 48, 0) 0%, rgba(120, 88, 48, 0.14) 46%, rgba(80, 58, 30, 0.22) 50%, rgba(120, 88, 48, 0.14) 54%, rgba(120, 88, 48, 0) 100%);
+  pointer-events: none;
+}
+
+.pp-leaf {
+  position: relative;
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 32px) clamp(18px, 2.2vw, 30px);
+}
+
+/* each leaf darkens a little toward the binding, the way a page curves into it */
+.pp-leaf--words { background: linear-gradient(to left, var(--pp-paper) 0%, var(--pp-paper) 78%, var(--pp-binding) 100%); }
+.pp-leaf--art { display: flex; background: linear-gradient(to right, var(--pp-paper) 0%, var(--pp-paper) 78%, var(--pp-binding) 100%); }
+
+/* the book's running head: quiet, in the page's ink, not a UI label */
+.pp-running {
+  margin: 0 0 12px;
+  font-family: var(--fd);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9a8463;
+}
+
+.pp-leaf--words p {
+  margin: 0;
+  font-size: 16px; /* Guy 2026-10-05: the book's text at 16px */
+  line-height: 1.72;
+  color: #2f2a24;
+  text-wrap: pretty;
+}
+
+.pp-leaf--words p + p { margin-top: 0.45em; }
+
+.pp-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: 42% 40%;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(80, 58, 30, 0.08);
+}
+
+.pp-note {
+  max-width: 62ch;
+  margin: 24px auto 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--n-600);
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* the hero's facts, in a quiet row under the actions */
+.pw-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--n-700);
+}
+
+.pw-facts li { display: inline-flex; align-items: center; gap: 8px; }
+.pw-facts li::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--purple-400); flex: none; }
+
+@media (max-width: 860px) {
+  .pp-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* on a phone the two leaves stack, still one size, with the binding running across between them */
+@media (max-width: 600px) {
+  .pp-spread { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 1fr; }
+  .pp-leaf--art { order: -1; min-height: 300px; background: linear-gradient(to bottom, var(--pp-paper) 0%, var(--pp-paper) 80%, var(--pp-binding) 100%); }
+  .pp-leaf--words { background: linear-gradient(to top, var(--pp-paper) 0%, var(--pp-paper) 80%, var(--pp-binding) 100%); }
+  .pp-spread::after {
+    inset-block: auto;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 26px;
+    transform: translateY(-50%);
+    background: linear-gradient(180deg, rgba(120, 88, 48, 0) 0%, rgba(120, 88, 48, 0.14) 46%, rgba(80, 58, 30, 0.22) 50%, rgba(120, 88, 48, 0.14) 54%, rgba(120, 88, 48, 0) 100%);
+  }
+}
+
+/* on a phone each detail sits on its own line above what it became, so no arrow points at a wrapped line */
+@media (max-width: 600px) {
+  .pp-links { gap: 16px; }
+  .pp-links li { display: grid; justify-items: start; gap: 6px; }
+  .pp-into { display: none; }
+}
+
+.pw-hero .hero-doodles { background: none; }
+
+.pw-hero-wrap {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(20px, 3vw, 56px);
+  align-items: center;
+}
+
+.pw-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 18px 9px 20px;
+  border-radius: 16px;
+  background: var(--yellow-400);
+  color: var(--n-900);
+  font-size: 16px;
+  font-weight: 600;
+  rotate: -2deg;
+  box-shadow: 0 3px 0 rgba(28, 27, 33, 0.1), 0 10px 22px rgba(245, 194, 27, 0.22);
+}
+
+.pw-badge svg { width: 17px; height: 17px; color: var(--purple-600); }
+
+/* one size for both lines; the promise is simply purple */
+.pw-h1 {
+  margin: 22px 0 20px;
+  font-family: var(--fd);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--n-900);
+  font-size: clamp(34px, 3.5vw, 56px);
+}
+
+.pw-h1-a { display: block; }
+
+.pw-h1-b {
+  display: block;
+  color: var(--purple-500);
+  text-wrap: balance;
+}
+
+/* a hand-drawn brush stroke under the promise, in the brand yellow (one per line) */
+.pw-ink {
+  padding-bottom: 0.12em;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M4 13 C 55 4, 120 5, 196 10' fill='none' stroke='%23ffd745' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 100% 0.28em;
+  background-position: 50% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.pw-sub {
+  margin: 0;
+  max-width: 44ch;
+  font-size: clamp(16px, 1.15vw, 18px);
+  line-height: 1.65;
+  color: var(--n-600);
+  text-wrap: pretty;
+}
+
+.pw-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.pw-cta {
+  gap: 12px;
+  min-height: 64px;
+  padding: 0 12px 0 30px;
+  font-size: 20px;
+}
+
+.pw-cta-mic {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--purple-600);
+}
+
+.pw-cta-mic::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  animation: pw-breathe 2.6s ease-in-out infinite;
+}
+
+.pw-cta-mic svg { width: 22px; height: 22px; }
+
+@keyframes pw-breathe {
+  0%, 100% { opacity: 0; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.pw-cta-2 { min-height: 64px; padding: 0 28px; font-size: 18px; }
+
+/* ── The stage: a voice, and a story's moments coming up as it is told ── */
+.vs {
+  position: relative;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.vs-stage {
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 1 / 0.9;
+}
+
+.vs-bokeh {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: vs-drift 9s ease-in-out infinite alternate;
+}
+
+.vs-bokeh--a { width: 40cqi; height: 40cqi; left: 0; top: 22%; background: radial-gradient(circle, rgba(255, 215, 69, 0.4), rgba(255, 215, 69, 0) 68%); }
+.vs-bokeh--b { width: 44cqi; height: 44cqi; right: 8%; bottom: -6%; background: radial-gradient(circle, rgba(174, 123, 240, 0.3), rgba(174, 123, 240, 0) 68%); animation-delay: -4s; }
+
+@keyframes vs-drift {
+  from { translate: 0 0; }
+  to { translate: 2cqi -2cqi; }
+}
+
+/* the moments: bigger, fanned, overlapping; each comes up as its line is said */
+.vs-card {
+  position: absolute;
+  z-index: 3;
+  width: 36%;
+  transform-origin: 50% 80%;
+  opacity: 0;
+  scale: 0.7;
+  translate: 0 6cqi;
+  rotate: 0deg;
+  transition:
+    opacity 0.55s ease,
+    scale 0.9s cubic-bezier(0.2, 1.2, 0.4, 1),
+    translate 0.9s cubic-bezier(0.2, 1.2, 0.4, 1),
+    rotate 0.9s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+.vs-card[data-risen='true'] { opacity: 1; scale: 1; translate: 0 0; rotate: var(--tilt); }
+.vs-card[data-card='0'] { right: 2%; top: 25%; --tilt: 5deg; }
+.vs-card[data-card='1'] { right: 31%; top: 31%; --tilt: -2deg; z-index: 4; }
+.vs-card[data-card='2'] { left: 2%; top: 22%; width: 38%; --tilt: -6deg; z-index: 5; }
+
+.vs-card-frame {
+  display: block;
+  padding: 0.9cqi;
+  border-radius: 1.6cqi;
+  background: #fff;
+  box-shadow: 0 1.8cqi 3.6cqi -0.6cqi rgba(40, 33, 74, 0.3);
+}
+
+.vs-card[data-risen='true'] .vs-card-frame { animation: vs-bob 4.6s 1s ease-in-out infinite alternate; }
+.vs-card[data-card='1'][data-risen='true'] .vs-card-frame { animation-delay: 1.8s; animation-duration: 5.2s; }
+.vs-card[data-card='2'][data-risen='true'] .vs-card-frame { animation-delay: 2.4s; animation-duration: 4.9s; }
+
+@keyframes vs-bob {
+  from { translate: 0 0; }
+  to { translate: 0 -0.9cqi; }
+}
+
+.vs-card-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: 1cqi;
+  overflow: hidden;
+  background: var(--pw-page-2);
+}
+
+.vs-card-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* a friend's portrait sits on a soft card of its own */
+.vs-card[data-portrait='true'] .vs-card-art { background: radial-gradient(circle at 50% 42%, var(--yellow-100), var(--purple-50) 72%); }
+.vs-card[data-portrait='true'] .vs-card-art img { object-fit: contain; padding: 12% 10% 6%; }
+
+/* a pencil sketch first; then the colour washes up */
+.vs-sketch { filter: grayscale(1) contrast(1.3) brightness(1.18); opacity: 0.6; }
+
+.vs-color {
+  clip-path: circle(0% at 50% 100%);
+  transition: clip-path 1.25s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+.vs-card[data-colored='true'] .vs-color { clip-path: circle(150% at 50% 100%); }
+
+.vs-card-spark { position: absolute; width: 4.2cqi; color: var(--yellow-400); opacity: 0; scale: 0.3; }
+.vs-card-spark--a { top: -2.2cqi; left: -2cqi; }
+.vs-card-spark--b { bottom: 12%; right: -2.2cqi; width: 3cqi; color: var(--purple-400); }
+.vs-card[data-colored='true'] .vs-card-spark { animation: vs-spark 0.9s var(--pw-ease) both; }
+.vs-card[data-colored='true'] .vs-card-spark--b { animation-delay: 0.3s; }
+
+@keyframes vs-spark {
+  0% { opacity: 0; scale: 0.3; rotate: -30deg; }
+  60% { opacity: 1; scale: 1.25; rotate: 10deg; }
+  100% { opacity: 1; scale: 1; rotate: 0deg; }
+}
+
+/* the voice: an orb on the start side, the words in a bubble beside it */
+.vs-voice { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+
+.vs-orb {
+  position: absolute;
+  top: 1%;
+  right: 1.5%;
+  display: grid;
+  place-items: center;
+  width: 14cqi;
+  height: 14cqi;
+  border-radius: 50%;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #b98af5 0%, var(--purple-500) 45%, var(--purple-700) 100%);
+  box-shadow: 0 0 0 1.1cqi rgba(255, 255, 255, 0.7), 0 1.6cqi 4cqi rgba(123, 47, 204, 0.4), 0 0 6cqi rgba(255, 215, 69, 0.45);
+}
+
+.vs-orb svg { width: 44%; height: 44%; position: relative; }
+
+.vs-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 0.45cqi solid var(--purple-300);
+  opacity: 0;
+}
+
+.vs[data-talking='true'] .vs-orb { animation: vs-speak 0.5s ease-in-out infinite alternate; }
+.vs[data-talking='true'] .vs-orb-ring { animation: vs-ring 1.7s ease-out infinite; }
+.vs[data-talking='true'] .vs-orb-ring--late { animation-delay: 0.85s; }
+
+@keyframes vs-speak {
+  from { scale: 1; }
+  to { scale: 1.05; }
+}
+
+@keyframes vs-ring {
+  from { opacity: 0.9; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.8); }
+}
+
+.vs-bubble {
+  position: absolute;
+  top: 1.5%;
+  right: 18.5%;
+  left: 3%;
+  margin: 0;
+  min-height: calc(2 * 1.45em + 1.7em);
+  padding: 0.85em 1.05em;
+  border-radius: 1.25em;
+  background: #fff;
+  box-shadow: 0 1.4cqi 3.6cqi rgba(40, 33, 74, 0.1), 0 0 0 0.3cqi var(--purple-100);
+  font-family: var(--font-playpen), 'Playpen Sans Hebrew', var(--fb);
+  font-weight: 500;
+  font-size: clamp(13px, 3cqi, 23px);
+  line-height: 1.45;
+  color: var(--n-800);
+  transition: opacity 0.4s ease;
+}
+
+.vs-bubble[data-empty='true'] { opacity: 0; }
+
+.vs-bubble::after {
+  content: '';
+  position: absolute;
+  top: 1.2em;
+  right: -0.62em;
+  width: 1.1em;
+  height: 1.1em;
+  background: #fff;
+  border-top-right-radius: 0.25em;
+  transform: rotate(45deg) skew(8deg, 8deg);
+}
+
+.vs-line { display: block; }
+.vs-line + .vs-line { margin-top: 0.35em; }
+.vs-w { opacity: 0; transition: opacity 0.18s ease; }
+.vs-w[data-on='true'] { opacity: 1; }
+
+.vs-mark {
+  background-color: transparent;
+  background-image: linear-gradient(transparent 58%, rgba(255, 215, 69, 0.55) 58%, rgba(255, 215, 69, 0.55) 94%, transparent 94%);
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: 0% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  color: inherit;
+  transition: background-size 0.45s var(--pw-ease);
+}
+
+.vs-mark[data-lit='true'] { background-size: 100% 100%; }
+
+/* the phrases, tagged onto their moments: one per picture, and the name on the first. Always yellow
+   stickers: a purple pill is how this site draws a button (Guy), and these are not clickable. */
+.vs-tag {
+  position: absolute;
+  z-index: 8;
+  padding: 0.45em 0.85em;
+  border-radius: 0.8em;
+  border: 0.22em solid #fff;
+  box-shadow: 0 0.6cqi 1.4cqi rgba(40, 33, 74, 0.2);
+  font-family: var(--fd);
+  font-weight: 700;
+  font-size: clamp(11px, 2.4cqi, 18px);
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  background: var(--yellow-300);
+  color: var(--n-900);
+}
+
+.vs-tag[data-landed='true'] { opacity: 1; }
+.vs-tag[data-beat='0'][data-slot='0'] { top: 23%; right: 1%; rotate: -5deg; }
+.vs-tag[data-beat='0'][data-slot='1'] { top: 74%; right: 5%; rotate: 3deg; }
+.vs-tag[data-beat='1'] { top: 29%; right: 37%; rotate: 4deg; }
+.vs-tag[data-beat='2'] { top: 76%; left: 6%; rotate: -4deg; }
+
+/* the telling ends: everything fades, changes unseen, and the next family begins */
+.vs[data-leaving='true'] :is(.vs-card, .vs-tag, .vs-bubble) { opacity: 0 !important; transition: opacity 0.5s ease !important; }
+.vs[data-resetting='true'] *,
+.vs[data-resetting='true'] *::before,
+.vs[data-resetting='true'] *::after { transition: none !important; }
+.vs[data-paused='true'] :is(.vs-bokeh, .vs-orb, .vs-orb-ring, .vs-card-frame) { animation-play-state: paused; }
+
+.vs-warm { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.vs-warm img { width: 1px; height: 1px; }
+
+/* Nothing under the stage (Guy 2026-10-05: no caption, no dots). The pause control that moving content
+   must keep (WCAG 2.2.2) shows only when it has keyboard focus, floating at the stage's corner, so the
+   row takes no space and nothing shifts when it appears. */
+.vs-foot { position: relative; height: 0; margin: 0; padding: 0; }
+
+.vs-controls { position: absolute; inset-block-start: 10px; inset-inline-end: 2%; z-index: 2; }
+
+.vs-toggle:not(:focus-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vs-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--purple-200);
+  background: #fff;
+  color: var(--purple-600);
+  cursor: pointer;
+}
+
+.vs-toggle svg { width: 16px; height: 16px; }
+
+.vs-toggle:focus-visible { outline: 3px solid var(--purple-400); outline-offset: 3px; }
+
+.vs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Phones: the story comes up between the headline and the words ─────── */
+@media (max-width: 960px) {
+  .pw-hero { padding: 36px 0 34px; }
+  .pw-hero-wrap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'badge' 'h1' 'stage' 'sub' 'ctas';
+    gap: 0;
+    justify-items: center;
+    text-align: center;
+  }
+  .pw-copy { display: contents; }
+  .pw-badge { grid-area: badge; }
+  .pw-h1 { grid-area: h1; margin: 16px 0 8px; }
+  .vs { grid-area: stage; margin: 4px 0 18px; }
+  .pw-sub { grid-area: sub; }
+  .pw-ctas { grid-area: ctas; justify-content: center; width: 100%; }
+}
+
+/* a narrow stage: the words take the top, the three moments fan out below */
+@container (max-width: 560px) {
+  .vs-bubble { font-size: 3.7cqi; min-height: calc(3 * 1.45em + 1.7em); }
+}
+
+@media (max-width: 520px) {
+  .pw-cta, .pw-cta-2 { width: 100%; justify-content: center; }
+  /* a gently overlapping row, so every moment and its tag stays in view */
+  .vs-stage { aspect-ratio: 1 / 1.06; }
+  .vs-card { width: 35%; }
+  .vs-card[data-card='0'] { right: 1%; top: 31%; }
+  .vs-card[data-card='1'] { right: 32.5%; top: 35%; }
+  .vs-card[data-card='2'] { left: 1%; top: 30%; width: 35%; }
+  .vs-tag { font-size: 3cqi; }
+  .vs-tag[data-beat='0'][data-slot='0'] { top: 27%; right: 0; }
+  .vs-tag[data-beat='0'][data-slot='1'] { top: 74%; right: 2%; }
+  .vs-tag[data-beat='1'] { top: 31%; right: 36%; }
+  .vs-tag[data-beat='2'] { top: 76%; left: 2%; }
+}
+
+/* ── How it works: a trail with three stops ──────────────────────────── */
+.ph-trail {
+  position: relative;
+  max-width: 1040px;
+  margin: 44px auto 0;
+}
+
+.ph-trail-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 170px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.ph-trail-line path {
+  fill: none;
+  stroke: var(--purple-300);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 1 13;
+  vector-effect: non-scaling-stroke;
+}
+
+/* it draws from the first stop (the start side) toward the last */
+[data-motion='on'] .ph-trail-line {
+  clip-path: inset(0 0 0 100%);
+  transition: clip-path 1.8s cubic-bezier(0.45, 0, 0.2, 1) 0.15s, opacity 0.4s ease;
+}
+
+[data-motion='on'] .ph-trail-line.is-visible { clip-path: inset(0 0 0 0); }
+
+.ph-stops {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ph-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.ph-stop[data-stop='1'] { margin-top: 72px; }
+
+.ph-badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  border: 6px solid #fff;
+  box-shadow: 0 12px 26px rgba(40, 33, 74, 0.14);
+}
+
+.ph-badge svg { width: 44px; height: 44px; }
+.ph-stop[data-stop='0'] .ph-badge { background: var(--yellow-300); color: var(--n-900); rotate: -4deg; }
+.ph-stop[data-stop='1'] .ph-badge { background: var(--purple-100); color: var(--purple-700); rotate: 3deg; }
+.ph-stop[data-stop='2'] .ph-badge { background: var(--yellow-200); color: var(--n-900); rotate: -2deg; }
+
+.ph-num {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: var(--purple-500);
+  color: #fff;
+  font-family: var(--font-suez), var(--fd);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ph-title {
+  margin: 18px 0 8px;
+  font-family: var(--font-suez), var(--fd);
+  font-weight: 400;
+  font-size: 25px;
+  line-height: 1.25;
+  color: var(--n-900);
+}
+
+.ph-body {
+  margin: 0;
+  max-width: 30ch;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--n-600);
+  text-wrap: pretty;
+}
+
+@media (max-width: 860px) {
+  .ph-trail { margin-top: 32px; }
+  .ph-trail-line { display: none; }
+  .ph-stops { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ph-stop[data-stop='1'] { margin-top: 0; }
+  /* on phones the trail runs down between the stops */
+  .ph-stop:not(:last-child)::after {
+    content: '';
+    height: 44px;
+    margin: 16px 0;
+    border-inline-start: 4px dotted var(--purple-300);
+  }
+  .ph-badge { width: 92px; height: 92px; }
+  .ph-badge svg { width: 38px; height: 38px; }
+}
+
+/* ── The friends row: every companion, drifting by (Guy 2026-10-05) ──────
+   The row is rendered twice and the track travels exactly one copy (50% of
+   its own width), so the loop never jumps. Every item is one equal unit (the
+   card plus its share of the gap), which keeps both copies the same width.
+   Across the page the friends move toward the reading side, so they arrive in
+   reading order. A mouse over the row holds it, keyboard focus or the button
+   stops it, and it rests while off screen. Both copies are working links; the
+   second is only hidden from assistive tech and the tab order. The row runs from screen edge to
+   screen edge with no fade (Guy: without the fade it is more wow); the section
+   clips sideways so the full-width row never adds a page scroll. */
+.personal-product .helps-section { overflow-x: clip; }
+
+.pcc {
+  --pcc-card: 216px;
+  --pcc-gap: 20px;
+  --pcc-art: 252px;
+  margin-top: 28px;
+}
+
+.pcc-viewport {
+  margin-inline: calc(50% - 50vw);
+  overflow-x: clip;
+  padding-block: 18px 30px; /* room for a card's lift and its shadow */
+}
+
+.pcc-track {
+  display: flex;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: pcc-drift calc(var(--pcc-count, 13) * 6.5s) linear infinite;
+  animation-play-state: paused;
+}
+
+/* it moves only while on screen, not stopped and not under the mouse */
+.pcc[data-onscreen]:not([data-paused]) .pcc-viewport:not(:hover) .pcc-track { animation-play-state: running; }
+
+/* stopped (the button or keyboard focus): the same cards as a still row that scrolls by hand, opened exactly
+   where the drift stood (the component sets the scroll before paint). Focus keeps its friend in view, with
+   room for the focus ring at either edge. */
+.pcc[data-paused] .pcc-track { animation: none; }
+
+.pcc[data-paused] .pcc-viewport {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 28px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--purple-200, #d9cffc) transparent;
+}
+
+@keyframes pcc-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(50%, 0, 0); }
+}
+
+.pcc-item {
+  display: flex;
+  flex: 0 0 auto;
+  width: calc(var(--pcc-card) + var(--pcc-gap));
+  padding-inline: calc(var(--pcc-gap) / 2);
+}
+
+.pcc-card {
+  width: 100%;
+  min-height: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* the picture well is the art's own paper, so its sides never show a second tone (Guy 2026-10-05) */
+.pcc-card .mvp-challenge-card-img-wrap {
+  height: var(--pcc-art);
+  background: var(--pcc-paper, #fdf7e9);
+}
+
+.pcc-card:focus-visible {
+  outline: 3px solid var(--brand-purple, var(--purple-500));
+  outline-offset: 3px;
+}
+
+/* the stop control: a quiet pill under the row */
+.pcc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 40px;
+  margin: 0 auto;
+  padding: 8px 18px;
+  border: 1px solid var(--border-soft, #efecf8);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--purple-600);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.pcc-toggle:hover {
+  background: #fff;
+  border-color: var(--border-strong, #d8cdfd);
+}
+
+.pcc-toggle:focus-visible {
+  outline: 3px solid var(--brand-purple, var(--purple-500));
+  outline-offset: 3px;
+}
+
+.pcc-toggle-icon {
+  font-size: 11px;
+  letter-spacing: -1px;
+}
+
+@media (max-width: 640px) {
+  .pcc { --pcc-card: 184px; --pcc-gap: 14px; --pcc-art: 214px; }
+}
+
+/* ── Stillness wins (keep LAST) ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pw-hero *,
+  .pw-hero *::before,
+  .pw-hero *::after,
+  .personal-how *,
+  .personal-how *::before,
+  .personal-how *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ph-trail-line { clip-path: none !important; }
+  /* the friends hold still in one row that scrolls by hand; the loop copy and its button go */
+  .pcc-track { animation: none !important; transform: none !important; }
+  .pcc-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 28px;
+  }
+  .pcc-item { scroll-snap-align: start; }
+  .pcc-item[aria-hidden='true'],
+  .pcc-toggle { display: none; }
+}
