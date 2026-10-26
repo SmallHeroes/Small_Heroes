@@ -58,9 +58,10 @@ type Props = {
   options: WizardOptionsView;
   nativeBookPreview?: boolean;
   simpleBookPreview?: boolean;
+  momentumBookPreview?: boolean;
 };
 
-export function PersonalWizard({ options, nativeBookPreview = false, simpleBookPreview = false }: Props) {
+export function PersonalWizard({ options, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false }: Props) {
   const { draft, update, read } = useDraftStore();
   // Optional, non-authoritative product-preview choices. Unknown/legacy direction hints are ignored.
   const prefilled = useRef(false);
@@ -490,6 +491,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             onEdit={onEdit}
             nativeBookPreview={nativeBookPreview}
             simpleBookPreview={simpleBookPreview}
+            momentumBookPreview={momentumBookPreview}
           />
         ) : null}
       </main>

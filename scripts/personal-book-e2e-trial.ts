@@ -34,6 +34,8 @@ import { admitCurrentSimpleStorySource, simpleStoryReadingPackets, simpleStoryFi
 import { compileCausalSourceReading, type CitationCorrectionCall } from '../lib/personal-wizard/story-causal-experiment';
 import { SIMPLE_CHILD_MOMENTUM_EXPERIENCE } from '../lib/personal-wizard/simple-story-experience';
 import { SIMPLE_WRITING_ROLES } from '../lib/personal-wizard/simple-writing-roles';
+import { BOOK_NARRATION, narrationVoice, narrationMeterRule, planBookNarration, narrateBook, createNarrationTransport, elevenLabsKeyReader,
+  probeNarrationAudio, writeLocalReaderBundle, type BookNarrationPlan } from './personal-book-narration';
 import { SOURCE_REVIEW_IMPACT, prepareSourceImpactReview, compileSourceImpactReview,sourceImpactSchema,
   prepareSourceImpactCompletion,compileSourceImpactCompletion } from '../lib/personal-wizard/source-review-impact';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardInstructions, storyboardDraftSchema } from '../lib/personal-wizard/storyboard';
@@ -73,9 +75,14 @@ export const MOMENTUM_BOOK_TRIAL = Object.freeze({ ...PORTRAIT_BOOK_TRIAL, id:'o
   priorBook:'C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/new-book-portrait-panda-20261024',
   priorApiMicroUsd:3_185_794,cycleCapMicroUsd:8_000_000,maxResourceMicroUsd:2_000_000,sourceRepairs:0,citationCorrections:2,
   storyExperience:SIMPLE_CHILD_MOMENTUM_EXPERIENCE,usedCompanions:['fox_uri','lion_shaket','dragon_dini','chameleon_koko','panda_anat'],
+  // Owner scope 2026-10-26: the same book through the Wizard, narrated by the Wizard-selected Dad voice, inside the SAME caps.
+  narration:{version:BOOK_NARRATION.version,voiceIds:['dad_v2'],maximumMicroUsd:1_000_000,calls:9},
   routes:{...BOOK_E2E_TRIAL.routes,writing:SIMPLE_WRITING_ROLES.label} });
 const MOMENTUM_OWNER_TERMS=['2026-10-25','ONE NEW','חבר מלווה חדש','סיפור חדש','עם המנוע המעודכן כמובן','קדימה',MOMENTUM_BOOK_TRIAL.id,
-  READER_PORTRAIT_FRAMING_VERSION,SIMPLE_CHILD_MOMENTUM_EXPERIENCE,SIMPLE_WRITING_ROLES.label];
+  READER_PORTRAIT_FRAMING_VERSION,SIMPLE_CHILD_MOMENTUM_EXPERIENCE,SIMPLE_WRITING_ROLES.label,'2026-10-26','קריינות של אבא','דרך הוויזארד','dad_v2'];
+/** The local reader bundle id of a momentum book: derived from its accepted request, never chosen by hand. */
+export const momentumReaderId=(requestId:string)=>`trial-${requestId.slice(0,16)}`;
+const localReaderRoot=()=>path.join(source,'outputs','local-reader-previews');
 const hash=z.string().regex(/^[a-f0-9]{64}$/), absolute=z.string().refine(path.isAbsolute);
 const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
 const read=(file:string):any=>{const s=lstatSync(file);if(!s.isFile()||s.isSymbolicLink()||s.size>32_000_000)fail('trial_data_file');return JSON.parse(readFileSync(file,'utf8'));};
@@ -144,6 +151,15 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
     :owner.includes('יש אישור לתשלום')))fail('trial_owner_record');
   const context=validateTrialProfile(read(config.profileFile));
   if(portrait&&(momentum?MOMENTUM_BOOK_TRIAL.usedCompanions:['fox_uri','lion_shaket','dragon_dini','chameleon_koko']).includes(context.profile.companionId))fail('trial_new_companion_required');
+  let narrationBinding:Record<string,unknown>|null=null;
+  if(momentum){
+    let voice:ReturnType<typeof narrationVoice>;
+    try{voice=narrationVoice(context.prepared.accepted.canonical.bookOptions.voiceId,MOMENTUM_BOOK_TRIAL.narration.voiceIds);}catch{return fail('trial_narration_voice');}
+    const readerId=momentumReaderId(context.prepared.accepted.requestId);
+    if(existsSync(path.join(localReaderRoot(),readerId)))fail('trial_reader_bundle_exists');
+    narrationBinding={...MOMENTUM_BOOK_TRIAL.narration,voice,readerPreviewId:readerId,accounting:{reserveMicroUsdPerCharacter:BOOK_NARRATION.reserveFactor*BOOK_NARRATION.accountingMicroUsdPerCharacter,
+      settleBasis:'max(tts_input_characters,reported_character_cost)',accountingMicroUsdPerCharacter:BOOK_NARRATION.accountingMicroUsdPerCharacter}};
+  }
   if(path.resolve(config.keyFile)!==path.resolve('C:/GNart/Work/Small_Heroes/.env.local'))fail('trial_existing_key_scope');
   if(git('status','--porcelain')||git('branch','--show-current')!=='claude/book-render-20261009')fail('trial_source_changed');
   realDirectory(path.dirname(config.bookDir));realDirectory(trial.authorityRoot);
@@ -161,7 +177,8 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
       ...(portrait?['scripts/personal-sol-writing-transport.ts','scripts/personal-response-settlement.ts','scripts/personal-sol-cache-budget.ts','lib/personal-wizard/simple-book-flow.ts',
         'lib/personal-wizard/simple-story-source.ts','lib/personal-wizard/sol-writing-route.ts','lib/personal-wizard/storyboard-state-parity.ts']:[]),
       ...(momentum?['lib/personal-wizard/simple-story-experience.ts','lib/personal-wizard/simple-story-momentum-policy.ts','lib/personal-wizard/simple-writing-roles.ts',
-        'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts','lib/personal-wizard/storyboard-review-capacity.ts']:[]),
+        'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts','lib/personal-wizard/storyboard-review-capacity.ts',
+        'scripts/personal-book-narration.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
       ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
     requestId:context.prepared.accepted.requestId,limits:{...trial},contracts:trialRunContracts(config.cycle),
@@ -169,7 +186,7 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
       materialSceneRepair:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {}),
       ...(portrait?{reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION,writing:SOL_WRITING,pricing:SOL_CACHE_BUDGET}:{}),
       ...(momentum?{writingRoles:SIMPLE_WRITING_ROLES,storyExperience:SIMPLE_CHILD_MOMENTUM_EXPERIENCE,storyboardReviewCapacity:STORYBOARD_REVIEW_CAPACITY,
-        citationCorrection:{version:SOURCE_CITATION_CORRECTION_VERSION,instructions:'v2',perReading:1}}:{})}};
+        citationCorrection:{version:SOURCE_CITATION_CORRECTION_VERSION,instructions:'v2',perReading:1},narration:narrationBinding}:{})}};
 }
 export function planBookTrial(config:TrialConfig){return planTrialInputs(config);}
 export type TrialGrant=ReturnType<typeof planBookTrial>;
@@ -522,6 +539,7 @@ export const trialApiRules:MeterRules=step=>{
   if(momentumWriting)return solWritingRuleFor(momentumWriting[1] as 'editor'|'storyboard');
   const momentumReview=/^momentum_s[0-5]_(final_review|comparison|storyboard_review|citation_correction_(?:final_review|comparison))$/.exec(step);
   if(momentumReview)return flooredReviewRule(stageRules.text[momentumReview[1].startsWith('citation_correction')?'comparison':momentumReview[1]]);
+  if(/^narration_p[0-8]$/.test(step))return narrationMeterRule;
   if(['sol_author','sol_editor','sol_storyboard'].includes(step))return solWritingRuleFor(step.slice(4) as 'author'|'editor'|'storyboard');
   if(step==='sol_storyboard_review')return flooredReviewRule(stageRules.text.storyboard_review);
   if(step==='source_impact_review'||step==='source_impact_completion')return flooredReviewRule(stageRules.text.final_review);
@@ -864,6 +882,15 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     if(!result.storyboard||!admittedStatus(result.status))return finish('held_storyboard',{storyboardAttempts:boardAttempts});
     guard();
     const layoutBase=trialStoryboardLayout(profile,finalTextDir,readerSafe,portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION);
+    // Momentum: narration is planned from the frozen final text BEFORE any image, so page repairs keep room for its whole reservation.
+    // A text the TTS guard refuses (e.g. a critical homograph) gives an image-only book with that reason, never altered display text.
+    let narrationPlan:BookNarrationPlan|null=null,narrationPlanError:string|null=null;
+    if(momentum){
+      try{narrationPlan=planBookNarration([{pageNumber:0,text:result.source.manuscript.title},...result.source.manuscript.pages.map(p=>({pageNumber:p.pageNumber,text:p.text}))],
+        narrationVoice(prepared.accepted.canonical.bookOptions.voiceId,MOMENTUM_BOOK_TRIAL.narration.voiceIds),MOMENTUM_BOOK_TRIAL.narration.maximumMicroUsd);save('narration-plan',narrationPlan);}
+      catch(error){narrationPlanError=(error as any)?.code??'narration_plan_failed';save('narration-plan-refused',{code:narrationPlanError});}
+    }
+    const narrationReserve=narrationPlan?.reserveMicroUsd??0;
     const board=loadReviewedStoryboard(config.bookDir,source,reviewedBookLayoutSchema.parse(layoutBase));
     const childDir=path.join(config.bookDir,'child'),childImages=path.join(childDir,'illustrations');mkdirSync(childDir);mkdirSync(childImages);
     const childIO=auditionAdapters({directory:childImages,meter,key,signal,guard}),judges=childAnchorJudges({bytesOf:i=>readAuditionImage(childImages,i),meter,key,signal,guard});
@@ -901,7 +928,10 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       let last=page.attempts[page.attempts.length-1];
       for(let attempt=page.attempts.length;attempt<BOOK_E2E_TRIAL.pageAttempts&&page.status==='held';attempt++){
         // Keep sufficient reservation for one edit, its full review and identity. A lack of headroom is not an unknown charge.
-        if(meter.snapshot().cumulativeAccountedMicroUsd+1_400_000>BOOK_E2E_TRIAL.apiCapMicroUsd)break;
+        // Momentum also keeps the narration reservation and the shared API+Max ceiling (zero/absent for every other cycle).
+        const apiSpent=meter.snapshot().cumulativeAccountedMicroUsd;
+        if(apiSpent+1_400_000+narrationReserve>BOOK_E2E_TRIAL.apiCapMicroUsd||
+          momentum&&apiSpent+max.snapshot().accountedMicroUsd+1_400_000+narrationReserve>MOMENTUM_BOOK_TRIAL.cycleCapMicroUsd)break;
         const packet=currentPersonalStoryboardFrame(loaded.book,loaded.rawReview,page.pageNumber,loaded.current),
           prior=selected.find(p=>p.pageNumber===page.pageNumber-1),seq=loaded.book.sequence.pages,
           predecessor=page.pageNumber>=2&&prior&&seq[page.pageNumber-1].sceneId===seq[page.pageNumber-2].sceneId?prior.chosen.candidate:null,
@@ -922,7 +952,26 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     }
     save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,detailNonblocking:true,productAccepted:false});
     writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text');
-    return finish('full_book_diagnostic',{pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
+    // Momentum: narrate the frozen text (one claimed call per page, no retry), then the local Reader bundle. A narration stop keeps its
+    // evidence and gives an image-only Reader; it never retries, re-prices or presents partial audio as narration.
+    let narration:Record<string,unknown>|null=null,readerPreview:ReturnType<typeof writeLocalReaderBundle>|null=null;
+    if(momentum){
+      let made:Awaited<ReturnType<typeof narrateBook>>|null=null;
+      if(narrationPlan){
+        try{made=await narrateBook({plan:narrationPlan,meter,transport:createNarrationTransport({key:elevenLabsKeyReader(config.keyFile)}),guard,
+          outDir:path.join(config.bookDir,'narration'),signal,probe:probeNarrationAudio,log});narration={status:'narrated',voice:narrationPlan.voice,characters:narrationPlan.characters,
+          reserveMicroUsd:narrationPlan.reserveMicroUsd,accountedMicroUsd:made.accountedMicroUsd,pages:made.pages.map(({audioFile:_f,...p})=>p)};}
+        catch(error){narration={status:'narration_stopped',code:(error as any)?.code??'narration_failed',voice:narrationPlan.voice};}
+      }else narration={status:'narration_unavailable',code:narrationPlanError};
+      save('narration-outcome',narration);guard();
+      readerPreview=writeLocalReaderBundle({root:localReaderRoot(),id:momentumReaderId(grant.requestId),title:result.source.manuscript.title,childName:profile.child.name,
+        sourceSha256:shaFile(path.join(config.bookDir,'final-selection.json')),
+        pages:selected.map(p=>({pageNumber:p.pageNumber,text:p.pageNumber?result.source.manuscript.pages.find(x=>x.pageNumber===p.pageNumber)!.text:result.source.manuscript.title,
+          imageFile:path.join(imageDir,p.chosen.candidate.imageName)})),
+        narration:made&&narrationPlan?{voice:narrationPlan.voice,pages:made.pages}:null});
+      log(`phase reader_ready ${readerPreview.url}`);
+    }
+    return finish('full_book_diagnostic',{...(momentum?{narration,readerPreview}:{}),pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
       supported:selected.filter(p=>p.status==='qa_supported').length,fullCoverage:selected.length===9,sourceRepairUsed,storyboardAttempts:boardAttempts,
       ...(sourceAdmission?{sourceAdmission}:{}),
       viewer:path.join(config.bookDir,'viewer','index.html')});

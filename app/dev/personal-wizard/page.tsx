@@ -31,5 +31,6 @@ export default function PersonalWizardPage() {
   const { companions, topics, voices, lengths } = resolvePersonalWizardOptions();
   return <PersonalWizard options={{ companions, topics, voices, lengths }}
     nativeBookPreview={process.env.PERSONAL_WIZARD_NATIVE_BOOK_RUNNER === 'true'}
-    simpleBookPreview={process.env.PERSONAL_WIZARD_SIMPLE_BOOK_RUNNER === 'true'} />;
+    simpleBookPreview={process.env.PERSONAL_WIZARD_SIMPLE_BOOK_RUNNER === 'true'}
+    momentumBookPreview={process.env.PERSONAL_WIZARD_MOMENTUM_BOOK_RUNNER === 'true'} />;
 }

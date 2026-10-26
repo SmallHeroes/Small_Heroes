@@ -20,6 +20,7 @@ import styles from './personal-wizard.module.css';
 import { StoryPreview } from './StoryPreview';
 import { NativeBookPreview } from './NativeBookPreview';
 import { SimpleBookPreview } from './SimpleBookPreview';
+import { MomentumBookPreview } from './MomentumBookPreview';
 
 export type Submission =
   | { state: 'idle' }
@@ -43,9 +44,11 @@ type Props = {
   onEdit: (step: 1 | 2 | 3) => void;
   nativeBookPreview?: boolean;
   simpleBookPreview?: boolean;
+  /** Opt-in local momentum book (updated engine + Dad narration); takes precedence when explicitly enabled. */
+  momentumBookPreview?: boolean;
 };
 
-export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit, nativeBookPreview = false, simpleBookPreview = false }: Props) {
+export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false }: Props) {
   const name = normalizeText(draft.child.name);
   const copy = summaryCopy(name, draft.child.address);
   const tell = tellCopy(name, draft.child.address);
@@ -257,7 +260,9 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
           </details>
         ) : null}
       </div>
-      {submission.state === 'accepted' ? simpleBookPreview
+      {submission.state === 'accepted' ? momentumBookPreview
+        ? <MomentumBookPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} />
+        : simpleBookPreview
         ? <SimpleBookPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} />
         : nativeBookPreview
         ? <NativeBookPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} />
