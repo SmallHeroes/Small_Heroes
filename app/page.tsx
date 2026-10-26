@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { isLocalUiOnlyBootstrap } from '@/lib/local-preview-bootstrap';
 import LandingPage from './landing/landing-page';
 import { getLandingContent } from '@/content/landing';
 import { ROUTES } from '@/lib/routes';
@@ -39,6 +41,8 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
+  // A logo/exit in the explicit local personal test must not return to the retired public flow.
+  if (isLocalUiOnlyBootstrap()) redirect('/dev/personal-product');
   const matrix = buildMvpMatrixResponse();
   const content = getLandingContent(matrix.categories);
   return (
