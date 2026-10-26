@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## 2026-10-26 — R17 recorded-voice path reaches editable facts
+
+- Code f23f9fa0 fixes the local recording dead end with explicit audio-only authority, durable one-job/two-step native metering, original
+  claimed key callback and existing extraction service. Normal authenticated intake stays unchanged; parent hooks/order and explicit send
+  preserve the recording workflow. Source tests137/137,0skips, nonincremental tsc0; historical fullcheckRED unchanged.
+- The same book's plan/runtime carry real voice cost and actual calls once (3185794 + new known estimate;98 minus voice calls), verify
+  exact source/journal lineage and share the7M API/8M combined cap. No output folder resets allowance. Unknown/pending blocks; known
+  malformed intake may use manual facts with all costs/failure history retained. Source/code/unused authority independent QA is in the
+  R17 r3-voice-intake-20261026 evidence folder; do not infer a paid run or product acceptance from technical tests.
+- Next: user explicit Process recording and continue, review/correct extracted child facts, canonical Wizard submission, then exact real
+  request-bound R4 plan/grant/QA and the already approved one illustrated book with Dad narration. No second book or source-story rewrite.
+
 ## R17 current personal site + reviewed engine (2026-10-26)
 
 - Integrated the implemented32872660 personal-site frontend into the book-engine branch in05cebbf8, preserving current request/paid

@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## R17 recorded-voice continuation and shared book accounting (2026-10-26)
+
+- Guy recorded73s about Bar but could not continue. The current local server intentionally left normal live intake disabled while the UI
+  still invited recording. This was an integration gap, not a microphone or story failure. Codex continued paused Claude in the same
+  task/worktree; source base bea611b3, code f23f9fa0, with one separately approved independent read-only reviewer.
+- The optional local owner-trial authority reuses runAudioIntake (real container/timeline/decoded-duration validation and source-grounded
+  extraction), the existing SDK with retries0 and the existing ruled AuditionMeter. One exclusive durable master job and two fixed steps
+  prevent new job IDs/restarts from rebilling. Original keyReader is called only inside a claimed native provider callback. Raw audio,
+  transcript, keys and SDK exceptions are not journaled; metadata/hash/numeric-usage evidence only; original probe temp cleanup stays.
+- Only explicit development/local-bootstrap, exact loopback Host/origin, current clean source, bound owner/prior-ledger/config and one
+  unused grant admit the new audio-only path. Normal signed-in live/text auth remains unchanged. No client can select authority/model/key.
+  The ready UI offers Process recording and continue plus a local Blob download. Existing parent hook order is unchanged and a previously
+  locally stopped clip cannot auto-send when availability changes. No browser refresh or UI control was performed.
+- Auxiliary models are explicitly gpt-transcribe and gpt-6-luna (not a change to Sol quality judges or Opus author). Published Standard
+  prices verified2026-10-26. One internal reservation up to30000microUSD is inside existing7M/8M caps, not an increased budget. Settlement
+  is a conservative usage-based accounted estimate with cache-write/regional headroom, not an invoice. Unknown/pending remains blocking.
+- Before the same book's new plan, momentumVoiceAccounting replays the exact voice meter from the same operator directory, binds
+  config/grant/claim/outcome/journal hashes, adds its new known cost to original3185794 carry and subtracts actual voice calls from98.
+  The native API meter and combined API/Max cap use the adjustment; runtime claims recheck it. A known malformed extraction remains
+  failed but can fall back to reviewed manual facts with its cost/calls preserved; no paid retry or HOLD-to-PASS conversion.
+- The artifact operator has one checkPlan line updated for the native-derived carry/remaining calls; original operator preserved with
+  SHA ebf4cf454a72a3ff9a64c235a6a5962e5dbd3738f53666b89ba2c6b0386ddda9. Current artifact operator bfe024b89f795318b9995d697e930d55d35594d15b586b29909cc0eb66f06830.
+  Actual canonical Wizard request/book grant/claim still absent. The user reviews facts; exact-intake R4 QA precedes book spend. Old R3
+  PASS/unused grants remain historical, not approval of a changed operator or a new paid book claim.
+- Verification on code bytes:137/137 in8 focused specs,0skips, native0; nonincremental tsc0. Initial TypeScript errors fixed. Initial
+ 56/57 exposed float-rounding385->386microUSD; integer rational pricing fixed it; initialRED retained. Invalid syntheticMP3 stderr in
+  existing Dad tests is intentional. Fullcheck historicalRED not rerun/promoted. Injected providers prove wiring, not transcription quality.
+- Evidence, source freeze, independent disposition, final staged authority and actual HTTP readiness live in
+  ART/claude-momentum-book-bunny-20261025/r3-voice-intake-20261026. At14:33UTC old3482 listener/recorded PIDs were absent; cause not
+  established. Same loopback server is restored only after independent code/authority QA; no browser is opened/refreshed. No real voice
+  upload, provider/key read, new book/image/narration, push or deployment occurred in this implementation milestone.
+
 ## R17 current personal-site integration (2026-10-26)
 
 - Guy reported the local site showed the old homepage before starting the Wizard. Confirmed root cause: the book-engine worktree
