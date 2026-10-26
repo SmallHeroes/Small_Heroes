@@ -48,7 +48,9 @@ export function authorizeLocalVoice(config: MomentumWizardConfig, request: { url
   const url = new URL(request.url), actual = new URL(`http://${request.host ?? ''}`);
   if (url.protocol !== 'http:' || !['localhost','127.0.0.1','[::1]'].includes(url.hostname) || actual.origin !== grant.origin ||
       actual.username || actual.password || actual.pathname !== '/' || actual.search || actual.hash ||
-      url.origin !== actual.origin || new URL(env.APP_URL ?? env.NEXT_PUBLIC_APP_URL ?? '').origin !== actual.origin ||
+      // NextRequest canonicalizes 127.0.0.1/[::1] to localhost. Authority remains the exact real Host, browser Origin, grant and APP_URL.
+      (url.origin !== actual.origin && !(url.hostname === 'localhost' && ['127.0.0.1','[::1]'].includes(actual.hostname) && url.port === actual.port)) ||
+      new URL(env.APP_URL ?? env.NEXT_PUBLIC_APP_URL ?? '').origin !== actual.origin ||
       request.method !== 'GET' && request.origin !== actual.origin) voiceFail('voice_origin');
   if (grant.configSha256 !== voiceDigest(config) || grant.cycle !== config.cycle ||
       voiceBytesDigest(fencedText(grant.ownerFile, 32000)) !== grant.ownerSha256 ||
