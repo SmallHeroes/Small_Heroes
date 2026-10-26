@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## R17 current personal-site integration (2026-10-26)
+
+- Guy reported the local site showed the old homepage before starting the Wizard. Confirmed root cause: the book-engine worktree
+  retained the Sept30 personal presentation, while the implemented Oct1-5 site remained on32872660. The older August refresh and
+  the Oct20 /dev/wow design proposal are separate and were not substituted for the current personal site.
+- Codex continued in this task on claude/book-render-20261009 from clean2158b9e8. Imported15 explicit presentation/helper/test paths
+  from32872660 in05cebbf8; retained the old unused PERSONAL_STORY_MOMENT export for compatibility. New hero/story stage, open-book
+  example, how section, drifting companion row, current copy/CSS and companion-grid styling now coexist with the reviewed R17 runner.
+  No branch-wide merge, public release, asset deletion or import of the separate7 nonregistry personal identities.
+- The homepage lists the actual current Wizard roster; R17 options, request acceptance, paid panels/bridge/operator and native pins
+  remain byte-identical (75 protected source files plus operator). Choice availability was not silently expanded by marketing art.
+- Local root follow-up9841a396 redirects / to /dev/personal-product ONLY under the existing explicit isLocalUiOnlyBootstrap predicate.
+  Ordinary/cloud/production root behavior is retained. An initial diagnosis mistakenly inferred a shared-header logo in PersonalWizard;
+  actual Wizard has a nonlinked brand span. That inference is withdrawn in ROOT-NAVIGATION-ADDENDUM; no browser click was observed.
+- Validation:95/95 in7 relevant specs, nonincremental tsc0; final repeats after root follow-up also95/95 and tsc0. Existing animation,
+  pause/focus/lifecycle, public composition, Wizard request, Dad and local-bootstrap gates pass. No fullcheck RED promotion.
+- Live HTTP:25 successful requests verify current heading/voice-story stage/open-book example/carousel,18 displayed images,2 CSS,
+  actual served Wizard client retains momentum panel/endpoint, Dad binding and disabled live intake. Local root307 has the correct
+  Location. Initial HTTP harness expectedpw-stage instead of actualvs-stage; original harness RED and corrected result are retained.
+- Evidence/source/independent review: ART/claude-momentum-book-bunny-20261025/r3-site-sync-20261026. Separate read-only review is scoped
+  to the immutable UI commit and root-only successor; its report/registry record determine the completed gate, not this docs entry.
+  No browser/UI action, real intake, grant/claim/book creation, provider/key access, image/audio spend, push or deployment.
+- Same local origin3482 serves the current site; Guy opens /dev/personal-product?site=20261026 (or /) and fills the real Wizard manually.
+  Then exact-intake R4 plan/grant/preflight QA remains required. Original R3/boot PASS and unused older grants/costs remain historical.
+
+
 ## R17 local Wizard bootstrap follow-up (2026-10-26, Codex continuation)
 
 - Guy asked Codex to continue Claude's work during the usage pause. R3 code/procedure QA completed first: independent 232/232,

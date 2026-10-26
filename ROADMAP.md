@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## R17 current personal site + reviewed engine (2026-10-26)
+
+- Integrated the implemented32872660 personal-site frontend into the book-engine branch in05cebbf8, preserving current request/paid
+  panels, options/operator and75 native source pins. The Oct20 /dev/wow proposal was not promoted. Local root9841a396 uses the existing
+  explicit local-only predicate to reach the current personal homepage; public/production default stays unchanged.
+-95/95 focused tests and tsc0,25 real HTTP requests including18 images/2CSS/actual Wizard bundle; root307. Separate immutable code QA
+  report is under ART/claude-momentum-book-bunny-20261025/r3-site-sync-20261026. No paid/UI/customer/deployment action or new book.
+- Next: Guy's manual Wizard request, then exact-request R4 grant/budget QA and the already approved same one book with Dad narration.
+
+
 ## R17 real local Wizard startup (2026-10-26)
 
 - R3 code PASS completed; actual secret-free server startup then revealed eager global environment validation before provider-free UI.
