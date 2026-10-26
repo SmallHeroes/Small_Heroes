@@ -1,5 +1,18 @@
 # SmallHeroes — Current Technical State
 
+## R17 voice V1 re-gate: actual NextRequest normalization (2026-10-26)
+
+- Independent voice review correctly held the first implementation: actual NextRequest normalizes127.0.0.1 to localhost in req.url,
+  while real Host/Origin stay127.0.0.1:3482. Strict URL-origin equality would reject the real user before decoding. Initial HOLD and
+  1/4 real-handler failure evidence remain unchanged; the grant was never activated and no money/key/voice upload occurred.
+- Focused correction accepts only that known loopback normalization on the same port; real Host, Origin, grant origin and APP_URL
+  remain exact and malformed/foreign/sibling authority still refuses. No global Next/environment flag or normal auth gate changed.
+- Promoted actual NextRequest status/audio handler regression with synthetic providers, duration and original-reader interception;
+  no real credential read.37/37 in3 affected specs and11/11 final HTTP repeat pass,0skips, nonincremental tsc0. No long suites rerun.
+- Final unused authority and focused independent disposition are in R17/r3-voice-intake-20261026/INDEPENDENT-VOICE-INTAKE-REGATE-R2.txt.
+  Old staged grant/HOLD remain historical. Activation requires that re-gate PASS at the new clean docs head, same cycle/config/book
+  slot, fixed two calls and existing caps. All prior journal costs/unknown boundaries and book carry logic remain unchanged.
+
 ## R17 recorded-voice continuation and shared book accounting (2026-10-26)
 
 - Guy recorded73s about Bar but could not continue. The current local server intentionally left normal live intake disabled while the UI

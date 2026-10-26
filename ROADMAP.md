@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## 2026-10-26 — close R17 voice actual-handler gap before upload
+
+- Initial independent HOLDV1 reproduced framework URL normalization rejecting a legitimate127.0.0.1 request. Corrected only the known
+  loopback alias comparison; exact actual Host/Origin/grant/APP_URL authority remains. Actual-handler positive/negative regressions
+ 37/37 targeted and11/11 final HTTP repeat, tsc0; oldRED/HOLD preserved and no live provider/key action.
+- Re-gate the new immutable range plus unused technical grant repin, restore same3482 origin, then explicit user recording processing
+  and reviewed facts. R4 canonical-request grant still precedes the same book; voice cost/calls remain native carried, never reset.
+
 ## 2026-10-26 — R17 recorded-voice path reaches editable facts
 
 - Code f23f9fa0 fixes the local recording dead end with explicit audio-only authority, durable one-job/two-step native metering, original
