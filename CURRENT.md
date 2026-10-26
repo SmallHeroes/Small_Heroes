@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## R17 round 3 — the same book through the Personal Wizard, with Dad narration (2026-10-26, awaiting Codex QA)
+
+- Owner, 10/26: the R17 book should be created through the Wizard, with Dad narration, paid illustrations and a budget check, from
+  start to end, as ONE book.
+  - The R2-passed script-only grant (dcd330cd) stays UNUSED and is not executed.
+  - "Our Wizard" = the Personal Wizard (/dev/personal-product → /dev/personal-wizard). The public wizard.js (the retired bank
+    product, order/PayMe) is not used.
+- Code 6ea6fe2f:
+  - Wizard (opt-in flag PERSONAL_WIZARD_MOMENTUM_BOOK_RUNNER + config):
+    - a summary-step panel and a provider-free local route that records ONE intake of the Wizard's accepted request for the R17
+      slot;
+    - the route refuses a used/undeclared companion, a voice other than dad_v2, a length other than short, a photo, an age outside
+      3–8, or a second different request;
+    - progress is read from the operator's run folder.
+    - It has no session/DB, and the paid run stays the gated operator.
+  - Narration (scripts/personal-book-narration.ts):
+    - strict registry dad_v2;
+    - the exact callElevenLabs body;
+    - one POST per page with no retry, unknown cost stops;
+    - meter rule: reserve 2×chars×100, settle max(chars, character-cost)×100;
+    - a local media check;
+    - the local Reader bundle (narrated only when complete).
+  - Engine (momentum):
+    - narration ≤ $1 inside the $7 API cap and the $8 API+Max ceiling;
+    - planned from the frozen text before images, with page repairs keeping its reservation;
+    - after the illustrated book: narration on the same meter, then the Reader bundle.
+- Evidence (provider-free):
+  - new spec 18/18, including the real route handler, the real meter and the callElevenLabs body parity;
+  - 13 focused specs 232/232; mutants 13/13; tsc 0.
+- Not yet: the Wizard submission (Guy fills it in himself after QA), the request-bound grant and the paid run.
+
+
 ## R17 round 2 — storyboard review capacity fix, awaiting Codex re-gate (2026-10-26)
 
 - Codex round 1 = HOLD with one finding, R17-F1 (P2).

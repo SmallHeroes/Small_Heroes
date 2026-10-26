@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## The R17 book through the Wizard, with Dad narration (2026-10-26)
+
+- Owner: one book, created end-to-end through the Personal Wizard, with paid illustrations and Dad narration in the Reader.
+- Code 6ea6fe2f adds an opt-in local Wizard → R17 intake bridge and a general, metered, once-only narration stage
+  (dad_v2, ≤ $1 inside the existing caps).
+- Next:
+  - Codex QA;
+  - Guy fills in the Wizard;
+  - the grant is bound to that exact request;
+  - ONE run;
+  - the Reader link with Dad narration and actual costs;
+  - Codex outcome QA.
+
+
 ## One new momentum book (R17, 2026-10-25)
 
 - Guy asked for a new illustrated book with a new companion and a new story on the updated engine. Code 9b437a16 adds one opt-in
