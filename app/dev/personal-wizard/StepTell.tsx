@@ -180,7 +180,7 @@ export function StepTell(props: Props) {
           copy={copy}
           text={writtenText}
           onText={setWrittenText}
-          liveIntake={liveIntake}
+          liveIntake={liveIntake && Boolean(props.onSubmitWritten)}
           onSubmit={props.onSubmitWritten}
           onQuestions={() => props.onMode('chips')}
         />

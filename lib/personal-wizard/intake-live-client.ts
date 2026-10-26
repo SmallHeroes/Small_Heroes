@@ -67,7 +67,7 @@ async function send(run: () => Promise<Response>, jobId: string, signal: AbortSi
   }
 }
 
-export async function fetchLiveIntakeAvailability(fetchImpl: FetchLike = fetch): Promise<{ live: boolean; signInRequired: boolean } | undefined> {
+export async function fetchLiveIntakeAvailability(fetchImpl: FetchLike = fetch): Promise<{ live: boolean; signInRequired: boolean; audioOnly?: boolean } | undefined> {
   const unavailable = { live: false, signInRequired: false };
   try {
     const response = await fetchImpl('/api/dev/personal-wizard/intake/status', { cache: 'no-store' });
@@ -75,9 +75,10 @@ export async function fetchLiveIntakeAvailability(fetchImpl: FetchLike = fetch):
     if (!response.ok) return undefined;
     const body: unknown = await response.json();
     if (!body || typeof body !== 'object') return undefined;
-    const status = body as { live?: unknown; reason?: unknown };
+    const status = body as { live?: unknown; reason?: unknown; audioOnly?: unknown };
     if (typeof status.live !== 'boolean') return undefined;
-    return { live: status.live === true, signInRequired: status.live === false && status.reason === 'not_signed_in' };
+    return { live: status.live === true, signInRequired: status.live === false && status.reason === 'not_signed_in',
+      ...(status.audioOnly === true ? { audioOnly: true } : {}) };
   } catch {
     return undefined;
   }

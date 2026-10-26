@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { previewSha } from '../lib/local-story-preview';
+import { momentumVoiceAccounting } from '../lib/personal-wizard/local-voice-intake';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory, type SimpleStoryCall } from '../lib/personal-wizard/simple-story-engine';
@@ -167,6 +168,8 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
     existsSync(config.bookDir)!==existing)fail('trial_output_scope');
   if(!existing&&(existsSync(path.join(trial.authorityRoot,trial.claim))||existsSync(path.join(trial.authorityRoot,trial.outcome))))fail('trial_consumed');
   const exe=lstatSync(config.executable);if(!exe.isFile()||exe.isSymbolicLink()||shaFile(config.executable)!==config.executableSha256)fail('trial_executable_pin');
+  const voiceIntake=momentum?momentumVoiceAccounting(config.operatorFile,config.bookDir):null;
+  if(voiceIntake&&voiceIntake.priorApiMicroUsd!==MOMENTUM_BOOK_TRIAL.priorApiMicroUsd)fail('trial_voice_prior');
   const companion=context.options.companions.find(c=>c.id===context.profile.companionId)!;
   const companionPath=path.join(source,'public',companion.image.slice(1));
   const technique=resolveChildAnchorTechnique(source);
@@ -178,10 +181,12 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
         'lib/personal-wizard/simple-story-source.ts','lib/personal-wizard/sol-writing-route.ts','lib/personal-wizard/storyboard-state-parity.ts']:[]),
       ...(momentum?['lib/personal-wizard/simple-story-experience.ts','lib/personal-wizard/simple-story-momentum-policy.ts','lib/personal-wizard/simple-writing-roles.ts',
         'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts','lib/personal-wizard/storyboard-review-capacity.ts',
-        'scripts/personal-book-narration.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
+        'scripts/personal-book-narration.ts','lib/personal-wizard/local-voice-intake.ts','lib/personal-wizard/local-voice-intake-evidence.ts',
+        'lib/personal-wizard/momentum-book-bridge.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
       ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
-    requestId:context.prepared.accepted.requestId,limits:{...trial},contracts:trialRunContracts(config.cycle),
+    requestId:context.prepared.accepted.requestId,limits:{...trial,...(voiceIntake?{priorApiMicroUsd:voiceIntake.priorApiMicroUsd+voiceIntake.knownMicroUsd,
+      maxApiCalls:trial.maxApiCalls-voiceIntake.calls}:{})},...(voiceIntake?{voiceIntake}:{}),contracts:trialRunContracts(config.cycle),
     visual:{freshCohort:AUDITION_FRESH_COHORT_VERSION,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
       materialSceneRepair:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {}),
       ...(portrait?{reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION,writing:SOL_WRITING,pricing:SOL_CACHE_BUDGET}:{}),
@@ -564,7 +569,7 @@ export type TrialCycleCap={capMicroUsd:number;outside:()=>number};
 const assertCycleRoom=(cycle:TrialCycleCap|undefined,own:number,next:number)=>{if(cycle&&own+cycle.outside()+next>cycle.capMicroUsd)fail('trial_cycle_cap');};
 export class TrialApiMeter extends AuditionMeter{
   /** `prior` continues an existing cumulative API ledger (its known spend counts against the same cap; never a reset). Defaults keep every older cycle exact. */
-  constructor(root:string,readonly prefix='',readonly cacheWritePricing=false,prior=0,readonly cycle?:TrialCycleCap){super(root,BOOK_E2E_TRIAL.apiCapMicroUsd,BOOK_E2E_TRIAL.maxApiCalls,prior,0,trialApiRules);}
+  constructor(root:string,readonly prefix='',readonly cacheWritePricing=false,prior=0,readonly cycle?:TrialCycleCap,maxCalls:number=BOOK_E2E_TRIAL.maxApiCalls){if(maxCalls>BOOK_E2E_TRIAL.maxApiCalls)fail('trial_call_limit');super(root,BOOK_E2E_TRIAL.apiCapMicroUsd,maxCalls,prior,0,trialApiRules);}
   override snapshot(){
     const base=super.snapshot();if(!this.cacheWritePricing)return base;
     let cacheWriteAdjustmentMicroUsd=0,pendingCacheWriteReserveMicroUsd=0;
@@ -669,6 +674,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     for(const [file,sha]of Object.entries(grant.pins))if(shaFile(path.join(source,file))!==sha)fail('trial_source_pin');
     if(shaFile(grant.companion.file)!==grant.companion.sha)fail('trial_companion_pin');
     if(portrait&&(!grant.operator||shaFile(grant.operator.file)!==grant.operator.sha))fail('trial_operator_pin');
+    if(momentum&&!same(momentumVoiceAccounting(config.operatorFile,config.bookDir),plan.voiceIntake??null))fail('trial_voice_changed');
     if(portraitRecovery&&shaFile(portraitRecovery.approval.ownerFile)!==portraitRecovery.approval.ownerSha)fail('trial_portrait_recovery_approval');
     if(solFamily&&(shaFile(solFamily.approval.ownerFile)!==solFamily.approval.ownerSha||shaFile(solFamily.approval.operatorFile)!==solFamily.approval.operatorSha))fail('trial_sol_approval');
     if(parent){
@@ -690,8 +696,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
   const apiRoot=path.join(config.bookDir,'paid-stages'),maxRoot=path.join(config.bookDir,'claude-max-stages');
   // Momentum only: the API ledger continues from its prior, Max has its own allowance, and both share one cycle ceiling. Others: unchanged.
   const momentumCycle=(outside:()=>number):TrialCycleCap|undefined=>momentum?{capMicroUsd:MOMENTUM_BOOK_TRIAL.cycleCapMicroUsd,outside}:undefined;
-  const apiMeter=(prefix:string,cacheWritePricing:boolean)=>new TrialApiMeter(apiRoot,prefix,cacheWritePricing,momentum?MOMENTUM_BOOK_TRIAL.priorApiMicroUsd:0,
-    momentumCycle(()=>new TrialMaxBudget(maxRoot,'').snapshot().accountedMicroUsd));
+  const apiMeter=(prefix:string,cacheWritePricing:boolean)=>new TrialApiMeter(apiRoot,prefix,cacheWritePricing,momentum?MOMENTUM_BOOK_TRIAL.priorApiMicroUsd+(plan.voiceIntake?.knownMicroUsd??0):0,
+    momentumCycle(()=>new TrialMaxBudget(maxRoot,'').snapshot().accountedMicroUsd),trial.maxApiCalls-(plan.voiceIntake?.calls??0));
   const maxBudget=(prefix:string)=>new TrialMaxBudget(maxRoot,prefix,momentum?MOMENTUM_BOOK_TRIAL.maxResourceMicroUsd:BOOK_E2E_TRIAL.maxResourceMicroUsd,
     momentumCycle(()=>apiMeter('',true).snapshot().cumulativeAccountedMicroUsd));
   const meter=apiMeter('',!!receiptRecovery||portrait),max=maxBudget('');
@@ -779,7 +785,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     const snapshot=(read:()=>unknown)=>{try{return read();}catch(error){return{status:'unreconciled',knownMicroUsd:null,error:(error as any)?.code??'accounting_replay_failed',furtherPaymentAllowed:false};}};
     const accounting={api:snapshot(()=>meter.snapshot()),claudeMax:snapshot(()=>max.snapshot()),claudeMaxNote:'reported resource, separate from API, not invoice',
       ...(solFamily?{claudeMaxAvailability:solFamily.parent.availabilityAccounting,writingRoute:SOL_WRITING}: {}),
-      ...(momentum?{writingRoute:SIMPLE_WRITING_ROLES,solWriting:SOL_WRITING,priorApiMicroUsd:MOMENTUM_BOOK_TRIAL.priorApiMicroUsd,
+      ...(momentum?{writingRoute:SIMPLE_WRITING_ROLES,solWriting:SOL_WRITING,priorApiMicroUsd:MOMENTUM_BOOK_TRIAL.priorApiMicroUsd+(plan.voiceIntake?.knownMicroUsd??0),
+        ...(plan.voiceIntake?{voiceIntake:plan.voiceIntake,originalPriorApiMicroUsd:MOMENTUM_BOOK_TRIAL.priorApiMicroUsd}:{}),
         claudeMaxAllowanceMicroUsd:MOMENTUM_BOOK_TRIAL.maxResourceMicroUsd,cycleCapMicroUsd:MOMENTUM_BOOK_TRIAL.cycleCapMicroUsd,
         claudeMaxNote:'Opus author on Claude Max: CLI-reported list estimate, separate from API, not invoice'}
         :portrait?{writingRoute:SOL_WRITING,claudeMaxNote:'not invoked in this Sol-only book; historical Max unchanged'}:{})};

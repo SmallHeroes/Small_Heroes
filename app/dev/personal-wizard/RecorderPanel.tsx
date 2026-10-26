@@ -103,7 +103,7 @@ export function RecorderPanel({
         <div className={styles.actionsRow}>
           {liveIntake && clip.sendable && !clipSent ? (
             <button type="button" className={styles.btnPrimarySmall} onClick={onSend}>
-              {RECORDER.send}
+              עיבוד ההקלטה והמשך
             </button>
           ) : null}
           {clipUrl ? (
@@ -115,6 +115,9 @@ export function RecorderPanel({
             >
               {playback.playingId === 'clip' ? RECORDER.stopListen : RECORDER.listen}
             </button>
+          ) : null}
+          {clipUrl ? (
+            <a className={styles.btnSecondary} href={clipUrl} download={`recording.${clip.mimeType.startsWith('audio/mp4') ? 'mp4' : 'webm'}`}>שמירת ההקלטה במכשיר</a>
           ) : null}
           <button type="button" className={styles.btnSecondary} onClick={start}>
             {view === 'card' ? recordMoreLabel : RECORDER.newRecording}

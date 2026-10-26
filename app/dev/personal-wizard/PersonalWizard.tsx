@@ -106,10 +106,10 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
 
   // Live intake (P2) is offered only when the server says this signed-in operator may use it.
   // The answer only shapes the UI; the intake routes enforce authority on every request.
-  const [liveIntake, setLiveIntake] = useState(false);
+  const [liveIntake, setLiveIntake] = useState<boolean | 'audio'>(false);
   const [intakeSignInRequired, setIntakeSignInRequired] = useState(false);
   useEffect(() => watchAvailability(window, fetchLiveIntakeAvailability, status => {
-    setLiveIntake(status.live);
+    setLiveIntake(status.live ? status.audioOnly ? 'audio' : true : false);
     setIntakeSignInRequired(status.signInRequired);
   }), []);
   const pendingLive = useRef<{ jobId: string; controller: AbortController } | null>(null);
@@ -441,7 +441,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             titleRef={titleRef}
             recorder={recorder}
             playback={playback}
-            liveIntake={liveIntake}
+            liveIntake={Boolean(liveIntake)}
             signInRequired={intakeSignInRequired}
             intakeNotice={intakeNotice}
             lateIgnored={lateIgnored}
@@ -452,8 +452,8 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
               if (clip) sendClip(clip);
             }}
             clipSent={Boolean(recorder.snapshot.clip && recorder.snapshot.clip.blob === sentClip)}
-            onReorganize={liveIntake ? reorganizeTranscript : undefined}
-            onSubmitWritten={liveIntake ? submitWritten : undefined}
+            onReorganize={liveIntake === true ? reorganizeTranscript : undefined}
+            onSubmitWritten={liveIntake === true ? submitWritten : undefined}
             issues={issues}
             showErrors={showErrors.tell}
             manualOpen={manualOpen}

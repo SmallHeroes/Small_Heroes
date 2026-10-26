@@ -9,6 +9,7 @@ import { resolvePersonalWizardOptions } from './options';
 import { reviewedTextDigest } from './reviewed-text-authorization';
 import { SIMPLE_CHILD_MOMENTUM_EXPERIENCE } from './simple-story-experience';
 import { momentumBookViewSchema, type MomentumBookView } from './momentum-book-view';
+import { settleLocalVoiceForBook } from './local-voice-intake-evidence';
 
 /**
  * Local, opt-in Wizard → momentum book bridge (2026-10-26). It records the Wizard's own accepted request for the ONE momentum book slot and
@@ -75,6 +76,7 @@ export function enqueueMomentumBook(config: MomentumWizardConfig, input: { reque
     if (reviewedTextDigest(readIntake(config)) !== reviewedTextDigest(intake)) fail('momentum_slot_consumed');
     return readMomentumBookStatus(config, input.requestId);
   }
+  settleLocalVoiceForBook(config);
   try { exclusiveJson(config.intakeFile, intake); } catch { return fail('momentum_intake'); }
   return readMomentumBookStatus(config, input.requestId);
 }

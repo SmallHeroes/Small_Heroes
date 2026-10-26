@@ -17,12 +17,15 @@ import { getIntakeLedger } from '@/lib/personal-wizard/intake-ledger';
 import { createOpenAiIntakeProvider } from '@/lib/personal-wizard/intake-openai';
 import { runAudioIntake } from '@/lib/personal-wizard/intake-service';
 import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
+import { localVoiceAccess, postLocalVoice } from '@/lib/personal-wizard/local-voice-intake-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+  const local = localVoiceAccess(req);
+  if (local) return 'error' in local ? local.error : postLocalVoice(req, local);
   const access = await gateLiveIntake(req);
   if (!access.ok) return access.response;
 
