@@ -2,7 +2,6 @@ import 'server-only';
 
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { resolveUserFromRequest } from '@/lib/auth-session';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { enforceRateLimit, enforceSameOrigin } from '@/lib/request-security';
 
@@ -30,6 +29,12 @@ export type LiveIntakeAccess =
 
 type SessionResolver = (req: NextRequest) => Promise<{ user: { id: string; email: string } } | null>;
 
+// A disabled live intake must not load its auth/DB environment just to report that it is off.
+// Enabled calls still resolve the same real session before reading any provider credential.
+const resolveIntakeSession: SessionResolver = async req => {
+  const { resolveUserFromRequest } = await import('@/lib/auth-session');
+  return resolveUserFromRequest(req);
+};
 async function operatorFor(
   req: NextRequest,
   operators: ReadonlySet<string>,
@@ -48,7 +53,7 @@ async function operatorFor(
 
 export async function gateLiveIntake(
   req: NextRequest,
-  resolveSession: SessionResolver = resolveUserFromRequest,
+  resolveSession: SessionResolver = resolveIntakeSession,
   env: Env = process.env,
 ): Promise<LiveIntakeAccess> {
   const notFound = { ok: false as const, response: NextResponse.json({ error: 'not_found' }, { status: 404, headers: NO_STORE }) };
@@ -73,7 +78,7 @@ export async function gateLiveIntake(
 /** Status for the page: tells the UI whether to offer live processing. It grants nothing. */
 export async function liveIntakeStatus(
   req: NextRequest,
-  resolveSession: SessionResolver = resolveUserFromRequest,
+  resolveSession: SessionResolver = resolveIntakeSession,
   env: Env = process.env,
 ): Promise<{ live: boolean; reason: LiveIntakeDisabledReason | 'not_signed_in' | 'not_operator' | 'session_unavailable' | null }> {
   const resolution = resolveLiveIntakeSettings(env);
