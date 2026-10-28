@@ -28,7 +28,7 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { generateGPTImage, planGPTImageRequest } from '../lib/generate-image';
 import { buildCompanionAccessoryLockBlock } from '../lib/companion-accessory';
 import { STYLE_01_AVOIDANCE_NEGATIVE } from '../lib/style01-gptimage';
-import { STYLE_01_SHEET_BLOCKS } from '../lib/generation-pipeline/companion-character-sheet';
+import { style01SheetBlocks } from '../lib/generation-pipeline/companion-character-sheet';
 import { COMPANION_SHEET_VIEW_FILENAME, COMPANION_SHEET_VIEW_KINDS, COMPANION_SHEET_VIEW_SCENE, companionSheetViewLine,
   composeCompanionSheetPrompt, type CompanionSheetViewKind } from '../lib/generation-pipeline/companion-sheet-prompt';
 import { getPersonalAddedCompanion, personalCompanionVisual } from '../lib/personal-wizard/personal-companions';
@@ -178,7 +178,7 @@ export function companionSheetRenderPlan(args: { companionId: string; view: Rend
     viewLine: concept ? `${COMPANION_SHEET_VIEW_SCENE.front} Stance: ${args.stance}.` : companionSheetViewLine(args.view as CompanionSheetViewKind, null),
     visualLock: args.visualLock,
     accessoryLock: buildCompanionAccessoryLockBlock({ companionId: args.companionId, companionPresence: 'present', context: 'character_sheet' }),
-    style: STYLE_01_SHEET_BLOCKS });
+    style: style01SheetBlocks() });
   const input = { finalPrompt: prompt, negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE, referenceImages: args.references,
     referenceMode: concept ? 'style' as const : 'anchor_companion_from_sheet_view' as const, requireReferenceEdit: true, quality: 'low' as const,
     size: SHEET_SIZE, modelOverride: 'gpt-image-2', signal: args.signal, requestTimeoutMs: IMAGE_DEADLINE_MS };

@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 import { COMPANIONS_BY_CATEGORY } from '../../companions';
 import { buildCompanionSheetPrompt, COMPANION_SHEET_VIEW_KINDS } from '../../generation-pipeline/companion-character-sheet';
@@ -37,6 +37,17 @@ describe('the shared sheet prompt data moved without changing one legacy prompt'
       kind, visualDescription: 'X', category: null, isFrontFromJpg: false })]));
     expect(rows.length).toBe(546);
     expect(sha(rows.join('\n'))).toBe('c35cae93d737eb60786b38818766db31f9f6beb931ef429c8025ff4a731db9de');
+  });
+  it('loads in the real runtime in either order (style01-gptimage and the legacy sheet module import each other)', () => {
+    // The operator's launcher: one CommonJS process with the server-only shim and tsx. style01-gptimage FIRST was the failing order
+    // (a load-time read of its constants from the legacy module); the legacy-first order and the operator itself must load too.
+    for (const first of ['lib/style01-gptimage.ts', 'lib/generation-pipeline/companion-character-sheet.ts', 'scripts/personal-companion-sheets.ts']) {
+      const code = `require('./scripts/shims/register-server-only.cjs');require('./node_modules/tsx/dist/cjs/index.cjs');require('./${first}');` +
+        `const op=require('./scripts/personal-companion-sheets.ts');const legacy=require('./lib/generation-pipeline/companion-character-sheet.ts');` +
+        `if(typeof op.companionSheetsMain!=='function'||!legacy.style01SheetBlocks().noText)process.exit(3);`;
+      const r = spawnSync(process.execPath, ['-e', code], { cwd: ROOT, encoding: 'utf8', timeout: 120000 });
+      expect({ first, status: r.status, err: r.status ? r.stderr.slice(0, 400) : '' }).toEqual({ first, status: 0, err: '' });
+    }
   });
   it('the legacy module no longer owns the view/theme tables; the operator never uses the legacy generator or its pixel QA', () => {
     const legacy = read('lib/generation-pipeline/companion-character-sheet.ts'), operator = read('scripts/personal-companion-sheets.ts');

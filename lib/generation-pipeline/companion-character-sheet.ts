@@ -138,17 +138,22 @@ export function buildCompanionSheetPrompt(input: {
     viewLine,
     visualLock,
     accessoryLock,
-    style: STYLE_01_SHEET_BLOCKS,
+    style: style01SheetBlocks(),
   });
 }
 
-/** The Style 01 blocks every companion sheet prompt carries (shared with the metered personal sheet operator). */
-export const STYLE_01_SHEET_BLOCKS: CompanionSheetStyleBlocks = {
-  shared: STYLE_01_SHARED,
-  renderingCorrection: STYLE_01_RENDERING_CORRECTION,
-  noText: STYLE_01_NO_TEXT,
-  antiStyle02: STYLE_01_ANTI_STYLE02,
-};
+/**
+ * The Style 01 blocks every companion sheet prompt carries (shared with the metered personal sheet operator). Read at CALL time:
+ * style01-gptimage imports this module, so when it loads first its constants do not exist yet while this module initializes.
+ */
+export function style01SheetBlocks(): CompanionSheetStyleBlocks {
+  return {
+    shared: STYLE_01_SHARED,
+    renderingCorrection: STYLE_01_RENDERING_CORRECTION,
+    noText: STYLE_01_NO_TEXT,
+    antiStyle02: STYLE_01_ANTI_STYLE02,
+  };
+}
 
 export async function evaluateCompanionPaletteFaithfulness(
   referencePath: string,
