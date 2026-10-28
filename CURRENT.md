@@ -27,6 +27,13 @@
 - bd37ce7d: the first dry admission showed the documented tsx-CLI command could not apply the server-only shim (the CLI starts a
   child process). companionSheetsMain(argv) now runs from an in-process launcher. The grant built before it is kept as
   grant-s1-superseded-1.json, never used.
+- 4bacd356: the second dry admission found a load-order regression of ab2dae2f.
+  - Cause: a module-level Style 01 block object in companion-character-sheet.ts; style01-gptimage imports that module, so loading
+    style01-gptimage first threw. The vitest import order hid it.
+  - Fix: the blocks are read at call time, as before the move.
+  - New spec: the real runtime loads in all three first-import orders. Mutant 17/17. Its grant is kept as
+    grant-s1-superseded-2.json, never used.
+  - Never deployed (unpushed branch).
 - Next:
   - Codex QA of ab2dae2f + the exact unconsumed S1 grant (milestone claude-companion-sheets-20261028/grant-s1.json, dry-admitted
     with no key and no call);
