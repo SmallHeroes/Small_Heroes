@@ -73,13 +73,23 @@ describe('all fifteen companions are shown; a companion is selectable only when 
     }
   });
   it('the rule needs EVERY part: a full sheet set and card art are not enough without a declared appearance', () => {
-    const s = scratchSet('fox_uri'), dir = path.join(s.root, 'public', 'companions', 'elephant_momo', 'style01-sheets');
-    mkdirSync(path.dirname(dir), { recursive: true }); cpSync(path.join(s.root, 'public', 'companions', 'fox_uri', 'style01-sheets'), dir, { recursive: true });
-    const m = JSON.parse(readFileSync(path.join(dir, 'manifest.json'), 'utf8')); m.companionId = 'elephant_momo'; writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(m));
-    const art = path.join(s.root, 'public', 'Images', 'personal-companions'); mkdirSync(art, { recursive: true });
-    writeFileSync(path.join(art, 'elephant_momo.webp'), readFileSync(path.join(ROOT, 'public', 'Images', 'personal-companions', 'elephant_momo.webp')));
-    expect(companionSheetsComplete('elephant_momo', s.root)).toBe(true);
-    expect(companionDrawable('elephant_momo', '/Images/personal-companions/elephant_momo.webp', s.root)).toBe(false); // appearance not declared yet
+    // A scratch tree giving one companion a full passed set and card art.
+    const withSetAndArt = (id: string) => {
+      const s = scratchSet('fox_uri'), dir = path.join(s.root, 'public', 'companions', id, 'style01-sheets');
+      mkdirSync(path.dirname(dir), { recursive: true }); cpSync(path.join(s.root, 'public', 'companions', 'fox_uri', 'style01-sheets'), dir, { recursive: true });
+      const m = JSON.parse(readFileSync(path.join(dir, 'manifest.json'), 'utf8')); m.companionId = id; writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(m));
+      const art = path.join(s.root, 'public', 'Images', 'personal-companions'); mkdirSync(art, { recursive: true });
+      writeFileSync(path.join(art, `${id}.webp`), readFileSync(path.join(ROOT, 'public', 'Images', 'personal-companions', 'elephant_momo.webp')));
+      return s;
+    };
+    // Tzuki has no declared appearance: a set and art never make him drawable.
+    const tzuki = withSetAndArt('ibex_tzuki');
+    expect(companionSheetsComplete('ibex_tzuki', tzuki.root)).toBe(true);
+    expect(companionDrawable('ibex_tzuki', '/Images/personal-companions/ibex_tzuki.webp', tzuki.root)).toBe(false);
+    // Momo's appearance is declared (2026-10-28): once a passed set exists he becomes drawable by the same rule, with no flag.
+    const s = withSetAndArt('elephant_momo');
+    expect(companionDrawable('elephant_momo', '/Images/personal-companions/elephant_momo.webp', s.root)).toBe(true);
+    expect(companionDrawable('elephant_momo', '/Images/personal-companions/elephant_momo.webp', ROOT)).toBe(false); // no set in the real tree yet
     expect(companionDrawable('fox_uri', getCompanionById('fox_uri')!.cardImage, ROOT)).toBe(true);
     expect(companionDrawable('fox_uri', getCompanionById('fox_uri')!.cardImage, scratchSet('panda_anat').root)).toBe(false); // no fox sheets there
     // Card art present but the sheet set incomplete (one view not passed): still not drawable.
@@ -96,7 +106,9 @@ describe('one visual authority for the engine (writer, storyboard) for every com
       expect(personalCompanionVisual(id)).toEqual({ id, name: registry.name, description: registry.visualDescription,
         appearanceStateAuthority: registry.appearanceStateAuthority ?? null, source: 'lib/companions.ts' });
     }
-    expect(personalCompanionVisual('elephant_momo')).toMatchObject({ id: 'elephant_momo', description: '', source: 'lib/personal-wizard/personal-companions.ts' });
+    expect(personalCompanionVisual('ibex_tzuki')).toMatchObject({ id: 'ibex_tzuki', description: '', source: 'lib/personal-wizard/personal-companions.ts' });
+    expect(personalCompanionVisual('elephant_momo')).toMatchObject({ id: 'elephant_momo', source: 'lib/personal-wizard/personal-companions.ts',
+      description: PERSONAL_ADDED_COMPANIONS.find(c => c.id === 'elephant_momo')!.visualDescription });
     expect(personalCompanionVisual('no_such_friend')).toBeNull();
   });
   it('the loader and the trial plan use the shared identity reference, and the engine uses the shared visual authority', () => {

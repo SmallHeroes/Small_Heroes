@@ -58,7 +58,7 @@ const fail = (code: string): never => { throw new ReviewedAuditionError(code); }
 const read = (file: string) => JSON.parse(fencedText(file, 32000000));
 const SEED = 'goni-new-cardboard-adventure-20261008';
 const CHILD_DESIGN = 'A new fictional six-year-old girl with short softly wavy chestnut-brown hair, warm brown eyes and light warm skin; natural child proportions, expressive but not oversized eyes. No glasses or face accessories. Match the exact wardrobe specified by the whole-book plan.';
-const REVIEW_MODEL = 'gpt-6.1-sol';
+export const REVIEW_MODEL = 'gpt-6.1-sol';
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const image = z.object({ imageName: z.string().regex(/^[a-z0-9_]+\.png$/), imageSha: hash }).strict();
 
@@ -800,11 +800,11 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
 
 // The paid adapters' own terms, shared by each live call and its meter rule (a re-derivation is the live call's own rule, never a second table).
 /** A render: its pricing label and claim maximum (every prompt byte and reference at the image input rate, plus its output reservation). */
-const RENDER_PRICING = 'image_input_8_output_30_conservative_no_cache';
+export const RENDER_PRICING = 'image_input_8_output_30_conservative_no_cache';
 export const renderMaximum = (prompt: string, references: number) => Buffer.byteLength(prompt, 'utf8') * 8 + references * 8192 * 8 + 8192 * 30;
 /** A pixel review: actual Sol default-tier cost, complete within its explicitly bound legacy12000/prospective24000 output cap. */
-const reviewCost = (raw: any) => raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
-const reviewAnswered = (raw: any, cap = 12000) => raw.status === 'completed' && raw.model === REVIEW_MODEL && !!raw.output_text && !!raw.usage && !(raw.usage.output_tokens > cap);
+export const reviewCost = (raw: any) => raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
+export const reviewAnswered = (raw: any, cap = 12000) => raw.status === 'completed' && raw.model === REVIEW_MODEL && !!raw.output_text && !!raw.usage && !(raw.usage.output_tokens > cap);
 const validReviewCapacity = (wire: any) => wire?.max_output_tokens === 12000 && wire.metadata?.review_capacity_version === undefined ||
   wire?.max_output_tokens === 24000 && wire.metadata?.review_capacity_version === AUDITION_REVIEW_CAPACITY_VERSION;
 /** An identity measurement: its cost (a known gpt-4o model with usage) and a usable answer (HTTP 2xx, at most 180 completion tokens). */
@@ -819,7 +819,8 @@ const identityAnswered = (raw: any, status: unknown) => typeof status === 'numbe
  * label, never selects a cheaper rule; the cost always comes from the raw answer.
  */
 export const auditionRenderRule: MeterRule = {
-  reserve: wire => wire?.body?.model === 'gpt-image-2' && wire.body.quality === 'low' &&
+  // A companion sheet render (it carries `sheetView`) is never a reader page, framed or not: it has its own rule (personal-companion-sheets).
+  reserve: wire => wire?.body?.model === 'gpt-image-2' && wire.body.quality === 'low' && wire.sheetView === undefined &&
     (wire.body.size === '1024x1024' && wire.readerFraming === undefined ||
       wire.body.size === '1024x1536' && wire.readerFraming === READER_PORTRAIT_FRAMING_VERSION) && wire.body.n === 1 &&
     typeof wire.body.prompt === 'string' && Array.isArray(wire.references) && wire.retries === 0 && wire.pricing === RENDER_PRICING &&
@@ -827,7 +828,9 @@ export const auditionRenderRule: MeterRule = {
   settle: (_wire, receipt, completed) => ({ estimatedMicroUsd: auditionUsageCost(receipt?.raw?.usage, 'image'), coherent: !completed || receipt?.model === 'gpt-image-2' }),
 };
 export const auditionReviewRule: MeterRule = {
-  reserve: wire => wire?.model === REVIEW_MODEL && wire.service_tier === 'default' && validReviewCapacity(wire) ? SOL_PIXEL_REVIEW_SLOT_MICRO_USD : null,
+  // A companion sheet review (its own metadata marker) has its own rule, as a sheet render does.
+  reserve: wire => wire?.model === REVIEW_MODEL && wire.service_tier === 'default' && wire.metadata?.companion_sheet_review === undefined &&
+    validReviewCapacity(wire) ? SOL_PIXEL_REVIEW_SLOT_MICRO_USD : null,
   settle: (wire, receipt, completed) => { const raw = receipt?.raw;
     return { estimatedMicroUsd: raw == null ? null : reviewCost(raw), coherent: validReviewCapacity(wire) && (!completed || raw != null && reviewAnswered(raw, wire.max_output_tokens)) }; },
 };

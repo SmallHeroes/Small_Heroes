@@ -20,6 +20,14 @@ import {
   STYLE_01_SHARED,
   resolveStyle01GptModel,
 } from '@/lib/style01-gptimage';
+import {
+  COMPANION_SHEET_VIEW_FILENAME,
+  COMPANION_SHEET_VIEW_KINDS,
+  companionSheetViewLine,
+  composeCompanionSheetPrompt,
+  type CompanionSheetStyleBlocks,
+  type CompanionSheetViewKind,
+} from './companion-sheet-prompt';
 
 function resolveCompanionReferenceJpgPath(companionImage?: string | null): string | undefined {
   if (!companionImage?.trim()) return undefined;
@@ -31,36 +39,8 @@ function resolveCompanionReferenceJpgPath(companionImage?: string | null): strin
   return undefined;
 }
 
-/** Standard multi-angle companion sheet views (creature side of #20). */
-export type CompanionSheetViewKind =
-  | 'front'
-  | 'three_quarter_front'
-  | 'side'
-  | 'three_quarter_back'
-  | 'happy'
-  | 'theme';
-
-export const COMPANION_SHEET_VIEW_KINDS: CompanionSheetViewKind[] = [
-  'front',
-  'three_quarter_front',
-  'side',
-  'three_quarter_back',
-  'happy',
-  'theme',
-];
-
-/** On-disk filenames under style01-sheets/ or outputs/companion-sheets/<id>/ */
-export const COMPANION_SHEET_VIEW_FILENAME: Record<CompanionSheetViewKind, string> = {
-  front: 'front.png',
-  three_quarter_front: '3-4.png',
-  side: 'side.png',
-  three_quarter_back: 'back.png',
-  happy: 'happy.png',
-  theme: 'theme.png',
-};
-
-const PALETTE_FAITHFULNESS =
-  "Match the reference's exact color palette and saturation. Keep the muted, soft watercolor tones of the reference — do NOT brighten, do NOT increase saturation or vividness. Same hue, same softness as the source.";
+// The view kinds, filenames, view/theme lines and prompt composition are shared, pure data (companion-sheet-prompt.ts).
+export { COMPANION_SHEET_VIEW_KINDS, COMPANION_SHEET_VIEW_FILENAME, type CompanionSheetViewKind } from './companion-sheet-prompt';
 
 const COMPANION_PALETTE_QA_PROMPT = `Compare Image 1 (REFERENCE palette) and Image 2 (CANDIDATE sheet view) — same companion character.
 
@@ -101,37 +81,6 @@ const DRAGON_DINI_SHEET_VIEW_SCENE: Record<CompanionSheetViewKind, string> = {
     'Front/3-4 view in Dini\'s signature pose: her tail curling into a gentle protective circle and one wing held open like "a hug with a gap" (a wing-wall with a clear opening). Warm, caring expression. Character only, no other objects.',
 };
 
-const VIEW_SCENE: Record<CompanionSheetViewKind, string> = {
-  front:
-    'FRONT-FACING full-body view: creature faces the viewer, neutral calm expression, centered on near-empty warm cream background.',
-  three_quarter_front:
-    'THREE-QUARTER FRONT view: creature turned slightly (~30°) so both eyes and snout/profile read clearly; full body visible.',
-  side:
-    'SIDE PROFILE view: creature in clean lateral profile (left or right), full body silhouette readable, neutral expression.',
-  three_quarter_back:
-    'THREE-QUARTER BACK view: mostly back/tail/wings visible with a hint of cheek or eye; same proportions and markings.',
-  happy:
-    'HAPPY expression: warm gentle smile or bright friendly eyes; same identity; subtle cheerful pose OK; still isolated on cream background.',
-  theme: '', // filled per category below
-};
-
-const THEME_EXPRESSION_BY_CATEGORY: Partial<Record<ChallengeCategory, string>> = {
-  NIGHT_FEAR:
-    'THEME expression (calm & reassuring): soft steady eyes, relaxed posture — a gentle night-guide mood, not scared, not predatory.',
-  ANGER_FRUSTRATION:
-    'THEME expression (calm breath): soft settling posture, eyes focused but soft — upset energy redirected, still lovable.',
-  SOCIAL:
-    'THEME expression (quiet belonging): gentle open posture, soft eyes — calm social presence without needing to be loud.',
-  TRANSITION:
-    'THEME expression (shy warmth): soft curious eyes, tail gently curled — new-place courage without chaos.',
-  NEW_SIBLING:
-    'THEME expression (protective guardian): proud gentle stance, nurturing eyes — big-sibling protector mood, not aggressive.',
-  SENSITIVITY_OVERWHELM:
-    'THEME expression (gentle overwhelm): slightly wide eyes, small comforting gesture — sensitive but safe.',
-  GENERAL_FEARS:
-    'THEME expression (brave curiosity): cautious but curious eyes, small forward lean — courage without fearlessness caricature.',
-};
-
 export type CompanionSheetViewResult = {
   kind: CompanionSheetViewKind;
   localPath: string;
@@ -153,14 +102,6 @@ export type CompanionCharacterSheetBundle = {
   views: Partial<Record<CompanionSheetViewKind, CompanionSheetViewResult>>;
 };
 
-function resolveThemeScene(category: ChallengeCategory | null): string {
-  const base =
-    category && THEME_EXPRESSION_BY_CATEGORY[category]
-      ? THEME_EXPRESSION_BY_CATEGORY[category]!
-      : 'THEME expression: one gentle story-appropriate mood matching the companion role — still the SAME creature.';
-  return `${base} Isolated on near-empty warm cream background. NO scene. NO child. NO humans.`;
-}
-
 function resolveCompanionSheetVisualLock(companionId: string, visualDescription: string): string {
   if (companionId === 'dragon_dini') return DRAGON_DINI_SHEET_VISUAL_LOCK;
   return visualDescription;
@@ -172,11 +113,10 @@ function resolveCompanionSheetViewLine(
   category: ChallengeCategory | null
 ): string {
   if (companionId === 'dragon_dini') return DRAGON_DINI_SHEET_VIEW_SCENE[kind];
-  if (kind === 'theme') return resolveThemeScene(category);
-  return VIEW_SCENE[kind];
+  return companionSheetViewLine(kind, category);
 }
 
-function buildCompanionSheetPrompt(input: {
+export function buildCompanionSheetPrompt(input: {
   companionId: string;
   kind: CompanionSheetViewKind;
   visualDescription: string;
@@ -193,39 +133,22 @@ function buildCompanionSheetPrompt(input: {
     context: 'character_sheet',
   });
 
-  const intro = input.isPromptOnlyFront
-    ? [
-        'STYLE 01 COMPANION CHARACTER SHEET — FRONT (canon redo from visual lock only).',
-        'NO reference photo. Draw this companion EXACTLY from the COMPANION VISUAL LOCK below.',
-        'Cute simplified hand-drawn watercolor storybook illustration — NOT photoreal, NOT 3D render.',
-      ]
-    : input.isFrontFromJpg
-    ? [
-        'STYLE 01 COMPANION CHARACTER SHEET — FRONT (identity lock from reference photo).',
-        'Image 1 is the canonical companion reference photo. Preserve EXACT species, colors, markings, proportions, accessories, and silhouette.',
-        'Re-render as cute simplified hand-drawn watercolor storybook illustration — NOT photoreal, NOT 3D render.',
-      ]
-    : [
-        'STYLE 01 COMPANION CHARACTER SHEET — angle/expression variant.',
-        'Image 1 is the APPROVED Style 01 front view of this companion. Preserve EXACT colors, markings, proportions, species, and accessories.',
-        'Change ONLY camera angle, facing direction, and expression as specified — NOT a new creature.',
-      ];
-
-  return [
-    ...intro,
-    PALETTE_FAITHFULNESS,
+  return composeCompanionSheetPrompt({
+    mode: input.isPromptOnlyFront ? 'prompt_only_front' : input.isFrontFromJpg ? 'front_from_reference' : 'angle_variant',
     viewLine,
-    'Clean near-empty warm cream paper background. NO environment scene. NO forest. NO room. NO child protagonist. NO human family. NO other creatures. NO text or letters.',
-    STYLE_01_SHARED,
-    STYLE_01_RENDERING_CORRECTION,
-    `COMPANION VISUAL LOCK (verbatim): ${visualLock}`,
+    visualLock,
     accessoryLock,
-    STYLE_01_NO_TEXT,
-    STYLE_01_ANTI_STYLE02,
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+    style: STYLE_01_SHEET_BLOCKS,
+  });
 }
+
+/** The Style 01 blocks every companion sheet prompt carries (shared with the metered personal sheet operator). */
+export const STYLE_01_SHEET_BLOCKS: CompanionSheetStyleBlocks = {
+  shared: STYLE_01_SHARED,
+  renderingCorrection: STYLE_01_RENDERING_CORRECTION,
+  noText: STYLE_01_NO_TEXT,
+  antiStyle02: STYLE_01_ANTI_STYLE02,
+};
 
 export async function evaluateCompanionPaletteFaithfulness(
   referencePath: string,
