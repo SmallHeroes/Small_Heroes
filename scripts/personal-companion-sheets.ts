@@ -14,8 +14,10 @@
  * - A new companion without any approved look gets concept fronts (technique-only references) for Guy to choose from; no review.
  * - Output stays in the grant's own folder. Nothing is written to public/; admission is a separate reviewed change.
  *
- * Run (S1): node --require ./scripts/shims/register-server-only.cjs node_modules/tsx/dist/cli.mjs scripts/personal-companion-sheets.ts
- *   --grant <abs> --key-env-file <abs>
+ * Run: in ONE process, register the server-only shim and tsx, then call companionSheetsMain, e.g.
+ *   node -e "require('./scripts/shims/register-server-only.cjs');require('./node_modules/tsx/dist/cjs/index.cjs');
+ *     require('./scripts/personal-companion-sheets.ts').companionSheetsMain(['--grant','<abs>','--key-env-file','<abs>'])"
+ * (the tsx CLI starts a child process, which would not inherit a parent --require).
  */
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -407,15 +409,21 @@ img{width:100%;height:auto;border-radius:6px;display:block}figcaption{font-size:
 <body><h1>גיליונות חברים מלווים — שלב 1</h1>${outcome.stopped ? `<p>ההרצה נעצרה: ${esc(outcome.stopped.code)}</p>` : ''}${concepts}${sheets}</body></html>\n`;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
-  const argValue = (name: string) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; };
+/** The command line: --grant <abs> --key-env-file <abs>. Resolves when the run has written its outcome (or refused before anything). */
+export async function companionSheetsMain(argv: readonly string[]) {
+  const argValue = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
   const grantFile = argValue('--grant'), keyFile = argValue('--key-env-file');
-  if (!grantFile || !keyFile || !path.isAbsolute(grantFile) || !path.isAbsolute(keyFile)) { console.error('usage: --grant <abs> --key-env-file <abs>'); process.exit(2); }
+  if (!grantFile || !keyFile || !path.isAbsolute(grantFile) || !path.isAbsolute(keyFile)) fail('companion_sheet_args');
   process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
   const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
   const started = Date.now();
-  runCompanionSheets({ grantFile: grantFile!, keyFile: keyFile!, signal: controller.signal,
-    log: line => console.log(`[${((Date.now() - started) / 60000).toFixed(1)}m] ${line}`) })
-    .then(r => console.log(JSON.stringify({ status: r.stopped ? 'stopped' : 'complete', sheets: r.sheets.map(s => [s.companionId, s.status]), concepts: r.concepts.length, spend: r.spend }, null, 2)))
-    .catch(error => { console.error('FAILED', error?.code ?? error?.message ?? error); process.exitCode = 1; });
+  try {
+    const r = await runCompanionSheets({ grantFile: grantFile!, keyFile: keyFile!, signal: controller.signal,
+      log: line => console.log(`[${((Date.now() - started) / 60000).toFixed(1)}m] ${line}`) });
+    console.log(JSON.stringify({ status: r.stopped ? 'stopped' : 'complete', sheets: r.sheets.map(s => [s.companionId, s.status]), concepts: r.concepts.length,
+      spend: r.spend }, null, 2));
+    return r;
+  } catch (error) { console.error('FAILED', (error as { code?: string })?.code ?? (error as Error)?.message ?? error); process.exitCode = 1; throw error; }
 }
+
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) companionSheetsMain(process.argv.slice(2)).catch(() => undefined);
