@@ -1,5 +1,21 @@
 # SmallHeroes — Roadmap
 
+## Companions-all (2026-10-28)
+
+- Guy wants the book with one of the other companions. Code 1f3d7937 shows all fifteen. A companion becomes selectable only when it
+  is drawable (profile + appearance + card art + complete passed sheet set); one identity reference is used for loader and plan
+  (which fixes bunny).
+- Guy approved the seven pictured looks and the S1 cap ($2.50) of sheet plan CS-1.
+- Next:
+  - Codex QA of the code and the CS-1 plan;
+  - S0 metered sheet operator (offline);
+  - S1 (Momo + Tzuki/Mishi concept fronts), then Guy's eye;
+  - S2 for the rest (needs its own approval);
+  - sheets;
+  - selectable;
+  - the R17 slot rescoped to Guy's new Wizard request with the new companion.
+
+
 ## 2026-10-26 — close R17 voice actual-handler gap before upload
 
 - Initial independent HOLDV1 reproduced framework URL normalization rejecting a legitimate127.0.0.1 request. Corrected only the known

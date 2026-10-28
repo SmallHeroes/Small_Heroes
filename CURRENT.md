@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Companions-all: fifteen shown, drawable ones selectable, one identity reference (2026-10-28, awaiting Codex QA)
+
+- Guy, 10/28: no book with bunny. Prepare the other companions and make the book with one of them, "aligned, connected and up to
+  date". I checked first what already existed:
+  - df728f73 (10/05: Wizard + landing offer 13, card art) was never merged into this branch;
+  - this branch already had literary profiles for 15 (PERSONAL_CHARACTER_IDS);
+  - none of the 9 new companions has a sheet set. Codex's 10/03 candidate images are local only, and Guy approved only Momo's look.
+- Code 1f3d7937 (over a40677f4):
+  - lib/personal-wizard/companion-identity.ts: a companion's drawing identity is its own complete style01 sheet set, every view
+    passed in its manifest, and the front sheet is the reference. loadReviewedBook and the trial plan pin both use it. Card art is
+    presentation only. This fixes bunny (card = happy view, which failed audition_companion_reference after paid stages). For the
+    other five it is the same file as before.
+  - lib/personal-wizard/personal-companions.ts: the 9 added identities (the 7 from df728f73 with byte-identical card art, plus Tzuki
+    and Mishi, whose art and appearance are still pending). personalCompanionVisual is the single visual authority for the writer's
+    appearance snapshot and the storyboard: legacy fields are exactly as before for the six.
+  - Options: one rule for every companion. Selectable only with an admitted profile, a declared appearance, card art and a complete
+    passed sheet set. The rest are pendingCompanions ("בהכנה"), shown in the companion step and the landing friends row, never
+    selectable or linked. The fingerprint is unchanged (f5ad4e9d…), so request identities are unchanged.
+- Evidence (provider-free):
+  - new spec 9/9;
+  - mutants 8/8 (the first run had 6/8; two test gaps were fixed);
+  - tsc 0;
+  - HTTP on the running local server: the Wizard carries all 15; the home page shows the 7 pending companions with art, labelled.
+  - The first focused run was 574/577. The two request-acceptance failures were my change of unavailableCompanionIds' meaning; I
+    restored that meaning. One new-book-experiment test hit its 60 s limit under load; it passes alone in 35.7 s.
+  - Final focused run on the committed bytes: 577/577, 12 files, 2010 s.
+- Guy approved the looks of the seven pictured companions ("מאשר את כולם, תמשיך לתוכנית הגיליונות"). Tzuki and Mishi have no
+  image yet. The approved images are already in the style01 sheet family (1024x1536, same paper, line and eyes).
+- Sheet plan CS-1 (milestone folder SHEETS-PLAN-CS1-20261028.txt):
+  - The approved front IS the sheet front (exact bytes).
+  - New LOW views come from it, through a new metered, fail-closed operator. The legacy sheet generator is not used: it has hidden
+    retries, fail-open QA, and a pixel "resemblance" that scores ~0.99 for any cream image.
+  - One Sol review per set, then one bounded redraw round.
+  - S1 = Momo + 2 concept fronts each for Tzuki and Mishi. Guy approved its $2.50 cap ("מאשר").
+  - S2 ($6.50) is not approved.
+- Next: Codex QA of 1f3d7937 and the CS-1 plan → S0 operator (offline) → Codex PASS → S1 → Guy's eye. A companion becomes
+  selectable automatically when its set passes.
+
+
 ## R17 voice V1 re-gate: actual NextRequest normalization (2026-10-26)
 
 - Independent voice review correctly held the first implementation: actual NextRequest normalizes127.0.0.1 to localhost in req.url,
