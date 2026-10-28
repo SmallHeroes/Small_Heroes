@@ -24,6 +24,9 @@
   - focused 538/538 (11 files);
   - tsc 0;
   - lease rehearsal 25/25 on a scratch registry: paid execute mode, once per PASS-named grant.
+- bd37ce7d: the first dry admission showed the documented tsx-CLI command could not apply the server-only shim (the CLI starts a
+  child process). companionSheetsMain(argv) now runs from an in-process launcher. The grant built before it is kept as
+  grant-s1-superseded-1.json, never used.
 - Next:
   - Codex QA of ab2dae2f + the exact unconsumed S1 grant (milestone claude-companion-sheets-20261028/grant-s1.json, dry-admitted
     with no key and no call);
