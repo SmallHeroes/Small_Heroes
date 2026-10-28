@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Companion sheets CS-1 S0: metered operator built, S1 grant awaiting Codex (2026-10-28)
+
+- Codex PASSed both companions-all items: A (code 1f3d7937) and B (the CS-1 plan + descriptions). B came with five S0 targets.
+  The companions-all lease is closed and R17's phase is restored.
+- Code ab2dae2f:
+  - scripts/personal-companion-sheets.ts makes a new companion's style01 set from its owner-approved front (exact bytes, never
+    redrawn). The other views are LOW edits from it, with one reference each.
+  - One Sol set review; a view passes only when every check passes.
+  - One bounded redraw round; a held front, too many held views or a view still held leaves it pending.
+  - Timeout, schema failure or unknown cost stops the run.
+  - Concept fronts (technique-only references) for companions with no look.
+  - Every call is a once-only meter claim under a consumed grant, after the live lease guard. The key is read only in a claimed
+    call. No retries. Nothing is written to public/.
+  - The reader render and review rules refuse sheet-tagged wires, and vice versa.
+  - The shared view/theme/style data moved verbatim to lib/generation-pipeline/companion-sheet-prompt.ts (all 546 legacy prompts
+    are byte-identical, digest pinned).
+  - The seven approved visualDescriptions are declared. Scale beside the child is decided at admission. That corrects the plan's
+    "same as the six" wording: bunny's description carries a child-relative range.
+- Evidence (provider-free):
+  - companion-sheets 31/31;
+  - mutants 16/16;
+  - focused 538/538 (11 files);
+  - tsc 0;
+  - lease rehearsal 25/25 on a scratch registry: paid execute mode, once per PASS-named grant.
+- Next:
+  - Codex QA of ab2dae2f + the exact unconsumed S1 grant (milestone claude-companion-sheets-20261028/grant-s1.json, dry-admitted
+    with no key and no call);
+  - then execute S1 (≤12 calls, cap $2.50, approved);
+  - then Guy's eye;
+  - S2 needs its own approval.
+
 ## Companions-all: fifteen shown, drawable ones selectable, one identity reference (2026-10-28, awaiting Codex QA)
 
 - Guy, 10/28: no book with bunny. Prepare the other companions and make the book with one of them, "aligned, connected and up to

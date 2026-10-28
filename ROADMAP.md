@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Companion sheets CS-1 (2026-10-28)
+
+- S0 built (ab2dae2f): a metered, fail-closed sheet operator from each owner-approved front.
+- Next:
+  - Codex QA of the code + the exact S1 grant;
+  - S1: Momo's sheet set + 2 concept fronts each for Tzuki and Mishi; ≤12 calls, $2.50, approved;
+  - Guy's eye;
+  - S2: the other six + Tzuki/Mishi, $6.50, needs approval;
+  - admission to public/ and each companion's scale beside the child (Guy);
+  - then the book with a new companion.
+
 ## Companions-all (2026-10-28)
 
 - Guy wants the book with one of the other companions. Code 1f3d7937 shows all fifteen. A companion becomes selectable only when it
