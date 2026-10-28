@@ -3,8 +3,9 @@
  *
  * A new companion's style01 sheet set is made from its OWNER-APPROVED front, never from the legacy generator (hidden retries, fail-open QA,
  * a pixel "resemblance" that cannot tell characters apart). Every provider call is a once-only claim of one AuditionMeter under a consumed
- * grant: the live coordination guard and cancellation are checked before each claim, the key is read only inside a claimed call, there is
- * no retry, and an unknown cost or outcome stops everything.
+ * grant: the live coordination guard and cancellation are checked before each claim, again inside it right before the key and the provider,
+ * and again when the call returns; the key is read only inside a claimed call, there is no retry, and an unknown cost or outcome stops
+ * everything. Every image is held as exact bytes: what is sent, judged and published is those bytes, never a later re-read of a path.
  *
  * - The approved front IS the sheet front (exact bytes) and is never redrawn. The approved three-quarter, when supplied, is offered too.
  * - The other views are LOW renders from that front, each with exactly one reference.
@@ -21,7 +22,7 @@
  */
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { closeSync, copyFileSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import sharp from 'sharp';
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
@@ -164,7 +165,7 @@ export function admitCompanionSheetGrant(file: string) {
     c.techniqueRefs.forEach(pinnedBytes);
   }
   if (grantWorstCaseCalls(grant) !== grant.maxCalls) fail('companion_sheet_calls');
-  return { grant, grantSha256 };
+  return { grant, grantSha256, text };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -273,32 +274,40 @@ export function companionSheetGuard(registry: string, grantSha256: string) {
 export async function runCompanionSheets(args: { grantFile: string; keyFile: string; signal: AbortSignal; providers?: CompanionSheetProviders;
   log?: (line: string) => void }) {
   const log = args.log ?? (() => undefined), providers = args.providers ?? PROVIDERS;
-  const { grant, grantSha256 } = admitCompanionSheetGrant(args.grantFile);
+  const { grant, grantSha256, text: grantText } = admitCompanionSheetGrant(args.grantFile);
   const guard = companionSheetGuard(grant.registry, grantSha256);
   guard();
   // Consumed once: the grant's own folder is created exclusively; a second run of the same grant refuses here.
   mkdirSync(grant.out); realDirectory(grant.out);
   const at = (...p: string[]) => path.join(grant.out, ...p), art = at('illustrations');
   exclusiveJson(at('consumed.json'), { grantFile: args.grantFile, grantSha256, at: new Date().toISOString() });
-  copyFileSync(args.grantFile, at('grant.json'));
+  writeFileSync(at('grant.json'), grantText, { flag: 'wx' }); // the admitted bytes, never a later re-read of the path
   mkdirSync(art);
   const meter = new AuditionMeter(at('paid'), grant.capMicroUsd, grant.maxCalls, 0, 0, companionSheetMeterRules);
   const key = keyReader(args.keyFile);
   const cancelled = () => { if (args.signal.aborted) fail('companion_sheet_cancelled'); };
+  // The full fence (cancellation and the live lease) runs before each claim, again inside the claim right before the key and the
+  // provider (the lease may be revoked after the claim is written), and again after the call returns, before anything uses its result.
   const check = () => { cancelled(); guard(); };
-  const write = (name: string, bytes: Buffer) => {
-    if (!/^[a-z0-9_]+\.png$/.test(name)) fail('companion_sheet_image_path');
-    const fd = openSync(path.join(art, name), 'wx'); try { writeFileSync(fd, bytes); fsyncSync(fd); } finally { closeSync(fd); }
-    return path.join(art, name);
+  const write = (name: string, bytes: Buffer, dir = art) => {
+    if (!/^[a-z0-9_-]+\.png$/.test(name)) fail('companion_sheet_image_path');
+    const fd = openSync(path.join(dir, name), 'wx'); try { writeFileSync(fd, bytes); fsyncSync(fd); } finally { closeSync(fd); }
+    return path.join(dir, name);
   };
+  /** An image this run holds: its working copy, and the exact bytes (and their hash) that are sent, judged and published. */
+  type Held = { file: string; bytes: Buffer; sha256: string };
+  const held = (name: string, bytes: Buffer): Held => { const own = Buffer.from(bytes); return { file: write(name, own), bytes: own, sha256: previewSha(own) }; };
 
-  const render = async (step: string, plan: ReturnType<typeof companionSheetRenderPlan>, referenceBytes: Buffer[]) => {
+  const render = async (step: string, plan: ReturnType<typeof companionSheetRenderPlan>, references: Held[]): Promise<Held> => {
     check();
-    return meter.run(step, plan.wire, plan.maximumMicroUsd, async () => {
-      cancelled();
+    // The claimed request names its references by hash; it must name exactly the bytes that are sent.
+    if (plan.wire.references.length !== references.length || plan.wire.references.some((r, i) => r.imageSha !== references[i].sha256 ||
+        previewSha(references[i].bytes) !== references[i].sha256)) fail('companion_sheet_reference_changed');
+    const made = await meter.run(step, plan.wire, plan.maximumMicroUsd, async () => {
+      check();
       let raw: unknown = null, generated: Generated;
       try {
-        generated = await providers.generate({ ...plan.input, apiKey: key(), exactReferenceBytes: referenceBytes, observeProviderResponse: r => { raw = r; } });
+        generated = await providers.generate({ ...plan.input, apiKey: key(), exactReferenceBytes: references.map(r => r.bytes), observeProviderResponse: r => { raw = r; } });
       } catch (error) {
         const usage = raw && typeof raw === 'object' && 'usage' in raw ? (raw as { usage: unknown }).usage : null;
         throw Object.assign(new CompanionSheetError('companion_sheet_image_provider_failed'), { cause: error,
@@ -308,17 +317,19 @@ export async function runCompanionSheets(args: { grantFile: string; keyFile: str
       if (generated.model !== 'gpt-image-2' || generated.fallbackUsed) throw Object.assign(new CompanionSheetError('companion_sheet_image_model'), { receipt });
       const m = await sharp(generated.buffer).metadata();
       if (m.format !== 'png' || m.width !== 1024 || m.height !== 1536) throw Object.assign(new CompanionSheetError('companion_sheet_image_dimensions'), { receipt });
-      const file = write(`${step}.png`, generated.buffer);
-      return { value: file, estimatedMicroUsd: cost, receipt: { ...receipt, candidate: { imageName: path.basename(file), imageSha: shaFile(file) } } };
+      const candidate = held(`${step}.png`, generated.buffer);
+      return { value: candidate, estimatedMicroUsd: cost, receipt: { ...receipt, candidate: { imageName: path.basename(candidate.file), imageSha: candidate.sha256 } } };
     });
+    check(); // the call is recorded as it happened (receipt, cost); nothing continues from it once the lease is gone
+    return made;
   };
 
   const review = async (step: string, payload: Awaited<ReturnType<typeof companionSheetReviewPayload>>) => {
     check();
     const transport = reviewTransport(AUDITION_REVIEW_TIMEOUT_MS); // made before the claim: unavailable refuses with nothing claimed
     try {
-      return await meter.run(step, digestImages(payload), SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
-        cancelled();
+      const judged = await meter.run(step, digestImages(payload), SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
+        check();
         const raw = await providers.review(payload, { apiKey: key(), signal: args.signal, deadlineMs: AUDITION_REVIEW_TIMEOUT_MS,
           baseURL: 'https://api.openai.com/v1', transport });
         const estimatedMicroUsd = reviewCost(raw), receipt = { raw, estimatedMicroUsd };
@@ -326,61 +337,73 @@ export async function runCompanionSheets(args: { grantFile: string; keyFile: str
         try { return { value: parseCompanionSheetReview(raw.output_text), estimatedMicroUsd, receipt }; }
         catch { throw Object.assign(new CompanionSheetError('companion_sheet_review_schema'), { receipt }); }
       });
+      check(); // recorded as it happened; no verdict is used once the lease is gone
+      return judged;
     } finally { await transport.release(); }
   };
 
   const outcome: { concepts: { companionId: string; variant: string; image: string }[];
-    sheets: { companionId: string; status: string; reason?: string; views: Record<string, { image: string; provenance: string; verdict?: unknown }>; reviews: string[] }[];
+    sheets: { companionId: string; status: string; reason?: string; views: Record<string, { image: string; provenance: string; sha256: string; verdict?: unknown }>;
+      reviews: string[] }[];
     stopped?: { code: string; message: string } } = { concepts: [], sheets: [] };
   try {
     // Concept fronts first: they are independent, and Guy's choice needs them even if a later call stops the run.
     for (const c of grant.concepts) {
-      const refs = c.techniqueRefs.map((r, i) => { const bytes = pinnedBytes(r); return { file: write(`${c.companionId}_technique_${i + 1}.png`, bytes), bytes }; });
+      const refs = c.techniqueRefs.map((r, i) => held(`${c.companionId}_technique_${i + 1}.png`, pinnedBytes(r)));
       for (const v of c.variants) {
         const step = `concept_${c.companionId}_${v.variant}`;
         const plan = companionSheetRenderPlan({ companionId: c.companionId, view: 'concept_front', references: refs.map(r => r.file), visualLock: c.brief,
           stance: v.stance, signal: args.signal });
-        outcome.concepts.push({ companionId: c.companionId, variant: v.variant, image: path.basename(await render(step, plan, refs.map(r => r.bytes))) });
+        outcome.concepts.push({ companionId: c.companionId, variant: v.variant, image: path.basename((await render(step, plan, refs)).file) });
         log(`concept ${step}`);
       }
     }
     for (const s of grant.sheets) {
-      const visual = personalCompanionVisual(s.companionId)!, front = write(`${s.companionId}_front.png`, pinnedBytes(s.front));
-      const frontBytes = readFileSync(front), current: Partial<Record<CompanionSheetViewKind, { file: string; provenance: 'owner_approved_candidate' | 'generated' }>> =
-        { front: { file: front, provenance: 'owner_approved_candidate' } };
-      if (s.threeQuarter) current.three_quarter_front = { file: write(`${s.companionId}_three_quarter_front_0.png`, pinnedBytes(s.threeQuarter)), provenance: 'owner_approved_candidate' };
+      type View = Held & { provenance: 'owner_approved_candidate' | 'generated' };
+      const visual = personalCompanionVisual(s.companionId)!, front: View = { ...held(`${s.companionId}_front.png`, pinnedBytes(s.front)), provenance: 'owner_approved_candidate' };
+      const current: Partial<Record<CompanionSheetViewKind, View>> = { front };
+      if (s.threeQuarter) current.three_quarter_front = { ...held(`${s.companionId}_three_quarter_front_0.png`, pinnedBytes(s.threeQuarter)), provenance: 'owner_approved_candidate' };
       const entry: (typeof outcome.sheets)[number] = { companionId: s.companionId, status: 'running', views: {}, reviews: [] };
       outcome.sheets.push(entry);
       const draw = async (view: RenderedView, n: 1 | 2) => {
-        const plan = companionSheetRenderPlan({ companionId: s.companionId, view, references: [front], visualLock: visual.description, signal: args.signal });
-        current[view] = { file: await render(`sheet_${s.companionId}_${view}_${n}`, plan, [frontBytes]), provenance: 'generated' };
+        const plan = companionSheetRenderPlan({ companionId: s.companionId, view, references: [front.file], visualLock: visual.description, signal: args.signal });
+        current[view] = { ...await render(`sheet_${s.companionId}_${view}_${n}`, plan, [front]), provenance: 'generated' };
         log(`sheet ${s.companionId} ${view} ${n}`);
       };
       for (const view of s.generate) await draw(view, 1);
-      let redrawsLeft = s.maxRedraws;
+      let redrawsLeft = s.maxRedraws, passed: (View & { view: CompanionSheetViewKind })[] | null = null;
       for (const round of [1, 2] as const) {
-        const images = COMPANION_SHEET_VIEW_KINDS.map(view => ({ view, provenance: current[view]!.provenance, bytes: readFileSync(current[view]!.file) }));
-        const payload = await companionSheetReviewPayload({ companionId: s.companionId, description: visual.description, body: s.body, images });
+        // The exact bytes this review judges. A pass publishes these bytes, never whatever a path holds later.
+        const judgedSet = COMPANION_SHEET_VIEW_KINDS.map(view => ({ view, ...current[view]! }));
+        const payload = await companionSheetReviewPayload({ companionId: s.companionId, description: visual.description, body: s.body, images: judgedSet });
         const step = `sheet_${s.companionId}_review_${round}`, judged = await review(step, payload);
         entry.reviews.push(step);
-        for (const v of judged.views) entry.views[v.view] = { image: path.basename(current[v.view]!.file), provenance: current[v.view]!.provenance, verdict: v };
+        for (const v of judged.views) { const i = judgedSet.find(j => j.view === v.view)!;
+          entry.views[v.view] = { image: path.basename(i.file), provenance: i.provenance, sha256: i.sha256, verdict: v }; }
         const decided = companionSheetDisposition(judged, round, redrawsLeft);
         log(`review ${step}: ${decided.status}`);
-        if (decided.status === 'passed') { entry.status = 'passed'; break; }
+        if (decided.status === 'passed') { passed = judgedSet; break; }
         if (decided.status === 'pending') { entry.status = 'pending'; entry.reason = decided.reason; break; }
         for (const view of decided.views) { await draw(view, 2); redrawsLeft--; }
       }
-      if (entry.status === 'passed') {
-        // The set, exactly as reviewed, in the shape companionIdentityReference reads. Not public/: admission is separate.
+      if (passed) {
+        // The set, exactly as the passing review judged it, in the shape companionIdentityReference reads. Not public/: admission is separate.
+        // Every byte is checked before anything is written: the held bytes are still the judged ones, the front is still the granted front, and
+        // no working copy has drifted (the contact sheet shows those copies). A drift stops with nothing published; no call is made for it.
+        check();
+        if (passed.some(i => previewSha(i.bytes) !== i.sha256 || shaFile(i.file) !== i.sha256)) fail('companion_sheet_reviewed_bytes_changed');
+        if (passed[0].view !== 'front' || passed[0].sha256 !== s.front.sha256) fail('companion_sheet_front_changed');
         const dir = at('sheets', s.companionId, 'style01-sheets'); mkdirSync(dir, { recursive: true });
         const views: Record<string, unknown> = {};
-        for (const view of COMPANION_SHEET_VIEW_KINDS) {
-          copyFileSync(current[view]!.file, path.join(dir, COMPANION_SHEET_VIEW_FILENAME[view]));
-          views[view] = { filename: COMPANION_SHEET_VIEW_FILENAME[view], qaStatus: 'passed', provenance: current[view]!.provenance,
-            source: path.basename(current[view]!.file), sha256: shaFile(current[view]!.file), review: entry.reviews[entry.reviews.length - 1] };
+        for (const i of passed) {
+          const published = write(COMPANION_SHEET_VIEW_FILENAME[i.view], i.bytes, dir);
+          if (shaFile(published) !== i.sha256) fail('companion_sheet_reviewed_bytes_changed');
+          views[i.view] = { filename: COMPANION_SHEET_VIEW_FILENAME[i.view], qaStatus: 'passed', provenance: i.provenance,
+            source: path.basename(i.file), sha256: i.sha256, review: entry.reviews[entry.reviews.length - 1] };
         }
         exclusiveJson(path.join(dir, 'manifest.json'), { companionId: s.companionId, referenceJpg: null, generatedAt: new Date().toISOString(),
           grantSha256, descriptionSha256: s.descriptionSha256, views });
+        entry.status = 'passed';
       }
     }
   } catch (error) {

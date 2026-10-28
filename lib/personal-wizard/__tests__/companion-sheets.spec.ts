@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,7 +11,7 @@ import { PALETTE_FAITHFULNESS, COMPANION_SHEET_VIEW_SCENE } from '../../generati
 import { STYLE_REFERENCE_PREFIX } from '../../generate-image';
 import { PERSONAL_ADDED_COMPANIONS, personalCompanionVisual } from '../personal-companions';
 import { companionIdentityReference } from '../companion-identity';
-import { auditionRenderPlan, auditionRenderRule, auditionReviewRule, renderMaximum, REVIEW_MODEL } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { AuditionMeter, auditionRenderPlan, auditionRenderRule, auditionReviewRule, renderMaximum, REVIEW_MODEL } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { READER_PORTRAIT_FRAMING_VERSION } from '../../storybook-scene-framing';
 import { admitCompanionSheetGrant, companionSheetDisposition, companionSheetMeterRules, companionSheetRenderPlan, companionSheetRenderRule,
   companionSheetReviewPayload, companionSheetReviewRule, parseCompanionSheetReview, runCompanionSheets, COMPANION_SHEET_SOURCE_FILES,
@@ -235,18 +235,20 @@ function scratchS1Sync(edit: (g: any) => void) {
 // ---------------------------------------------------------------------------------------------------------------
 // The run, with fake providers.
 // ---------------------------------------------------------------------------------------------------------------
-function fakes(reviews: (CompanionSheetReview | 'schema' | 'unknown')[], opts: { imageUsage?: unknown; imageThrowsAt?: number } = {}) {
-  const calls = { generate: 0, review: 0, keys: [] as string[] };
+function fakes(reviews: (CompanionSheetReview | 'schema' | 'unknown')[], opts: { imageUsage?: unknown; imageThrowsAt?: number;
+  onGenerate?: (n: number) => void; onReview?: (payload: any) => void } = {}) {
+  const calls = { generate: 0, review: 0, keys: [] as string[], payloads: [] as any[] };
   const providers: CompanionSheetProviders = {
     generate: (async (input: any) => {
       calls.generate++; calls.keys.push(input.apiKey);
       if (opts.imageThrowsAt === calls.generate) throw new Error('provider 500');
+      opts.onGenerate?.(calls.generate);
       const usage = opts.imageUsage === undefined ? { input_tokens: 1500, output_tokens: 1800 } : opts.imageUsage;
       input.observeProviderResponse?.({ usage });
       return { buffer: await png(200 + calls.generate), model: 'gpt-image-2', usage, fallbackUsed: false } as any;
     }) as any,
-    review: async (_payload, o) => {
-      calls.review++; calls.keys.push(o.apiKey);
+    review: async (payload, o) => {
+      calls.review++; calls.keys.push(o.apiKey); calls.payloads.push(payload); opts.onReview?.(payload);
       const r = reviews.shift()!;
       if (r === 'unknown') return { status: 'completed', model: REVIEW_MODEL, service_tier: 'default', output_text: JSON.stringify(verdicts()) }; // no usage
       return { status: 'completed', model: REVIEW_MODEL, service_tier: 'default', usage: { input_tokens: 9000, output_tokens: 2500 },
@@ -274,6 +276,13 @@ describe('S1 end to end (fake providers): metered, bounded, fail-closed, admissi
     expect(companionIdentityReference('elephant_momo', pub).sha256).toBe(s.grant.sheets[0].front.sha256);
     expect(f.calls.keys.every(k => k === 'test-not-a-real-key')).toBe(true);
     expect(existsSync(path.join(s.grant.out, 'contact-sheet.html'))).toBe(true);
+    // Published = judged, byte for byte: for every view the bytes sent to the review, the published file and the manifest hash agree.
+    const manifest = JSON.parse(readFileSync(path.join(set, 'manifest.json'), 'utf8')), sent = judgedImages(f.calls.payloads[0]);
+    for (const view of COMPANION_SHEET_VIEW_KINDS) {
+      expect(sha(readFileSync(path.join(set, manifest.views[view].filename)))).toBe(sent[view]);
+      expect(manifest.views[view].sha256).toBe(sent[view]);
+    }
+    expect(sha(readFileSync(path.join(s.grant.out, 'grant.json')))).toBe(sha(readFileSync(s.grantFile)));
   });
   it('one held view: exactly one redraw and one re-review, then passed (11 calls)', async () => {
     const s = await scratchS1(), f = fakes([verdicts(['side']), verdicts()]);
@@ -322,5 +331,118 @@ describe('S1 end to end (fake providers): metered, bounded, fail-closed, admissi
     const before = readdirSync(path.join(ok.grant.out, 'paid')).length;
     await expect(runCompanionSheets({ grantFile: ok.grantFile, keyFile: ok.keyFile, signal: signal(), providers: g.providers })).rejects.toThrow('companion_sheet_out');
     expect(readdirSync(path.join(ok.grant.out, 'paid')).length).toBe(before);
+  });
+});
+
+// The image bytes a review payload carries, by view (the payload's data URLs, decoded).
+function judgedImages(payload: any): Record<string, string> {
+  const packet = JSON.parse(payload.input[0].content[0].text), images = payload.input[0].content.slice(1);
+  return Object.fromEntries(packet.images.map((i: any, n: number) => {
+    const bytes = Buffer.from(String(images[n].image_url).replace(/^data:image\/png;base64,/, ''), 'base64');
+    expect(sha(bytes)).toBe(i.sha256);
+    return [i.view, i.sha256];
+  }));
+}
+/** The coordination lease taken away (as qa-release or execute-release would leave it). */
+const revoke = (registry: string) => { const r = JSON.parse(readFileSync(registry, 'utf8')); r.phase = 'COMPANION_SHEETS_QA_RELEASED'; r.coordination.activeWriter = null;
+  writeFileSync(registry, JSON.stringify(r)); };
+/** Revokes the lease once, inside the claimed call of `step`, after its claim is durable and before its callback runs. */
+const revokeAfterClaim = (registry: string, step: string) => {
+  const original = AuditionMeter.prototype.run;
+  return vi.spyOn(AuditionMeter.prototype, 'run').mockImplementation(function (this: AuditionMeter, s: string, wire: unknown, max: number, dispatch: any) {
+    return original.call(this, s, wire, max, async () => {
+      if (s === step) { expect(existsSync(path.join(this.root, `${s}.claim.json`))).toBe(true); revoke(registry); }
+      return dispatch();
+    });
+  } as never);
+};
+const paid = (out: string, step: string, kind: string) => JSON.parse(readFileSync(path.join(out, 'paid', `${step}.${kind}.json`), 'utf8'));
+
+describe('round 2 (Codex CS-S0-F1): the live lease is the last fence before the key and the provider, and before any result is used', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('a lease revoked after a render claim: no key read, no image call, the claim is closed as a stop with its cost unknown, nothing more runs', async () => {
+    const s = await scratchS1(), f = fakes([verdicts()]), spy = revokeAfterClaim(s.grant.registry, 'concept_ibex_tzuki_a');
+    // An unreadable key would fail as a provider failure if it were read: the stop code proves the fence came first.
+    const r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: path.join(s.dir, 'no-key.env'), signal: signal(), providers: f.providers });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(r.stopped?.code).toBe('companion_sheet_lease'); expect([f.calls.generate, f.calls.review, f.calls.keys.length]).toEqual([0, 0, 0]);
+    expect(paid(s.grant.out, 'concept_ibex_tzuki_a', 'failure')).toMatchObject({ code: 'companion_sheet_lease', receipt: null });
+    expect(paid(s.grant.out, 'concept_ibex_tzuki_a', 'result')).toMatchObject({ completed: false, estimatedMicroUsd: null });
+    expect(r.spend).toMatchObject({ calls: 1, unknownCost: 1, newKnownApiMicroUsd: 0 });
+    expect(r.concepts).toEqual([]); expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+  });
+  it('a lease revoked after the review claim: no review call, no verdict used, no passed set, the sheet is stopped', async () => {
+    const s = await scratchS1(), f = fakes([verdicts()]), spy = revokeAfterClaim(s.grant.registry, 'sheet_elephant_momo_review_1');
+    const r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(spy).toHaveBeenCalledTimes(9);
+    expect(r.stopped?.code).toBe('companion_sheet_lease'); expect([f.calls.generate, f.calls.review]).toEqual([8, 0]);
+    expect(paid(s.grant.out, 'sheet_elephant_momo_review_1', 'failure')).toMatchObject({ code: 'companion_sheet_lease', receipt: null });
+    expect(r.sheets[0]).toMatchObject({ status: 'stopped', reason: 'companion_sheet_lease', views: {} });
+    expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+  });
+  it('a lease lost while a call is in flight: the real receipt and known cost are kept, the result is not used, nothing more runs', async () => {
+    // A render: its image is recorded as made (completed, known cost); the run stops before the next claim and before listing it.
+    let s = await scratchS1(), f = fakes([verdicts()], { onGenerate: n => { if (n === 3) revoke(s.grant.registry); } });
+    let r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_lease'); expect(f.calls.generate).toBe(3);
+    expect(paid(s.grant.out, 'concept_mole_mishi_a', 'result')).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+    expect(paid(s.grant.out, 'concept_mole_mishi_a', 'receipt').candidate.imageName).toBe('concept_mole_mishi_a.png');
+    expect(r.spend).toMatchObject({ calls: 3, unknownCost: 0, unknownOutcome: 0, failed: 0 }); expect(r.concepts).toHaveLength(2);
+    // A review: its answer is recorded with its real cost, but no verdict is applied and no set is published.
+    s = await scratchS1(); f = fakes([verdicts()], { onReview: () => revoke(s.grant.registry) });
+    r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_lease'); expect([f.calls.generate, f.calls.review]).toEqual([8, 1]);
+    expect(paid(s.grant.out, 'sheet_elephant_momo_review_1', 'result')).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+    expect(r.spend).toMatchObject({ calls: 9, unknownCost: 0, unknownOutcome: 0 });
+    expect(r.sheets[0]).toMatchObject({ status: 'stopped', reason: 'companion_sheet_lease', views: {} });
+    expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+    // A review whose verdict would leave the companion pending (no publication follows): the verdict is still not used.
+    s = await scratchS1(); f = fakes([verdicts(['front'])], { onReview: () => revoke(s.grant.registry) });
+    r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_lease');
+    expect(r.sheets[0]).toMatchObject({ status: 'stopped', reason: 'companion_sheet_lease', views: {} });
+  });
+});
+
+describe('round 2 (Codex CS-S0-F2): a passed set is exactly the bytes its review judged, and the front is exactly the granted front', () => {
+  it('working copies changed while the review is in flight (front and a generated view, pixels identical): nothing is published', async () => {
+    let s = await scratchS1();
+    const drift = () => { for (const name of ['elephant_momo_front.png', 'sheet_elephant_momo_side_1.png']) {
+      const file = path.join(s.grant.out, 'illustrations', name); writeFileSync(file, Buffer.concat([readFileSync(file), Buffer.from('byte-drift')])); } };
+    let f = fakes([verdicts()], { onReview: drift });
+    const r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_reviewed_bytes_changed'); expect([f.calls.generate, f.calls.review]).toEqual([8, 1]);
+    expect(r.sheets[0]).toMatchObject({ status: 'stopped', reason: 'companion_sheet_reviewed_bytes_changed' });
+    expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+    // The review and its cost are kept as they happened; the judged hashes are recorded per view; no call is made for the drift.
+    expect(paid(s.grant.out, 'sheet_elephant_momo_review_1', 'result')).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+    expect(r.sheets[0].views.front.sha256).toBe(s.grant.sheets[0].front.sha256);
+    expect(r.spend).toMatchObject({ calls: 9, unknownCost: 0 });
+    // A non-front drift alone stops as well.
+    s = await scratchS1();
+    f = fakes([verdicts()], { onReview: () => { const file = path.join(s.grant.out, 'illustrations', 'sheet_elephant_momo_theme_1.png');
+      writeFileSync(file, Buffer.concat([readFileSync(file), Buffer.from('x')])); } });
+    expect((await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers })).stopped?.code)
+      .toBe('companion_sheet_reviewed_bytes_changed');
+    expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+  });
+  it('a working copy changed before the review: the review is sent the held bytes (the image as made), and publication still stops', async () => {
+    const s = await scratchS1();
+    // During the second sheet render (call 6), the first generated view's working copy changes; no render uses it as a reference.
+    const f = fakes([verdicts()], { onGenerate: n => { if (n === 6) { const file = path.join(s.grant.out, 'illustrations', 'sheet_elephant_momo_side_1.png');
+      writeFileSync(file, Buffer.concat([readFileSync(file), Buffer.from('x')])); } } });
+    const r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(judgedImages(f.calls.payloads[0]).side).toBe(paid(s.grant.out, 'sheet_elephant_momo_side_1', 'receipt').candidate.imageSha);
+    expect(r.stopped?.code).toBe('companion_sheet_reviewed_bytes_changed'); expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+  });
+  it('a render reference changed on disk after it was taken: refused before the claim (the claimed request names the bytes it sends)', async () => {
+    const s = await scratchS1();
+    // During the first sheet render (call 5), the front's working copy changes; the next render's request would name other bytes.
+    const f = fakes([verdicts()], { onGenerate: n => { if (n === 5) { const file = path.join(s.grant.out, 'illustrations', 'elephant_momo_front.png');
+      writeFileSync(file, Buffer.concat([readFileSync(file), Buffer.from('x')])); } } });
+    const r = await runCompanionSheets({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_reference_changed'); expect(f.calls.generate).toBe(5);
+    expect(r.spend).toMatchObject({ calls: 5, unknownCost: 0 });
+    expect(existsSync(path.join(s.grant.out, 'paid', 'sheet_elephant_momo_three_quarter_back_1.claim.json'))).toBe(false);
   });
 });
