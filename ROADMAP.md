@@ -3,8 +3,11 @@
 ## Companion sheets CS-1 (2026-10-28)
 
 - S0 built (ab2dae2f): a metered, fail-closed sheet operator from each owner-approved front.
+- Codex round 1: HOLD, two findings, both fixed:
+  - the live lease is now checked inside each paid call too;
+  - a passed set is exactly the bytes its review judged.
 - Next:
-  - Codex QA of the code + the exact S1 grant;
+  - Codex round-2 re-gate of the fix + a new exact S1 grant;
   - S1: Momo's sheet set + 2 concept fronts each for Tzuki and Mishi; ≤12 calls, $2.50, approved;
   - Guy's eye;
   - S2: the other six + Tzuki/Mishi, $6.50, needs approval;

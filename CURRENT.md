@@ -1,6 +1,32 @@
 # SmallHeroes — Current Technical State
 
-## Companion sheets CS-1 S0: metered operator built, S1 grant awaiting Codex (2026-10-28)
+## Companion sheets CS-1 S0: Codex round-1 HOLD fixed, new S1 grant awaiting round-2 re-gate (2026-10-28)
+
+- Codex round 1 (INDEPENDENT-QA.txt) gave a HOLD with two P2 findings, both reproduced by Codex on the operator itself with fake providers.
+  Grant 8e830a1a was never used and is kept.
+  - CS-S0-F1: the live lease was checked only before each claim. Inside a claimed call only cancellation was checked, so a lease revoked
+    after the claim still let that call reach the key and the provider; a revoked review even published a passed set.
+    - Fix: the full fence (cancellation + live lease) now also runs inside every claimed call, right before the key and the provider.
+      It runs again when the call returns, before its result is used.
+    - A call that returned is recorded as it happened, with its real receipt and cost. A call stopped before dispatch closes with its
+      cost unknown, which counts at its maximum. Nothing is retried and no zero is invented.
+  - CS-S0-F2: the review was sent one set of bytes, but publication re-read the file paths afterwards, so changed bytes could be
+    published as passed.
+    - Fix: every image is held in memory as exact bytes plus their hash, from the pinned input or the provider's own buffer.
+    - What is sent, judged and published is those bytes. Before anything is published, every judged hash is re-checked, the front
+      must equal the granted front, and no working copy may have drifted.
+    - On drift the run stops and publishes nothing. No call is made for it.
+  - The same class, closed with it:
+    - each render's claimed request must name, by hash, exactly the reference bytes it sends;
+    - the run's grant.json copy is the admitted text itself, not a re-read.
+- Code 0f0159d7. Evidence, all provider-free:
+  - companion-sheets 38/38, with 6 new regressions;
+  - the ten focused specs 324/324;
+  - mutants 24/24 (7 new fences);
+  - lease rehearsal R2 16/16;
+  - tsc 0.
+  - My first mutant run was 23/24: the post-review fence was untested for a verdict that publishes nothing. The test was added
+    before the commit.
 
 - Codex PASSed both companions-all items: A (code 1f3d7937) and B (the CS-1 plan + descriptions). B came with five S0 targets.
   The companions-all lease is closed and R17's phase is restored.
@@ -35,8 +61,8 @@
     grant-s1-superseded-2.json, never used.
   - Never deployed (unpushed branch).
 - Next:
-  - Codex QA of ab2dae2f + the exact unconsumed S1 grant (milestone claude-companion-sheets-20261028/grant-s1.json, dry-admitted
-    with no key and no call);
+  - Codex round-2 re-gate of the fix + a new exact unconsumed S1 grant (milestone claude-companion-sheets-20261028/grant-s1.json,
+    dry-admitted with no key and no call);
   - then execute S1 (≤12 calls, cap $2.50, approved);
   - then Guy's eye;
   - S2 needs its own approval.
