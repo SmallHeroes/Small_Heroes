@@ -312,6 +312,7 @@ export function companionCopy(name: string, address: GrammaticalAddress | null) 
   return {
     title: `מי יצטרף ל${name} להרפתקה?`,
     missing: 'בחרו חבר או חברה לסיפור',
+    pending: 'בהכנה, עוד מעט אפשר לבחור',
     intentTitle: 'הכיוון של הסיפור',
     intentSub: 'לא חובה. בכל מקרה זו תהיה הרפתקה, לא שיעור.',
     justForFun: 'הרפתקה בשביל הכיף',

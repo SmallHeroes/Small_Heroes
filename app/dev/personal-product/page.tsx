@@ -26,12 +26,17 @@ export const metadata: Metadata = { ...PERSONAL_PRODUCT_METADATA, title: 'הכי
 export default function PersonalProductPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
   const { categories } = buildMvpMatrixResponse();
-  const roster = resolvePersonalWizardOptions().companions;
+  const { companions: roster, pendingCompanions } = resolvePersonalWizardOptions();
   const offered = new Set(roster.map((companion) => companion.id));
   // Personal preview eligibility is asset-backed roster availability, not legacy topic sellability.
   const companions = categories.filter((slot) => offered.has(slot.companion.id)).map((slot) => ({ ...slot, publicVisible: true }));
-  // The friends row shows every companion the wizard offers, by companion and in the wizard's order.
-  const friends = roster.map(({ id, name, image }) => ({ id, name, line: PERSONAL_COMPANION_LINES[id] ?? '', image: PERSONAL_COMPANION_ART[id] ?? image, paper: PERSONAL_COMPANION_PAPER[id] }));
+  // The friends row shows every companion: the ones the wizard offers (each a working choice), then the ones still being prepared
+  // (shown, marked, never a link), in the wizard's order. A pending friend without any approved art is not shown.
+  const friends = [
+    ...roster.map(({ id, name, image }) => ({ id, name, line: PERSONAL_COMPANION_LINES[id] ?? '', image: PERSONAL_COMPANION_ART[id] ?? image, paper: PERSONAL_COMPANION_PAPER[id] })),
+    ...pendingCompanions.flatMap(({ id, name, image }) => image ? [{ id, name, line: PERSONAL_COMPANION_LINES[id] ?? '', image: PERSONAL_COMPANION_ART[id] ?? image,
+      paper: PERSONAL_COMPANION_PAPER[id], pending: true }] : []),
+  ];
   return (
     <div className={`${fredoka.variable} ${playpen.variable}`}>
       <LandingPage content={getPersonalLandingContent()} startHref="/dev/personal-wizard" matrixCategories={companions} personalCompanions={friends} personalPreview />

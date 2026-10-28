@@ -100,6 +100,7 @@ export const PERSONAL_COMPANION_CAROUSEL = {
   label: 'החברים להרפתקה',
   pause: 'עצירת התנועה',
   play: 'המשך התנועה',
+  pending: 'בהכנה, עוד מעט אפשר לבחור',
   choose: 'לבחור את',
 } as const;
 

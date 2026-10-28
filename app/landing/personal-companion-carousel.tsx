@@ -5,7 +5,9 @@ import { PERSONAL_COMPANION_CAROUSEL } from '@/content/personal-landing';
 import { driftOffset, driftTimeForScroll, stillScrollLeft } from '@/lib/web/companion-carousel';
 
 /** `paper` is the colour the card art is painted on; the picture well takes it so the art has no side bands. */
-export type PersonalFriendCard = { id: string; name: string; line: string; image: string; paper?: string };
+export type PersonalFriendCard = { id: string; name: string; line: string; image: string; paper?: string;
+  /** Still being prepared for books: shown and marked, but not a link to the wizard. */
+  pending?: boolean };
 
 /**
  * The friends row on the personal landing (Guy 2026-10-05: show them all). Every companion the wizard offers
@@ -89,24 +91,35 @@ export function PersonalCompanionCarousel({ friends, startHref }: { friends: Per
 
   if (!friends.length) return null;
 
+  const body = (friend: PersonalFriendCard) => (
+    <>
+      <div className="mvp-challenge-card-img-wrap" style={friend.paper ? ({ '--pcc-paper': friend.paper } as CSSProperties) : undefined}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="mvp-challenge-card-img" src={friend.image} alt="" loading="lazy" decoding="async" style={friend.pending ? { opacity: 0.6 } : undefined} />
+      </div>
+      <div className="mvp-challenge-card-text">
+        <span className="mvp-challenge-card-label">{friend.name}</span>
+        {friend.pending ? <span className="mvp-challenge-card-lead">{PERSONAL_COMPANION_CAROUSEL.pending}</span>
+          : friend.line ? <span className="mvp-challenge-card-lead">{friend.line}</span> : null}
+      </div>
+    </>
+  );
+  // A pending friend is shown but is not a choice: no link, no tab stop.
   const card = (friend: PersonalFriendCard, copy: 'main' | 'loop') => (
     <li key={`${copy}-${friend.id}`} className="pcc-item" aria-hidden={copy === 'loop' || undefined}>
-      <a
-        className="mvp-challenge-card pcc-card"
-        href={`${startHref}?companion=${encodeURIComponent(friend.id)}`}
-        tabIndex={copy === 'loop' ? -1 : undefined}
-        data-event="landing_companion_start"
-        data-companion={friend.id}
-      >
-        <div className="mvp-challenge-card-img-wrap" style={friend.paper ? ({ '--pcc-paper': friend.paper } as CSSProperties) : undefined}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="mvp-challenge-card-img" src={friend.image} alt="" loading="lazy" decoding="async" />
-        </div>
-        <div className="mvp-challenge-card-text">
-          <span className="mvp-challenge-card-label">{friend.name}</span>
-          {friend.line ? <span className="mvp-challenge-card-lead">{friend.line}</span> : null}
-        </div>
-      </a>
+      {friend.pending ? (
+        <div className="mvp-challenge-card pcc-card" data-pending="true" aria-disabled="true" data-companion={friend.id}>{body(friend)}</div>
+      ) : (
+        <a
+          className="mvp-challenge-card pcc-card"
+          href={`${startHref}?companion=${encodeURIComponent(friend.id)}`}
+          tabIndex={copy === 'loop' ? -1 : undefined}
+          data-event="landing_companion_start"
+          data-companion={friend.id}
+        >
+          {body(friend)}
+        </a>
+      )}
     </li>
   );
 

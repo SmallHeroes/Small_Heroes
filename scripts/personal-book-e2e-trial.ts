@@ -7,6 +7,7 @@ import { z } from 'zod';
 import OpenAI from 'openai';
 import { previewSha } from '../lib/local-story-preview';
 import { momentumVoiceAccounting } from '../lib/personal-wizard/local-voice-intake';
+import { companionIdentityReference } from '../lib/personal-wizard/companion-identity';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory, type SimpleStoryCall } from '../lib/personal-wizard/simple-story-engine';
@@ -170,8 +171,11 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
   const exe=lstatSync(config.executable);if(!exe.isFile()||exe.isSymbolicLink()||shaFile(config.executable)!==config.executableSha256)fail('trial_executable_pin');
   const voiceIntake=momentum?momentumVoiceAccounting(config.operatorFile,config.bookDir):null;
   if(voiceIntake&&voiceIntake.priorApiMicroUsd!==MOMENTUM_BOOK_TRIAL.priorApiMicroUsd)fail('trial_voice_prior');
-  const companion=context.options.companions.find(c=>c.id===context.profile.companionId)!;
-  const companionPath=path.join(source,'public',companion.image.slice(1));
+  if(!context.options.companions.some(c=>c.id===context.profile.companionId))fail('trial_companion_unavailable');
+  // Pin exactly the drawing reference loadReviewedBook will hand the renderer (the passed front sheet), never the card art.
+  let identity:ReturnType<typeof companionIdentityReference>;
+  try{identity=companionIdentityReference(context.profile.companionId,source);}catch{return fail('trial_companion_reference');}
+  const companion={id:context.profile.companionId},companionPath=identity.file;
   const technique=resolveChildAnchorTechnique(source);
   return {version:momentum?'momentum-book-trial-grant/v1':portrait?'portrait-sol-book-trial-grant/v1':readerSafe?'reader-safe-book-trial-grant/v1':'book-e2e-trial-grant/v1',cycle:trial.id,configSha:previewSha(canonicalJson(config)),ownerSha:config.ownerSha,
     profileSha:config.profileSha,engine:{head:git('rev-parse','HEAD'),branch:git('branch','--show-current')},
@@ -182,7 +186,7 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
       ...(momentum?['lib/personal-wizard/simple-story-experience.ts','lib/personal-wizard/simple-story-momentum-policy.ts','lib/personal-wizard/simple-writing-roles.ts',
         'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts','lib/personal-wizard/storyboard-review-capacity.ts',
         'scripts/personal-book-narration.ts','lib/personal-wizard/local-voice-intake.ts','lib/personal-wizard/local-voice-intake-evidence.ts',
-        'lib/personal-wizard/momentum-book-bridge.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
+        'lib/personal-wizard/momentum-book-bridge.ts','lib/personal-wizard/companion-identity.ts','lib/personal-wizard/personal-companions.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
       ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
     requestId:context.prepared.accepted.requestId,limits:{...trial,...(voiceIntake?{priorApiMicroUsd:voiceIntake.priorApiMicroUsd+voiceIntake.knownMicroUsd,

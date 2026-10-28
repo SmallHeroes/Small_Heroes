@@ -40,6 +40,8 @@ import { StepTell, type IntakeNotice } from './StepTell';
 
 export type WizardOptionsView = {
   companions: Array<{ id: string; name: string; image: string }>;
+  /** Shown as "in preparation", never selectable; optional so older callers and fixtures keep working. */
+  pendingCompanions?: Array<{ id: string; name: string; image: string | null }>;
   topics: Array<{ id: string; label: string }>;
   voices: Array<{ id: string; label: string; description: string; emoji: string; sampleUrl: string | null }>;
   lengths: Array<{ id: string; pages: number }>;

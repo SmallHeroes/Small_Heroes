@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { z } from 'zod';
-import { getCompanionById } from '../companions';
+import { personalCompanionVisual } from './personal-companions';
 import { compileWholeBookDraft, wholeBookDraftSchema, ownedWholeBookDraftSchema, wholeBookPlanningInput, WHOLE_BOOK_PLANNING_INSTRUCTION } from '../local-book-planning';
 import { previewTextPages, previewStoryEvidence, previewSha, previewPagePrompt, selectedDraftQaContext } from '../local-story-preview';
 import { sequencePageState, sequenceRenderPrompt } from '../local-book-sequence';
@@ -185,12 +185,12 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   if (result.plan.resilience.mode !== prepared.brief.resilienceMode ||
       new Set(result.plan.resilience.moments.map(moment => moment.pageNumber)).size !== result.plan.resilience.moments.length ||
       result.plan.resilience.moments.some(moment => moment.pageNumber < 1 || moment.pageNumber > prepared.brief.beats)) fail('resilience_binding');
-  const companion = getCompanionById(prepared.accepted.canonical.companion.id);
+  const companion = personalCompanionVisual(prepared.accepted.canonical.companion.id);
   if (!companion) return fail('companion_unavailable');
   // Appearance is separate from literary character authority. Freeze and bind
   // both: a current lookup must not admit a storyboard made for older visuals.
   const companionVisualAuthority = {
-    id: companion.id, description: companion.visualDescription,
+    id: companion.id, description: companion.description,
     appearanceStateAuthority: structuredClone(companion.appearanceStateAuthority ?? null),
   };
   if ('simpleSource' in result) assertSimpleStoryVisualBinding(result, companionVisualAuthority);

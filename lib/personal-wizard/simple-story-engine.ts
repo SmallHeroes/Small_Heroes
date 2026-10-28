@@ -8,7 +8,7 @@ import { comparableText } from './contract';
 import { preparePersonalStory } from './story-writer';
 import { personalStoryPlanSchema, personalManuscriptSchema, personalStoryResultSchema, personalSimpleRepairResultSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
 import { measureStoryText } from './story-text-metrics';
-import { getCompanionById } from '../companions';
+import { personalCompanionVisual } from './personal-companions';
 import { companionAppearanceStateAuthorityIssues } from '../companion-appearance-state';
 import { SIMPLE_STORY_DELIGHT_VERSION, SIMPLE_STORY_EXPERIENCE, DELIGHT_AUTHOR_INSTRUCTIONS, DELIGHT_EDITOR_INSTRUCTIONS,
   SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, SIMPLE_CHILD_SHAPE_EXPERIENCE, SIMPLE_CHILD_SHAPE_VERSION,
@@ -214,15 +214,16 @@ export function unprotectedDashes(text: string, names: readonly string[]) {
 
 /** Declared input, not visual qualification. Never substitute a legacy animal for a new identity. */
 function companionAppearance(id: string) {
-  const companion = getCompanionById(id);
-  const description = companion?.visualDescription.trim() ?? '';
+  // The shared visual authority: the legacy registry exactly as before, or an added personal companion's own declaration.
+  const companion = personalCompanionVisual(id);
+  const description = companion?.description.trim() ?? '';
   const declared = companion?.id === id && !!description && !/placeholder/i.test(description);
   const stateAuthority = declared ? structuredClone(companion.appearanceStateAuthority ?? null) : null;
   if (stateAuthority && companionAppearanceStateAuthorityIssues(stateAuthority, id).length) fail('simple_story_companion_appearance_invalid');
   const snapshot = {
     version: 'personal-simple-companion-appearance/v1' as const, companionId: id,
     status: declared ? 'registry_declared' as const : 'unresolved' as const,
-    source: declared ? 'lib/companions.ts' as const : null,
+    source: declared ? companion.source : null,
     description: declared ? description : null, stateAuthority, renderQualified: false as const,
   };
   return { ...snapshot, digest: digest(snapshot) };

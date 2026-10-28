@@ -13,7 +13,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } from '../lib/generate-image';
-import { getCompanionById } from '../lib/companions';
+import { companionIdentityReference } from '../lib/personal-wizard/companion-identity';
 import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
 import { READER_SAFE_FRAMING_VERSIONS, READER_PORTRAIT_FRAMING_VERSION, readerSceneImageSize, type ReaderSafeFramingVersion } from '../lib/storybook-scene-framing';
@@ -394,9 +394,12 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
     try { assertChildAnchorInspectedAccepted(adoption.anchor, previewSha(childBytes), authority); } catch { fail('audition_child_reference'); }
   } else if (adoption.name !== 'child' || canonicalJson(adoption.context) !== canonicalJson(childContext) || previewSha(childBytes) !== adoption.candidate.imageSha ||
       qualityDisposition(adoption.review, adoption.candidate.imageSha, previewSha(JSON.stringify(childContext))).disposition !== 'passed') fail('audition_child_reference');
-  const card = getCompanionById((queued.request as { companion: { id: string } }).companion.id)?.cardImage;
-  if (!card || !/^\/companions\/[a-z0-9_]+\/style01-sheets\/front\.png$/.test(card)) return fail('audition_companion_reference');
-  const companionBytes = readFileSync(path.join(workspace, 'public', card.slice(1)));
+  // The drawing reference is the companion's own passed front sheet, never its card art (presentation only; bunny's card is its happy
+  // view). For a companion whose card IS its front sheet this is the same file as before.
+  let reference: ReturnType<typeof companionIdentityReference>;
+  try { reference = companionIdentityReference((queued.request as { companion: { id: string } }).companion.id, workspace); }
+  catch { return fail('audition_companion_reference'); }
+  const companionBytes = readFileSync(reference.file);
   if (layout.savedCompanion !== null && previewSha(companionBytes) !== previewSha(readFileSync(path.join(bookDir, ...layout.savedCompanion.split('/'))))) fail('audition_companion_reference');
   return { queued, options, prepared, result: active.result, book: active.book, rawReview: active.rawReview, current: active.current, childBytes, companionBytes,
     companionDescription: active.companionDescription,

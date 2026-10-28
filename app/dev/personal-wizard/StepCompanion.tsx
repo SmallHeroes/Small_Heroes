@@ -63,6 +63,19 @@ export function StepCompanion({ draft, update, options, showErrors, titleRef }: 
               </label>
             );
           })}
+          {/* Companions still being prepared (no complete drawing set yet): visible, never selectable. */}
+          {(options.pendingCompanions ?? []).map((companion) => (
+            <div key={companion.id} className={styles.companionCard} data-pending="true" aria-disabled="true">
+              <span className={styles.companionImageWrap}>
+                {companion.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className={styles.companionImage} src={companion.image} alt="" loading="lazy" style={{ opacity: 0.55 }} />
+                ) : null}
+              </span>
+              <span className={styles.companionName}>{companion.name}</span>
+              <span className={styles.hint}>{copy.pending}</span>
+            </div>
+          ))}
         </div>
         {missingCompanion ? (
           <p id="pw-companion-error" className={styles.error}>
