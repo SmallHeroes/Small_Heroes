@@ -6,10 +6,13 @@
 - Codex round 1: HOLD, two findings, both fixed:
   - the live lease is now checked inside each paid call too;
   - a passed set is exactly the bytes its review judged.
+- Codex round 2: PASS on the fix and the new S1 grant.
+- S1 ran: 12 calls, $0.350982. Momo stays pending: side and three-quarter back were held twice; the other four views pass. Four concept
+  fronts (Tzuki, Mishi) were drawn.
 - Next:
-  - Codex round-2 re-gate of the fix + a new exact S1 grant;
-  - S1: Momo's sheet set + 2 concept fronts each for Tzuki and Mishi; ≤12 calls, $2.50, approved;
-  - Guy's eye;
+  - Codex outcome QA;
+  - Guy's eye on Momo and his Tzuki/Mishi picks;
+  - a general per-view rule fix (accessory side, rear-view face) and a small Momo re-run, both gated;
   - S2: the other six + Tzuki/Mishi, $6.50, needs approval;
   - admission to public/ and each companion's scale beside the child (Guy);
   - then the book with a new companion.

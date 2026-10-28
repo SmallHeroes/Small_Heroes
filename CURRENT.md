@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Companion sheets CS-1 S1 ran: Momo held after redraw (pending), four concept fronts drawn (2026-10-28, awaiting outcome QA)
+
+- Codex round-2 re-gate PASSed code 0f0159d7 + docs d21def42 and exactly grant f01e2690 (INDEPENDENT-REGATE-R2.txt).
+- S1 ran once on that grant (20:17–20:20Z), lease taken with `execute` and released with `execute-release`.
+  - 12 calls of 12, all completed: 10 LOW images + 2 Sol set reviews. Known API cost $0.350982 of the $2.50 cap.
+  - Failed 0, unknown cost 0, unknown outcome 0, no retry. Claude Max is separate and not included.
+- Momo (elephant_momo) stays pending ("held_after_redraw"); nothing was published and nothing went to public/.
+  - Pass: the approved front, the approved three-quarter front, happy, theme.
+  - Side, held twice: round 1 had four forepaw nails (the front has three); round 2 had the neckerchief knot at the visible front of
+    the neck (it sits on his hidden left side in that profile).
+  - Three-quarter back, held twice: round 1 had the head turned too far to camera; round 2 showed three ears and too much face, with
+    the knot on the wrong side.
+  - The prompts (paid/*.wire.json) state the rules only in front-view terms. The visual lock says three toenails and "knot on his
+    left side (the viewer's right in a front view)". But the side prompt lets the model face "left or right" and never says whether
+    the knot shows from that side. The rear prompt asks for "a hint of cheek or eye" without saying that the eye and the trunk stay
+    hidden.
+  - The same prompts also carry legacy shared lines that do not belong in a companion sheet: the child-rendering block, Dini
+    avoid-lines, and "NOT empty cream void background" next to "Clean near-empty warm cream paper background".
+  - Generalization path: per-view wording derived from each companion's own visualDescription (a fixed profile facing; what each
+    accessory looks like from that angle; what a rear view hides) and a companion-only shared block, not a Momo patch. This is a
+    separate gated change.
+- Concept fronts: Tzuki A (on four legs), Tzuki B (upright), Mishi A (on four legs), Mishi B (upright). Guy picks one each.
+- Outputs: milestone claude-companion-sheets-20261028/s1-run (outcome.json, contact-sheet.html, paid/, illustrations/).
+- Next:
+  - Codex outcome QA;
+  - Guy's eye on Momo and his Tzuki/Mishi picks;
+  - a gated view-rule fix and a small Momo re-run need their own approval;
+  - S2 needs its own approval.
+
 ## Companion sheets CS-1 S0: Codex round-1 HOLD fixed, new S1 grant awaiting round-2 re-gate (2026-10-28)
 
 - Codex round 1 (INDEPENDENT-QA.txt) gave a HOLD with two P2 findings, both reproduced by Codex on the operator itself with fake providers.
