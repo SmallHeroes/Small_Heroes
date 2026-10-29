@@ -987,7 +987,10 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   auditionReviewOutputCap(args.reviewCapacity);
   if (args.durableReviews && args.durableReviews.version !== DURABLE_REVIEW_VERSION) fail('audition_durable_policy');
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
-  // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
+  // The full fence (cancellation and the caller's guard, e.g. a live lease) runs before a claim, again INSIDE the claim right before the
+  // key and the provider (a guard revoked after the claim is written stops there, its cost unknown and reserved at its maximum), and again
+  // when the call returns, before its result is used (the call is recorded as it happened, real receipt kept). After a provider response
+  // and still inside the claim: cancellation only, so a receipt is never dropped. Without a guard this is cancellation, as before.
   const check = () => { cancelled(); args.guard?.(); };
   const allowed = args.allowedSteps ? new Set(args.allowedSteps) : null;
   if (allowed && (!allowed.size || allowed.size !== args.allowedSteps!.length)) fail('audition_diagnostic_scope');
@@ -1014,7 +1017,8 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     const { input, wire, maximumMicroUsd } = auditionRenderPlan(args.directory, prompt, refs, mode, roles, args.signal, args.readerFraming);
     const expected = args.expectedWire?.[step];
     if (expected !== undefined && previewSha(canonicalJson(wire)) !== expected) fail('audition_rereview_wire');
-    return args.meter.run(step, wire, maximumMicroUsd, async () => {
+    const made = await args.meter.run(step, wire, maximumMicroUsd, async () => {
+      check();
       let raw: unknown = null;
       try {
         const generated = await generateGPTImage({ ...input, apiKey: args.key(), exactReferenceBytes: bytes, observeProviderResponse: response => { raw = response; } });
@@ -1032,6 +1036,8 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
           receipt: { raw: digestImages(raw), estimatedMicroUsd: auditionUsageCost(usage, 'image') } });
       }
     });
+    check(); // recorded as it happened; nothing continues from it once the guard is gone
+    return made;
   };
   const judge = async (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
     predecessor: AuditionImage | null, kind: 'sheet' | 'page') => {
@@ -1046,7 +1052,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     const transport = reviewTransport(AUDITION_REVIEW_TIMEOUT_MS);
     try {
       const dispatch = async () => {
-        cancelled();
+        check();
         const durableRoot = path.join(path.dirname(args.meter.root), 'review-jobs');
         if (args.durableReviews) {
           if (!existsSync(durableRoot)) mkdirSync(durableRoot);
@@ -1062,8 +1068,10 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
         try { return { value: (kind === 'page' ? auditionPageReviewSchemaForContext(context) : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
         catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
       };
-      return await (args.durableReviews?.resumeStep === step ? args.meter.recover(step, wire, dispatch)
+      const judged = await (args.durableReviews?.resumeStep === step ? args.meter.recover(step, wire, dispatch)
         : args.meter.run(step, wire, SOL_PIXEL_REVIEW_SLOT_MICRO_USD, dispatch));
+      check(); // recorded as it happened; no verdict is used once the guard is gone
+      return judged;
     } finally { await transport.release(); }
   };
   const identity = async (step: string, reference: AuditionImage, candidate: AuditionImage) => {
@@ -1073,6 +1081,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
       fetchImpl: async (url, init) => {
         checkStep(step); const wire = JSON.parse(String(init!.body));
         return args.meter.run(step, digestImages(wire), IDENTITY_MAXIMUM_MICRO_USD, async () => {
+          check();
           const response = await fetch(url, { ...init, signal: AbortSignal.any([args.signal, init!.signal!]),
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.key()}` } });
           const raw = await response.clone().json() as { model?: string; usage?: { prompt_tokens: number; completion_tokens: number } };
@@ -1083,6 +1092,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
         }).catch(error => { transportError = error; throw error; });
       } });
     if (transportError) throw transportError;
+    check(); // the score is recorded; it is not used once the guard is gone
     return result;
   };
   return { check, writeImage, bytesOf, render, judge, identity };

@@ -117,6 +117,49 @@ const INTRO: Record<CompanionSheetPromptMode, readonly string[]> = {
 export const COMPANION_SHEET_BACKGROUND_RULE =
   'Clean near-empty warm cream paper background. NO environment scene. NO forest. NO room. NO child protagonist. NO human family. NO other creatures. NO text or letters.';
 
+/**
+ * The companion-only blocks of the prospective sheet path (CSR-1, 2026-10-28). They replace the Style 01 rendering correction there,
+ * which is written for a child ("Render the child with recognizably human facial proportions…") and says "NOT empty cream void
+ * background" next to the cream-background rule. They also replace the Style 01 page negative (Dini, cave pages, duplicate children).
+ * The legacy modes above keep their exact text.
+ */
+export const COMPANION_SHEET_RENDERING =
+  'RENDERING: soft watercolor storybook — visible paper texture, gentle pigment bleeds, warm local color, delicate linework, airy cream space around ONE isolated full-body figure. Hand-painted, never photographic. NOT harsh shadows. NOT a global orange filter.';
+export const COMPANION_SHEET_NEGATIVE =
+  'No readable text. No scene, ground props, panels or frames. No other creature, no child and no human. No tight crop and no figure filling the frame. No Style 02 cinematic rendering.';
+
+/**
+ * One prompt of the prospective companion-only path: an angle/expression variant under its view contract, or a new companion's
+ * concept front. No child, page or story prose.
+ */
+export function composeCompanionOnlySheetPrompt(input: {
+  mode: 'angle_variant_contract' | 'concept_front_technique_refs';
+  viewLine: string;
+  /** The view contract text (required for an angle variant, absent for a concept front). */
+  contract?: string;
+  visualLock: string;
+  accessoryLock?: string;
+  style: Pick<CompanionSheetStyleBlocks, 'shared' | 'noText' | 'antiStyle02'>;
+}): string {
+  const variant = input.mode === 'angle_variant_contract';
+  if (variant !== Boolean(input.contract?.trim())) throw new Error('companion_sheet_contract_required');
+  return [
+    ...(variant ? INTRO.angle_variant : INTRO.concept_front_technique_refs),
+    variant ? PALETTE_FAITHFULNESS : undefined,
+    input.viewLine,
+    input.contract,
+    COMPANION_SHEET_BACKGROUND_RULE,
+    input.style.shared,
+    COMPANION_SHEET_RENDERING,
+    `COMPANION VISUAL LOCK (verbatim): ${input.visualLock}`,
+    input.accessoryLock,
+    input.style.noText,
+    input.style.antiStyle02,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 export function composeCompanionSheetPrompt(input: {
   mode: CompanionSheetPromptMode;
   viewLine: string;

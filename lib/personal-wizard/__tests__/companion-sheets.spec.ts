@@ -8,15 +8,17 @@ import sharp from 'sharp';
 import { COMPANIONS_BY_CATEGORY } from '../../companions';
 import { buildCompanionSheetPrompt, COMPANION_SHEET_VIEW_KINDS } from '../../generation-pipeline/companion-character-sheet';
 import { PALETTE_FAITHFULNESS, COMPANION_SHEET_VIEW_SCENE } from '../../generation-pipeline/companion-sheet-prompt';
+import { CONTRACT_VIEW_LINE } from '../../generation-pipeline/companion-sheet-view-contract';
 import { STYLE_REFERENCE_PREFIX } from '../../generate-image';
-import { PERSONAL_ADDED_COMPANIONS, personalCompanionVisual } from '../personal-companions';
+import { getPersonalAddedCompanion, PERSONAL_ADDED_COMPANIONS, personalCompanionVisual } from '../personal-companions';
 import { companionIdentityReference } from '../companion-identity';
 import { AuditionMeter, auditionRenderPlan, auditionRenderRule, auditionReviewRule, renderMaximum, REVIEW_MODEL } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { READER_PORTRAIT_FRAMING_VERSION } from '../../storybook-scene-framing';
 import { admitCompanionSheetGrant, companionSheetDisposition, companionSheetMeterRules, companionSheetRenderPlan, companionSheetRenderRule,
   companionSheetReviewPayload, companionSheetReviewRule, parseCompanionSheetReview, runCompanionSheets, COMPANION_SHEET_SOURCE_FILES,
-  COMPANION_SHEETS_EXECUTING_PHASE, COMPANION_SHEETS_EXECUTOR, COMPANION_SHEETS_REGISTRY_KEY, type CompanionSheetProviders,
-  type CompanionSheetReview } from '../../../scripts/personal-companion-sheets';
+  COMPANION_SHEETS_EXECUTING_PHASE, COMPANION_SHEETS_EXECUTOR, COMPANION_SHEETS_REGISTRY_KEY, COMPANION_SHEET_REVIEW_INSTRUCTIONS, type CompanionSheetProviders,
+  type CompanionSheetReview, admitCompanionSheetRepairGrant, runCompanionSheetRepair, REPAIR_LEASE, companionSheetGeometrySha,
+  companionSheetRepairDisposition } from '../../../scripts/personal-companion-sheets';
 
 const ROOT = path.resolve(__dirname, '../../..');
 const sha = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
@@ -24,6 +26,7 @@ const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8');
 const png = (shade = 240) => sharp({ create: { width: 1024, height: 1536, channels: 3, background: { r: shade, g: 236, b: 222 } } }).png().toBuffer();
 const momo = () => personalCompanionVisual('elephant_momo')!;
 const MOMO_BODY = { legs: 4, upright: true, trunk: 1, tusks: 0, ears: 2, accessories: ['coral neckerchief, knot on his left'] };
+const MOMO_GEOMETRY = getPersonalAddedCompanion('elephant_momo')!.sheetGeometry!;
 
 describe('the shared sheet prompt data moved without changing one legacy prompt', () => {
   it('every legacy prompt (all registry companions × views × modes, and a null category) has the pre-move digest', () => {
@@ -74,19 +77,29 @@ describe('the seven approved looks are declared; the two without a look are not'
 });
 
 describe('prompts: an angle view and a concept front', () => {
-  it('an angle view is the legacy angle prompt over the declared lock, with ONE reference: the approved front', async () => {
+  it('an angle view is the companion-only angle prompt over the declared lock and its view contract, with ONE reference: the approved front', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'cs-plan-')), front = path.join(dir, 'front.png'); writeFileSync(front, await png());
-    const plan = companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'side', references: [front], visualLock: momo().description });
+    const plan = companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'side', references: [front], visualLock: momo().description, geometry: MOMO_GEOMETRY });
     expect(plan.input.finalPrompt).toContain(`COMPANION VISUAL LOCK (verbatim): ${momo().description}`);
-    expect(plan.input.finalPrompt).toContain(COMPANION_SHEET_VIEW_SCENE.side);
+    expect(plan.input.finalPrompt).toContain(CONTRACT_VIEW_LINE.side);
+    expect(plan.input.finalPrompt).not.toContain(COMPANION_SHEET_VIEW_SCENE.side); // the legacy "(left or right)" line
+    expect(plan.input.finalPrompt).toContain("Facing: the companion faces the viewer's LEFT in a clean profile, so the viewer sees its own LEFT side.");
+    expect(plan.input.finalPrompt).toContain('Accessory: the neckerchief knot sits on the NEAR side of the neck, fully visible');
     expect(plan.input.finalPrompt).toContain('STYLE 01 COMPANION CHARACTER SHEET — angle/expression variant.');
     expect(plan.input.finalPrompt).toContain(PALETTE_FAITHFULNESS);
-    expect(plan.wire).toMatchObject({ mode: 'images.edit', sheetView: 'side', retries: 0, body: { model: 'gpt-image-2', quality: 'low', size: '1024x1536', n: 1 } });
+    // Companion-only: no child rendering block, no page negative, no "void" against the cream rule.
+    for (const banned of ['Render the child', 'NOT empty cream void', 'Dini', 'duplicate human children', 'photoreal child portrait'])
+      expect(plan.wire.body.prompt).not.toContain(banned);
+    expect(plan.wire).toMatchObject({ mode: 'images.edit', sheetView: 'side', sheetPlan: 'companion-sheet-wire/v2', retries: 0,
+      sheetContract: { version: 'companion-sheet-view-contract/v1', view: 'side', sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      body: { model: 'gpt-image-2', quality: 'low', size: '1024x1536', n: 1 } });
     expect(plan.wire.references).toHaveLength(1);
     expect('readerFraming' in plan.wire).toBe(false);
     expect(plan.maximumMicroUsd).toBe(renderMaximum(plan.wire.body.prompt, 1));
-    const theme = companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'theme', references: [front], visualLock: momo().description });
-    expect(theme.input.finalPrompt).toContain('THEME expression: one gentle story-appropriate mood'); // generic: added companions have no category
+    const theme = companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'theme', references: [front], visualLock: momo().description, geometry: MOMO_GEOMETRY });
+    expect(theme.input.finalPrompt).toContain(CONTRACT_VIEW_LINE.theme);
+    // No angle without geometry, and no geometry on a concept.
+    expect(() => companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'side', references: [front], visualLock: momo().description })).toThrow('companion_sheet_geometry');
   });
   it('a concept front uses technique-only references and never asks to copy a reference palette', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'cs-plan-')), a = path.join(dir, 'a.png'), b = path.join(dir, 'b.png');
@@ -98,6 +111,8 @@ describe('prompts: an angle view and a concept front', () => {
     expect(plan.input.finalPrompt).not.toContain(PALETTE_FAITHFULNESS);
     expect(plan.wire.body.prompt.startsWith(STYLE_REFERENCE_PREFIX)).toBe(true);
     expect(plan.wire.references).toHaveLength(2);
+    expect(plan.wire).toMatchObject({ sheetPlan: 'companion-sheet-wire/v2', sheetContract: null });
+    for (const banned of ['Render the child', 'NOT empty cream void', 'Dini']) expect(plan.wire.body.prompt).not.toContain(banned);
   });
 });
 
@@ -115,18 +130,28 @@ describe('a sheet is never a reader page and a reader page is never a sheet (bot
   });
   it('the sheet render rule prices only its own exact wire', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'cs-rule-')), front = path.join(dir, 'front.png'); writeFileSync(front, await png());
-    const wire = JSON.parse(JSON.stringify(companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'happy', references: [front], visualLock: momo().description }).wire));
+    const wire = JSON.parse(JSON.stringify(companionSheetRenderPlan({ companionId: 'elephant_momo', view: 'happy', references: [front], visualLock: momo().description,
+      geometry: MOMO_GEOMETRY }).wire));
     expect(companionSheetRenderRule.reserve(wire)).toBe(renderMaximum(wire.body.prompt, 1));
     expect(auditionRenderRule.reserve(wire)).toBeNull();
     for (const bad of [{ readerFraming: READER_PORTRAIT_FRAMING_VERSION }, { sheetPlan: undefined }, { sheetView: 'front' }, { retries: 1 },
+      { sheetPlan: 'companion-sheet-wire/v1' }, { sheetContract: null }, { sheetContract: { ...wire.sheetContract, view: 'side' } },
+      { sheetContract: { ...wire.sheetContract, version: 'companion-sheet-view-contract/v0' } },
       { references: [] }, { references: [wire.references[0], wire.references[0]] }, { body: { ...wire.body, quality: 'high' } },
       { body: { ...wire.body, size: '1024x1024' } }, { body: { ...wire.body, n: 2 } }, { pricing: 'cheaper' }, { outputReservationTokens: 100 }])
       expect(companionSheetRenderRule.reserve({ ...wire, ...bad })).toBeNull();
   });
   it('reviews: each rule prices only its own marker; step names select exactly one rule and never a front render', async () => {
     const images = await Promise.all(COMPANION_SHEET_VIEW_KINDS.map(async (view, i) => ({ view, provenance: 'generated' as const, bytes: await png(200 + i) })));
-    const sheetReview = JSON.parse(JSON.stringify(await companionSheetReviewPayload({ companionId: 'elephant_momo', description: momo().description, body: MOMO_BODY, images })));
+    const sheetReview = JSON.parse(JSON.stringify(await companionSheetReviewPayload({ companionId: 'elephant_momo', description: momo().description, body: MOMO_BODY,
+      geometry: MOMO_GEOMETRY, images })));
     expect(companionSheetReviewRule.reserve(sheetReview)).toBe(600000);
+    expect(companionSheetReviewRule.reserve({ ...sheetReview, metadata: { companion_sheet_review: 'companion-sheet-review/v1' } })).toBeNull();
+    // v2 keeps every v1 instruction and adds each view's contract to the payload.
+    expect(sheetReview.instructions.startsWith(COMPANION_SHEET_REVIEW_INSTRUCTIONS)).toBe(true);
+    const packet = JSON.parse(sheetReview.input[0].content[0].text);
+    expect(packet.images.map((i: any) => i.viewContract.view)).toEqual(COMPANION_SHEET_VIEW_KINDS);
+    expect(packet.images[3].viewContract.hides).toContain('the WHOLE face: no eye, none of eyes, rosy cheeks, trunk is visible');
     expect(auditionReviewRule.reserve(sheetReview)).toBeNull();
     const pageReview = { model: REVIEW_MODEL, service_tier: 'default', max_output_tokens: 12000 };
     expect(auditionReviewRule.reserve(pageReview)).toBe(600000);
@@ -134,7 +159,10 @@ describe('a sheet is never a reader page and a reader page is never a sheet (bot
     expect(companionSheetMeterRules('sheet_elephant_momo_side_1')).toBe(companionSheetRenderRule);
     expect(companionSheetMeterRules('sheet_elephant_momo_review_2')).toBe(companionSheetReviewRule);
     expect(companionSheetMeterRules('concept_ibex_tzuki_b')).toBe(companionSheetRenderRule);
-    for (const step of ['sheet_elephant_momo_front_1', 'sheet_elephant_momo_side_3', 'sheet_elephant_momo_review_3', 'concept_ibex_tzuki_c', 'page_1_0'])
+    expect(companionSheetMeterRules('repair_elephant_momo_three_quarter_back')).toBe(companionSheetRenderRule);
+    expect(companionSheetMeterRules('repair_elephant_momo_review')).toBe(companionSheetReviewRule);
+    for (const step of ['sheet_elephant_momo_front_1', 'sheet_elephant_momo_side_3', 'sheet_elephant_momo_review_3', 'concept_ibex_tzuki_c', 'page_1_0',
+      'repair_elephant_momo_front', 'repair_elephant_momo_review_1', 'repair_elephant_momo_side_1'])
       expect(companionSheetMeterRules(step)).toBeUndefined();
   });
 });
@@ -444,5 +472,154 @@ describe('round 2 (Codex CS-S0-F2): a passed set is exactly the bytes its review
     expect(r.stopped?.code).toBe('companion_sheet_reference_changed'); expect(f.calls.generate).toBe(5);
     expect(r.spend).toMatchObject({ calls: 5, unknownCost: 0 });
     expect(existsSync(path.join(s.grant.out, 'paid', 'sheet_elephant_momo_three_quarter_back_1.claim.json'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// CSR-1: the repair grant (retained judged bytes, held views only, one six-view review, never a redraw).
+// ---------------------------------------------------------------------------------------------------------------
+const viewVerdict = (view: string, held: boolean) => verdicts(held ? [view] : []).views.find(v => v.view === view)!;
+async function scratchRepair(edit: (g: any, ctx: { dir: string; draft: any; outcome: any }) => void = () => undefined,
+  opts: { registryPhase?: string; qa?: (outcomeSha: string) => string } = {}) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'csr-grant-')), file = (name: string, bytes: Buffer | string) => { const f = path.join(dir, name); writeFileSync(f, bytes); return f; };
+  const pin = (f: string) => ({ file: f, sha256: sha(readFileSync(f)) });
+  mkdirSync(path.join(dir, 'approved-looks', 'elephant_momo'), { recursive: true });
+  const front = file('approved-looks/elephant_momo/front-candidate.png', await png(241)), tq = file('approved-looks/elephant_momo/three-quarter-completion.png', await png(239));
+  const happy = file('sheet_elephant_momo_happy_1.png', await png(212)), theme = file('sheet_elephant_momo_theme_1.png', await png(213));
+  const draft: any = { companions: { elephant_momo: { visualDescription: momo().description, body: MOMO_BODY } } };
+  const index = [{ id: 'elephant_momo', file: 'approved-looks/elephant_momo/front-candidate.png', sha256: sha(readFileSync(front)) },
+    { id: 'elephant_momo', file: 'approved-looks/elephant_momo/three-quarter-completion.png', sha256: sha(readFileSync(tq)) }];
+  const priorGrant = file('prior-grant.json', '{"consumed":true}');
+  const outcome: any = { grantSha256: sha(readFileSync(priorGrant)), concepts: [], sheets: [{ companionId: 'elephant_momo', status: 'pending', reason: 'held_after_redraw',
+    views: { front: { sha256: sha(readFileSync(front)), verdict: viewVerdict('front', false) }, three_quarter_front: { sha256: sha(readFileSync(tq)), verdict: viewVerdict('three_quarter_front', false) },
+      side: { sha256: '1'.repeat(64), verdict: viewVerdict('side', true) }, three_quarter_back: { sha256: '2'.repeat(64), verdict: viewVerdict('three_quarter_back', true) },
+      happy: { sha256: sha(readFileSync(happy)), verdict: viewVerdict('happy', false) }, theme: { sha256: sha(readFileSync(theme)), verdict: viewVerdict('theme', false) } } }],
+    spend: { newKnownApiMicroUsd: 350982, calls: 12, unknownCost: 0, unknownOutcome: 0, reservedUnsettledMicroUsd: 0 } };
+  const head = execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const grant: any = { version: 'companion-sheet-repair-grant/v1', stage: 'R1', ledger: { name: 'companion-sheets-20261028', priorKnownApiMicroUsd: 350982, priorCalls: 12 },
+    capMicroUsd: 1500000, maxCalls: 3, out: path.join(dir, 'run'), registry: path.join(dir, 'registry.json'),
+    lineage: { descriptions: pin(file('draft.json', '')), approvedIndex: pin(file('index.json', JSON.stringify(index))), ownerLooks: pin(file('looks.txt', 'מאשר את כולם')),
+      ownerAuthorization: pin(file('owner.txt', 'יש אישור')), priorGrant: pin(priorGrant), priorOutcome: pin(file('outcome.json', '')), priorOutcomeQa: pin(file('outcome-qa.txt', '')) },
+    source: { root: ROOT, commit: head, files: Object.fromEntries(COMPANION_SHEET_SOURCE_FILES.map(f => [f, sha(readFileSync(path.join(ROOT, f)))])) },
+    sheet: { companionId: 'elephant_momo', descriptionSha256: sha(momo().description), geometrySha256: companionSheetGeometrySha(MOMO_GEOMETRY), body: MOMO_BODY,
+      front: pin(front), threeQuarter: pin(tq), retained: [{ view: 'happy', image: pin(happy) }, { view: 'theme', image: pin(theme) }], repair: ['side', 'three_quarter_back'] } };
+  edit(grant, { dir, draft, outcome });
+  const repin = (p: any, bytes: string) => { writeFileSync(p.file, bytes); p.sha256 = sha(readFileSync(p.file)); };
+  repin(grant.lineage.descriptions, JSON.stringify(draft));
+  repin(grant.lineage.priorOutcome, JSON.stringify(outcome));
+  repin(grant.lineage.priorOutcomeQa, (opts.qa ?? (o => `DISPOSITION: PASS\nOUTCOME_SHA256: ${o}\n`))(grant.lineage.priorOutcome.sha256));
+  const grantFile = file('grant.json', JSON.stringify(grant, null, 2)), grantSha = sha(readFileSync(grantFile));
+  writeFileSync(grant.registry, JSON.stringify({ phase: opts.registryPhase ?? REPAIR_LEASE.phase,
+    coordination: { activeWriter: REPAIR_LEASE.executor, activeQA: null }, [REPAIR_LEASE.key]: { executeGrantSha256: grantSha } }));
+  return { dir, grant, grantFile, outcome, keyFile: file('key.env', 'OPENAI_API_KEY=test-not-a-real-key\n') };
+}
+
+describe('CSR-1 repair grant: binds the prior PASS-reviewed outcome, retains only judged passing bytes, repairs only held views', () => {
+  it('admits the exact repair grant: 2 renders + 1 review = 3 calls, inside the cumulative cap', async () => {
+    const s = await scratchRepair(), a = admitCompanionSheetRepairGrant(s.grantFile);
+    expect(a.grant.maxCalls).toBe(3); expect(a.geometry).toEqual(MOMO_GEOMETRY);
+  });
+  it.each([
+    ['a retained view the prior review held', (g: any) => { g.sheet.retained[0] = { view: 'side', image: g.sheet.retained[0].image }; g.sheet.repair = ['happy', 'three_quarter_back']; }, 'companion_sheet_repair_retained'],
+    ['retained bytes other than the judged ones', (_g: any, c: any) => { c.outcome.sheets[0].views.happy.sha256 = '3'.repeat(64); }, 'companion_sheet_repair_retained'],
+    ['a retained view whose pass had a failed check', (_g: any, c: any) => { c.outcome.sheets[0].views.theme.verdict.anatomyConsistent = false; }, 'companion_sheet_repair_retained'],
+    ['repairing a view that passed', (g: any) => { g.sheet.repair = ['side', 'happy']; g.sheet.retained = [{ view: 'theme', image: g.sheet.retained[1].image }]; }, 'companion_sheet_repair_views'],
+    ['a view neither retained nor repaired', (g: any) => { g.sheet.retained = g.sheet.retained.slice(0, 1); }, 'companion_sheet_views'],
+    ['a front the prior review did not pass', (_g: any, c: any) => { c.outcome.sheets[0].views.front.verdict = viewVerdict('front', true); }, 'companion_sheet_front'],
+    ['a three-quarter other than the judged one', (_g: any, c: any) => { c.outcome.sheets[0].views.three_quarter_front.sha256 = '4'.repeat(64); }, 'companion_sheet_three_quarter'],
+    ['a prior outcome of another grant', (_g: any, c: any) => { c.outcome.grantSha256 = '5'.repeat(64); }, 'companion_sheet_repair_prior'],
+    ['a prior outcome with an unknown cost', (_g: any, c: any) => { c.outcome.spend.unknownCost = 1; }, 'companion_sheet_repair_prior'],
+    ['a prior spend other than the outcome\'s', (g: any) => { g.ledger.priorKnownApiMicroUsd = 0; }, 'companion_sheet_repair_prior'],
+    ['prior calls other than the outcome\'s', (g: any) => { g.ledger.priorCalls = 11; }, 'companion_sheet_repair_prior'],
+    ['a prior set that is not pending', (_g: any, c: any) => { c.outcome.sheets[0].status = 'passed'; }, 'companion_sheet_repair_prior'],
+    ['a cumulative cap above $2.50', (g: any, c: any) => { g.ledger.priorKnownApiMicroUsd = 1000001; c.outcome.spend.newKnownApiMicroUsd = 1000001; }, 'companion_sheet_repair_cap'],
+    ['another geometry', (g: any) => { g.sheet.geometrySha256 = '6'.repeat(64); }, 'companion_sheet_geometry'],
+    ['a body that disagrees with the geometry counts', (g: any, c: any) => { g.sheet.body = { ...MOMO_BODY, ears: 3 }; c.draft.companions.elephant_momo.body = g.sheet.body; }, 'companion_sheet_geometry'],
+    ['a call ceiling other than renders + one review', (g: any) => { g.maxCalls = 2; }, 'companion_sheet_calls'],
+    ['a changed source pin', (g: any) => { g.source.files['scripts/personal-simple-book-reviewed-audition.ts'] = '0'.repeat(64); }, 'companion_sheet_source'],
+    ['an existing output folder', (g: any) => { mkdirSync(g.out); }, 'companion_sheet_out'],
+  ])('refuses %s', async (_label, edit, code) => {
+    const s = await scratchRepair(edit as never);
+    expect(() => admitCompanionSheetRepairGrant(s.grantFile)).toThrow(code);
+  });
+  it('refuses a prior QA that is not a PASS or names another outcome; refuses a cap above $1.50 or more than 3 calls by schema', async () => {
+    for (const qa of [(o: string) => `DISPOSITION: HOLD\nOUTCOME_SHA256: ${o}\n`, () => `DISPOSITION: PASS\nOUTCOME_SHA256: ${'7'.repeat(64)}\n`]) {
+      const s = await scratchRepair(undefined, { qa });
+      expect(() => admitCompanionSheetRepairGrant(s.grantFile)).toThrow('companion_sheet_repair_prior');
+    }
+    for (const edit of [(g: any) => { g.capMicroUsd = 1500001; }, (g: any) => { g.maxCalls = 4; }, (g: any) => { g.sheet.repair = ['side', 'three_quarter_back', 'happy']; }]) {
+      const s = await scratchRepair(edit);
+      expect(() => admitCompanionSheetRepairGrant(s.grantFile)).toThrow();
+    }
+  });
+});
+
+describe('CSR-1 repair run (fake providers): two contract renders, one review, pass or pending, never a redraw', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('all pass: 3 calls; the published set is the granted front, the retained judged bytes and the two new renders, exactly as judged', async () => {
+    const s = await scratchRepair(), f = fakes([verdicts()]);
+    const r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped).toBeUndefined(); expect([f.calls.generate, f.calls.review]).toEqual([2, 1]);
+    expect(r.spend).toMatchObject({ calls: 3, maxCalls: 3, capMicroUsd: 1500000, unknownCost: 0 });
+    expect(r.cumulative).toMatchObject({ priorKnownApiMicroUsd: 350982, priorCalls: 12, cumulativeCalls: 15,
+      cumulativeAccountedMicroUsd: 350982 + r.spend.cumulativeAccountedMicroUsd, cumulativeCapMicroUsd: 2500000 });
+    expect(r.sheets[0]).toMatchObject({ status: 'passed', reviews: ['repair_elephant_momo_review'] });
+    const sent = judgedImages(f.calls.payloads[0]);
+    expect(sent.front).toBe(s.grant.sheet.front.sha256); expect(sent.three_quarter_front).toBe(s.grant.sheet.threeQuarter.sha256);
+    expect(sent.happy).toBe(s.grant.sheet.retained[0].image.sha256); expect(sent.theme).toBe(s.grant.sheet.retained[1].image.sha256);
+    expect(sent.side).toBe(paid(s.grant.out, 'repair_elephant_momo_side', 'receipt').candidate.imageSha);
+    expect(sent.three_quarter_back).toBe(paid(s.grant.out, 'repair_elephant_momo_three_quarter_back', 'receipt').candidate.imageSha);
+    const set = path.join(s.grant.out, 'sheets', 'elephant_momo', 'style01-sheets'), manifest = JSON.parse(readFileSync(path.join(set, 'manifest.json'), 'utf8'));
+    for (const view of COMPANION_SHEET_VIEW_KINDS) { expect(manifest.views[view].sha256).toBe(sent[view]); expect(sha(readFileSync(path.join(set, manifest.views[view].filename)))).toBe(sent[view]); }
+    // Each render's wire is the v2 contract wire of its own view; the review is v2 with every view's contract.
+    for (const view of ['side', 'three_quarter_back']) expect(paid(s.grant.out, `repair_elephant_momo_${view}`, 'wire'))
+      .toMatchObject({ sheetPlan: 'companion-sheet-wire/v2', sheetView: view, sheetContract: { view, version: 'companion-sheet-view-contract/v1' } });
+    expect(f.calls.payloads[0].metadata.companion_sheet_review).toBe('companion-sheet-review/v2');
+    expect(JSON.parse(readFileSync(path.join(s.grant.out, 'outcome.json'), 'utf8')).version).toBe('companion-sheet-repair-outcome/v1');
+  });
+  it('a held view (or front) after the repair: pending at 3 calls, no redraw, no re-review, no set', async () => {
+    for (const [held, reason] of [[['side'], 'held_after_repair'], [['front', 'theme'], 'front_held']] as const) {
+      const s = await scratchRepair(), f = fakes([verdicts([...held]), verdicts()]);
+      const r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+      expect(r.sheets[0]).toMatchObject({ status: 'pending', reason }); expect([f.calls.generate, f.calls.review, r.spend.calls]).toEqual([2, 1, 3]);
+      expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+    }
+    expect(companionSheetRepairDisposition(verdicts())).toEqual({ status: 'passed' });
+    const sneaky = verdicts(); sneaky.views[3] = { ...sneaky.views[3], accessoryConsistent: false };
+    expect(companionSheetRepairDisposition(sneaky)).toEqual({ status: 'pending', reason: 'held_after_repair' });
+  });
+  it('an unknown cost, an invalid answer or a provider failure stops with no further call and no set', async () => {
+    for (const [reviews, opts, code, calls, unknown] of [[['unknown'], {}, 'companion_sheet_review_invalid', [2, 1], 1],
+      [['schema'], {}, 'companion_sheet_review_schema', [2, 1], 0], [[], { imageUsage: null }, 'audition_unknown_cost', [1, 0], 1],
+      [[], { imageThrowsAt: 1 }, 'companion_sheet_image_provider_failed', [1, 0], 1]] as const) {
+      const s = await scratchRepair(), f = fakes([...reviews] as never, opts as never);
+      const r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+      expect(r.stopped?.code).toBe(code); expect([f.calls.generate, f.calls.review]).toEqual(calls); expect(r.spend.unknownCost).toBe(unknown);
+      expect(r.sheets[0].status).toBe('stopped'); expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+    }
+  });
+  it('the repair lease, not the S1 lease: absent → nothing created; revoked after a claim → no key, no call; lost in flight → result unused', async () => {
+    let s = await scratchRepair(undefined, { registryPhase: COMPANION_SHEETS_EXECUTING_PHASE }), f = fakes([verdicts()]);
+    await expect(runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers })).rejects.toThrow('companion_sheet_lease');
+    expect(existsSync(s.grant.out)).toBe(false);
+    s = await scratchRepair(); f = fakes([verdicts()]);
+    const spy = revokeAfterClaim(s.grant.registry, 'repair_elephant_momo_side');
+    let r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: path.join(s.dir, 'no-key.env'), signal: signal(), providers: f.providers });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(r.stopped?.code).toBe('companion_sheet_lease'); expect([f.calls.generate, f.calls.review, f.calls.keys.length]).toEqual([0, 0, 0]);
+    expect(r.spend).toMatchObject({ calls: 1, unknownCost: 1 });
+    vi.restoreAllMocks();
+    s = await scratchRepair(); f = fakes([verdicts()], { onReview: () => revoke(s.grant.registry) });
+    r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_lease'); expect(r.sheets[0]).toMatchObject({ status: 'stopped', views: {} });
+    expect(paid(s.grant.out, 'repair_elephant_momo_review', 'result')).toMatchObject({ completed: true });
+    expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+  });
+  it('a retained working copy changed during the review: nothing is published; a consumed repair grant cannot run again', async () => {
+    const s = await scratchRepair(), f = fakes([verdicts()], { onReview: () => { const file = path.join(s.grant.out, 'illustrations', 'elephant_momo_happy_retained.png');
+      writeFileSync(file, Buffer.concat([readFileSync(file), Buffer.from('x')])); } });
+    const r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
+    expect(r.stopped?.code).toBe('companion_sheet_reviewed_bytes_changed'); expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
+    await expect(runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers })).rejects.toThrow('companion_sheet_out');
   });
 });

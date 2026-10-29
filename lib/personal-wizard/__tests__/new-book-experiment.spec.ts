@@ -371,7 +371,9 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 });
 
 // Whole synthetic auditions (two sheets, nine frames, guard checks before every call) take several seconds each.
-describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 60_000 }, () => {
+// 120 s (was 60 s): since CSR-1 (2026-10-28) the caller guard (here the full lineage re-derivation) runs three times per paid call (before the
+// claim, inside it, after it) instead of once; with instant synthetic providers that guard dominates, so the longest cases went from ~37 s to over 60 s.
+describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 120_000 }, () => {
   const ANSWER = { referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true, sameChildDecision: 'same',
     faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' };
   async function prepared(opts: { continued?: true; second?: true; third?: true; repaired?: true; repaired2?: true; accepted?: true } = {}) {
@@ -1293,10 +1295,11 @@ describe('F4 residual: the guard is re-checked right before every claim (asynchr
       expect(b.state.invalid).toBe(true);
       expect([claimsIn(b.dir).length, b.state.keyReads, sdk.create.mock.calls.length]).toEqual([0, 0, 0]);
     });
-    it('4) source changes during a dispatched call: that response and its cost are kept; the next call is refused before its claim', async () => {
+    it('4) source changes during a dispatched call: that response and its cost are kept, its verdict is not used; the next call is refused before its claim', async () => {
       const b = await bench();
       sdk.create.mockImplementation(async (payload: any) => { b.state.invalid = true; return reviewFor(payload, true); });
-      await judgeOnce(b, 'sheet_entities_0_qa');
+      // CSR-1 (2026-10-28): the guard also fences the result once the call is recorded, so the verdict is withheld (it was returned before).
+      await expect(judgeOnce(b, 'sheet_entities_0_qa')).rejects.toThrow('new_book_source_changed');
       expect(json(path.join(b.dir, 'paid-stages', 'sheet_entities_0_qa.result.json'))).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
       await expect(judgeOnce(b, 'sheet_entities_1_qa')).rejects.toThrow('new_book_source_changed');
       expect(claimsIn(b.dir)).toEqual(['sheet_entities_0_qa']);
