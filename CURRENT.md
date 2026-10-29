@@ -1,5 +1,16 @@
 # SmallHeroes — Current Technical State
 
+## Engine continuity repair A–E (2026-10-29; Guy approved building A–E at $0, each stage gated by Codex)
+
+- Plan: REPAIR-PLAN-FINAL.txt (engine-diagnosis-20261029, Codex PASS as a plan). Milestone ART/claude-engine-continuity-20261029
+  (lease key engineContinuity20261029; coordination.cjs: acquire / qa / qa-release / fix / next / close).
+- Stage A (b6877b79 + tests dcbb0f67): scripts/personal-audition-continuity-report.ts.
+  - It reads a saved book and writes ONE new report (exclusive create, never inside the book). No engine behaviour change.
+  - On R17, projected to the two diagnosis probes, it reproduces probe-r2-static.json and probe-counterfactual.json exactly
+    (A-PROBE-PARITY.json). The R17 book is byte-identical after (279 files).
+  - Spec 6/6 on two synthetic worlds; mutants 11/11; tsc 0.
+- Next: stage B (reference-qualification/v1) after Codex's PASS on A.
+
 ## R17 book DELIVERED as a local diagnostic (2026-10-29): "עידו ומגרש הקוביות הקופצות", Dad narration; illustrations HELD
 
 - Codex R5 PASS (0abc4b04) on grant 098f17e3 → one run 16:25–17:10Z (foreground.cjs via Start-Process, no retry) → full_book_diagnostic.

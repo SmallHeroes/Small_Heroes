@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Engine continuity repair (2026-10-29)
+
+- Guy approved building A → B → C → D → E of the reviewed plan at $0, each stage gated by Codex. The paid image experiment is a
+  separate decision.
+- Stage A (the read-only continuity report) built and matched to both diagnosis probes → Codex QA. Then B, C, D, E.
+
 ## R17 the one book (2026-10-29)
 
 - The Wizard submission (fictional Ido 6 + Momo + Dad, 8 pages) is recorded. R4 HOLD F1 (the receipt was not sealed) → fixed in
