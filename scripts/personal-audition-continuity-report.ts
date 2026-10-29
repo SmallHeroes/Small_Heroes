@@ -14,7 +14,7 @@
  * Every id comes from the book's own storyboard. Nothing here is a re-judgement or a visual verdict.
  *   npx tsx scripts/personal-audition-continuity-report.ts <bookDir> <out.json> [--ambiguous <requirementId>]...
  */
-import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const AUDITION_CONTINUITY_REPORT_VERSION = 'audition-continuity-report/v1' as const;
@@ -38,23 +38,48 @@ function renderPrompt(wire: any): string {
   return best;
 }
 const unique = <T>(xs: T[]) => [...new Set(xs)];
-/** The review wire nests its context as an escaped JSON string; these read only fixed context keys from it. */
-/** The SET of image names the review context names (sorted: field order in the context is not meaningful). */
-const escapedNames = (text: string) => unique([...text.matchAll(/\\"imageName\\":\\"([^"\\]+)\\"/g)].map(m => m[1])).sort();
-function escapedPredecessor(text: string) {
-  const m = text.match(/\\"predecessor\\":(null|\{[^}]*\})/);
-  if (!m) return { present: false, imageName: null };
-  if (m[1] === 'null') return { present: true, imageName: null };
-  return { present: true, imageName: (m[1].match(/\\"imageName\\":\\"([^"\\]+)\\"/) ?? [])[1] ?? null };
+const isObject = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+/**
+ * The review context of a saved QA wire, decoded: the one input_text whose JSON payload carries an object `context` (the judge envelope
+ * {candidateSha, contextSha, context, imageRoles}). None or several → null (unsupported, never guessed).
+ */
+function reviewContext(wire: any): Record<string, any> | null {
+  const found: Record<string, any>[] = [];
+  for (const m of Array.isArray(wire?.input) ? wire.input : []) for (const c of Array.isArray(m?.content) ? m.content : []) {
+    if (c?.type !== 'input_text' || typeof c.text !== 'string') continue;
+    let payload: unknown;
+    try { payload = JSON.parse(c.text); } catch { continue; }
+    if (isObject(payload) && isObject(payload.context)) found.push(payload.context);
+  }
+  return found.length === 1 ? found[0] : null;
 }
-function escapedReferenceStatus(text: string) {
-  const role = (r: string) => (text.match(new RegExp(`\\\\"referenceStatus\\\\":\\{.*?\\\\"${r}\\\\":\\{\\\\"status\\\\":\\\\"(\\w+)\\\\"`)) ?? [])[1] ?? null;
-  return { entities: role('entities'), locations: role('locations') };
+/** Fields read from the decoded context only. Absent (unknown) stays null; a known empty or null value is reported as such. */
+function reviewFields(context: Record<string, any> | null, landmarks: readonly string[]) {
+  if (!context) return { contextFound: false, references: null, predecessor: null, referenceStatus: null,
+    plannedVisible: Object.fromEntries(landmarks.map(id => [id, null])) as Record<string, boolean | null> };
+  const predecessor = !('predecessor' in context) ? { present: false, imageName: null }
+    : { present: true, imageName: isObject(context.predecessor) && typeof context.predecessor.imageName === 'string' ? context.predecessor.imageName : null };
+  // The SET of images the judge received: its references plus the separately supplied predecessor (sorted: order is not meaningful).
+  const references = Array.isArray(context.references)
+    ? unique([...context.references.map((r: any) => r?.imageName).filter((n: unknown): n is string => typeof n === 'string'),
+      ...(predecessor.imageName ? [predecessor.imageName] : [])]).sort()
+    : null;
+  const status = (role: string) => isObject(context.referenceStatus) && typeof context.referenceStatus[role]?.status === 'string' ? context.referenceStatus[role].status : null;
+  const listed: any[] = Array.isArray(context.checks?.uniqueLandmarks) ? context.checks.uniqueLandmarks : [];
+  const plannedVisible = Object.fromEntries(landmarks.map(id => {
+    const l = listed.find(x => x?.id === id);
+    return [id, typeof l?.plannedVisible === 'boolean' ? l.plannedVisible : null];
+  })) as Record<string, boolean | null>;
+  return { contextFound: true, references, predecessor,
+    referenceStatus: isObject(context.referenceStatus) ? { entities: status('entities'), locations: status('locations') } : null, plannedVisible };
 }
-const escapedPlannedVisible = (text: string, id: string) => {
-  const m = text.match(new RegExp(`\\\\"id\\\\":\\\\"${id.replace(/[^a-z0-9_]/gi, '')}\\\\",\\\\"design\\\\":\\\\"[^"]*?\\\\",\\\\"plannedVisible\\\\":(true|false)`));
-  return m ? m[1] === 'true' : null;
-};
+/** Physical paths (junctions and symlinks resolved), compared case-insensitively on Windows. */
+const physical = (p: string) => { try { return realpathSync.native(p); } catch { return realpathSync(p); } };
+const comparable = (p: string) => process.platform === 'win32' ? p.toLowerCase() : p;
+function within(dir: string, target: string) {
+  const rel = path.relative(comparable(dir), comparable(target));
+  return rel === '' || !(rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel));
+}
 const listAfter = (line: string | null) => line ? line.replace(/^[^:]*:\s*/, '').replace(/[.\s]+$/, '').split(/\s*,\s*/).filter(Boolean) : [];
 
 export type ContinuityReportOptions = { ambiguousRequirements?: readonly string[] };
@@ -67,12 +92,11 @@ export function auditionContinuityReport(bookDir: string, options: ContinuityRep
   if (!continuity || !Array.isArray(continuity.pages) || !Array.isArray(continuity.entities)) fail('continuity_report_storyboard');
   const entities: { id: string; kind: string; invariants?: { attribute: string; value: string }[] }[] = continuity.entities;
   const landmarks = entities.filter(e => e.kind === 'landmark').map(e => e.id);
-  // An entity whose written design names another entity (e.g. a tail "made of an orange block" beside a separate orange block prop).
-  const partMentions = entities.flatMap(e => {
-    const text = (e.invariants ?? []).map(i => i.value).join(' ');
-    return entities.filter(f => f.id !== e.id && text.toLowerCase().includes(f.id.split('_').join(' ').toLowerCase()))
-      .map(f => ({ entity: e.id, mentions: f.id, text }));
-  });
+  // An invariant of one entity that names another entity (e.g. a tail "made of an orange block" beside a separate orange block prop).
+  // Per invariant, so the render check below looks for exactly the text that names it. A text heuristic, never an instance verdict.
+  const partMentions = entities.flatMap(e => (e.invariants ?? []).flatMap(inv =>
+    entities.filter(f => f.id !== e.id && String(inv.value).toLowerCase().includes(f.id.split('_').join(' ').toLowerCase()))
+      .map(f => ({ entity: e.id, mentions: f.id, attribute: inv.attribute, text: String(inv.value) }))));
   const ambiguousExtra = [...(options.ambiguousRequirements ?? [])];
   const ambiguous = (f: { requirement: string; verdict: string }) =>
     (f.requirement.startsWith('landmark_unique:') && f.verdict === 'uncertain') || ambiguousExtra.includes(f.requirement);
@@ -83,9 +107,9 @@ export function auditionContinuityReport(bookDir: string, options: ContinuityRep
       verdict: String(f.verdict), impact: String(f.impact), derived: !!f.derived }));
     const attempts = ((record?.attempts ?? []) as any[]).map(a => {
       const render = optionalJson(path.join(stages, `page_${n}_${a.attempt}.wire.json`)), qa = optionalJson(path.join(stages, `page_${n}_${a.attempt}_qa.wire.json`));
-      const prompt = render ? renderPrompt(render) : '', qaText = qa ? JSON.stringify(qa) : '';
+      const prompt = render ? renderPrompt(render) : '', review = qa ? reviewFields(reviewContext(qa), landmarks) : null;
       const uniqueLine = (prompt.match(/UNIQUE LANDMARKS \(one each, never duplicated\):[^\n.]*/) ?? [])[0] ?? null;
-      const plannedVisible = Object.fromEntries(landmarks.map(id => [id, qa ? escapedPlannedVisible(qaText, id) : null]));
+      const plannedVisible = review?.plannedVisible ?? Object.fromEntries(landmarks.map(id => [id, null]));
       const renderLandmarks = listAfter(uniqueLine);
       const renderReferences = ((render?.references ?? []) as any[]).map(r => String(r?.imageName ?? ''));
       return { attempt: Number(a.attempt), renderWire: !!render, reviewWire: !!qa,
@@ -93,9 +117,9 @@ export function auditionContinuityReport(bookDir: string, options: ContinuityRep
           contextPredecessor: (prompt.match(/"predecessor":(null|\{[^}]*\})/) ?? [])[1] ?? null,
           uniqueLandmarksLine: uniqueLine, notYetLine: (prompt.match(/NOT YET IN THE STORY[^\n]*/) ?? [])[0] ?? null,
           mentionsPlannedVisible: /plannedVisible/.test(prompt),
-          partMentionsInRender: partMentions.map(p => ({ entity: p.entity, mentions: p.mentions, inRender: prompt.includes(p.text) })) },
-        review: { references: qa ? escapedNames(qaText) : [], predecessor: qa ? escapedPredecessor(qaText) : null,
-          referenceStatus: qa ? escapedReferenceStatus(qaText) : null, plannedVisible },
+          partMentionsInRender: partMentions.map(p => ({ entity: p.entity, mentions: p.mentions, attribute: p.attribute, inRender: prompt.includes(p.text) })) },
+        review: review ? { contextFound: review.contextFound, references: review.references, predecessor: review.predecessor,
+          referenceStatus: review.referenceStatus, plannedVisible } : null,
         // Landmarks the render prose lists as unique although the review says they are not planned visible in this frame.
         unscopedRenderLandmarks: renderLandmarks.filter(id => plannedVisible[id] === false) };
     });
@@ -124,11 +148,15 @@ export function auditionContinuityReport(bookDir: string, options: ContinuityRep
       pagesHeldOnlyByAmbiguousRules: pages.filter((p: any) => p.counterfactual.criticalFindings > 0 && p.counterfactual.remainingCritical === 0).map((p: any) => p.page) } };
 }
 
-/** Writes the report once (exclusive create), never inside the saved book. */
+/**
+ * Writes the report once (exclusive create), never inside the saved book. Checked both as written and PHYSICALLY: the book and the
+ * output's existing parent are resolved through junctions and symlinks, so an alias that points into the book is refused too.
+ */
 export function writeAuditionContinuityReport(bookDir: string, outFile: string, options: ContinuityReportOptions = {}) {
-  const book = path.resolve(bookDir), out = path.resolve(outFile), rel = path.relative(book, out);
-  const outside = rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
-  if (!path.isAbsolute(outFile) || !outside) fail('continuity_report_output');
+  if (!path.isAbsolute(outFile)) return fail('continuity_report_output');
+  const book = path.resolve(bookDir), out = path.resolve(outFile), parent = path.dirname(out);
+  // The physical comparison also covers every lexical case (a path written inside the book resolves inside it too).
+  if (!existsSync(parent) || within(physical(book), path.join(physical(parent), path.basename(out)))) fail('continuity_report_output');
   const report = auditionContinuityReport(book, options);
   writeFileSync(out, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   return report;
