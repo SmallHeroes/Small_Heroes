@@ -5,9 +5,8 @@
 - Outcome QA of CSR-2 passed. Guy chose Momo's size "A" (60–75% of the child's height). Code 8ab0977d + tests e47ccafb: the applied
   set is in public/, so Momo is selectable by the existing rule; the size sentence is in his visual lock. $0, no provider.
 - The options fingerprint moves (f5ad4e9d… → 98da536b…) and every derived pin with it; a test proves the old menu gives the old pins.
-- Next:
-  - Codex QA (sent automatically, per Guy 10/29);
-  - the one book: Guy fills the local Wizard with Momo → R4 grant → Codex → run.
+- Codex PASS (no introduced finding; three pre-existing P3 test-debt items for a separate change). Closed.
+- Next: the one book. Guy fills the local Wizard with Momo → R4 grant → Codex → run.
 
 ## CSR-2 owner acceptance (2026-10-29)
 

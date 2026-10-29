@@ -1,6 +1,13 @@
 # SmallHeroes — Current Technical State
 
-## ADM-1: Momo is admitted, medium-sized beside the child (2026-10-29, $0; awaiting Codex QA)
+## ADM-1: Momo is admitted, medium-sized beside the child (2026-10-29, $0; Codex PASS, closed)
+
+- Codex PASS on 4411ce00 (INDEPENDENT-QA.txt in claude-momo-admission-20261029): no introduced finding; 386/386 independently; tsc 0.
+  Three P3 findings, all pre-existing and outside ADM-1, for a separate change:
+  - simple-book-flow.spec:184 expects a 25000000 ceiling to be refused, but the meter allowlist accepts it (stale test);
+  - four slow simple-book-flow tests exceed their limits on Codex's host on BOTH revisions (my host passed two of them);
+  - story-writer.spec:196 still expects the old legacy copy.
+- Lease closed (done); the registry is back at the R17 book slot (MOMENTUM_BOOK_QA_RELEASED). The baseline worktree was removed.
 
 - Codex PASSed the CSR-2 outcome. Guy chose Momo's size: "A, תמשיך" (about 60–75% of the child's height, chest to shoulder).
 - Code 8ab0977d:
