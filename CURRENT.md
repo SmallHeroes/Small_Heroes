@@ -1,6 +1,25 @@
 # SmallHeroes — Current Technical State
 
-## CSR-2 applied: Momo's six-view set is complete (2026-10-29, $0; awaiting outcome QA; not in public/)
+## ADM-1: Momo is admitted, medium-sized beside the child (2026-10-29, $0; awaiting Codex QA)
+
+- Codex PASSed the CSR-2 outcome. Guy chose Momo's size: "A, תמשיך" (about 60–75% of the child's height, chest to shoulder).
+- Code 8ab0977d:
+  - public/companions/elephant_momo/style01-sheets = the exact applied CSR-2 bytes (7 files, each hash-checked against outcome 3288f856…);
+  - Momo's visualDescription ends with "Medium companion — roughly 60–75% of the child's standing height (about chest to shoulder
+    beside the child). Never taller than the child. Never knee-high."; his sheet geometry stays grounded.
+- Result, by the existing rule (no flag): Momo is drawable and selectable; his drawing identity is the approved front a4a8ba6d….
+  ADMISSION-CHECK.json checks this on the real tree.
+- Consequence: the options fingerprint covers the selectable companions, so it moves f5ad4e9d… → 98da536b…. Every request identity
+  and every digest derived from it moves too. Tests e47ccafb:
+  - the moved pins are updated;
+  - a proof: the same options without Momo, fingerprinted by options.ts's rule, equal f5ad4e9d… and give back every old pin byte for byte;
+  - the frozen 9a1ba1f2 engine's trial accepts its fixture under its own menu.
+- Also fixed: simple-story-engine.spec had been stale since the shared visual authority (an added companion with a look sends it).
+- Gates: tsc 0; mutants 8/8; broad 3344/3345 (simple-book-flow run on its own). Failures that also fail on a809a216, so not ADM-1:
+  - story-writer's legacy-copy test;
+  - simple-book-flow: one budget-ceiling check and one 180 s timeout.
+
+## CSR-2 applied: Momo's six-view set is complete (2026-10-29, $0; outcome PASS; admitted in ADM-1)
 
 - Codex round-2 re-gate PASSed record 5f1ae4ed (INDEPENDENT-REGATE-R2.txt), and Guy said "תמשיך".
 - Applied once (`execute`, run-a1.cjs, `execute-release`): status accepted, provider calls 0, cost $0.
