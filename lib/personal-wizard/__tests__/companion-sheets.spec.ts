@@ -701,6 +701,7 @@ describe('CSR-2 owner acceptance: only an angle-only hold, never the front, boun
     ['a changed identity-rule pin', (g: any) => { g.source.files['lib/personal-wizard/companion-identity.ts'] = '0'.repeat(64); }, 'companion_sheet_source'],
     ['the operator pins without the identity rule', (g: any) => { delete g.source.files['lib/personal-wizard/companion-identity.ts']; }, 'companion_sheet_source'],
     ['a changed shared acceptance-rule pin', (g: any) => { g.source.files['lib/personal-wizard/companion-sheet-acceptance.ts'] = '0'.repeat(64); }, 'companion_sheet_source'],
+    ['the operator pins without the shared acceptance rule', (g: any) => { delete g.source.files['lib/personal-wizard/companion-sheet-acceptance.ts']; }, 'companion_sheet_source'],
     ['an existing output folder', (g: any) => { mkdirSync(g.out); }, 'companion_sheet_out'],
   ])('refuses %s', async (_label, edit, code) => {
     const s = await scratchAcceptance(edit as never);
@@ -760,6 +761,7 @@ describe('CSR-2 owner acceptance run: no provider, its own lease, the exact byte
       ['a bare owner marker', { filename: 'happy.png', qaStatus: 'owner_accepted', acceptance: { kind: 'owner_angle_only' } }],
       ['no owner file hash', { ...happy, acceptance: { kind: 'owner_angle_only' } }],
       ['an owner file hash that is not a hash', { ...happy, acceptance: { ...happy.acceptance, ownerAcceptanceSha256: 'not-a-hash' } }],
+      ['another acceptance kind with a valid owner hash', { ...happy, acceptance: { ...happy.acceptance, kind: 'owner_any' } }],
       ['no review', { ...happy, review: undefined }],
       ['no reviewed outcome hash', { ...happy, review: { verdict: happy.review.verdict } }],
       ['no image hash', { ...happy, sha256: undefined }],
