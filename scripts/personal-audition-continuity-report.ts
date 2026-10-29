@@ -73,8 +73,16 @@ function reviewFields(context: Record<string, any> | null, landmarks: readonly s
   return { contextFound: true, references, predecessor,
     referenceStatus: isObject(context.referenceStatus) ? { entities: status('entities'), locations: status('locations') } : null, plannedVisible };
 }
-/** Physical paths (junctions and symlinks resolved), compared case-insensitively on Windows. */
-const physical = (p: string) => { try { return realpathSync.native(p); } catch { return realpathSync(p); } };
+/**
+ * Physical paths (junctions and symlinks resolved), compared case-insensitively on Windows. The JS realpath fallback keeps a Win32
+ * namespace prefix (\\?\, \\.\, \\?\UNC\) that the native one drops, so it is removed on both sides before comparing.
+ */
+export const withoutWin32Namespace = (p: string) => p.replace(/^\\\\[?.]\\UNC\\/i, '\\\\').replace(/^\\\\[?.]\\/, '');
+const physical = (p: string) => {
+  let r: string;
+  try { r = realpathSync.native(p); } catch { r = realpathSync(p); }
+  return process.platform === 'win32' ? withoutWin32Namespace(r) : r;
+};
 const comparable = (p: string) => process.platform === 'win32' ? p.toLowerCase() : p;
 function within(dir: string, target: string) {
   const rel = path.relative(comparable(dir), comparable(target));
@@ -155,6 +163,9 @@ export function auditionContinuityReport(bookDir: string, options: ContinuityRep
 export function writeAuditionContinuityReport(bookDir: string, outFile: string, options: ContinuityReportOptions = {}) {
   if (!path.isAbsolute(outFile)) return fail('continuity_report_output');
   const book = path.resolve(bookDir), out = path.resolve(outFile), parent = path.dirname(out);
+  // NTFS alternate data streams: "name:stream" (or "name::$DATA") opens a stream of an EXISTING file, which may be a hard link to a saved
+  // record outside this lexical boundary. Any colon after the drive/UNC/device root is a stream name, so it is refused.
+  if (process.platform === 'win32' && out.slice(path.parse(out).root.length).includes(':')) fail('continuity_report_output');
   // The physical comparison also covers every lexical case (a path written inside the book resolves inside it too).
   if (!existsSync(parent) || within(physical(book), path.join(physical(parent), path.basename(out)))) fail('continuity_report_output');
   const report = auditionContinuityReport(book, options);
