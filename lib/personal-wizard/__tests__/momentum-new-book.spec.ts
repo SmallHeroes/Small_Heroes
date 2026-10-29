@@ -109,7 +109,11 @@ describe('one new opt-in momentum book: Opus author on Max, Sol for the rest, co
     const config = { version: 'book-e2e-trial-config/v1', cycle: MOMENTUM_BOOK_TRIAL.id, ownerFile: 'C:/o', ownerSha: 'a'.repeat(64), bookDir: 'C:/b', profileFile: 'C:/p',
       profileSha: 'b'.repeat(64), executable: 'C:/exe', executableSha256: 'c'.repeat(64), keyFile: 'C:/existing' };
     expect(trialConfigSchema.safeParse(config).success).toBe(false);
-    expect(trialConfigSchema.safeParse({ ...config, operatorFile: 'C:/operator.cjs', operatorSha: 'd'.repeat(64) }).success).toBe(true);
+    // A momentum config also carries its sealed Wizard receipt (R4 F1; momentum-request-binding.spec).
+    const operated = { ...config, operatorFile: 'C:/operator.cjs', operatorSha: 'd'.repeat(64) };
+    expect(trialConfigSchema.safeParse(operated).success).toBe(false);
+    expect(trialConfigSchema.safeParse({ ...operated, requestBinding: { version: 'wizard-request-binding/v1', intakeFile: 'C:/i', intakeSha256: 'e'.repeat(64),
+      bindingFile: 'C:/b', bindingSha256: 'f'.repeat(64), wizardConfigFile: 'C:/w', wizardConfigSha256: '1'.repeat(64) } }).success).toBe(true);
   });
   it('meters the editor, storyboard, readings and one correction per reading on the API; the author never', () => {
     const p = prepareSimpleStory(request, options, SEED, SIMPLE_CHILD_MOMENTUM_EXPERIENCE), author = simpleAuthorCall(p);
