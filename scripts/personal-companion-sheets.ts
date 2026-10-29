@@ -41,7 +41,7 @@ import { COMPANION_SHEET_NEGATIVE, COMPANION_SHEET_VIEW_FILENAME, COMPANION_SHEE
 import { assertCompanionSheetGeometryGrounded, COMPANION_SHEET_VIEW_CONTRACT_VERSION, CONTRACT_VIEW_LINE, companionSheetViewContract,
   companionSheetViewContractText } from '../lib/generation-pipeline/companion-sheet-view-contract';
 import { getPersonalAddedCompanion, personalCompanionVisual, type CompanionSheetGeometry } from '../lib/personal-wizard/personal-companions';
-import { OWNER_ANGLE_ONLY } from '../lib/personal-wizard/companion-identity';
+import { angleOnlyHold, OWNER_ANGLE_ONLY, ownerAngleAcceptanceRecorded, SHEET_REVIEW_CHECKS } from '../lib/personal-wizard/companion-sheet-acceptance';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { AuditionMeter, AUDITION_REVIEW_TIMEOUT_MS, digestImages, keyReader, renderMaximum, RENDER_PRICING, REVIEW_MODEL, reviewAnswered,
@@ -236,8 +236,7 @@ const verdictSchema = z.object({ view: z.enum(COMPANION_SHEET_VIEW_KINDS as [Com
   verdict: z.enum(['pass', 'hold']), reason: z.string().trim().min(1).max(500) }).strict();
 export const companionSheetReviewSchema = z.object({ views: z.array(verdictSchema).length(6), notes: z.string().max(800) }).strict();
 export type CompanionSheetReview = z.infer<typeof companionSheetReviewSchema>;
-const CHECKS = ['correctAngle', 'sameCharacterAsFront', 'anatomyConsistent', 'accessoryConsistent', 'paletteConsistent', 'styleMatchesFront',
-  'isolatedOnPlainBackground', 'noTextNoExtraFigures'] as const;
+const CHECKS = SHEET_REVIEW_CHECKS;
 
 export const COMPANION_SHEET_REVIEW_INSTRUCTIONS = [
   'You are the strict, independent reviewer of ONE children\'s-picture-book companion character sheet.',
@@ -623,8 +622,9 @@ export async function runCompanionSheetRepair(args: { grantFile: string; keyFile
 export const COMPANION_SHEET_OWNER_ACCEPTANCE_VERSION = 'companion-sheet-owner-acceptance/v1' as const;
 export const OWNER_ACCEPTANCE_LEASE: CompanionSheetLease = Object.freeze({ key: 'companionSheetOwnerAcceptance20261029',
   phase: 'COMPANION_SHEET_ACCEPT_A1_EXECUTING', executor: 'Claude desktop af9211ff COMPANION-SHEET-ACCEPT executor' });
-/** The operator's own pins plus the drawing-identity rule that reads what the acceptance writes. */
-export const OWNER_ACCEPTANCE_SOURCE_FILES = Object.freeze([...COMPANION_SHEET_SOURCE_FILES, 'lib/personal-wizard/companion-identity.ts']);
+/** The operator's own pins plus the drawing-identity rule that reads what the acceptance writes, and the rule both share. */
+export const OWNER_ACCEPTANCE_SOURCE_FILES = Object.freeze([...COMPANION_SHEET_SOURCE_FILES, 'lib/personal-wizard/companion-identity.ts',
+  'lib/personal-wizard/companion-sheet-acceptance.ts']);
 export const companionSheetOwnerAcceptanceSchema = z.object({
   version: z.literal(COMPANION_SHEET_OWNER_ACCEPTANCE_VERSION),
   stage: z.literal('A1'),
@@ -640,9 +640,9 @@ export type CompanionSheetOwnerAcceptance = z.infer<typeof companionSheetOwnerAc
 /**
  * The one hold an owner may accept: the reviewer held the view and correctAngle is its ONLY false check. Identity, anatomy, accessory,
  * palette, style, isolation and text holds are never acceptable, and neither is an inconsistent answer (a pass with a false check).
+ * Shared with the drawing-identity reader (lib/personal-wizard/companion-sheet-acceptance.ts), so writer and reader cannot disagree.
  */
-export const angleOnlyHold = (v: CompanionSheetReview['views'][number]) =>
-  v.verdict === 'hold' && v.correctAngle === false && CHECKS.every(c => c === 'correctAngle' || v[c] === true);
+export { angleOnlyHold };
 
 /**
  * Everything an owner acceptance names, checked before anything is written (no key, no provider):
@@ -721,6 +721,8 @@ export function runCompanionSheetOwnerAcceptance(args: { grantFile: string }) {
       views[h.view] = { filename: COMPANION_SHEET_VIEW_FILENAME[h.view], qaStatus: h.kind === OWNER_ANGLE_ONLY ? 'owner_accepted' : 'passed',
         source: path.basename(h.image.file), sha256: h.sha256, review: { outcomeSha256: grant.lineage.priorOutcome.sha256, verdict: h.verdict },
         ...(h.kind === OWNER_ANGLE_ONLY ? { acceptance: { kind: OWNER_ANGLE_ONLY, ownerAcceptanceSha256: grant.lineage.ownerAcceptance.sha256 } } : {}) };
+      // The writer emits only what the reader qualifies: an owner entry its own record would not admit stops before the manifest.
+      if (h.kind === OWNER_ANGLE_ONLY && !ownerAngleAcceptanceRecorded(h.view, views[h.view])) fail('companion_sheet_accept_record');
     }
     guard();
     exclusiveJson(path.join(dir, 'manifest.json'), { companionId: s.companionId, referenceJpg: null, generatedAt: new Date().toISOString(),

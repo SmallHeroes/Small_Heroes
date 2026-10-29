@@ -12,6 +12,7 @@ import { CONTRACT_VIEW_LINE } from '../../generation-pipeline/companion-sheet-vi
 import { STYLE_REFERENCE_PREFIX } from '../../generate-image';
 import { getPersonalAddedCompanion, PERSONAL_ADDED_COMPANIONS, personalCompanionVisual } from '../personal-companions';
 import { companionIdentityReference, companionSheetsComplete } from '../companion-identity';
+import { companionDrawable } from '../options';
 import { AuditionMeter, auditionRenderPlan, auditionRenderRule, auditionReviewRule, renderMaximum, REVIEW_MODEL } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { READER_PORTRAIT_FRAMING_VERSION } from '../../storybook-scene-framing';
 import { admitCompanionSheetGrant, companionSheetDisposition, companionSheetMeterRules, companionSheetRenderPlan, companionSheetRenderRule,
@@ -699,6 +700,7 @@ describe('CSR-2 owner acceptance: only an angle-only hold, never the front, boun
     ['another geometry', (g: any) => { g.sheet.geometrySha256 = '6'.repeat(64); }, 'companion_sheet_geometry'],
     ['a changed identity-rule pin', (g: any) => { g.source.files['lib/personal-wizard/companion-identity.ts'] = '0'.repeat(64); }, 'companion_sheet_source'],
     ['the operator pins without the identity rule', (g: any) => { delete g.source.files['lib/personal-wizard/companion-identity.ts']; }, 'companion_sheet_source'],
+    ['a changed shared acceptance-rule pin', (g: any) => { g.source.files['lib/personal-wizard/companion-sheet-acceptance.ts'] = '0'.repeat(64); }, 'companion_sheet_source'],
     ['an existing output folder', (g: any) => { mkdirSync(g.out); }, 'companion_sheet_out'],
   ])('refuses %s', async (_label, edit, code) => {
     const s = await scratchAcceptance(edit as never);
@@ -742,6 +744,47 @@ describe('CSR-2 owner acceptance run: no provider, its own lease, the exact byte
       save({ ...m, views: { ...m.views, ...broken } }); expect(companionSheetsComplete('elephant_momo', root)).toBe(false);
     }
     save(m); expect(companionSheetsComplete('elephant_momo', root)).toBe(true);
+  });
+  it('round 2 (Codex CSR2-A0-F1): every reader qualifies an owner entry only with its complete recorded acceptance and its actual bytes', async () => {
+    // Positive control: the operator's real output, admitted into a scratch tree with a card. Each case then breaks ONE non-front entry.
+    const s = await scratchAcceptance(); runCompanionSheetOwnerAcceptance({ grantFile: s.grantFile });
+    const root = mkdtempSync(path.join(tmpdir(), 'csr2-reader-')), pub = path.join(root, 'public', 'companions', 'elephant_momo', 'style01-sheets');
+    cpSync(path.join(s.grant.out, 'sheets', 'elephant_momo', 'style01-sheets'), pub, { recursive: true });
+    cpSync(path.join(pub, 'front.png'), path.join(root, 'public', 'companions', 'momo-card.png'));
+    const manifestFile = path.join(pub, 'manifest.json'), m = JSON.parse(readFileSync(manifestFile, 'utf8')), happy = m.views.happy;
+    const readers = () => { let reference: string | null = null; try { reference = companionIdentityReference('elephant_momo', root).sha256; } catch { /* refused */ }
+      return { complete: companionSheetsComplete('elephant_momo', root), drawable: companionDrawable('elephant_momo', '/companions/momo-card.png', root), reference }; };
+    expect(readers()).toEqual({ complete: true, drawable: true, reference: s.grant.sheet.views[0].image.sha256 });
+    const verdict = (over: object) => ({ ...happy, review: { ...happy.review, verdict: { ...happy.review.verdict, ...over } } });
+    const cases: [string, unknown][] = [
+      ['a bare owner marker', { filename: 'happy.png', qaStatus: 'owner_accepted', acceptance: { kind: 'owner_angle_only' } }],
+      ['no owner file hash', { ...happy, acceptance: { kind: 'owner_angle_only' } }],
+      ['an owner file hash that is not a hash', { ...happy, acceptance: { ...happy.acceptance, ownerAcceptanceSha256: 'not-a-hash' } }],
+      ['no review', { ...happy, review: undefined }],
+      ['no reviewed outcome hash', { ...happy, review: { verdict: happy.review.verdict } }],
+      ['no image hash', { ...happy, sha256: undefined }],
+      ['an image hash other than the bytes', { ...happy, sha256: '9'.repeat(64) }],
+      ['a verdict of another view', verdict({ view: 'side' })],
+      ['a "pass" verdict', verdict({ verdict: 'pass' })],
+      ['correctAngle true (not an angle hold)', verdict({ correctAngle: true })],
+      ...['sameCharacterAsFront', 'anatomyConsistent', 'accessoryConsistent', 'paletteConsistent', 'styleMatchesFront', 'isolatedOnPlainBackground',
+        'noTextNoExtraFigures'].map(check => [`a false ${check}`, verdict({ [check]: false })] as [string, unknown]),
+    ];
+    for (const [label, entry] of cases) {
+      writeFileSync(manifestFile, JSON.stringify({ ...m, views: { ...m.views, happy: entry } }));
+      expect({ label, ...readers() }).toEqual({ label, complete: false, drawable: false, reference: null });
+    }
+    // The front, even with a COMPLETE owner record of its own (its bytes, its view), is never owner-accepted.
+    const front = { ...happy, filename: 'front.png', sha256: m.views.front.sha256, review: { ...happy.review, verdict: { ...happy.review.verdict, view: 'front' } } };
+    writeFileSync(manifestFile, JSON.stringify({ ...m, views: { ...m.views, front } }));
+    expect(readers()).toEqual({ complete: false, drawable: false, reference: null });
+    // The bytes themselves: a recorded entry over changed pixels is refused.
+    writeFileSync(manifestFile, JSON.stringify(m)); expect(readers().complete).toBe(true);
+    const happyFile = path.join(pub, 'happy.png'), original = readFileSync(happyFile);
+    writeFileSync(happyFile, Buffer.concat([original, Buffer.from('x')])); expect(readers()).toMatchObject({ complete: false, drawable: false, reference: null });
+    writeFileSync(happyFile, original); expect(readers().complete).toBe(true);
+    // Legacy "passed" entries keep their existing rule (no acceptance record is asked of them).
+    writeFileSync(manifestFile, JSON.stringify({ ...m, views: { ...m.views, happy: { filename: 'happy.png', qaStatus: 'passed' } } })); expect(readers().complete).toBe(true);
   });
   it('the owner-acceptance lease, not the repair or S1 lease: absent → nothing created; a consumed record cannot run again', async () => {
     for (const phase of [REPAIR_LEASE.phase, COMPANION_SHEETS_EXECUTING_PHASE, 'COMPANION_SHEET_ACCEPT_QA_RELEASED']) {

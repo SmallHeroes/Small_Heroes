@@ -2,6 +2,7 @@ import 'server-only';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { OWNER_ANGLE_ONLY, ownerAngleAcceptanceRecorded } from './companion-sheet-acceptance';
 
 /**
  * A companion's DRAWING identity: its own complete style01 sheet set. The engine draws a book's companion from that set's front view.
@@ -9,9 +10,11 @@ import path from 'node:path';
  * complete set has no drawing identity and is not selectable for a book.
  *
  * Complete: the FRONT passed its review ("passed"). Every other view either passed, or the owner accepted it after a review held it
- * ONLY on its angle ("owner_accepted" with acceptance.kind "owner_angle_only", CSR-2, 2026-10-29). The front is never owner-accepted.
+ * ONLY on its angle (CSR-2, 2026-10-29): an "owner_accepted" entry qualifies only with its complete recorded acceptance (the owner file's
+ * hash, the reviewed outcome's hash, an angle-only held verdict of this view) and an image hash that is the file's actual bytes.
+ * The front is never owner-accepted.
  */
-export const OWNER_ANGLE_ONLY = 'owner_angle_only' as const;
+export { OWNER_ANGLE_ONLY };
 export const COMPANION_SHEET_VIEWS = Object.freeze({ front: 'front.png', three_quarter_front: '3-4.png', side: 'side.png',
   three_quarter_back: 'back.png', happy: 'happy.png', theme: 'theme.png' } as const);
 export class CompanionIdentityError extends Error { constructor(readonly code: string) { super(code); } }
@@ -25,15 +28,15 @@ function sheetsDirectory(id: string, root: string) {
 function verifiedSheets(id: string, root: string) {
   const dir = sheetsDirectory(id, root), manifestFile = path.join(dir, 'manifest.json');
   if (!existsSync(manifestFile)) fail('companion_identity_missing');
-  let manifest: { companionId?: unknown; views?: Record<string, { filename?: unknown; qaStatus?: unknown; acceptance?: { kind?: unknown } }> };
+  let manifest: { companionId?: unknown; views?: Record<string, { filename?: unknown; qaStatus?: unknown }> };
   try { manifest = JSON.parse(readFileSync(manifestFile, 'utf8')); } catch { return fail('companion_identity_manifest'); }
   if (manifest.companionId !== id) fail('companion_identity_manifest');
   for (const [view, filename] of Object.entries(COMPANION_SHEET_VIEWS)) {
     const entry = manifest.views?.[view], file = path.join(dir, filename);
-    const qualified = entry?.qaStatus === 'passed' ||
-      view !== 'front' && entry?.qaStatus === 'owner_accepted' && entry.acceptance?.kind === OWNER_ANGLE_ONLY;
-    if (entry?.filename !== filename || !qualified) fail('companion_identity_unqualified');
+    const owner = entry?.qaStatus === 'owner_accepted';
+    if (entry?.filename !== filename || !(entry.qaStatus === 'passed' || owner && ownerAngleAcceptanceRecorded(view, entry))) fail('companion_identity_unqualified');
     if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size <= 1000) fail('companion_identity_missing');
+    if (owner && createHash('sha256').update(readFileSync(file)).digest('hex') !== (entry as { sha256: string }).sha256) fail('companion_identity_unqualified');
   }
   return dir;
 }
