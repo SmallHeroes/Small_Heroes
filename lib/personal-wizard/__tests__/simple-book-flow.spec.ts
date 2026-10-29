@@ -179,16 +179,22 @@ describe('one USD12 journal across engine stages and engineering Max', () => {
     expect(dispatch).toHaveBeenCalledTimes(1); expect(existsSync(path.join(budget.root, 'over_limit.claim.json'))).toBe(false);
     for (const previous of [-1, 80, NaN, 1.5]) expect(() => new SimpleBookBudget(path.join(root, 'bad-floor'), 0, 20000000, previous)).toThrow('simple_budget_policy');
   });
-  it('keeps default12m, explicitly meters14m, rejects other ceilings and stops14m before an over-budget claim', async () => {
+  it('keeps default12m, meters only the listed extension ceilings, rejects others and stops each before an over-budget claim', async () => {
     expect(new SimpleBookBudget(path.join(root, 'default'), 0).maximumMicroUsd).toBe(12000000);
-    for (const maximum of [0, 13000000, 14000001, 25000000]) expect(() => new SimpleBookBudget(path.join(root, 'invalid'), 0, maximum)).toThrow('simple_budget_policy');
+    // The meter list is not authority: each extension is bound by its own grant, and the view ties it to one image scope.
+    for (const maximum of [12000000, 14000000, 16000000, 20000000, 22000000, 25000000]) expect(new SimpleBookBudget(path.join(root, `meter-${maximum}`), 0, maximum).maximumMicroUsd).toBe(maximum);
+    for (const maximum of [0, 13000000, 14000001, 25000001, 30000000]) expect(() => new SimpleBookBudget(path.join(root, 'invalid'), 0, maximum)).toThrow('simple_budget_policy');
     const budget = new SimpleBookBudget(path.join(root, 'extended'), 13999999, 14000000), dispatch = vi.fn();
     await expect(budget.run('page_8_0', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted');
     expect(dispatch).not.toHaveBeenCalled(); expect(existsSync(path.join(root, 'extended/page_8_0.claim.json'))).toBe(false);
     const sixteen = new SimpleBookBudget(path.join(root, 'sixteen'), 15999999, 16000000);
     await expect(sixteen.run('page_8_0', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted');
     expect(dispatch).not.toHaveBeenCalled(); expect(existsSync(path.join(root, 'sixteen/page_8_0.claim.json'))).toBe(false);
-    expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), accounting: { ...emptySimpleBookView('a'.repeat(64)).accounting, allowanceMicroUsd: 14000000 } }, 'a'.repeat(64))).toBeNull();
+    const twentyFive = new SimpleBookBudget(path.join(root, 'twenty-five'), 24999999, 25000000);
+    await expect(twentyFive.run('page_8_0', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted');
+    expect(dispatch).not.toHaveBeenCalled(); expect(existsSync(path.join(root, 'twenty-five/page_8_0.claim.json'))).toBe(false);
+    for (const allowanceMicroUsd of [14000000, 25000000])
+      expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), accounting: { ...emptySimpleBookView('a'.repeat(64)).accounting, allowanceMicroUsd } }, 'a'.repeat(64))).toBeNull();
   });
   it('durably claims the exact wire before dispatch and counts engineering plus settled costs', async () => {
     const budget = new SimpleBookBudget(path.join(root, 'stages'), 322973);
@@ -1149,7 +1155,7 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${id}&page=8`))).status).toBe(403);
     for (const [n, h] of x.endedHashes) expect(sha(readFileSync(path.join(x.endedDir, n)))).toBe(h);
     await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile).then(r => r.claim())).rejects.toThrow();
-  }, 180000);
+  }, 300000); // 147-166 s single-worker on Windows (10/29 profile): ~3/4 is fail-closed lstat/realpath re-reads of the replayed chain; no network.
   async function entityAuthorityFixture() {
     const x = await referenceRebuildFixture();
     sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
@@ -1231,7 +1237,7 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(403);
     for (const [p, b] of x.originals) expect(readFileSync(p).equals(b)).toBe(true);
     await expect(prepareEntityAuthorityContinuation(x.authorityFile).then(r => r.claim())).rejects.toThrow();
-  }, 180000);
+  }, 360000); // 180-210 s single-worker on Windows (10/29: 847k lstat, 694k realpath, 74k open); fail-closed re-reads, no network.
   it('entity authority rejects rehashed source, cost, pixel, termination and review failures before any key or fresh claim', async () => {
     const x = await entityAuthorityFixture(), original = readFileSync(x.authorityFile);
     await expect(prepareEntityAuthorityContinuation(x.authorityFile)).resolves.toHaveProperty('entityDesignAuthority');
@@ -1823,7 +1829,7 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
       if (kind === 'output_pages') { const p = path.join(x.priorDir, 'book.html.json'); if (!p.startsWith(root + path.sep)) throw Error('fixture_boundary'); rmSync(p); }
       if (kind === 'missing_paid_root') expect(existsSync(path.join(x.priorDir, 'paid-stages'))).toBe(false);
     }
-  }, 90000);
+  }, 180000); // 71-80 s single-worker on Windows: the replayed chain plus 17 fail-closed re-verifications; no network.
   it('role sixteen grant retains failed review cost once and completes the same private9 images without a new writer', async () => {
     const x = await roleSixteenFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
     expect(ready.externalMicroUsd).toBe(x.extension.knownBeforeFreshReviewMicroUsd + 3000);
@@ -2133,7 +2139,7 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     const image = await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`)); expect(image.status).toBe(200); expect(image.headers.get('content-type')).toBe('image/png');
     await expect(simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).rejects.toThrow();
     for (const [n, hash] of x.oldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
-  }, 60000);
+  }, 120000); // 47-49 s single-worker on Windows (10/29: 172k lstat, 147k realpath); fail-closed re-reads, no network.
   it.each(['uncertain_appearance', 'board_hold', 'control_miss', 'unknown_cost', 'wrong_model', 'cancelled'])(
     'visual-only %s stops before new images, never falls back or rewrites source', async kind => {
       const x = await visualTransportFixture(), normal = sdk.create.getMockImplementation()!;

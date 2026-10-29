@@ -193,7 +193,8 @@ describe('writer switches and product copy', () => {
     expect(personal.pricing.cards.map((card) => card.price)).toEqual(['', '', '']);
     expect(personal.pricing.cards.map((card) => card.pages)).toEqual(['16 עמודים', '24 עמודים', '32 עמודים']);
     expect(personal.helps.closing).not.toContain('לכל נושא');
-    expect(personal.hero.sub).toContain('שנכתב כדי לעזור לילד שלכם להתמודד');
+    expect(personal.hero.sub).toContain('להתמודד');
+    expect(personal.hero.sub).toContain('עדיין בפיתוח');
     expect(personal.faq.items.some((item) => item.a.includes('טיפול'))).toBe(true);
     expect(getLandingContent([]).pricing.cards.map((card) => card.price)).toEqual(['59', '79', '99']);
   });
