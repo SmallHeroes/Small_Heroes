@@ -1,6 +1,32 @@
 # SmallHeroes — Current Technical State
 
-## Companion sheet repair CSR-1: general view contract, companion-only prompts, Momo repair grant, reader fence (2026-10-29, awaiting Codex QA)
+## CSR-1 repair ran: Momo still pending (side now passes; back and two retained views held under v2) (2026-10-29, awaiting outcome QA)
+
+- Codex PASSed CSR-1 R0 (code 5ab28ca8..e5580c7f) and exactly grant 1a9d1f49 (INDEPENDENT-QA.txt). Guy's direct go in the Claude chat:
+  "יש אישור לתיקון של מומו - כן".
+- The repair ran once: 3 of 3 calls, all completed (2 LOW edits + 1 six-view Sol review). Known API $0.085272; failed 0, unknown 0.
+  - Cumulative on the sheet ledger: 15 calls, $0.436254 of $2.50. Claude Max is separate and not included.
+- Result: elephant_momo stays pending (held_after_repair). Nothing was published, nothing went to public/, and no redraw followed.
+  - Pass: the approved front, the approved three-quarter front, and the NEW side (a clean profile facing viewer-left, with the knot
+    on the visible near side). The view contract fixed the S1 side failure.
+  - Held: the NEW three-quarter back ("The trunk is clearly visible, although this view's contract requires it to be completely
+    hidden").
+  - Held: the RETAINED happy_1 and theme_1. Both passed every v1 check in S1. Under v2 both read "the head turns toward the viewer's
+    right instead of facing the viewer".
+- What this shows about CSR-1 (my reading; Codex and Guy decide):
+  - The v2 contract is stricter than the art it was meant to describe. Its happy/theme lines say "faces the viewer", where v1 allowed
+    "a subtle cheerful pose". Its rear view forbids any trunk, even the tip of a long trunk past the head's outline.
+  - Both are general contract wording, not Momo-specific. Any correction stays general and goes through its own gate.
+- Outputs: milestone claude-companion-sheet-repair-20261028/r1-run (outcome.json, contact-sheet.html, paid/, illustrations/). Guy's
+  grid: Small_Heroes/_review/companion-sheet-repair-r1-20261029/momo-repair-r1.jpg.
+- Next:
+  - Codex outcome QA (through Guy);
+  - Guy's eye on the six views, then his choice between:
+    - a general contract correction plus one re-review;
+    - redrawing the three held views under the current contract;
+  - any further paid call needs a new grant, Codex PASS and Guy's go.
+
+## Companion sheet repair CSR-1: general view contract, companion-only prompts, Momo repair grant, reader fence (2026-10-29; Codex PASS, ran)
 
 - Authority, overnight: Guy's instruction, recorded by Codex in overnight-continuation-20261028/OWNER-AUTHORIZATION.txt.
   - It allowed automatic Claude/Codex continuation toward ONE local book and one prospective Momo repair (≤3 calls, ≤$1.50, inside the

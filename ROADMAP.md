@@ -7,9 +7,13 @@
   - companion-only sheet prompts;
   - a 3-call Momo repair grant (two held views + one six-view review, ≤$1.50, inside the S1 cap);
   - the reader adapters' guard fence (inside and after each paid call).
+- Codex PASS. The repair ran on Guy's go: 3 calls, $0.085272. Momo is still pending:
+  - the side now passes;
+  - the new three-quarter back is held (trunk visible);
+  - the retained happy and theme are held under v2's stricter facing rule.
 - Next:
-  - Codex QA (through Guy);
-  - Guy's go → the repair run → outcome QA + Guy's eye;
+  - Codex outcome QA (through Guy);
+  - Guy's eye, then his choice: a general contract correction + one re-review, or redraw the three held views;
   - admission → the one local book with a new companion and Dad narration.
 
 ## Companion sheets CS-1 (2026-10-28)
