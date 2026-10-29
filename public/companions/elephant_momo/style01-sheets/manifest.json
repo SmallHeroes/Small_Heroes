@@ -1,0 +1,153 @@
+{
+  "companionId": "elephant_momo",
+  "referenceJpg": null,
+  "generatedAt": "2026-10-29T09:49:47.395Z",
+  "grantSha256": "5f1ae4ed845eb0dc8066c59af3d223df259db4750db1c50d0e0d6aa026aa21f9",
+  "descriptionSha256": "d38e9bbeda1cb167dd291b05716f3a27f28583e39205099f648d03d2f40c8356",
+  "views": {
+    "front": {
+      "filename": "front.png",
+      "qaStatus": "passed",
+      "source": "elephant_momo_front.png",
+      "sha256": "a4a8ba6db30374fd2a33513ecbb13c9b89676a2f5d5b705f0e909e81925d18a3",
+      "review": {
+        "outcomeSha256": "c69065c76f0623ce3f8ff4d7ac14739b927086ffab6d2bcca8abe0b461a26dbd",
+        "verdict": {
+          "view": "front",
+          "correctAngle": true,
+          "sameCharacterAsFront": true,
+          "anatomyConsistent": true,
+          "accessoryConsistent": true,
+          "paletteConsistent": true,
+          "styleMatchesFront": true,
+          "isolatedOnPlainBackground": true,
+          "noTextNoExtraFigures": true,
+          "verdict": "pass",
+          "reason": "ok"
+        }
+      }
+    },
+    "three_quarter_front": {
+      "filename": "3-4.png",
+      "qaStatus": "passed",
+      "source": "elephant_momo_three_quarter_front_0.png",
+      "sha256": "387bd4b89079a95acc5a7aa70ceffbedccf1bd1dbce113a5ee465bd9f50dd6af",
+      "review": {
+        "outcomeSha256": "c69065c76f0623ce3f8ff4d7ac14739b927086ffab6d2bcca8abe0b461a26dbd",
+        "verdict": {
+          "view": "three_quarter_front",
+          "correctAngle": true,
+          "sameCharacterAsFront": true,
+          "anatomyConsistent": true,
+          "accessoryConsistent": true,
+          "paletteConsistent": true,
+          "styleMatchesFront": true,
+          "isolatedOnPlainBackground": true,
+          "noTextNoExtraFigures": true,
+          "verdict": "pass",
+          "reason": "ok"
+        }
+      }
+    },
+    "side": {
+      "filename": "side.png",
+      "qaStatus": "passed",
+      "source": "repair_elephant_momo_side.png",
+      "sha256": "d4388f3169bf44bde65d63e0d2178499a7e51cf3069bc925fc3471fac9d8587f",
+      "review": {
+        "outcomeSha256": "c69065c76f0623ce3f8ff4d7ac14739b927086ffab6d2bcca8abe0b461a26dbd",
+        "verdict": {
+          "view": "side",
+          "correctAngle": true,
+          "sameCharacterAsFront": true,
+          "anatomyConsistent": true,
+          "accessoryConsistent": true,
+          "paletteConsistent": true,
+          "styleMatchesFront": true,
+          "isolatedOnPlainBackground": true,
+          "noTextNoExtraFigures": true,
+          "verdict": "pass",
+          "reason": "ok"
+        }
+      }
+    },
+    "three_quarter_back": {
+      "filename": "back.png",
+      "qaStatus": "owner_accepted",
+      "source": "repair_elephant_momo_three_quarter_back.png",
+      "sha256": "f8e6189dd089a329cd6f68827cb49e696150a36f0f25367b7219e733a6e169c5",
+      "review": {
+        "outcomeSha256": "c69065c76f0623ce3f8ff4d7ac14739b927086ffab6d2bcca8abe0b461a26dbd",
+        "verdict": {
+          "view": "three_quarter_back",
+          "correctAngle": false,
+          "sameCharacterAsFront": true,
+          "anatomyConsistent": true,
+          "accessoryConsistent": true,
+          "paletteConsistent": true,
+          "styleMatchesFront": true,
+          "isolatedOnPlainBackground": true,
+          "noTextNoExtraFigures": true,
+          "verdict": "hold",
+          "reason": "The trunk is clearly visible, although this view's contract requires it to be completely hidden."
+        }
+      },
+      "acceptance": {
+        "kind": "owner_angle_only",
+        "ownerAcceptanceSha256": "5acebf3b0c821e0dd479a43b69720f5cbdfe094dd7a582ea2927a6d3c69e01e3"
+      }
+    },
+    "happy": {
+      "filename": "happy.png",
+      "qaStatus": "owner_accepted",
+      "source": "elephant_momo_happy_retained.png",
+      "sha256": "4fc25cccefb1797df57878637751027db801e694d07ddce0f30b73c2d6d1462a",
+      "review": {
+        "outcomeSha256": "c69065c76f0623ce3f8ff4d7ac14739b927086ffab6d2bcca8abe0b461a26dbd",
+        "verdict": {
+          "view": "happy",
+          "correctAngle": false,
+          "sameCharacterAsFront": true,
+          "anatomyConsistent": true,
+          "accessoryConsistent": true,
+          "paletteConsistent": true,
+          "styleMatchesFront": true,
+          "isolatedOnPlainBackground": true,
+          "noTextNoExtraFigures": true,
+          "verdict": "hold",
+          "reason": "The expression is clearly happy, but the head turns toward the viewer's right instead of facing the viewer."
+        }
+      },
+      "acceptance": {
+        "kind": "owner_angle_only",
+        "ownerAcceptanceSha256": "5acebf3b0c821e0dd479a43b69720f5cbdfe094dd7a582ea2927a6d3c69e01e3"
+      }
+    },
+    "theme": {
+      "filename": "theme.png",
+      "qaStatus": "owner_accepted",
+      "source": "elephant_momo_theme_retained.png",
+      "sha256": "7e842dea8a3b31da1bdf38c699a030cd0d43d331fdc6409cf2b1b970fad64f09",
+      "review": {
+        "outcomeSha256": "c69065c76f0623ce3f8ff4d7ac14739b927086ffab6d2bcca8abe0b461a26dbd",
+        "verdict": {
+          "view": "theme",
+          "correctAngle": false,
+          "sameCharacterAsFront": true,
+          "anatomyConsistent": true,
+          "accessoryConsistent": true,
+          "paletteConsistent": true,
+          "styleMatchesFront": true,
+          "isolatedOnPlainBackground": true,
+          "noTextNoExtraFigures": true,
+          "verdict": "hold",
+          "reason": "The mood is calm and gentle, but the head turns toward the viewer's right instead of facing the viewer."
+        }
+      },
+      "acceptance": {
+        "kind": "owner_angle_only",
+        "ownerAcceptanceSha256": "5acebf3b0c821e0dd479a43b69720f5cbdfe094dd7a582ea2927a6d3c69e01e3"
+      }
+    }
+  }
+}

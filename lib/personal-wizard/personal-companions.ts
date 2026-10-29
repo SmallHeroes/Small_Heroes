@@ -11,8 +11,8 @@ import { getCompanionById } from '../companions';
  * card art and a complete passed sheet set (see companion-identity.ts).
  *
  * The seven pictured descriptions (2026-10-28) were written from the looks Guy approved ("מאשר את כולם"); they are the verbatim lock of
- * their sheet views. They state no size beside the child yet: the isolated sheet proof does not need one, and the scale of a new companion
- * beside the child is decided at its admission (as bunny's description carries a child-relative range).
+ * their sheet views. Their size beside the child is decided at each one's admission, as a child-relative range like bunny's: the isolated
+ * sheet proof does not need one. Momo (admitted 2026-10-29, Guy: "A") is a medium companion, 60–75% of the child's standing height.
  */
 export type PersonalAddedCompanion = {
   id: string;
@@ -44,7 +44,7 @@ export type CompanionSheetGeometry = {
 
 export const PERSONAL_ADDED_COMPANIONS: readonly PersonalAddedCompanion[] = [
   { id: 'elephant_momo', name: 'הפילון מוֹמוֹ', gender: 'male', image: '/Images/personal-companions/elephant_momo.webp', visualDescription:
-    "A sturdy, huggable young elephant standing upright on two broad hind feet, two relaxed forelegs at his sides. Soft warm-gray body, very large rounded floppy ears with peach-pink insides, rosy cheeks, large warm-brown eyes with soft brows, a little gray tuft on top of his head, and a short, gently curved trunk; no tusks. Three pale toenails on each foot. He always wears exactly one muted-coral neckerchief tied in a single knot on his left side (the viewer's right in a front view); never a hat, bag or other clothing.",
+    "A sturdy, huggable young elephant standing upright on two broad hind feet, two relaxed forelegs at his sides. Soft warm-gray body, very large rounded floppy ears with peach-pink insides, rosy cheeks, large warm-brown eyes with soft brows, a little gray tuft on top of his head, and a short, gently curved trunk; no tusks. Three pale toenails on each foot. He always wears exactly one muted-coral neckerchief tied in a single knot on his left side (the viewer's right in a front view); never a hat, bag or other clothing. Medium companion — roughly 60–75% of the child's standing height (about chest to shoulder beside the child). Never taller than the child. Never knee-high.",
     sheetGeometry: { counts: { ears: 2, eyes: 2, trunk: 1, tusks: 0, 'toenails on each foot': 3 }, face: ['eyes', 'rosy cheeks', 'trunk'],
       accessories: [{ item: 'neckerchief knot', part: 'neck', side: 'left' }] },
     temperament: 'מומו הוא פילון חזק ועדין שמתעניין ברצינות בדברים זעירים. הוא רוצה ליצור, לבחור ולהפתיע, ולא להיות רק החבר שמבקשים ממנו לסחוב.' },
