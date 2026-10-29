@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## CSR-2: the owner may accept a sheet view held ONLY on its angle; Momo's record built, $0 (2026-10-29, awaiting Codex QA)
+
+- Codex PASSed the CSR-1 repair outcome (OUTCOME-INDEPENDENT-QA.txt). The CSR-1 milestone is closed (`close done`).
+- Guy, in the Claude chat, after seeing the six judged views:
+  - "מבחינתי הכל עובר בתמונה";
+  - then: "לדעתי זה מחמיר מאוד … אין פה בעיית זהות, אנטומיה, היגיון וכו … אפשר להמשיך מבחינתי".
+  - Recorded with the six exact hashes in claude-companion-sheet-rereview-20261029/OWNER-VISUAL-ACCEPTANCE-20261029.txt.
+  - The paid re-review plan was superseded and kept (DECISION-GATE-rereview-superseded.txt).
+- The evidence: in the three held views (three_quarter_back, happy, theme) the ONLY false check is correctAngle. Every identity,
+  anatomy, accessory, palette, style, isolation and text check is true in all six.
+- Code 17f599c1, general for any companion:
+  - companion-sheet-owner-acceptance/v1 (admitCompanionSheetOwnerAcceptance, runCompanionSheetOwnerAcceptance). It binds:
+    - the source pins, including companion-identity.ts;
+    - the prior grant, its outcome (pending, known spend only, not stopped) and that outcome's PASS QA (OUTCOME_SHA256);
+    - the owner file, which must name the companion and all six exact hashes;
+    - description, body and geometry;
+    - the six views, once each and in order, each the exact judged bytes.
+  - The front must have passed its review. Every other view passed, or was held with correctAngle as its only false check. Any other
+    hold, and an inconsistent pass, refuse.
+  - The run: its own lease; no meter, no key, no provider. The set is written in its run folder only, "passed" or "owner_accepted"
+    (kind owner_angle_only, the owner file's hash, the held verdict). Nothing goes to public/.
+  - companion-identity.ts: a set is complete when the front is "passed" and every other view is "passed", or "owner_accepted" with
+    kind owner_angle_only.
+- Evidence:
+  - companion-sheets 89/89 (26 new);
+  - focused 12 specs 400/400 (FOCUSED.result.json);
+  - tsc 0;
+  - mutants 19/19 (MUTANTS.json).
+- Next:
+  - Codex QA of the code and the exact acceptance record (through Guy);
+  - the $0 application;
+  - then admission to public/ (which makes Momo selectable) and Momo's scale beside the child (Guy);
+  - then the R17 book with Momo and Dad narration (its own grant and gate).
+
 ## CSR-1 repair ran: Momo still pending (side now passes; back and two retained views held under v2) (2026-10-29, awaiting outcome QA)
 
 - Codex PASSed CSR-1 R0 (code 5ab28ca8..e5580c7f) and exactly grant 1a9d1f49 (INDEPENDENT-QA.txt). Guy's direct go in the Claude chat:

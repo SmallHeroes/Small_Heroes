@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## CSR-2 owner acceptance (2026-10-29)
+
+- Guy accepts Momo's six judged views and calls the angle rule too strict. Code 17f599c1: the owner may accept a view held ONLY on
+  its angle, never the front and never any identity or anatomy hold. $0, no provider.
+- Next:
+  - Codex QA (through Guy) → apply → admission to public/ + Momo's scale (Guy);
+  - the one book with Momo and Dad narration.
+
 ## Companion sheet repair CSR-1 (2026-10-29)
 
 - Built offline:
