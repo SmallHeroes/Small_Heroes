@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { auditionContinuityReport, auditionContinuityReportMain, writeAuditionContinuityReport } from '../../../scripts/personal-audition-continuity-report';
+import { auditionContinuityReport, auditionContinuityReportMain, withoutWin32Namespace, writeAuditionContinuityReport } from '../../../scripts/personal-audition-continuity-report';
 
 // Engine continuity repair, stage A (2026-10-29): a read-only report over a SAVED book. Two synthetic worlds, neither the R17 book.
 type World = { landmark: string; landmarkDesign: string; prop: string; part: { id: string; design: string }; outdoor: string; indoor: string };
@@ -144,6 +144,35 @@ describe('stage A: a read-only continuity report of a saved book (every id from 
       writeAuditionContinuityReport(aliasedBook, path.join(scratch, 'outside.json'));
       expect(tree(book)).toEqual(before);
     } finally { rmSync(scratch, { recursive: true, force: true }); rmSync(book, { recursive: true, force: true }); }
+  });
+  it.runIf(process.platform === 'win32')('R2-F1: no NTFS stream can be written onto a saved record through an external hard link; namespaced paths stay bounded', () => {
+    const book = savedBook(FOREST), scratch = mkdtempSync(path.join(tmpdir(), 'continuity-ads-'));
+    try {
+      const record = path.join(book, 'page_0.json'), link = path.join(scratch, 'page-hardlink.json');
+      linkSync(record, link);
+      const before = tree(book);
+      for (const stream of [':report', ':report:$DATA', '::$DATA', ':report.json']) {
+        expect(() => writeAuditionContinuityReport(book, link + stream), stream).toThrow('continuity_report_output');
+        expect(existsSync(record + stream.replace(/^:([^:]+).*$/, ':$1')), `${stream} on the saved record`).toBe(stream === '::$DATA');
+      }
+      // A stream on a brand-new external name is refused too: the rule is the syntax, not whether a link exists.
+      expect(() => writeAuditionContinuityReport(book, path.join(scratch, 'new.json:stream'))).toThrow('continuity_report_output');
+      expect(existsSync(path.join(scratch, 'new.json'))).toBe(false);
+      // Win32 namespaced forms: inside the book refused, outside allowed.
+      expect(() => writeAuditionContinuityReport(book, `\\\\?\\${path.join(book, 'ns.json')}`)).toThrow('continuity_report_output');
+      expect(() => writeAuditionContinuityReport(book, `\\\\.\\${path.join(book, 'ns2.json')}`)).toThrow('continuity_report_output');
+      writeAuditionContinuityReport(book, `\\\\?\\${path.join(scratch, 'ns-outside.json')}`);
+      expect(existsSync(path.join(scratch, 'ns-outside.json'))).toBe(true);
+      expect(tree(book)).toEqual(before);
+      expect(readFileSync(record, 'utf8')).toBe(readFileSync(link, 'utf8'));
+    } finally { rmSync(scratch, { recursive: true, force: true }); rmSync(book, { recursive: true, force: true }); }
+  });
+  it('the JS realpath fallback keeps a Win32 namespace prefix; it is removed before the boundary comparison', () => {
+    expect(withoutWin32Namespace('\\\\?\\C:\\books\\one')).toBe('C:\\books\\one');
+    expect(withoutWin32Namespace('\\\\.\\C:\\books\\one')).toBe('C:\\books\\one');
+    expect(withoutWin32Namespace('\\\\?\\UNC\\server\\share\\one')).toBe('\\\\server\\share\\one');
+    expect(withoutWin32Namespace('\\\\?\\unc\\server\\share\\one')).toBe('\\\\server\\share\\one');
+    for (const plain of ['C:\\books\\one', '\\\\server\\share\\one', '/home/books/one']) expect(withoutWin32Namespace(plain)).toBe(plain);
   });
   it('A-F2: the review context is decoded, not pattern-matched: quotes, key order, whitespace and colliding nested names', () => {
     const book = savedBook(FOREST);
