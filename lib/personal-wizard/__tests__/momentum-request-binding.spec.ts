@@ -83,6 +83,13 @@ describe('momentum request binding: the exact Wizard receipt is sealed by the gr
       finally { r.done(); }
     }
   });
+  it('refuses a receipt whose intake AND binding agree on a voice the accepted request did not choose', () => {
+    const r = receipt();
+    try {
+      r.edit(r.wizard.intakeFile, i => { i.voiceId = 'mom'; }); r.edit(r.bindingFile, b => { b.voiceId = 'mom'; });
+      expect(() => assertRequestBinding(r.resealed(), r.prepared)).toThrow('trial_request_binding');
+    } finally { r.done(); }
+  });
   it('is an exact byte seal: harmless reserialization, a binding-only change, a Wizard config change or a missing binding all refuse', () => {
     const cases: Array<[string, (r: ReturnType<typeof receipt>) => void]> = [
       ['intake reserialized', r => r.edit(r.wizard.intakeFile, () => {}, 0)],
