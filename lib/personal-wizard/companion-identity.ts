@@ -4,10 +4,14 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 /**
- * A companion's DRAWING identity: its own complete style01 sheet set (every view passed in its manifest). The engine draws a book's
- * companion from that set's front view. Card art is a presentation choice only and is never the drawing reference (bunny's card is its
- * happy view). A companion without a complete passed set has no drawing identity and is not selectable for a book.
+ * A companion's DRAWING identity: its own complete style01 sheet set. The engine draws a book's companion from that set's front view.
+ * Card art is a presentation choice only and is never the drawing reference (bunny's card is its happy view). A companion without a
+ * complete set has no drawing identity and is not selectable for a book.
+ *
+ * Complete: the FRONT passed its review ("passed"). Every other view either passed, or the owner accepted it after a review held it
+ * ONLY on its angle ("owner_accepted" with acceptance.kind "owner_angle_only", CSR-2, 2026-10-29). The front is never owner-accepted.
  */
+export const OWNER_ANGLE_ONLY = 'owner_angle_only' as const;
 export const COMPANION_SHEET_VIEWS = Object.freeze({ front: 'front.png', three_quarter_front: '3-4.png', side: 'side.png',
   three_quarter_back: 'back.png', happy: 'happy.png', theme: 'theme.png' } as const);
 export class CompanionIdentityError extends Error { constructor(readonly code: string) { super(code); } }
@@ -17,16 +21,18 @@ function sheetsDirectory(id: string, root: string) {
   if (!/^[a-z][a-z0-9_]{1,40}$/.test(id)) fail('companion_identity_id');
   return path.join(root, 'public', 'companions', id, 'style01-sheets');
 }
-/** The complete passed sheet set, or a refusal naming what is missing. */
+/** The complete sheet set, or a refusal naming what is missing. */
 function verifiedSheets(id: string, root: string) {
   const dir = sheetsDirectory(id, root), manifestFile = path.join(dir, 'manifest.json');
   if (!existsSync(manifestFile)) fail('companion_identity_missing');
-  let manifest: { companionId?: unknown; views?: Record<string, { filename?: unknown; qaStatus?: unknown }> };
+  let manifest: { companionId?: unknown; views?: Record<string, { filename?: unknown; qaStatus?: unknown; acceptance?: { kind?: unknown } }> };
   try { manifest = JSON.parse(readFileSync(manifestFile, 'utf8')); } catch { return fail('companion_identity_manifest'); }
   if (manifest.companionId !== id) fail('companion_identity_manifest');
   for (const [view, filename] of Object.entries(COMPANION_SHEET_VIEWS)) {
     const entry = manifest.views?.[view], file = path.join(dir, filename);
-    if (entry?.filename !== filename || entry.qaStatus !== 'passed') fail('companion_identity_unqualified');
+    const qualified = entry?.qaStatus === 'passed' ||
+      view !== 'front' && entry?.qaStatus === 'owner_accepted' && entry.acceptance?.kind === OWNER_ANGLE_ONLY;
+    if (entry?.filename !== filename || !qualified) fail('companion_identity_unqualified');
     if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size <= 1000) fail('companion_identity_missing');
   }
   return dir;

@@ -11,14 +11,15 @@ import { PALETTE_FAITHFULNESS, COMPANION_SHEET_VIEW_SCENE } from '../../generati
 import { CONTRACT_VIEW_LINE } from '../../generation-pipeline/companion-sheet-view-contract';
 import { STYLE_REFERENCE_PREFIX } from '../../generate-image';
 import { getPersonalAddedCompanion, PERSONAL_ADDED_COMPANIONS, personalCompanionVisual } from '../personal-companions';
-import { companionIdentityReference } from '../companion-identity';
+import { companionIdentityReference, companionSheetsComplete } from '../companion-identity';
 import { AuditionMeter, auditionRenderPlan, auditionRenderRule, auditionReviewRule, renderMaximum, REVIEW_MODEL } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { READER_PORTRAIT_FRAMING_VERSION } from '../../storybook-scene-framing';
 import { admitCompanionSheetGrant, companionSheetDisposition, companionSheetMeterRules, companionSheetRenderPlan, companionSheetRenderRule,
   companionSheetReviewPayload, companionSheetReviewRule, parseCompanionSheetReview, runCompanionSheets, COMPANION_SHEET_SOURCE_FILES,
   COMPANION_SHEETS_EXECUTING_PHASE, COMPANION_SHEETS_EXECUTOR, COMPANION_SHEETS_REGISTRY_KEY, COMPANION_SHEET_REVIEW_INSTRUCTIONS, type CompanionSheetProviders,
   type CompanionSheetReview, admitCompanionSheetRepairGrant, runCompanionSheetRepair, REPAIR_LEASE, companionSheetGeometrySha,
-  companionSheetRepairDisposition } from '../../../scripts/personal-companion-sheets';
+  companionSheetRepairDisposition, admitCompanionSheetOwnerAcceptance, runCompanionSheetOwnerAcceptance, OWNER_ACCEPTANCE_LEASE,
+  OWNER_ACCEPTANCE_SOURCE_FILES, angleOnlyHold } from '../../../scripts/personal-companion-sheets';
 
 const ROOT = path.resolve(__dirname, '../../..');
 const sha = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
@@ -622,5 +623,134 @@ describe('CSR-1 repair run (fake providers): two contract renders, one review, p
     const r = await runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers });
     expect(r.stopped?.code).toBe('companion_sheet_reviewed_bytes_changed'); expect(existsSync(path.join(s.grant.out, 'sheets'))).toBe(false);
     await expect(runCompanionSheetRepair({ grantFile: s.grantFile, keyFile: s.keyFile, signal: signal(), providers: f.providers })).rejects.toThrow('companion_sheet_out');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// CSR-2: the owner may accept a view held ONLY on its angle (no provider call). The front must have passed its review.
+// ---------------------------------------------------------------------------------------------------------------
+const angleHeld = (view: string) => ({ ...viewVerdict(view, true), correctAngle: false, reason: 'the head turns slightly' });
+async function scratchAcceptance(edit: (g: any, ctx: { dir: string; draft: any; outcome: any; owner: { text: string } }) => void = () => undefined,
+  opts: { registryPhase?: string; qa?: (outcomeSha: string) => string } = {}) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'csr2-accept-')), file = (name: string, bytes: Buffer | string) => { const f = path.join(dir, name); writeFileSync(f, bytes); return f; };
+  const pin = (f: string) => ({ file: f, sha256: sha(readFileSync(f)) });
+  const images: Record<string, string> = {};
+  for (const [n, view] of COMPANION_SHEET_VIEW_KINDS.entries()) images[view] = file(`judged_${view}.png`, await png(220 + n));
+  const draft: any = { companions: { elephant_momo: { visualDescription: momo().description, body: MOMO_BODY } } };
+  const index = [{ id: 'elephant_momo', file: 'approved-looks/elephant_momo/front-candidate.png', sha256: sha(readFileSync(images.front)) }];
+  const priorGrant = file('prior-grant.json', '{"consumed":"repair"}');
+  const verdictOf: Record<string, unknown> = { front: viewVerdict('front', false), three_quarter_front: viewVerdict('three_quarter_front', false),
+    side: viewVerdict('side', false), three_quarter_back: angleHeld('three_quarter_back'), happy: angleHeld('happy'), theme: angleHeld('theme') };
+  const outcome: any = { version: 'companion-sheet-repair-outcome/v1', grantSha256: sha(readFileSync(priorGrant)), concepts: [],
+    sheets: [{ companionId: 'elephant_momo', status: 'pending', reason: 'held_after_repair',
+      views: Object.fromEntries(COMPANION_SHEET_VIEW_KINDS.map(v => [v, { image: path.basename(images[v]), sha256: sha(readFileSync(images[v])), verdict: verdictOf[v] }])) }],
+    spend: { newKnownApiMicroUsd: 85272, calls: 3, unknownCost: 0, unknownOutcome: 0, reservedUnsettledMicroUsd: 0 } };
+  const owner = { text: `Guy: "מבחינתי הכל עובר בתמונה" elephant_momo\n${COMPANION_SHEET_VIEW_KINDS.map(v => `${v} ${sha(readFileSync(images[v]))}`).join('\n')}\n` };
+  const head = execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const grant: any = { version: 'companion-sheet-owner-acceptance/v1', stage: 'A1', out: path.join(dir, 'run'), registry: path.join(dir, 'registry.json'),
+    lineage: { descriptions: pin(file('draft.json', '')), approvedIndex: pin(file('index.json', JSON.stringify(index))), ownerAcceptance: pin(file('owner.txt', '')),
+      priorGrant: pin(priorGrant), priorOutcome: pin(file('outcome.json', '')), priorOutcomeQa: pin(file('outcome-qa.txt', '')) },
+    source: { root: ROOT, commit: head, files: Object.fromEntries(OWNER_ACCEPTANCE_SOURCE_FILES.map(f => [f, sha(readFileSync(path.join(ROOT, f)))])) },
+    sheet: { companionId: 'elephant_momo', descriptionSha256: sha(momo().description), geometrySha256: companionSheetGeometrySha(MOMO_GEOMETRY), body: MOMO_BODY,
+      views: COMPANION_SHEET_VIEW_KINDS.map(view => ({ view, image: pin(images[view]) })) } };
+  edit(grant, { dir, draft, outcome, owner });
+  const repin = (p: any, bytes: string) => { writeFileSync(p.file, bytes); p.sha256 = sha(readFileSync(p.file)); };
+  repin(grant.lineage.descriptions, JSON.stringify(draft));
+  repin(grant.lineage.ownerAcceptance, owner.text);
+  repin(grant.lineage.priorOutcome, JSON.stringify(outcome));
+  repin(grant.lineage.priorOutcomeQa, (opts.qa ?? (o => `DISPOSITION: PASS\nOUTCOME_SHA256: ${o}\n`))(grant.lineage.priorOutcome.sha256));
+  const grantFile = file('acceptance.json', JSON.stringify(grant, null, 2)), grantSha = sha(readFileSync(grantFile));
+  writeFileSync(grant.registry, JSON.stringify({ phase: opts.registryPhase ?? OWNER_ACCEPTANCE_LEASE.phase,
+    coordination: { activeWriter: OWNER_ACCEPTANCE_LEASE.executor, activeQA: null }, [OWNER_ACCEPTANCE_LEASE.key]: { executeGrantSha256: grantSha } }));
+  return { dir, grant, grantFile, outcome, images };
+}
+
+describe('CSR-2 owner acceptance: only an angle-only hold, never the front, bound to the exact judged bytes and the owner file', () => {
+  it('angleOnlyHold: a hold whose ONLY false check is correctAngle; nothing else, and never an inconsistent pass', () => {
+    expect(angleOnlyHold(angleHeld('happy') as never)).toBe(true);
+    for (const check of ['sameCharacterAsFront', 'anatomyConsistent', 'accessoryConsistent', 'paletteConsistent', 'styleMatchesFront',
+      'isolatedOnPlainBackground', 'noTextNoExtraFigures']) expect(angleOnlyHold({ ...angleHeld('happy'), [check]: false } as never)).toBe(false);
+    expect(angleOnlyHold({ ...angleHeld('happy'), verdict: 'pass' } as never)).toBe(false); // a "pass" with a false check
+    expect(angleOnlyHold(viewVerdict('happy', true) as never)).toBe(false); // held with every check true: not an angle hold either
+  });
+  it('admits the exact record: three review passes, three owner angle-only acceptances', async () => {
+    const s = await scratchAcceptance(), a = admitCompanionSheetOwnerAcceptance(s.grantFile);
+    expect(a.accepted.map(x => [x.view, x.kind])).toEqual([['front', 'review_passed'], ['three_quarter_front', 'review_passed'], ['side', 'review_passed'],
+      ['three_quarter_back', 'owner_angle_only'], ['happy', 'owner_angle_only'], ['theme', 'owner_angle_only']]);
+  });
+  it.each([
+    ['a front held on its angle', (_g: any, c: any) => { c.outcome.sheets[0].views.front.verdict = angleHeld('front'); }, 'companion_sheet_accept_not_angle_only'],
+    ['a hold on anatomy as well as the angle', (_g: any, c: any) => { c.outcome.sheets[0].views.happy.verdict.anatomyConsistent = false; }, 'companion_sheet_accept_not_angle_only'],
+    ['an identity hold', (_g: any, c: any) => { c.outcome.sheets[0].views.theme.verdict = { ...viewVerdict('theme', true), sameCharacterAsFront: false }; }, 'companion_sheet_accept_not_angle_only'],
+    ['an inconsistent pass with a false check', (_g: any, c: any) => { c.outcome.sheets[0].views.side.verdict = { ...viewVerdict('side', false), accessoryConsistent: false }; }, 'companion_sheet_accept_not_angle_only'],
+    ['an owner file missing one hash', (_g: any, c: any) => { c.owner.text = c.owner.text.split('\n').filter((l: string) => !l.startsWith('theme ')).join('\n'); }, 'companion_sheet_accept_owner'],
+    ['an owner file for another companion', (_g: any, c: any) => { c.owner.text = c.owner.text.replace('elephant_momo', 'turtle_tuk'); }, 'companion_sheet_accept_owner'],
+    ['bytes other than the judged ones', (_g: any, c: any) => { c.outcome.sheets[0].views.happy.sha256 = '3'.repeat(64); }, 'companion_sheet_accept_view'],
+    ['a verdict of another view', (_g: any, c: any) => { c.outcome.sheets[0].views.happy.verdict = angleHeld('theme'); }, 'companion_sheet_accept_view'],
+    ['a changed image file', (g: any) => { writeFileSync(g.sheet.views[4].image.file, Buffer.from('changed')); }, 'companion_sheet_input_changed'],
+    ['views out of sheet order', (g: any) => { g.sheet.views = [g.sheet.views[1], g.sheet.views[0], ...g.sheet.views.slice(2)]; }, 'companion_sheet_views'],
+    ['a front not in the approved index', (g: any) => { writeFileSync(g.lineage.approvedIndex.file, '[]'); g.lineage.approvedIndex.sha256 = sha('[]'); }, 'companion_sheet_front'],
+    ['a prior outcome of another grant', (_g: any, c: any) => { c.outcome.grantSha256 = '5'.repeat(64); }, 'companion_sheet_accept_prior'],
+    ['a prior outcome with an unknown cost', (_g: any, c: any) => { c.outcome.spend.unknownCost = 1; }, 'companion_sheet_accept_prior'],
+    ['a stopped prior outcome', (_g: any, c: any) => { c.outcome.stopped = { code: 'x' }; }, 'companion_sheet_accept_prior'],
+    ['a prior set that is not pending', (_g: any, c: any) => { c.outcome.sheets[0].status = 'passed'; }, 'companion_sheet_accept_prior'],
+    ['nothing for the owner to accept', (_g: any, c: any) => { for (const v of ['three_quarter_back', 'happy', 'theme']) c.outcome.sheets[0].views[v].verdict = viewVerdict(v, false); }, 'companion_sheet_accept_nothing'],
+    ['a description other than the reviewed draft', (_g: any, c: any) => { c.draft.companions.elephant_momo.visualDescription += ' Wings.'; }, 'companion_sheet_description'],
+    ['another geometry', (g: any) => { g.sheet.geometrySha256 = '6'.repeat(64); }, 'companion_sheet_geometry'],
+    ['a changed identity-rule pin', (g: any) => { g.source.files['lib/personal-wizard/companion-identity.ts'] = '0'.repeat(64); }, 'companion_sheet_source'],
+    ['the operator pins without the identity rule', (g: any) => { delete g.source.files['lib/personal-wizard/companion-identity.ts']; }, 'companion_sheet_source'],
+    ['an existing output folder', (g: any) => { mkdirSync(g.out); }, 'companion_sheet_out'],
+  ])('refuses %s', async (_label, edit, code) => {
+    const s = await scratchAcceptance(edit as never);
+    expect(() => admitCompanionSheetOwnerAcceptance(s.grantFile)).toThrow(code);
+  });
+  it('refuses a prior QA that is not a PASS or names another outcome, and any other stage by schema', async () => {
+    for (const qa of [(o: string) => `DISPOSITION: HOLD\nOUTCOME_SHA256: ${o}\n`, () => `DISPOSITION: PASS\nOUTCOME_SHA256: ${'7'.repeat(64)}\n`]) {
+      const s = await scratchAcceptance(undefined, { qa });
+      expect(() => admitCompanionSheetOwnerAcceptance(s.grantFile)).toThrow('companion_sheet_accept_prior');
+    }
+    const s = await scratchAcceptance(g => { g.stage = 'A2'; });
+    expect(() => admitCompanionSheetOwnerAcceptance(s.grantFile)).toThrow();
+  });
+});
+
+describe('CSR-2 owner acceptance run: no provider, its own lease, the exact bytes as a set the drawing identity admits', () => {
+  it('writes the six exact bytes once; passed views say "passed", accepted views say "owner_accepted" with the owner file and the held verdict', async () => {
+    const s = await scratchAcceptance(), r = runCompanionSheetOwnerAcceptance({ grantFile: s.grantFile });
+    expect(r).toMatchObject({ status: 'accepted', providerCalls: 0, companionId: 'elephant_momo' }); expect(r.stopped).toBeUndefined();
+    const set = path.join(s.grant.out, 'sheets', 'elephant_momo', 'style01-sheets'), manifest = JSON.parse(readFileSync(path.join(set, 'manifest.json'), 'utf8'));
+    for (const { view, image } of s.grant.sheet.views) {
+      expect(manifest.views[view].sha256).toBe(image.sha256);
+      expect(sha(readFileSync(path.join(set, manifest.views[view].filename)))).toBe(image.sha256);
+      const accepted = ['three_quarter_back', 'happy', 'theme'].includes(view);
+      expect(manifest.views[view].qaStatus).toBe(accepted ? 'owner_accepted' : 'passed');
+      expect(manifest.views[view].acceptance).toEqual(accepted ? { kind: 'owner_angle_only', ownerAcceptanceSha256: s.grant.lineage.ownerAcceptance.sha256 } : undefined);
+      expect(manifest.views[view].review.outcomeSha256).toBe(s.grant.lineage.priorOutcome.sha256);
+    }
+    expect(readFileSync(path.join(s.grant.out, 'grant.json'), 'utf8')).toBe(readFileSync(s.grantFile, 'utf8'));
+    expect(existsSync(path.join(s.grant.out, 'paid'))).toBe(false);
+    // Admitted into a scratch tree, the set is a complete drawing identity, drawn from the review-passed front.
+    const root = mkdtempSync(path.join(tmpdir(), 'csr2-root-')), pub = path.join(root, 'public', 'companions', 'elephant_momo', 'style01-sheets');
+    cpSync(set, pub, { recursive: true });
+    expect(companionSheetsComplete('elephant_momo', root)).toBe(true);
+    expect(companionIdentityReference('elephant_momo', root).sha256).toBe(s.grant.sheet.views[0].image.sha256);
+    // The identity rule: an owner-accepted FRONT, an acceptance of another kind, or an unknown status is not a drawing identity.
+    const m = JSON.parse(readFileSync(path.join(pub, 'manifest.json'), 'utf8')), save = (x: any) => writeFileSync(path.join(pub, 'manifest.json'), JSON.stringify(x));
+    for (const broken of [{ front: { ...m.views.front, qaStatus: 'owner_accepted', acceptance: { kind: 'owner_angle_only' } } },
+      { happy: { ...m.views.happy, acceptance: { kind: 'owner_any' } } }, { happy: { ...m.views.happy, acceptance: undefined } },
+      { theme: { ...m.views.theme, qaStatus: 'accepted' } }]) {
+      save({ ...m, views: { ...m.views, ...broken } }); expect(companionSheetsComplete('elephant_momo', root)).toBe(false);
+    }
+    save(m); expect(companionSheetsComplete('elephant_momo', root)).toBe(true);
+  });
+  it('the owner-acceptance lease, not the repair or S1 lease: absent → nothing created; a consumed record cannot run again', async () => {
+    for (const phase of [REPAIR_LEASE.phase, COMPANION_SHEETS_EXECUTING_PHASE, 'COMPANION_SHEET_ACCEPT_QA_RELEASED']) {
+      const s = await scratchAcceptance(undefined, { registryPhase: phase });
+      expect(() => runCompanionSheetOwnerAcceptance({ grantFile: s.grantFile })).toThrow('companion_sheet_lease');
+      expect(existsSync(s.grant.out)).toBe(false);
+    }
+    const s = await scratchAcceptance();
+    expect(runCompanionSheetOwnerAcceptance({ grantFile: s.grantFile }).status).toBe('accepted');
+    expect(() => runCompanionSheetOwnerAcceptance({ grantFile: s.grantFile })).toThrow('companion_sheet_out');
   });
 });

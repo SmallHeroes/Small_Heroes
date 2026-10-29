@@ -19,6 +19,8 @@
  *   counts. The prompt is companion-only (no child rendering block, no page negative). Wires and reviews are v2; only v2 is priced.
  * - A REPAIR grant (runCompanionSheetRepair) redraws ONLY the views a prior PASS-reviewed outcome held, keeps the views that passed
  *   there as their exact judged bytes, and makes one six-view review: pass, or pending. Never a second redraw.
+ * - An OWNER ACCEPTANCE (CSR-2, runCompanionSheetOwnerAcceptance; no provider call) writes a pending set whose only holds were on the
+ *   angle, after the owner accepted those exact bytes. The front must have passed its review; no other hold is acceptable.
  *
  * Run: in ONE process, register the server-only shim and tsx, then call companionSheetsMain, e.g.
  *   node -e "require('./scripts/shims/register-server-only.cjs');require('./node_modules/tsx/dist/cjs/index.cjs');
@@ -39,6 +41,7 @@ import { COMPANION_SHEET_NEGATIVE, COMPANION_SHEET_VIEW_FILENAME, COMPANION_SHEE
 import { assertCompanionSheetGeometryGrounded, COMPANION_SHEET_VIEW_CONTRACT_VERSION, CONTRACT_VIEW_LINE, companionSheetViewContract,
   companionSheetViewContractText } from '../lib/generation-pipeline/companion-sheet-view-contract';
 import { getPersonalAddedCompanion, personalCompanionVisual, type CompanionSheetGeometry } from '../lib/personal-wizard/personal-companions';
+import { OWNER_ANGLE_ONLY } from '../lib/personal-wizard/companion-identity';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { AuditionMeter, AUDITION_REVIEW_TIMEOUT_MS, digestImages, keyReader, renderMaximum, RENDER_PRICING, REVIEW_MODEL, reviewAnswered,
@@ -502,10 +505,10 @@ export const companionSheetRepairGrantSchema = z.object({
 }).strict();
 export type CompanionSheetRepairGrant = z.infer<typeof companionSheetRepairGrantSchema>;
 
-const sourceAdmitted = (source: { root: string; commit: string; files: Record<string, string> }) => {
+const sourceAdmitted = (source: { root: string; commit: string; files: Record<string, string> }, pinnedFiles: readonly string[] = COMPANION_SHEET_SOURCE_FILES) => {
   if (!path.isAbsolute(source.root)) fail('companion_sheet_source');
   const files = Object.keys(source.files);
-  if (files.length !== COMPANION_SHEET_SOURCE_FILES.length || COMPANION_SHEET_SOURCE_FILES.some(f => !files.includes(f)) ||
+  if (files.length !== pinnedFiles.length || pinnedFiles.some(f => !files.includes(f)) ||
       files.some(f => shaFile(plainFile(path.join(source.root, f))) !== source.files[f])) fail('companion_sheet_source');
   if (execFileSync('git', ['-C', source.root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() !== source.commit) fail('companion_sheet_source');
 };
@@ -612,6 +615,135 @@ export async function runCompanionSheetRepair(args: { grantFile: string; keyFile
   exclusiveJson(at('outcome.json'), { version: 'companion-sheet-repair-outcome/v1', grantSha256, ...outcome, spend, cumulative, finishedAt: new Date().toISOString() });
   writeFileSync(at('contact-sheet.html'), contactSheet(outcome, 'גיליון חבר מלווה — תיקון'), { flag: 'wx' });
   return { ...outcome, spend, cumulative };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Owner acceptance (CSR-2, 2026-10-29): the owner may accept a view a PASS-reviewed outcome held ONLY on its angle. No provider call.
+// ---------------------------------------------------------------------------------------------------------------
+export const COMPANION_SHEET_OWNER_ACCEPTANCE_VERSION = 'companion-sheet-owner-acceptance/v1' as const;
+export const OWNER_ACCEPTANCE_LEASE: CompanionSheetLease = Object.freeze({ key: 'companionSheetOwnerAcceptance20261029',
+  phase: 'COMPANION_SHEET_ACCEPT_A1_EXECUTING', executor: 'Claude desktop af9211ff COMPANION-SHEET-ACCEPT executor' });
+/** The operator's own pins plus the drawing-identity rule that reads what the acceptance writes. */
+export const OWNER_ACCEPTANCE_SOURCE_FILES = Object.freeze([...COMPANION_SHEET_SOURCE_FILES, 'lib/personal-wizard/companion-identity.ts']);
+export const companionSheetOwnerAcceptanceSchema = z.object({
+  version: z.literal(COMPANION_SHEET_OWNER_ACCEPTANCE_VERSION),
+  stage: z.literal('A1'),
+  out: z.string().min(3),
+  registry: z.string().min(3),
+  lineage: z.object({ descriptions: pinned, approvedIndex: pinned, ownerAcceptance: pinned, priorGrant: pinned, priorOutcome: pinned, priorOutcomeQa: pinned }).strict(),
+  source: z.object({ root: z.string().min(3), commit: z.string().regex(/^[0-9a-f]{40}$/), files: z.record(z.string(), sha) }).strict(),
+  sheet: z.object({ companionId, descriptionSha256: sha, geometrySha256: sha, body: z.record(z.string(), z.unknown()),
+    views: z.array(z.object({ view: z.enum(COMPANION_SHEET_VIEW_KINDS as [CompanionSheetViewKind, ...CompanionSheetViewKind[]]), image: pinned }).strict()).length(6) }).strict(),
+}).strict();
+export type CompanionSheetOwnerAcceptance = z.infer<typeof companionSheetOwnerAcceptanceSchema>;
+
+/**
+ * The one hold an owner may accept: the reviewer held the view and correctAngle is its ONLY false check. Identity, anatomy, accessory,
+ * palette, style, isolation and text holds are never acceptable, and neither is an inconsistent answer (a pass with a false check).
+ */
+export const angleOnlyHold = (v: CompanionSheetReview['views'][number]) =>
+  v.verdict === 'hold' && v.correctAngle === false && CHECKS.every(c => c === 'correctAngle' || v[c] === true);
+
+/**
+ * Everything an owner acceptance names, checked before anything is written (no key, no provider):
+ * - the exact source (the operator's pins plus companion-identity.ts), the descriptions draft and the approved-look index;
+ * - the PRIOR run: its grant, its outcome (bound to that grant; known spend only; not stopped) leaving this companion pending, and that
+ *   outcome's PASSing independent QA naming the outcome's hash;
+ * - the owner's acceptance file, which names the companion and every one of the six exact hashes;
+ * - the companion's description, declared body and geometry (grounded; body counts agree);
+ * - the six views, each once, in sheet order, each the EXACT bytes the prior review judged. The front must have passed there (and be the
+ *   indexed approved front); every other view passed, or was held on its angle alone. At least one view must need the owner.
+ */
+export function admitCompanionSheetOwnerAcceptance(file: string) {
+  const text = readFileSync(plainFile(file), 'utf8'), grantSha256 = previewSha(Buffer.from(text, 'utf8'));
+  const grant = companionSheetOwnerAcceptanceSchema.parse(JSON.parse(text));
+  if (!path.isAbsolute(grant.out) || existsSync(grant.out) || !existsSync(path.dirname(grant.out))) fail('companion_sheet_out');
+  sourceAdmitted(grant.source, OWNER_ACCEPTANCE_SOURCE_FILES);
+  for (const p of Object.values(grant.lineage)) pinnedBytes(p);
+  const prior = JSON.parse(readFileSync(grant.lineage.priorOutcome.file, 'utf8')), qa = readFileSync(grant.lineage.priorOutcomeQa.file, 'utf8');
+  if (prior?.grantSha256 !== grant.lineage.priorGrant.sha256 || prior?.spend?.unknownCost !== 0 || prior.spend.unknownOutcome !== 0 ||
+      prior.spend.reservedUnsettledMicroUsd !== 0 || prior.stopped) fail('companion_sheet_accept_prior');
+  if (qa.trimStart().split(/\r?\n/)[0] !== 'DISPOSITION: PASS' || !new RegExp(`^OUTCOME_SHA256: ${grant.lineage.priorOutcome.sha256}\\s*$`, 'm').test(qa))
+    fail('companion_sheet_accept_prior');
+  const s = grant.sheet, entry = Array.isArray(prior.sheets) ? prior.sheets.find((e: { companionId?: string }) => e.companionId === s.companionId) : null;
+  if (!entry || entry.status !== 'pending') fail('companion_sheet_accept_prior');
+  const visual = personalCompanionVisual(s.companionId);
+  if (!getPersonalAddedCompanion(s.companionId) || !visual?.description.trim() || visual.source !== 'lib/personal-wizard/personal-companions.ts') fail('companion_sheet_companion');
+  const draft = JSON.parse(readFileSync(grant.lineage.descriptions.file, 'utf8')), drafted = draft?.companions?.[s.companionId];
+  if (drafted?.visualDescription !== visual!.description || previewSha(Buffer.from(visual!.description, 'utf8')) !== s.descriptionSha256 ||
+      canonicalJson(drafted.body) !== canonicalJson(s.body)) fail('companion_sheet_description');
+  const geometry = companionSheetGeometry(s.companionId, visual!.description);
+  if (companionSheetGeometrySha(geometry) !== s.geometrySha256 || !bodyAgrees(s.body, geometry)) fail('companion_sheet_geometry');
+  if (canonicalJson(s.views.map(v => v.view)) !== canonicalJson(COMPANION_SHEET_VIEW_KINDS)) fail('companion_sheet_views');
+  const owner = readFileSync(grant.lineage.ownerAcceptance.file, 'utf8');
+  if (!owner.includes(s.companionId)) fail('companion_sheet_accept_owner');
+  const accepted = s.views.map(({ view, image }) => {
+    const judged = entry.views?.[view] as { sha256?: string; verdict?: unknown } | undefined;
+    const parsed = verdictSchema.safeParse(judged?.verdict);
+    if (!judged || judged.sha256 !== image.sha256 || !parsed.success || parsed.data.view !== view) fail('companion_sheet_accept_view');
+    if (!owner.includes(image.sha256)) fail('companion_sheet_accept_owner');
+    const verdict = parsed.data!;
+    if (viewPasses(verdict)) return { view, image, kind: 'review_passed' as const, verdict };
+    if (view === 'front' || !angleOnlyHold(verdict)) fail('companion_sheet_accept_not_angle_only');
+    return { view, image, kind: OWNER_ANGLE_ONLY, verdict };
+  });
+  const index = JSON.parse(readFileSync(grant.lineage.approvedIndex.file, 'utf8')), front = s.views[0].image;
+  if (!Array.isArray(index) || !index.some((row: { id?: string; sha256?: string }) => row.id === s.companionId && row.sha256 === front.sha256)) fail('companion_sheet_front');
+  if (!accepted.some(a => a.kind === OWNER_ANGLE_ONLY)) fail('companion_sheet_accept_nothing');
+  s.views.forEach(v => pinnedBytes(v.image));
+  return { grant, grantSha256, text, accepted };
+}
+
+/**
+ * Applies an admitted owner acceptance under its own live lease: the six exact bytes are written as one set, in the shape
+ * companionIdentityReference reads, in the record's own run folder (consumed once). Not public/: admission is separate. Each manifest view
+ * is "passed" (its review passed) or "owner_accepted" (with the held verdict, the owner file's hash and kind owner_angle_only).
+ */
+export function runCompanionSheetOwnerAcceptance(args: { grantFile: string }) {
+  const { grant, grantSha256, text, accepted } = admitCompanionSheetOwnerAcceptance(args.grantFile);
+  const guard = companionSheetGuard(grant.registry, grantSha256, OWNER_ACCEPTANCE_LEASE);
+  guard();
+  mkdirSync(grant.out); realDirectory(grant.out);
+  const at = (...p: string[]) => path.join(grant.out, ...p), s = grant.sheet;
+  exclusiveJson(at('consumed.json'), { grantFile: args.grantFile, grantSha256, at: new Date().toISOString() });
+  writeFileSync(at('grant.json'), text, { flag: 'wx' }); // the admitted bytes, never a later re-read of the path
+  const held = accepted.map(a => { const bytes = Buffer.from(pinnedBytes(a.image)); return { ...a, bytes, sha256: previewSha(bytes) }; });
+  let status: 'accepted' | 'stopped' = 'stopped', stopped: { code: string; message: string } | undefined;
+  try {
+    guard();
+    const dir = at('sheets', s.companionId, 'style01-sheets'); mkdirSync(dir, { recursive: true });
+    const views: Record<string, unknown> = {};
+    for (const h of held) {
+      if (h.sha256 !== h.image.sha256) fail('companion_sheet_reviewed_bytes_changed');
+      const target = path.join(dir, COMPANION_SHEET_VIEW_FILENAME[h.view]);
+      const fd = openSync(target, 'wx'); try { writeFileSync(fd, h.bytes); fsyncSync(fd); } finally { closeSync(fd); }
+      if (shaFile(target) !== h.sha256) fail('companion_sheet_reviewed_bytes_changed');
+      views[h.view] = { filename: COMPANION_SHEET_VIEW_FILENAME[h.view], qaStatus: h.kind === OWNER_ANGLE_ONLY ? 'owner_accepted' : 'passed',
+        source: path.basename(h.image.file), sha256: h.sha256, review: { outcomeSha256: grant.lineage.priorOutcome.sha256, verdict: h.verdict },
+        ...(h.kind === OWNER_ANGLE_ONLY ? { acceptance: { kind: OWNER_ANGLE_ONLY, ownerAcceptanceSha256: grant.lineage.ownerAcceptance.sha256 } } : {}) };
+    }
+    guard();
+    exclusiveJson(path.join(dir, 'manifest.json'), { companionId: s.companionId, referenceJpg: null, generatedAt: new Date().toISOString(),
+      grantSha256, descriptionSha256: s.descriptionSha256, views });
+    status = 'accepted';
+  } catch (error) {
+    stopped = { code: (error as { code?: string })?.code ?? 'companion_sheet_stopped', message: String((error as Error)?.message ?? error).slice(0, 300) };
+  }
+  const outcome = { version: 'companion-sheet-owner-acceptance-outcome/v1', grantSha256, companionId: s.companionId, status,
+    views: accepted.map(a => ({ view: a.view, sha256: a.image.sha256, kind: a.kind })), ...(stopped ? { stopped } : {}), providerCalls: 0,
+    finishedAt: new Date().toISOString() };
+  exclusiveJson(at('outcome.json'), outcome);
+  return outcome;
+}
+
+/** The acceptance's command line: --grant <abs>. No key, no provider. */
+export function companionSheetOwnerAcceptanceMain(argv: readonly string[]) {
+  const i = argv.indexOf('--grant'), grantFile = i >= 0 ? argv[i + 1] : undefined;
+  if (argv.length !== 2 || !grantFile || !path.isAbsolute(grantFile)) fail('companion_sheet_args');
+  const r = runCompanionSheetOwnerAcceptance({ grantFile: grantFile! });
+  console.log(JSON.stringify(r, null, 2));
+  if (r.status !== 'accepted') process.exitCode = 1;
+  return r;
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
