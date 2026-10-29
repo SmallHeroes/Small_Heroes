@@ -33,10 +33,10 @@ const prepare = (f: { request: unknown; result: unknown }, repair?: unknown, con
 describe('storyboard repair contract (opt-in, bound to a held parent of the same source)', () => {
   it('absent: every existing identity and instruction is byte-identical (the pins the earlier contracts were held to)', async () => {
     const f = await personalStoryboardFixture();
-    expect(preparePersonalStoryboard(f.request, f.result, options).sourceDigest).toBe('f1ad9a28816945b860324527a4050018ecd43cbb4eae2bd01b60975dfc4344f5');
-    expect(preparePersonalStoryboard(f.request, f.result, options, true).sourceDigest).toBe('a72da5d557dba2e097c190febd3c0940ed1ac6a9b292f2b4e12aebb4ef379edb');
-    expect(f.book.storyboardDigest).toBe('cb09f0812bafb902f1a7c27de12cc0593636b42b2e33498ac9501c20402c8c1f');
-    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).packetDigest).toBe('d737d76dc01ff5f9311247ec78c78a79cdf09b4579802a0b3a7160e8454514a1');
+    expect(preparePersonalStoryboard(f.request, f.result, options).sourceDigest).toBe('a0ce658469cb5519c7b130ed517d935d5d61a5e5537b1cec6c92c9daf7b5a12f');
+    expect(preparePersonalStoryboard(f.request, f.result, options, true).sourceDigest).toBe('87d1eb5f296a94c4d82344f596ce4c45211cb19ce9701f2d51d4f484366ca80d');
+    expect(f.book.storyboardDigest).toBe('695e4071681e90b060007d58a8edcc242f90c08042cb5638d19808018c518cf4');
+    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).packetDigest).toBe('59ac8ddedb9a1bd4635886acfb0afcd6e91c08ae12b020576e1cb417c60f958c');
     expect(sha(PERSONAL_STORYBOARD_INSTRUCTION)).toBe('858f442ec1fde66c0ae79382fa961a50b1fd88803599570799264527edcc04bd');
     expect(sha(OWNED_STORYBOARD_INSTRUCTION)).toBe('a2286e4848e970b8ccef0917b0580801dbd64ab664b873f5774c3d3cc29fc8e7');
     const all = { actorOwnedAppearance: true, momentContract: true, landmarkKindContract: true, sceneLocationContract: true, compilerRulesContract: true } as const;

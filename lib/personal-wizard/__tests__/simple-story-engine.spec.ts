@@ -9,6 +9,7 @@ import { PERSONAL_CHARACTER_IDS } from '../companion-character';
 import { personalStoryResultSchema } from '../story-contract';
 import { preparePersonalStory } from '../story-writer';
 import * as companionRegistry from '../../companions';
+import { PERSONAL_ADDED_COMPANIONS } from '../personal-companions';
 import { prepareCurrentPersonalStoryboard, preparePersonalStoryboard } from '../storyboard';
 import type { CausalDispatch } from '../story-causal-experiment-runner';
 import { SIMPLE_STORY_SHAPES, SIMPLE_AUTHOR_INSTRUCTIONS, SIMPLE_EDITOR_INSTRUCTIONS, SimpleStoryError, checkSimpleStory, editorFindings, nameVariants,
@@ -202,9 +203,12 @@ describe('simple story engine', () => {
     const p = prepareSimpleStory(request({ companion: { id } }), textCanonOptions(options), 'appearance');
     const appearance = p.book.companion.appearance;
     const known = ['dragon_dini', 'panda_anat', 'fox_uri', 'chameleon_koko', 'lion_shaket', 'bunny_ometz'].includes(id);
+    // An added companion with a declared look sends its own declaration (the shared visual authority); one without a look stays unresolved.
+    const added = PERSONAL_ADDED_COMPANIONS.find(c => c.id === id)?.visualDescription ?? null;
     expect(appearance).toMatchObject({ version: 'personal-simple-companion-appearance/v1', companionId: id,
-      status: known ? 'registry_declared' : 'unresolved', source: known ? 'lib/companions.ts' : null, renderQualified: false });
-    expect(appearance.description).toBe(known ? companionRegistry.getCompanionById(id)!.visualDescription : null);
+      status: known || added ? 'registry_declared' : 'unresolved',
+      source: known ? 'lib/companions.ts' : added ? 'lib/personal-wizard/personal-companions.ts' : null, renderQualified: false });
+    expect(appearance.description).toBe(known ? companionRegistry.getCompanionById(id)!.visualDescription : added);
     if (!known) expect(appearance.stateAuthority).toBeNull();
     const { digest: fingerprint, ...snapshot } = appearance;
     // canonical JSON recursively sorts keys, including the nested state vocabulary.
@@ -272,7 +276,8 @@ describe('simple story engine', () => {
   });
 
   it.each(['missing', 'placeholder', 'other_identity'])('does not substitute a visual record that is %s', variant => {
-    const id = 'elephant_momo', original = companionRegistry.getCompanionById('dragon_dini')!;
+    // Tzuki has an admitted literary profile but no declared look anywhere (Momo now declares his own).
+    const id = 'ibex_tzuki', original = companionRegistry.getCompanionById('dragon_dini')!;
     const spy = vi.spyOn(companionRegistry, 'getCompanionById').mockReturnValue(variant === 'missing' ? null
       : { ...original, id: variant === 'other_identity' ? 'baby_elephant' : id,
         visualDescription: variant === 'placeholder' ? 'PLACEHOLDER — pending' : original.visualDescription });

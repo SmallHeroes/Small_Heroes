@@ -15,14 +15,23 @@ import { personalStoryResultSchema } from '../story-contract';
 const options = resolvePersonalWizardOptions();
 const previousCharacters: Record<string, typeof baseline.characters.dragon_dini> = baseline.characters;
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
-const candidates = ['elephant_momo', 'turtle_tuk', 'hedgehog_tuti', 'owl_shush',
+// Momo was admitted on 2026-10-29 by the drawability rule (declared look, card art, complete sheet set), not by a default.
+const candidates = ['turtle_tuk', 'hedgehog_tuti', 'owl_shush',
   'kangaroo_nula', 'dog_zohar', 'cloud_puf', 'ibex_tzuki', 'mole_mishi'];
 
 describe('light v4 literary revision without new physical canon or candidate admission', () => {
-  it('preserves the exact six offered identities, not fifteen prematurely enabled cards', () => {
+  it('preserves the exact six offered identities plus the one admitted companion, not fifteen prematurely enabled cards', () => {
     expect(PROTOTYPE_COMPANION_ROSTER).toEqual(Object.keys(baseline.characters));
-    expect(options.companions.map(c => c.id)).toEqual(PROTOTYPE_COMPANION_ROSTER);
+    expect(options.companions.map(c => c.id)).toEqual([...PROTOTYPE_COMPANION_ROSTER, 'elephant_momo']);
     expect(baseline.sourceHead).toBe('b60251b687587b9a6bf67fa853a7d50cff40165e');
+  });
+
+  it('elephant_momo: his light profile is offered only because his drawable set is complete', async () => {
+    expect(resolvePersonalCompanionCharacter('elephant_momo')?.companionId).toBe('elephant_momo');
+    const fixture = await personalStoryboardFixture();
+    const request = { ...fixture.request, companion: { id: 'elephant_momo' } };
+    expect(acceptPersonalBookRequest(request, options).ok).toBe(true);
+    expect(preparePersonalStory(request, options).brief.companion.id).toBe('elephant_momo');
   });
 
   it.each(PROTOTYPE_COMPANION_ROSTER)('revises %s literary content while preserving its body and canon', id => {

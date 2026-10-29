@@ -75,8 +75,8 @@ const withFade = (d: any) => {
 describe('storyboard-calibration/v1 (opt-in, owner-approved 2026-10-20): the visual-completion rule, multi-span citations, relation lifetime, one source for state', { timeout: 120_000 }, () => {
   it('absent: byte-identical; it needs the claim basis; its entries REPLACE the grounding, typed-impact, citation and claims entries; provider shapes; marker and review input', async () => {
     const f = await personalStoryboardFixture();
-    expect(preparePersonalStoryboard(f.request, f.result, options).sourceDigest).toBe('f1ad9a28816945b860324527a4050018ecd43cbb4eae2bd01b60975dfc4344f5');
-    expect(f.book.storyboardDigest).toBe('cb09f0812bafb902f1a7c27de12cc0593636b42b2e33498ac9501c20402c8c1f');
+    expect(preparePersonalStoryboard(f.request, f.result, options).sourceDigest).toBe('a0ce658469cb5519c7b130ed517d935d5d61a5e5537b1cec6c92c9daf7b5a12f');
+    expect(f.book.storyboardDigest).toBe('695e4071681e90b060007d58a8edcc242f90c08042cb5638d19808018c518cf4');
     expect(() => preparePersonalStoryboard(f.request, f.result, options, undefined, true, undefined, undefined, undefined, undefined, undefined, true, undefined,
       true, true, undefined, true)).toThrow('personal_storyboard_calibration_policy');
     const basis = prep(f, { basis: true }), calibrated = prep(f, { calibration: true });

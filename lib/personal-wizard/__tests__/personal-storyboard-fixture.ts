@@ -1,6 +1,6 @@
 import { preparePersonalStory, writePersonalStory, type StoryCall } from '../story-writer';
 import { IntakeLedger } from '../intake-ledger';
-import { resolvePersonalWizardOptions } from '../options';
+import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../options';
 import { preparePersonalStoryboard, compilePersonalStoryboard, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
 import type { ReviewedPersonalBookRequest } from '../contract';
 import { prepareStoryEdit, compileStoryEdit, type StoryEditorCall } from '../story-editor';
@@ -29,7 +29,8 @@ const prose = [
   'They climb inside the hut again, and the ribbon stays with נועה.',
 ];
 
-export async function personalStoryboardFixture(lengthId = 'short', companionId = 'dragon_dini') {
+/** `fixtureOptions` lets a historical harness accept the request under its own offered menu (the identity binds the options fingerprint). */
+export async function personalStoryboardFixture(lengthId = 'short', companionId = 'dragon_dini', fixtureOptions: PersonalWizardOptions = options) {
   const request: ReviewedPersonalBookRequest = {
     kind: 'personal_book_request', version: 'reviewed-personal-book-request/v3', draftId: 'd_storyboard01', draftRevision: 3,
     child: { name: 'נועה', age: 5, address: 'girl', residence: 'אודם', nameSource: 'typed', ageSource: 'typed', addressSource: 'typed', residenceSource: 'typed' },
@@ -37,7 +38,7 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
     storyPlace: { value: 'הגינה', source: 'typed' }, companion: { id: companionId }, intent: { kind: 'just_for_fun' }, avoid: [],
     appearance: { photo: 'none' }, bookOptions: { lengthId, voiceId: null },
   };
-  const prepared = preparePersonalStory(request, options);
+  const prepared = preparePersonalStory(request, fixtureOptions);
   const draftResult = await writePersonalStory({ prepared, userId: 'synthetic', jobId: 's_storyboard0001',
     settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set() }, ledger: new IntakeLedger(), signal: new AbortController().signal,
     provider: () => ({ generate: async (call: StoryCall) => {
@@ -91,7 +92,7 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
       }),
     },
   };
-  const source = preparePersonalStoryboard(request, result, options);
+  const source = preparePersonalStoryboard(request, result, fixtureOptions);
   const book = compilePersonalStoryboard(source, draft);
   const review = {
     sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest,
@@ -99,5 +100,5 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
     frames: Array.from({ length: count + 1 }, (_, pageNumber) => ({ pageNumber,
       checks: STORYBOARD_FRAME_CHECKS.map(category => ({ category, verdict: 'supported' as const, observation: 'synthetic observable binding' })) })),
   };
-  return { request, result, draftResult, source, draft, book, review, current: { request, writerResult: result, options } };
+  return { request, result, draftResult, source, draft, book, review, current: { request, writerResult: result, options: fixtureOptions } };
 }

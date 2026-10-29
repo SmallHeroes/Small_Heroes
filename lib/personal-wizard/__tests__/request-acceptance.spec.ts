@@ -45,14 +45,14 @@ function validRequest(): ReviewedPersonalBookRequest {
 }
 
 describe('resolvePersonalWizardOptions', () => {
-  it('offers all six companions with on-disk card art by name, the voices, and three length tiers', () => {
-    expect(options.companions.map((companion) => companion.id)).toEqual([...PROTOTYPE_COMPANION_ROSTER]);
-    expect(options.companions).toHaveLength(6);
+  it('offers the six companions plus Momo (admitted 2026-10-29) with on-disk card art by name, the voices, and three length tiers', () => {
+    expect(options.companions.map((companion) => companion.id)).toEqual([...PROTOTYPE_COMPANION_ROSTER, 'elephant_momo']);
+    expect(options.companions).toHaveLength(7);
     expect(options.unavailableCompanionIds).toEqual([]);
     for (const companion of options.companions) {
       expect(Object.keys(companion).sort()).toEqual(['id', 'image', 'name']);
       expect(companion.name.length).toBeGreaterThan(0);
-      expect(companion.image).toMatch(/^\/companions\//);
+      expect(companion.image).toMatch(/^\/(companions|Images\/personal-companions)\//);
     }
     expect(options.voices.map((voice) => voice.id)).toEqual(VOICES.map((voice) => voice.id));
     expect(options.voices.find((voice) => voice.id === 'dad_v2')?.sampleUrl).toBeNull();

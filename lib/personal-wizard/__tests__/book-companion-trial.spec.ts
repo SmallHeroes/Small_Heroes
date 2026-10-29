@@ -34,7 +34,8 @@ let frozen: Awaited<ReturnType<typeof loadFrozenBookEngine>>;
 let fixture: Awaited<ReturnType<typeof personalStoryboardFixture>>;
 beforeAll(async () => {
   frozen = await loadFrozenBookEngine(process.cwd(), '9a1ba1f20ef5c36c643c469c5e045b0bb32dea46');
-  fixture = await personalStoryboardFixture();
+  // The frozen engine offers its own menu (the six, never Momo); its requests are accepted under that menu's fingerprint.
+  fixture = await personalStoryboardFixture('short', 'dragon_dini', bookTrialPlan(frozen.engine, process.cwd()).options as never);
 }, 30_000);
 function fixtureProvider(holdAt?: number): PersonalBookProvider {
   return { story: { generate: async (c: any) => {

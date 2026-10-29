@@ -9,6 +9,7 @@ import { SIMPLE_CHILD_MOMENTUM_EXPERIENCE, SIMPLE_CHILD_MOMENTUM_VERSION, SIMPLE
   SIMPLE_CHILD_EXPERIENCE, SIMPLE_CHILD_VERSION, SIMPLE_STORY_EXPERIENCE, type SimpleStoryExperience } from '../simple-story-experience';
 import { SIMPLE_WRITING_ROLES } from '../simple-writing-roles';
 import { resolvePersonalWizardOptions } from '../options';
+import { preAdmissionOptions } from './pre-admission-options';
 import { canonicalJson } from '../request-acceptance';
 import { createCurrentSimpleStorySource, admitCurrentSimpleStorySource, simpleStoryReadingPackets, prepareSimpleStoryRepair,
   SimpleStorySourceError, ROLES_SIMPLE_SOURCE_VERSION, SOL_SIMPLE_SOURCE_VERSION, CURRENT_SIMPLE_SOURCE_VERSION } from '../simple-story-source';
@@ -127,17 +128,24 @@ describe('child-first/v4 story momentum (provider-free, not literary proof)', ()
     const draft = { title: 'ת', childGoal: 'ת', companionWant: 'ת', comicPromise: 'ת', ending: 'ת', pages: Array.from({ length: 8 }, (_, i) => ({ text: `עמוד ${i + 1}` })),
       pageMap: Array.from({ length: 8 }, () => ({ location: 'ת', transitionReason: 'ת', childAction: 'ת', companionAction: 'ת', consequence: 'ת', factIds: [], continuity: 'ת' })),
       resilienceMoments: [{ page: 1, childChoice: 'ת', whatHelps: 'ת' }] };
-    const out: Record<string, unknown> = {};
-    for (const [name, experience] of [['v1', undefined], ['delight', SIMPLE_STORY_EXPERIENCE], ['v2', SIMPLE_CHILD_EXPERIENCE], ['v3', SIMPLE_CHILD_SHAPE_EXPERIENCE]] as const) {
-      for (const age of [3, 4, 6, 8]) for (let n = 0; n < 40; n++) {
-        const p = prepareSimpleStory(legacyRequest(age), options, `legacy-${n}`, experience);
-        const a = simpleAuthorCall(p), e = simpleEditorCall(p, draft as any, ['Pages 2 are shorter than 45 words; give them a little more story.']);
-        out[`${name}:${age}:${n}:${p.shape.id}`] = { version: p.version, author: sha({ i: a.instructions, x: a.input, s: opusOutputContract(a).schema, m: a.maxOutputTokens }),
-          editor: sha({ i: e.instructions, x: e.input, s: opusOutputContract(e).schema, m: e.maxOutputTokens }) };
+    const calls = (menu: typeof options) => {
+      const out: Record<string, unknown> = {};
+      for (const [name, experience] of [['v1', undefined], ['delight', SIMPLE_STORY_EXPERIENCE], ['v2', SIMPLE_CHILD_EXPERIENCE], ['v3', SIMPLE_CHILD_SHAPE_EXPERIENCE]] as const) {
+        for (const age of [3, 4, 6, 8]) for (let n = 0; n < 40; n++) {
+          const p = prepareSimpleStory(legacyRequest(age), menu, `legacy-${n}`, experience);
+          const a = simpleAuthorCall(p), e = simpleEditorCall(p, draft as any, ['Pages 2 are shorter than 45 words; give them a little more story.']);
+          out[`${name}:${age}:${n}:${p.shape.id}`] = { version: p.version, author: sha({ i: a.instructions, x: a.input, s: opusOutputContract(a).schema, m: a.maxOutputTokens }),
+            editor: sha({ i: e.instructions, x: e.input, s: opusOutputContract(e).schema, m: e.maxOutputTokens }) };
+        }
       }
-    }
-    expect(new Set(Object.keys(out).map(k => k.split(':')[3])).size).toBe(14);
-    expect(sha(out)).toBe('6550e9c5f4e9fdfc51ae7b5d60e3f6fc10ce9ac09f1e139ec47b6f37c517f0f6');
+      return out;
+    };
+    // Under the menu as it was at capture (before Momo's admission) the bytes are exactly as captured.
+    const captured = calls(preAdmissionOptions(options));
+    expect(new Set(Object.keys(captured).map(k => k.split(':')[3])).size).toBe(14);
+    expect(sha(captured)).toBe('6550e9c5f4e9fdfc51ae7b5d60e3f6fc10ce9ac09f1e139ec47b6f37c517f0f6');
+    // The current menu (Momo offered) changes each request's identity, and with it the seeded story-shape pick; the instructions do not change.
+    expect(sha(calls(options))).toBe('06ec8f2b44de94407abd46ed9f5c40768577a0eb8c277d9a78425ad13a75fcaf');
   }, 60_000);
   it('adds the momentum questions to all three v4 review packets and leaves v3 packets as they were', async () => {
     const v4 = await split(), s4 = createCurrentSimpleStorySource(v4.req, v4.generated, v4.records as any, options, SIMPLE_WRITING_ROLES.label);

@@ -27,7 +27,7 @@ describe('owner acceptance of a held storyboard (opt-in; bound to the book, its 
   it('absent: a held storyboard still builds no frame, and a supported one keeps its exact packet', async () => {
     const f = await personalStoryboardFixture(), review = held(f.review);
     expect(() => personalStoryboardFrame(f.book, review, 1, f.current)).toThrow('personal_storyboard_held_uncertain');
-    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).packetDigest).toBe('d737d76dc01ff5f9311247ec78c78a79cdf09b4579802a0b3a7160e8454514a1');
+    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).packetDigest).toBe('59ac8ddedb9a1bd4635886acfb0afcd6e91c08ae12b020576e1cb417c60f958c');
     expect(personalStoryboardFrame(f.book, f.review, 1, f.current).context).not.toHaveProperty('ownerAcceptance');
   });
 

@@ -53,9 +53,9 @@ const set = (check: any, verdict: string, observation: string, issues?: unknown[
 describe('engine recovery: planner self-check, typed review materiality and the diagnosis after two held candidates (opt-in)', { timeout: 120_000 }, () => {
   it('absent: every existing identity, instruction, schema, review input and disposition is byte-identical', async () => {
     const f = await personalStoryboardFixture();
-    expect(preparePersonalStoryboard(f.request, f.result, options).sourceDigest).toBe('f1ad9a28816945b860324527a4050018ecd43cbb4eae2bd01b60975dfc4344f5');
-    expect(f.book.storyboardDigest).toBe('cb09f0812bafb902f1a7c27de12cc0593636b42b2e33498ac9501c20402c8c1f');
-    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).packetDigest).toBe('d737d76dc01ff5f9311247ec78c78a79cdf09b4579802a0b3a7160e8454514a1');
+    expect(preparePersonalStoryboard(f.request, f.result, options).sourceDigest).toBe('a0ce658469cb5519c7b130ed517d935d5d61a5e5537b1cec6c92c9daf7b5a12f');
+    expect(f.book.storyboardDigest).toBe('695e4071681e90b060007d58a8edcc242f90c08042cb5638d19808018c518cf4');
+    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).packetDigest).toBe('59ac8ddedb9a1bd4635886acfb0afcd6e91c08ae12b020576e1cb417c60f958c');
     const plain = prepare(f), book = compilePersonalStoryboard(plain, momentDraft(f));
     expect(storyboardInstructions(plain)).toBe(`${PERSONAL_STORYBOARD_INSTRUCTION}\n${MOMENT_STORYBOARD_ADDENDUM}`);
     expect(storyboardDraftSchema(plain)).toBe(momentWholeBookDraftSchema);
