@@ -7,6 +7,8 @@ import { z } from 'zod';
 import OpenAI from 'openai';
 import { previewSha } from '../lib/local-story-preview';
 import { momentumVoiceAccounting } from '../lib/personal-wizard/local-voice-intake';
+import { MOMENTUM_WIZARD_SLOT, momentumIntakeSchema, momentumWizardConfigSchema } from '../lib/personal-wizard/momentum-book-bridge';
+import { reviewedTextDigest } from '../lib/personal-wizard/reviewed-text-authorization';
 import { companionIdentityReference } from '../lib/personal-wizard/companion-identity';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
@@ -95,8 +97,16 @@ const git=(...args:string[])=>execFileSync('git',args,{cwd:source,encoding:'utf8
 const trialConfigFields={version:z.literal('book-e2e-trial-config/v1'),
   ownerFile:absolute,ownerSha:hash,bookDir:absolute,profileFile:absolute,profileSha:hash,
   executable:absolute,executableSha256:hash,keyFile:absolute};
+/**
+ * A Wizard-sourced momentum request's exact receipt, sealed by its grant-bound config (2026-10-29, R17 R4 F1): the intake the route
+ * recorded, the operator's binding of it and the Wizard config. Their expected hashes live here, never in a replaceable file.
+ */
+export const requestBindingSchema=z.object({version:z.literal('wizard-request-binding/v1'),intakeFile:absolute,intakeSha256:hash,
+  bindingFile:absolute,bindingSha256:hash,wizardConfigFile:absolute,wizardConfigSha256:hash}).strict();
+const intakeBindingSchema=z.object({intakeFile:absolute,intakeSha256:hash,requestId:hash,voiceId:z.string(),wizardConfigSha256:hash,profileSha256:hash}).strict();
 export const trialConfigSchema=z.union([z.object({...trialConfigFields,cycle:z.enum([BOOK_E2E_TRIAL.id,READER_SAFE_BOOK_TRIAL.id])}).strict(),
-  z.object({...trialConfigFields,cycle:z.enum([PORTRAIT_BOOK_TRIAL.id,MOMENTUM_BOOK_TRIAL.id]),operatorFile:absolute,operatorSha:hash}).strict()]);
+  z.object({...trialConfigFields,cycle:z.literal(PORTRAIT_BOOK_TRIAL.id),operatorFile:absolute,operatorSha:hash}).strict(),
+  z.object({...trialConfigFields,cycle:z.literal(MOMENTUM_BOOK_TRIAL.id),operatorFile:absolute,operatorSha:hash,requestBinding:requestBindingSchema}).strict()]);
 export type TrialConfig=z.infer<typeof trialConfigSchema>;
 export function bookTrialPolicy(cycle:TrialConfig['cycle']) {
   if(cycle===BOOK_E2E_TRIAL.id)return BOOK_E2E_TRIAL;
@@ -133,6 +143,32 @@ export function validateTrialProfile(raw:unknown,root=source){
   if(prepared.book.pages!==8||prepared.accepted.containsFixtureData||c.appearance.photo!=='none'||c.companion.id!==p.companionId||
     c.child.name!==p.child.name||c.child.age!==p.child.age||c.child.address!==p.child.gender||p.companionId==='lion_shaket')fail('trial_profile_scope');
   return {profile:p,options,prepared};
+}
+type RequestBinding=z.infer<typeof requestBindingSchema>;
+const bindingOf=(config:TrialConfig):RequestBinding=>config.cycle===MOMENTUM_BOOK_TRIAL.id&&'requestBinding' in config?config.requestBinding:fail('trial_request_binding');
+/** The sealed receipt files still have exactly the config's hashes (checked at planning and before every paid claim). */
+export function requestBindingUnchanged(config:TrialConfig){
+  const b=bindingOf(config);
+  for(const [file,sha] of [[b.intakeFile,b.intakeSha256],[b.bindingFile,b.bindingSha256],[b.wizardConfigFile,b.wizardConfigSha256]])
+    if(!existsSync(file)||shaFile(file)!==sha)fail('trial_request_binding');
+}
+/**
+ * A momentum request is admitted only from its sealed Wizard receipt: the files match the config's hashes, and the intake, binding and
+ * Wizard config link to exactly this accepted request (id, options fingerprint, voice, consent, canonical text), this profile and book.
+ */
+export function assertRequestBinding(config:TrialConfig,prepared:ReturnType<typeof prepareSimpleStory>){
+  requestBindingUnchanged(config);
+  const b=bindingOf(config);
+  let intake:z.infer<typeof momentumIntakeSchema>,binding:z.infer<typeof intakeBindingSchema>,wizard:z.infer<typeof momentumWizardConfigSchema>;
+  try{intake=momentumIntakeSchema.parse(read(b.intakeFile));binding=intakeBindingSchema.parse(read(b.bindingFile));wizard=momentumWizardConfigSchema.parse(read(b.wizardConfigFile));}
+  catch{return fail('trial_request_binding');}
+  const c=prepared.accepted.canonical;
+  if(intake.requestId!==prepared.accepted.requestId||intake.optionsFingerprint!==prepared.accepted.optionsFingerprint||intake.voiceId!==c.bookOptions.voiceId||
+    intake.consent!==MOMENTUM_WIZARD_SLOT.consent||intake.configDigest!==reviewedTextDigest(wizard)||reviewedTextDigest(intake.request)!==reviewedTextDigest(c)||
+    path.resolve(wizard.intakeFile)!==path.resolve(b.intakeFile)||path.resolve(wizard.bookDir)!==path.resolve(config.bookDir)||
+    path.resolve(binding.intakeFile)!==path.resolve(b.intakeFile)||binding.intakeSha256!==b.intakeSha256||binding.requestId!==intake.requestId||
+    binding.voiceId!==intake.voiceId||binding.wizardConfigSha256!==b.wizardConfigSha256||binding.profileSha256!==config.profileSha)fail('trial_request_binding');
+  return {...b,requestId:intake.requestId,optionsFingerprint:intake.optionsFingerprint};
 }
 /** Pure admission checks. No folder/meter/client/key is created by the dry plan. */
 function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false,portraitRecovery=false){
@@ -172,6 +208,7 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
   const voiceIntake=momentum?momentumVoiceAccounting(config.operatorFile,config.bookDir):null;
   if(voiceIntake&&voiceIntake.priorApiMicroUsd!==MOMENTUM_BOOK_TRIAL.priorApiMicroUsd)fail('trial_voice_prior');
   if(!context.options.companions.some(c=>c.id===context.profile.companionId))fail('trial_companion_unavailable');
+  const requestBinding=momentum?assertRequestBinding(config,context.prepared):null;
   // Pin exactly the drawing reference loadReviewedBook will hand the renderer (the passed front sheet), never the card art.
   let identity:ReturnType<typeof companionIdentityReference>;
   try{identity=companionIdentityReference(context.profile.companionId,source);}catch{return fail('trial_companion_reference');}
@@ -189,7 +226,7 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
         'lib/personal-wizard/momentum-book-bridge.ts','lib/personal-wizard/companion-identity.ts','lib/personal-wizard/personal-companions.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
       ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
-    requestId:context.prepared.accepted.requestId,limits:{...trial,...(voiceIntake?{priorApiMicroUsd:voiceIntake.priorApiMicroUsd+voiceIntake.knownMicroUsd,
+    requestId:context.prepared.accepted.requestId,...(requestBinding?{requestBinding}:{}),limits:{...trial,...(voiceIntake?{priorApiMicroUsd:voiceIntake.priorApiMicroUsd+voiceIntake.knownMicroUsd,
       maxApiCalls:trial.maxApiCalls-voiceIntake.calls}:{})},...(voiceIntake?{voiceIntake}:{}),contracts:trialRunContracts(config.cycle),
     visual:{freshCohort:AUDITION_FRESH_COHORT_VERSION,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
       materialSceneRepair:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {}),
@@ -679,6 +716,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     if(shaFile(grant.companion.file)!==grant.companion.sha)fail('trial_companion_pin');
     if(portrait&&(!grant.operator||shaFile(grant.operator.file)!==grant.operator.sha))fail('trial_operator_pin');
     if(momentum&&!same(momentumVoiceAccounting(config.operatorFile,config.bookDir),plan.voiceIntake??null))fail('trial_voice_changed');
+    if(momentum)requestBindingUnchanged(config);
     if(portraitRecovery&&shaFile(portraitRecovery.approval.ownerFile)!==portraitRecovery.approval.ownerSha)fail('trial_portrait_recovery_approval');
     if(solFamily&&(shaFile(solFamily.approval.ownerFile)!==solFamily.approval.ownerSha||shaFile(solFamily.approval.operatorFile)!==solFamily.approval.operatorSha))fail('trial_sol_approval');
     if(parent){
