@@ -1,6 +1,26 @@
 # SmallHeroes — Current Technical State
 
-## R17 book R4 → R5: the Wizard receipt is sealed in the grant-bound config (2026-10-29, $0; awaiting Codex re-gate)
+## R17 book DELIVERED as a local diagnostic (2026-10-29): "עידו ומגרש הקוביות הקופצות", Dad narration; illustrations HELD
+
+- Codex R5 PASS (0abc4b04) on grant 098f17e3 → one run 16:25–17:10Z (foreground.cjs via Start-Process, no retry) → full_book_diagnostic.
+  - 9/9 pages drawn and narrated (dad_v2, 9 calls, 5 min 51 s of audio). Each first page attempt was HELD (supported 0).
+  - No repair ran: the headroom rule (apiSpent + 1400000 + narration reserve ≤ 7000000) failed with ≈6.26M spent before narration.
+    The same-cycle carry of 3193409 takes almost half of the cap.
+- Money (local estimates, not invoices):
+  - API: new 3394568 all-in (3253636 base + 140932 cache-write); cumulative 6587977 / 7000000; 52 calls; 0 failed or unknown.
+  - Claude Max author: 266308, separate. API + Max = 6854285 / 8000000.
+- Codex outcome QA (outcome-20261029/OUTCOME-INDEPENDENT-QA.txt ce505b64):
+  - technical PASS: authority, journals, the image/audio binding to every page, the Reader;
+  - ILLUSTRATION_QUALIFICATION HOLD:
+    - P2: object/geography continuity over pages 4–7 (the clue block is doubled, the target tower moves);
+    - P2: Momo reads near child size on pages 6–8;
+    - P2: the reference sheets do not yet secure stable canonical instances;
+  - narrative supported, with a P3 reservation on the construction-heavy middle (pages 3–6);
+  - P3: label base vs all-in new API cost.
+- Reader (local only, labelled diagnostic): http://127.0.0.1:3482/dev/local-reader?book=trial-efaf91e2a0d94d9b. Product acceptance is Guy's.
+- Registry MOMENTUM_BOOK_DELIVERED, paidAuthority false. No further spend without a new decision by Guy.
+
+## R17 book R4 → R5: the Wizard receipt is sealed in the grant-bound config (2026-10-29, $0; Codex PASS)
 
 - The ONE book: a genuine Wizard submission (by Codex in its in-app browser) for the approved FICTIONAL fallback: Ido, 6, Momo, Dad dad_v2,
   short (8 pages), no photo. No reviewed real request exists, so no Bar fact is used. Intake c22164c5…, requestId efaf91e2….

@@ -4,8 +4,12 @@
 
 - The Wizard submission (fictional Ido 6 + Momo + Dad, 8 pages) is recorded. R4 HOLD F1 (the receipt was not sealed) → fixed in
   a01a0927 / b0615b70 / 2694054e: the grant-bound config seals the exact intake, binding and Wizard config.
-- Next: Codex re-gate of the new exact grant → the paid run inside the same caps → outcome QA (journals, costs, page/audio, narrative)
-  → Guy's look at the Reader.
+- R5 PASS → ran once → delivered as a local diagnostic with Dad narration; outcome QA: technical PASS, illustrations HELD.
+- Next, Guy decides:
+  - (a) accept the book as is;
+  - (b) a new budget decision for page repairs (the cycle cap is nearly spent);
+  - (c) first fix the general illustration gap, then another book: canonical object instances, stable geography and companion
+    scale across a sequence.
 
 ## Momo admission ADM-1 (2026-10-29)
 
