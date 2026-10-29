@@ -1,6 +1,22 @@
 # SmallHeroes — Current Technical State
 
-## CSR-2: the owner may accept a sheet view held ONLY on its angle; Momo's record built, $0 (2026-10-29, round-1 HOLD fixed, awaiting re-gate)
+## CSR-2 applied: Momo's six-view set is complete (2026-10-29, $0; awaiting outcome QA; not in public/)
+
+- Codex round-2 re-gate PASSed record 5f1ae4ed (INDEPENDENT-REGATE-R2.txt), and Guy said "תמשיך".
+- Applied once (`execute`, run-a1.cjs, `execute-release`): status accepted, provider calls 0, cost $0.
+  - The set is in a1-run/sheets/elephant_momo/style01-sheets:
+    - review_passed: front a4a8ba6d…, three_quarter_front 387bd4b8…, side d4388f31…;
+    - owner_angle_only: three_quarter_back f8e6189d…, happy 4fc25ccc…, theme 7e842dea….
+  - outcome.json sha256 3288f856….
+- VERIFY-A1-IDENTITY.json: the set was copied into a scratch root (never public/) and checked by the real readers:
+  companionSheetsComplete true, companionDrawable true, and companionIdentityReference is the approved front a4a8ba6d….
+- Not done, each its own gate:
+  - admission to public/companions/elephant_momo/style01-sheets, which makes Momo selectable;
+  - Momo's size beside the child, a sentence in his visualDescription like bunny's ("roughly 25–35% of the child's standing height").
+    Guy decides it;
+  - the R17 book with Momo and Dad narration.
+
+## CSR-2: the owner may accept a sheet view held ONLY on its angle; Momo's record built, $0 (2026-10-29; round-2 PASS, applied)
 
 - Codex round 1 = HOLD, one P2 (CSR2-A0-F1). The drawing-identity reader accepted "owner_accepted" on two markers alone: a manifest with
   no owner hash, no review, a non-angle false check or another view's verdict still made the companion drawable. The writer was
