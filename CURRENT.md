@@ -1,6 +1,27 @@
 # SmallHeroes — Current Technical State
 
-## CSR-2: the owner may accept a sheet view held ONLY on its angle; Momo's record built, $0 (2026-10-29, awaiting Codex QA)
+## CSR-2: the owner may accept a sheet view held ONLY on its angle; Momo's record built, $0 (2026-10-29, round-1 HOLD fixed, awaiting re-gate)
+
+- Codex round 1 = HOLD, one P2 (CSR2-A0-F1). The drawing-identity reader accepted "owner_accepted" on two markers alone: a manifest with
+  no owner hash, no review, a non-angle false check or another view's verdict still made the companion drawable. The writer was
+  already strict; the reader was not.
+- Fix, code 01b12400:
+  - lib/personal-wizard/companion-sheet-acceptance.ts (new, pure) holds the one rule, shared by writer and reader. An owner entry
+    qualifies only with all of: never the front; a 64-hex image sha256; acceptance kind owner_angle_only + a 64-hex owner-file hash;
+    a 64-hex reviewed-outcome hash; a verdict of THIS view that is an angle-only hold.
+  - companion-identity also binds that sha256 to the file's actual bytes. Front: "passed" only. Legacy "passed" entries are unchanged.
+  - The operator uses the same rule and checks each entry it writes against it.
+  - The shared file is pinned in the acceptance's source pins.
+- Evidence:
+  - companion-sheets 92/92: Codex's 12 cases + 8 more, all through the three readers; the positive control is the operator's real
+    output;
+  - focused 12 specs 402/402 on 01b12400; tsc 0;
+  - mutants 26/26:
+    - 24/26 on 01b12400 (MUTANTS-R2.json);
+    - the two survivors (a missing shared-rule pin; another acceptance kind with a valid owner hash) were test gaps, closed by
+      ca9fbbe6 (tests only) and killed on it (MUTANTS-R2-survivor-recheck.json);
+  - a read-only copy of Codex's repro: 12/12 refused, the control qualifies.
+- The round-1 record d3fdf791 is kept unused as acceptance-a1-held-r1.json. A new record is built on the final HEAD.
 
 - Codex PASSed the CSR-1 repair outcome (OUTCOME-INDEPENDENT-QA.txt). The CSR-1 milestone is closed (`close done`).
 - Guy, in the Claude chat, after seeing the six judged views:

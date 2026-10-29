@@ -4,8 +4,10 @@
 
 - Guy accepts Momo's six judged views and calls the angle rule too strict. Code 17f599c1: the owner may accept a view held ONLY on
   its angle, never the front and never any identity or anatomy hold. $0, no provider.
+- Codex round 1: HOLD (the identity reader did not check the recorded acceptance). Fixed in 01b12400 with one shared rule for writer and
+  reader.
 - Next:
-  - Codex QA (through Guy) → apply → admission to public/ + Momo's scale (Guy);
+  - Codex re-gate (through Guy) → apply → admission to public/ + Momo's scale (Guy);
   - the one book with Momo and Dad narration.
 
 ## Companion sheet repair CSR-1 (2026-10-29)
