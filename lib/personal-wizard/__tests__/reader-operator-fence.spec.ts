@@ -9,6 +9,7 @@ vi.mock('openai', () => ({ default: class { responses = { create: sdk.create }; 
 const image = vi.hoisted(() => ({ generate: vi.fn() }));
 vi.mock('../../generate-image', async (original) => ({ ...(await original<typeof import('../../generate-image')>()), generateGPTImage: image.generate }));
 import { AuditionMeter, auditionAdapters } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 
 // CSR-1 (2026-10-28): the reader operator's caller guard (a live lease) is checked inside each claimed call before the key and the provider,
 // and again when the call returns, before its result is used, as the companion sheet operator does (Codex CS-S0-F1, same class).
@@ -97,12 +98,28 @@ describe('reader operator: the caller guard fences every claimed call', () => {
     const s = await setup(), candidate = await s.io.writeImage('page_2_0.png', s.png);
     sdk.create.mockImplementation(async () => { s.lease.held = false;
       return { status: 'completed', model: 'gpt-6.1-sol', service_tier: 'default', usage: { input_tokens: 9000, output_tokens: 2500 }, output_text: '{}' }; });
-    // A synthetic answer the page schema refuses: recorded with its receipt and known cost. (A schema-valid page verdict is not synthesised
-    // here; the post-review fence is the same one statement as the render's, which the render in-flight case proves.)
+    // A synthetic answer the page schema refuses: recorded with its receipt and known cost. The post-review fence itself is proved by the
+    // schema-valid case below, where only that fence can refuse.
     await expect(s.io.judge('page_2_0_qa', candidate, { version: 'synthetic-context' }, 'a'.repeat(64), [], null, 'page')).rejects.toThrow();
     expect(sdk.create).toHaveBeenCalledTimes(1); expect(s.keys.reads).toBe(1);
     expect(JSON.parse(readFileSync(path.join(s.dir, 'paid', 'page_2_0_qa.failure.json'), 'utf8')).receipt).toMatchObject({ estimatedMicroUsd: expect.any(Number) });
     expect(s.meter.snapshot()).toMatchObject({ calls: 1, unknownCost: 0 });
+  });
+  it('judge: a guard lost while a schema-VALID review is in flight keeps its receipt and known cost, and the verdict is not returned', async () => {
+    // Only the post-review fence can refuse here: the same answer is accepted while the guard is held (the control call below).
+    const s = await setup(), candidate = await s.io.writeImage('page_2_0.png', s.png);
+    const verdict = { candidateSha: 'b'.repeat(64), contextSha: 'a'.repeat(64),
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'ok', correction: '', issues: [] })) };
+    const answer = () => ({ status: 'completed', model: 'gpt-6.1-sol', service_tier: 'default', usage: { input_tokens: 9000, output_tokens: 2500 },
+      output_text: JSON.stringify(verdict) });
+    sdk.create.mockImplementation(async () => answer());
+    await expect(s.io.judge('page_2_0_qa', candidate, { version: 'synthetic-context' }, 'a'.repeat(64), [], null, 'sheet')).resolves.toMatchObject(verdict);
+    sdk.create.mockImplementation(async () => { s.lease.held = false; return answer(); });
+    await expect(s.io.judge('page_3_0_qa', candidate, { version: 'synthetic-context' }, 'a'.repeat(64), [], null, 'sheet')).rejects.toThrow('lease_gone');
+    expect(sdk.create).toHaveBeenCalledTimes(2); expect(s.keys.reads).toBe(2);
+    expect(JSON.parse(readFileSync(path.join(s.dir, 'paid', 'page_3_0_qa.result.json'), 'utf8'))).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+    expect(JSON.parse(readFileSync(path.join(s.dir, 'paid', 'page_3_0_qa.receipt.json'), 'utf8')).raw).toMatchObject({ model: 'gpt-6.1-sol' });
+    expect(s.meter.snapshot()).toMatchObject({ calls: 2, unknownCost: 0, failed: 0 });
   });
   it('the current R17 caller: its guard reads only its own inputs, trial claim and outcome (never a meter record), so it holds inside a claim', async () => {
     // Source pin: the R17 book trial's guard, and that the SAME guard fences its child and page adapters (read only, never executed here).

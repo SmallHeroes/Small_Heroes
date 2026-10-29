@@ -149,6 +149,7 @@ describe('a sheet is never a reader page and a reader page is never a sheet (bot
     expect(companionSheetReviewRule.reserve({ ...sheetReview, metadata: { companion_sheet_review: 'companion-sheet-review/v1' } })).toBeNull();
     // v2 keeps every v1 instruction and adds each view's contract to the payload.
     expect(sheetReview.instructions.startsWith(COMPANION_SHEET_REVIEW_INSTRUCTIONS)).toBe(true);
+    expect(sheetReview.instructions).toContain('correctAngle, anatomyConsistent and accessoryConsistent are true only when the view ALSO matches its viewContract');
     const packet = JSON.parse(sheetReview.input[0].content[0].text);
     expect(packet.images.map((i: any) => i.viewContract.view)).toEqual(COMPANION_SHEET_VIEW_KINDS);
     expect(packet.images[3].viewContract.hides).toContain('the WHOLE face: no eye, none of eyes, rosy cheeks, trunk is visible');
