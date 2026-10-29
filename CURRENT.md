@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## R17 book R4 → R5: the Wizard receipt is sealed in the grant-bound config (2026-10-29, $0; awaiting Codex re-gate)
+
+- The ONE book: a genuine Wizard submission (by Codex in its in-app browser) for the approved FICTIONAL fallback: Ido, 6, Momo, Dad dad_v2,
+  short (8 pages), no photo. No reviewed real request exists, so no Bar fact is used. Intake c22164c5…, requestId efaf91e2….
+- R4 grant edcddca4 was HELD by Codex, P2 F1: the operator took the expected intake and binding hashes from INTAKE-BINDING.json, a
+  file nothing immutable pinned. The held envelope is kept byte-exact as *-held-R4F1.*.
+- Fix a01a0927, with tests b0615b70 and 2694054e:
+  - a momentum config requires requestBinding, the exact SHA-256 of the intake, the binding and the Wizard config;
+  - the native plan admits the request only from those files, linked to the accepted request (id, fingerprint, voice, canonical
+    text), this profile and this book, and records the descriptor;
+  - the paid-input guard re-hashes them before every claim.
+  - The operator (an artifact) now takes every expectation from config.json and checks the intake's options fingerprint.
+- Evidence: 198/198 focused + the new spec; tsc 0; mutants 11/12. The survivor is equivalent: the intake schema fixes consent.
+- Budget unchanged: API 3193409 of 7000000 (96 calls), narration ≤ 1000000 inside it, Max author ≤ 2000000 separate, combined ≤ 8000000.
+- Still open (P3, not this book): five site-audit landing tests left out by 05cebbf8; the Wizard's generic "short = 16 pages" label
+  next to the trial card's cover + 8.
+
 ## ADM-1: Momo is admitted, medium-sized beside the child (2026-10-29, $0; Codex PASS, closed)
 
 - Codex PASS on 4411ce00 (INDEPENDENT-QA.txt in claude-momo-admission-20261029): no introduced finding; 386/386 independently; tsc 0.

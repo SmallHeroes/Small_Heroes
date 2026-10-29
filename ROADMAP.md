@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## R17 the one book (2026-10-29)
+
+- The Wizard submission (fictional Ido 6 + Momo + Dad, 8 pages) is recorded. R4 HOLD F1 (the receipt was not sealed) → fixed in
+  a01a0927 / b0615b70 / 2694054e: the grant-bound config seals the exact intake, binding and Wizard config.
+- Next: Codex re-gate of the new exact grant → the paid run inside the same caps → outcome QA (journals, costs, page/audio, narrative)
+  → Guy's look at the Reader.
+
 ## Momo admission ADM-1 (2026-10-29)
 
 - Outcome QA of CSR-2 passed. Guy chose Momo's size "A" (60–75% of the child's height). Code 8ab0977d + tests e47ccafb: the applied
