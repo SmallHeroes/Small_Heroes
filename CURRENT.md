@@ -9,6 +9,15 @@
   - On R17, projected to the two diagnosis probes, it reproduces probe-r2-static.json and probe-counterfactual.json exactly
     (A-PROBE-PARITY.json). The R17 book is byte-identical after (279 files).
   - Spec 6/6 on two synthetic worlds; mutants 11/11; tsc 0.
+- Codex A round 1 = HOLD:
+  - A-F1 P2: a junction into the book bypassed the output boundary;
+  - A-F2 P2: regexes over the serialized wire lost review data (a quoted design, pretty JSON, key order);
+  - A-F3 P3: part mentions on multi-invariant entities.
+  Fix 2c103c48 + tests 744ebba5:
+  - a physical (realpath) boundary;
+  - the decoded review payload, read field by field, with unknown kept as null;
+  - per-invariant part mentions.
+  Spec 9/9, mutants 18/18; R17 parity still exact; the R17 book is unchanged. Awaiting the round-2 re-gate.
 - Next: stage B (reference-qualification/v1) after Codex's PASS on A.
 
 ## R17 book DELIVERED as a local diagnostic (2026-10-29): "עידו ומגרש הקוביות הקופצות", Dad narration; illustrations HELD
