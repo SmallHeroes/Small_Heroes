@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Companion sheet repair CSR-1 (2026-10-29)
+
+- Built offline:
+  - a general per-view contract from each companion's own geometry;
+  - companion-only sheet prompts;
+  - a 3-call Momo repair grant (two held views + one six-view review, ≤$1.50, inside the S1 cap);
+  - the reader adapters' guard fence (inside and after each paid call).
+- Next:
+  - Codex QA (through Guy);
+  - Guy's go → the repair run → outcome QA + Guy's eye;
+  - admission → the one local book with a new companion and Dad narration.
+
 ## Companion sheets CS-1 (2026-10-28)
 
 - S0 built (ab2dae2f): a metered, fail-closed sheet operator from each owner-approved front.

@@ -1,6 +1,56 @@
 # SmallHeroes — Current Technical State
 
-## Companion sheets CS-1 S1 ran: Momo held after redraw (pending), four concept fronts drawn (2026-10-28, awaiting outcome QA)
+## Companion sheet repair CSR-1: general view contract, companion-only prompts, Momo repair grant, reader fence (2026-10-29, awaiting Codex QA)
+
+- Authority, overnight: Guy's instruction, recorded by Codex in overnight-continuation-20261028/OWNER-AUTHORIZATION.txt.
+  - It allowed automatic Claude/Codex continuation toward ONE local book and one prospective Momo repair (≤3 calls, ≤$1.50, inside the
+    unused S1 cap).
+  - The S1 milestone is closed (`close done`); grant f01e2690 stays consumed.
+- Authority, 10/29 morning: Guy is back and stopped the automatic loop (GUY-STOP-AFTER-CURRENT-OPERATION-20261029.txt,
+  CLAUDE-OWNER-STOP-ACK.json). He told Claude directly: "אל תעביר לקודקס בלי לעבור דרכי".
+  - Every Codex handoff now goes through Guy.
+  - The repair runs only after a Codex PASS naming its exact grant AND Guy's direct go in the Claude chat.
+- General sheet view contract (lib/generation-pipeline/companion-sheet-view-contract.ts), from each companion's own sheetGeometry
+  (lib/personal-wizard/personal-companions.ts; counts, face parts, accessories with their own side). Every word is checked against
+  its own visualDescription.
+  - One fixed near side: the side of a lateral accessory, else LEFT. The profile faces the viewer's LEFT for Momo, so the viewer sees
+    his own left side, where his knot is.
+  - Per view: facing, what shows and hides, where each accessory sits. A front accessory is centred, at the leading edge in profile,
+    and hidden from behind. A rear view hides the WHOLE face (each face part named). Exact counts: nothing added, doubled or merged.
+- Companion-only prospective prompts (composeCompanionOnlySheetPrompt): no child rendering block, no Dini/page negative, no "cream void"
+  contradiction. The 546 legacy prompts are byte-identical (digest unchanged). Wires and reviews are v2; only v2 is priced. The
+  review carries every view's contract and keeps every v1 instruction.
+- Repair grant (companion-sheet-repair-grant/v1, runCompanionSheetRepair):
+  - it binds the consumed S1 grant, its outcome (known spend only) and that outcome's PASS QA by hash;
+  - it retains the four S1-passed images as their exact judged bytes (approved front, approved three-quarter, happy_1, theme_1);
+  - it redraws ONLY the two held views, then makes ONE six-view review: pass, or pending; never a redraw;
+  - cumulative cap: prior + cap ≤ 2,500,000; its own lease (companionSheetRepair20261028).
+- Reader-operator fence (scripts/personal-simple-book-reviewed-audition.ts auditionAdapters):
+  - the caller guard now also runs inside each claimed render, review and identity call, before the key and the provider, and
+    again after the call settles, before its result is used;
+  - real receipts are kept (the in-claim tail after a response stays cancellation only); without a guard, nothing changes;
+  - by inspection, the current R17 caller's guard reads only its inputs, trial claim and outcome, never the meter's records, so it
+    holds inside a claim. A spec pins those source lines and runs the same shape over real files. The real inline guard is not
+    executed by any test; that belongs to the book milestone (GATE.md).
+- d3c0dd16 (tests only) closes two gaps Codex's preliminary read named:
+  - the v2 review rule line is asserted (it kills the one mutant that survived, review_v1_instructions);
+  - a schema-VALID reader review lost in flight shows that the post-review fence alone refuses it, with its receipt kept.
+  - Three more fence mutants were added (post-review, identity inside the claim, identity after).
+- Test truth: the milestone's GATE.md.
+  - Final gate on d3c0dd16: focused 12 specs 374/374; tsc 0; new-book-experiment's four fixed cases (9 matching) 9/9; mutants
+    32/32 (MUTANTS-final.json).
+  - Pre-existing, unchanged: scale-probe has 7 failures, reproduced by Codex on 5ab28ca8. The fresh-book-driver staged real-state
+    assertion expects the fresh book's claim and folder to be absent; both exist since its 10/20 run.
+  - The first broad run was interrupted (no progress output). One recovery run was killed after a Modern Standby. Neither is a pass.
+  - Three new-book-experiment cases now take ~60 s (were ~35 s), because the lineage guard runs three times per call. Their suite
+    timeout went from 60 s to 120 s.
+- Next:
+  - Codex QA (through Guy) of the frozen code and the exact repair grant;
+  - Guy's go for the 3-call repair;
+  - outcome QA and Guy's eye on the repaired views;
+  - then admission and the one book, each with its own gate.
+
+## Companion sheets CS-1 S1 ran: Momo held after redraw (pending), four concept fronts drawn (2026-10-28; outcome QA PASS, closed)
 
 - Codex round-2 re-gate PASSed code 0f0159d7 + docs d21def42 and exactly grant f01e2690 (INDEPENDENT-REGATE-R2.txt).
 - S1 ran once on that grant (20:17–20:20Z), lease taken with `execute` and released with `execute-release`.
