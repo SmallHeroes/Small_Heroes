@@ -20,9 +20,21 @@
   Spec 9/9, mutants 18/18; R17 parity still exact; the R17 book is unchanged.
 - Codex A round 2 = HOLD, R2-F1 P2: an NTFS stream through an external hard link wrote onto a saved record.
   - Fix 92c19648 + tests 3d317930: any colon after the Windows root is refused; Win32 namespace prefixes are normalised on both sides.
-  - Spec 11/11, mutants 22/22; R17 parity exact; the R17 book is unchanged. Awaiting the round-3 re-gate.
+  - Spec 11/11, mutants 22/22; R17 parity exact; the R17 book is unchanged.
   - Known, disclosed limit: a directory swapped for a junction between check and create.
-- Next: stage B (reference-qualification/v1) after Codex's PASS on A.
+- Codex A round 3 = PASS (A-INDEPENDENT-REGATE-R3.txt fd29ad4d, HEAD 60281c6c). Its retained limits: the check/create race above;
+  a volume-GUID output path cannot complete when native realpath is unavailable (it stops, never writes inside the book).
+- Stage B (d93e154b + tests 6b6bde3d): reference-qualification/v1, opt-in.
+  - illustrateReviewedAudition({ referenceQualification }): after the sheet loop (bounded repair included), a sheet that is not
+    approved_reference stops the run with audition_reference_unqualified, before any page render, review or identity call.
+    Resumed and reused sheets are judged the same way; there is no permissive fallback. An unknown version refuses
+    (audition_reference_contract) before anything is saved.
+  - Absent: unchanged (a held sheet stays a diagnostic candidate for every page). With the flag and approved references the run
+    is identical to the same run without it.
+  - Book trial: trialAuditionContracts(grant.visual) forwards it at the one illustration call, after the grant/plan binding. No
+    cycle's plan declares it (all cycles are consumed), so no default flips; a future proof cycle must declare it in its plan.
+  - Tests 9 new (308/308 with the audition and momentum-capacity specs); mutants 9/9; tsc 0. Awaiting Codex B QA.
+- Next: stage C (instance-distinction/v1) after Codex's PASS on B.
 
 ## R17 book DELIVERED as a local diagnostic (2026-10-29): "עידו ומגרש הקוביות הקופצות", Dad narration; illustrations HELD
 

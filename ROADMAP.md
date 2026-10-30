@@ -4,7 +4,8 @@
 
 - Guy approved building A → B → C → D → E of the reviewed plan at $0, each stage gated by Codex. The paid image experiment is a
   separate decision.
-- Stage A (the read-only continuity report) built and matched to both diagnosis probes → Codex QA. Then B, C, D, E.
+- Stage A (the read-only continuity report) built and matched to both diagnosis probes → Codex PASS on round 3 (2026-10-30).
+- Stage B (reference-qualification/v1: pages only from approved reference sheets, opt-in) built → Codex QA. Then C, D, E.
 
 ## R17 the one book (2026-10-29)
 
