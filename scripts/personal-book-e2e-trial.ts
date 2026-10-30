@@ -20,7 +20,7 @@ import { prepareSourceCitationCorrection, applySourceCitationCorrection, SOURCE_
 import { currentPersonalStoryboardFrame } from '../lib/personal-wizard/storyboard';
 import { CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_TECHNIQUE_MANIFEST, resolveChildAnchorTechnique } from '../lib/personal-wizard/child-anchor-style';
 import { SimpleBookBudget } from '../lib/personal-wizard/simple-book-budget';
-import { illustrateReviewedAudition, AUDITION_FRESH_COHORT_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+import { illustrateReviewedAudition, AUDITION_FRESH_COHORT_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION,
   auditionPageContext, referenceStatus, repairReviewedAuditionPage, selectAuditionAttempt, attemptStatus,
   type SavedPage, type SavedSheet } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { AuditionMeter, auditionAdapters, auditionMeterRules, keyReader, loadReviewedBook, loadReviewedStoryboard, admitReviewedStoryboardBundle,
@@ -136,6 +136,15 @@ export function trialRunContracts(cycle:TrialConfig['cycle'],portraitRecovery=fa
   const momentum=cycle===MOMENTUM_BOOK_TRIAL.id,portrait=cycle===PORTRAIT_BOOK_TRIAL.id||momentum,readerSafe=cycle===READER_SAFE_BOOK_TRIAL.id||portrait;
   return{...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{}),...(portrait?{stateParityContract:true as const}:{}),
     ...(portraitRecovery||momentum?{reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version}:{})};
+}
+/**
+ * The image-stage contracts a grant's `visual` binding opts into (engine continuity, 2026-10-30), passed to illustrateReviewedAudition.
+ * The grant equals its recomputed plan, so only a cycle whose plan declares one can carry it. Absent (every cycle so far): none, as before.
+ */
+export function trialAuditionContracts(visual:object){
+  const value=(visual as {referenceQualification?:unknown}).referenceQualification;
+  if(value===undefined)return{};
+  return value===REFERENCE_QUALIFICATION_VERSION?{referenceQualification:REFERENCE_QUALIFICATION_VERSION}:fail('trial_visual_contract');
 }
 function inside(root:string,file:string){const rel=path.relative(path.resolve(root),path.resolve(file));return rel!==''&&!rel.startsWith('..')&&!path.isAbsolute(rel);}
 export function validateTrialProfile(raw:unknown,root=source){
@@ -963,7 +972,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       manifest=await illustrateReviewedAudition({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
         child:childRef,companion:companionRef,companionDescription:loaded.companionDescription,render:art.render,judge:art.judge,identity:art.identity,
         check:guard,save:saveArt,pageAttempts:1,freshCohort:AUDITION_FRESH_COHORT_VERSION,structuralAnatomy:true,
-        landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+        landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,...trialAuditionContracts(grant.visual),
         progress:e=>{log(`${e.phase} ${e.name} attempt${e.attempt+1}: ${e.status}`);if(e.status==='ineligible_safety')fail('trial_safety_stop');}});
     }catch(error){
       save('diagnostic-review-stop',{code:(error as any)?.code??'review_failed',drawnFrames:[...saved.keys()].filter(n=>n.startsWith('diagnostic_render_'))});

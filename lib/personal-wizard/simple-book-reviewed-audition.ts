@@ -82,6 +82,8 @@ export type AuditionAnatomyRecovery = { version: typeof AUDITION_ANATOMY_VERSION
 export const AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION = 'audition-full-book-diagnostic/v1' as const;
 /** Fresh owner-approved full-book diagnostic: draw the full cohort before page judging, never an acceptance override. */
 export const AUDITION_FRESH_COHORT_VERSION = 'audition-fresh-cohort/v1' as const;
+/** Pages are conditioned only on approved references: a sheet still held after its bounded repair stops the run before any page. */
+export const REFERENCE_QUALIFICATION_VERSION = 'reference-qualification/v1' as const;
 export type AuditionFullBookDiagnostic = { version: typeof AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION;
   pages: { page: number; prior: SavedPage; consumedAttemptsBefore: number }[] };
 type Impact = typeof AUDITION_IMPACTS[number];
@@ -1152,6 +1154,11 @@ export async function illustrateReviewedAudition(args: {
   fullBookDiagnostic?: AuditionFullBookDiagnostic;
   /** Native spend-grant opt-in only; fresh, one attempt/frame, full coverage, no sample/resume/legacy continuation. */
   freshCohort?: typeof AUDITION_FRESH_COHORT_VERSION;
+  /**
+   * Opt-in (spend grant only): a sheet still held after its bounded repair stops the run before any page render, review or identity
+   * call. Absent: a held sheet stays a diagnostic candidate for every page, exactly as before.
+   */
+  referenceQualification?: typeof REFERENCE_QUALIFICATION_VERSION;
 }) {
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
@@ -1194,6 +1201,7 @@ export async function illustrateReviewedAudition(args: {
   const freshCohort = args.freshCohort;
   if (freshCohort && (freshCohort !== AUDITION_FRESH_COHORT_VERSION || args.resume || args.sample || diagnostic || calibration ||
       args.anatomyRecovery || args.pageAttempts !== 1 || !args.structuralAnatomy || args.localAnatomyRepair)) fail('audition_fresh_cohort_scope');
+  if (args.referenceQualification !== undefined && args.referenceQualification !== REFERENCE_QUALIFICATION_VERSION) fail('audition_reference_contract');
   if (diagnostic && (diagnostic.version !== AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION || !args.structuralAnatomy ||
       topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || calibration || args.anatomyRecovery || !args.resume || args.resume.interrupted ||
       args.resume.rereview || Object.keys(args.resume.pages).length || !args.sample ||
@@ -1332,6 +1340,9 @@ export async function illustrateReviewedAudition(args: {
     args.save(`sheet_${role}`, sheets[role]);
   }
   const refs = referenceStatus(sheets);
+  // reference-qualification/v1: a diagnostic candidate never conditions a page, so nothing page-level is drawn, judged or measured.
+  if (args.referenceQualification && (refs.entities.status !== 'approved_reference' || refs.locations.status !== 'approved_reference'))
+    fail('audition_reference_unqualified');
   const canonical = [args.child, args.companion, refs.entities.image, refs.locations.image];
   const diagnosticParents = new Map<number, SavedPage>();
   // The same v15 evidence is reused under its EXACT unchanged context, never upgraded by this mode's different purpose.
