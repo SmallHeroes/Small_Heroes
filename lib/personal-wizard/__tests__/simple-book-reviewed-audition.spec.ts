@@ -16,7 +16,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   auditionCorrections, landmarkFeatureCatalogue, assessLandmarkInventory, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
   sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
-  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION } from '../simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, REFERENCE_QUALIFICATION_VERSION } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
   type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
@@ -179,6 +179,63 @@ describe('fresh full-cohort trial',()=>{
     else{expect(fixed.corrected?.status).toBe('qa_supported');expect(fixed.corrected?.sceneRepair?.version).toBe('audition-local-material-scene/v1');
       const call=h.args.render.mock.calls[h.args.render.mock.calls.length-1]!;expect(call[3]).toBe('book_scene_edit');expect((call[2] as any[])[0]).toEqual(page.chosen.candidate);
       expect(h.args.identity.mock.calls[h.args.identity.mock.calls.length-1]?.[0]).toBe('r1_page_1_1_identity');}
+  });
+});
+
+describe('reference-qualification/v1: pages are conditioned only on approved references', () => {
+  const on = { referenceQualification: REFERENCE_QUALIFICATION_VERSION };
+  const heldEntities = (step: string): Spec => step.startsWith('sheet_entities_') ? { props: { issues: [issue('continuity', 'design:trail', 'trail drawn as pebbles')] } } : {};
+  const heldLocations = (step: string): Spec => step.startsWith('sheet_locations_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'bench has two slats')] } } : {};
+  // Every page-level provider callback (render, review, identity), with or without a resume prefix.
+  const pageCalls = (h: ReturnType<typeof harness>) => [h.args.render, h.args.judge, h.args.identity]
+    .flatMap(f => f.mock.calls.map(c => String(c[0]))).filter(s => /(^|_)page_\d/.test(s));
+  const pageRecords = (h: ReturnType<typeof harness>) => [...h.saved.keys()].filter(k => /^(page_|diagnostic_render_|halted_)/.test(k) || k === 'reviewed_audition_manifest');
+
+  it.each([['entities', heldEntities], ['locations', heldLocations]] as const)(
+    'a %s sheet still held after its bounded repair stops the run before any page call', async (role, judge) => {
+      const h = harness({ judge });
+      await expect(illustrateReviewedAudition({ ...h.args, ...on })).rejects.toThrow('audition_reference_unqualified');
+      // The bounded repair ran in full; the held sheet stays saved as evidence.
+      expect(h.args.render.mock.calls.filter(c => String(c[0]).startsWith(`sheet_${role}_`))).toHaveLength(REVIEWED_AUDITION_POLICY.sheetAttempts);
+      expect(h.saved.get(`sheet_${role}`)).toMatchObject({ status: 'held' });
+      expect(pageCalls(h)).toEqual([]); expect(pageRecords(h)).toEqual([]);
+    });
+  it('without the flag the same held sheet stays a diagnostic candidate for every page, exactly as before', async () => {
+    const h = harness({ judge: heldLocations }), m = await illustrateReviewedAudition(h.args);
+    expect(m.sheets.locations).toMatchObject({ referenceStatus: 'diagnostic_candidate', status: 'held' });
+    expect(m.pages).toHaveLength(9); expect(h.contexts.get('page_2_0_qa').referenceStatus.locations.status).toBe('diagnostic_candidate');
+  });
+  it('approved references (one only after its in-place repair): the run is identical to the same run without the flag', async () => {
+    const judge = (step: string): Spec => step === 'sheet_entities_0_qa' ? { props: { issues: [issue('continuity', 'design:trail', 'trail drawn as pebbles')] } } : {};
+    const a = harness({ judge }), b = harness({ judge });
+    const ma = await illustrateReviewedAudition({ ...a.args, ...on }), mb = await illustrateReviewedAudition(b.args);
+    expect(ma.sheets.entities).toMatchObject({ referenceStatus: 'approved_reference', chosenAttempt: 1 });
+    expect(ma.pages).toHaveLength(9);
+    expect(JSON.stringify(ma)).toBe(JSON.stringify(mb)); expect(JSON.stringify([...a.saved])).toBe(JSON.stringify([...b.saved]));
+    expect(JSON.stringify([...a.contexts])).toBe(JSON.stringify([...b.contexts]));
+    for (const f of ['render', 'judge', 'identity'] as const) expect(JSON.stringify(a.args[f].mock.calls)).toBe(JSON.stringify(b.args[f].mock.calls));
+  });
+  it('the fresh full cohort draws no page from a held reference', async () => {
+    const h = harness({ book: typedFixture(), coverage: true, judge: heldLocations });
+    await expect(illustrateReviewedAudition({ ...h.args, ...on, pageAttempts: 1, structuralAnatomy: true,
+      landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION, freshCohort: 'audition-fresh-cohort/v1' })).rejects.toThrow('audition_reference_unqualified');
+    expect(pageCalls(h)).toEqual([]); expect(pageRecords(h)).toEqual([]);
+  });
+  it('a held sheet resumed or reused from a saved run is refused just the same: no permissive fallback', async () => {
+    const old = harness({ judge: heldLocations }); await illustrateReviewedAudition(old.args);
+    const designs = old.saved.get('audition_sheet_designs'), sheets = { entities: old.saved.get('sheet_entities') as any, locations: old.saved.get('sheet_locations') as any };
+    const resumed = harness();
+    await expect(illustrateReviewedAudition({ ...resumed.args, ...on, resume: { designs, sheets, pages: {}, stepPrefix: 'r1_' } }))
+      .rejects.toThrow('audition_reference_unqualified');
+    expect([resumed.args.render, resumed.args.judge, resumed.args.identity].map(f => f.mock.calls.length)).toEqual([0, 0, 0]);
+    const reused = harness();
+    await expect(illustrateReviewedAudition({ ...reused.args, ...on, reuseSheets: { locations: sheets.locations } })).rejects.toThrow('audition_reference_unqualified');
+    expect(reused.args.render.mock.calls.map(c => c[0])).toEqual(['sheet_entities_0']); expect(pageCalls(reused)).toEqual([]);
+  });
+  it('an unknown contract version refuses before anything is saved or called', async () => {
+    const h = harness();
+    await expect(illustrateReviewedAudition({ ...h.args, referenceQualification: 'reference-qualification/v0' as never })).rejects.toThrow('audition_reference_contract');
+    expect(h.args.render).not.toHaveBeenCalled(); expect(h.saved.size).toBe(0);
   });
 });
 
