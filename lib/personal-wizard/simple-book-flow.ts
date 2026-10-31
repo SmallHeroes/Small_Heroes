@@ -1,3 +1,4 @@
+import { companionScaleAuthority } from './companion-scale-authority';
 import { assertEngineContinuityOptions, type EngineContinuityOptions } from './engine-continuity-contracts';
 import 'server-only';
 import type { PersonalWizardOptions } from './options';
@@ -70,6 +71,7 @@ export async function runSimpleWizardBook(args: {
   if (args.citationCorrector && args.correctReading) fail('simple_book_citation_correction_route');
   const repair = args.repair ? prepareSimpleStoryRepair(args.request, args.repair.prior, args.repair.readings, args.options) : null;
   const prepared = repair?.prepared ?? prepareSimpleStory(args.request, args.options, args.seed, args.storyExperience);
+  if (args.engineContinuity?.companionScale) companionScaleAuthority(prepared.accepted.canonical.companion.id);
   if (repair && args.storyExperience !== undefined && prepared.book.storyExperience !== args.storyExperience) fail('simple_book_repair_policy');
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_book_request');
   const records: Partial<Record<'author' | 'editor', TransportReply>> = {};

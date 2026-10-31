@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Engine continuity C–E — local implementation complete, independent review pending (2026-10-31)
+
+- Guy transferred implementation to Codex on 2026-10-31 rather than wait for Claude's quota. C: 222236db; D: 8c995ce9; E follows here.
+  Claude Code is the independent read-only reviewer of the frozen ranges when available. Codex grants no independent PASS.
+- E companion-scale/v1 adds typed approved standing-height authority: Momo 0.60–0.75 in his own record; bunny 0.25–0.35 in an additive
+  registry map (test control, never a replacement companion for Guy's book). Unknown/unadmitted ranges refuse before outer-flow callbacks.
+  The compiler refuses an out-of-range ratio; source/planning/review digests carry the exact authority. No universal 0.7 or prose inference.
+- ScaleEvidence is a required field only in marked page review schemas. Comparable requires same-plane natural standing and a finite
+  positive measured ratio; different depth, not standing, airborne and occluded require null and explicit abstention. Action-pose identity
+  and all old relative-scale/child 0.70 checks remain. The natural pose follows admitted views; quadrupeds are never forced upright.
+- Oversize/undersize observations create deterministic bound findings even when model categories all say pass. Abstention is retained as
+  unverified, not a scale pass or a size defect. Conservative OPT-IN policy: that page remains held for scale; an action-heavy sequence can
+  therefore remain unqualified. This interpretation is explicit for independent QA, not a production/default policy change. Future proof
+  uses the approved plan's eligible standing frames. No per-frame certainty is invented from another frame.
+- Abstention alone buys no redraw when identity is supported and no verified visual defect exists; it is never forwarded as a correction.
+  Measurements/abstentions survive re-review, resume and local scene repair; forged saved assessments refuse. Manifest records per-frame
+  evidence and aggregate observed/unverified/defect state. Nine all-abstained diagnostic frames remain unverified and held.
+- C/D/E compose on one actual compiled source and one native v7 review context. Render conditioning is kept separate from judge requests
+  for structured evidence. Local correction seals its COMPLETE actual recipe. No bars, montage, predecessor/plate or image experiment added.
+- Local validation: C 24 focused/17 mutants; D combined 42/9 mutants; E 14/14 mutants. Final compatibility validation passed 578/578 across 11 relevant specs;
+  both TypeScript gates exited 0 (tsc --noEmit and the autonomous tsconfig). Exact results are in ART/claude-engine-continuity-20261029.
+  Repository-wide npm run check is NOT declared green: the retained historical full-folder run has 16 failures/1 pending, and the earlier
+  overly broad whole-flow retry was explicitly stopped as incomplete. SDK clients are disabled by an offline test substitute.
+- Preservation: all 321 historical R17 outcome/Reader/request/native-authority files match their sealed snapshot, no extra book files.
+  A read-only replay of all 9 actual saved v6 reviews reproduces every original context hash/assessment and 0/9 held qualification.
+  Default Wizard options + both visual records have identical before/after SHA e37e6b552d37d5a34be897b462d04692bbc7e457197f78f3db84b730228e3475.
+  No real provider call/new book/manual repair, no key/.env read, no source-server start, no push/merge/deploy/cleanup.
+- Readiness: prospective opt-in ENGINE code, not visual efficacy or product acceptance. Existing native paid cycles/grants remain consumed
+  or held history; none declares these new contracts. A future execution needs a fresh independently gated envelope including B and exact
+  source/contracts. Existing R17 stays v6/0-of-9 held with Dad narration and immutable cost. Paid proof/new-book generation is NOT authorized.
+
+
 ## Engine continuity stage D — local material/function milestone (2026-10-31)
 
 - C local commit: 222236db. D adds entity-material-function/v1 through explicit engineContinuity.materialFunction; it requires the

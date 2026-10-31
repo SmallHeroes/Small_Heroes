@@ -15,6 +15,8 @@ import { getCompanionById } from '../companions';
  * sheet proof does not need one. Momo (admitted 2026-10-29, Guy: "A") is a medium companion, 60–75% of the child's standing height.
  */
 export type PersonalAddedCompanion = {
+  /** Owner-admitted natural standing-height authority; absent means unqualified under companion-scale/v1. */
+  scale?: { standingHeightInChildHeights: { min: number; max: number } };
   id: string;
   /** Display name in the same species-first form as the registry companions. */
   name: string;
@@ -43,7 +45,7 @@ export type CompanionSheetGeometry = {
 };
 
 export const PERSONAL_ADDED_COMPANIONS: readonly PersonalAddedCompanion[] = [
-  { id: 'elephant_momo', name: 'הפילון מוֹמוֹ', gender: 'male', image: '/Images/personal-companions/elephant_momo.webp', visualDescription:
+  { id: 'elephant_momo', scale: { standingHeightInChildHeights: { min: 0.60, max: 0.75 } }, name: 'הפילון מוֹמוֹ', gender: 'male', image: '/Images/personal-companions/elephant_momo.webp', visualDescription:
     "A sturdy, huggable young elephant standing upright on two broad hind feet, two relaxed forelegs at his sides. Soft warm-gray body, very large rounded floppy ears with peach-pink insides, rosy cheeks, large warm-brown eyes with soft brows, a little gray tuft on top of his head, and a short, gently curved trunk; no tusks. Three pale toenails on each foot. He always wears exactly one muted-coral neckerchief tied in a single knot on his left side (the viewer's right in a front view); never a hat, bag or other clothing. Medium companion — roughly 60–75% of the child's standing height (about chest to shoulder beside the child). Never taller than the child. Never knee-high.",
     sheetGeometry: { counts: { ears: 2, eyes: 2, trunk: 1, tusks: 0, 'toenails on each foot': 3 }, face: ['eyes', 'rosy cheeks', 'trunk'],
       accessories: [{ item: 'neckerchief knot', part: 'neck', side: 'left' }] },

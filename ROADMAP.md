@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## C–E local completion and next gate (2026-10-31)
+
+- C canonical instance identity: local 222236db. D material lineage/contact: local 8c995ce9. E standing scale/evidence/abstention: local in this range.
+- All three await independent read-only Claude QA on exact frozen commits; local unit/mutation results are not independent PASS.
+- Defaults, old books and grants unchanged. No paid proof or new book. After QA, separately propose a bounded visual efficacy test.
+
+
 ## Local engine continuity progress (2026-10-31)
 
 - C is committed locally at 222236db, pending independent Claude QA.

@@ -88,8 +88,9 @@ export function materialFunctionFromContext(context: unknown): EntityMaterialFun
   if (!context || typeof context !== 'object' || !('materialFunction' in context)) return undefined;
   return materialFunctionSchema.parse(context.materialFunction);
 }
+export const MATERIAL_RENDER_RULES = 'ENTITY MATERIAL/FUNCTION CONTRACT: draw a built object as assembled from its source-bound components and materials, preserving any source-explicit palette. Keep permanent shape separate from the planned contact/action: a wedge may land on its broad flat face. Grey shading alone does not change material. Do not turn discrete blocks into one carved mass, invent colours, reveal future forms or add unowned actors/tiles.';
 export function materialRenderAppendix(context: unknown) {
   const material = materialFunctionFromContext(context);
-  return material ? '\n'+MATERIAL_IMAGE_RULES+'\nSOURCE-BOUND CONSTRUCTION (data, not a new event or permission to reveal future forms): '+JSON.stringify(material)+
+  return material ? '\n'+MATERIAL_RENDER_RULES+'\nSOURCE-BOUND CONSTRUCTION (data, not a new event or permission to reveal future forms): '+JSON.stringify(material)+
     '\nSource ids describe materials, not extra tiles or actors. Draw only the entities owned by this sheet or visible in this frame.' : '';
 }

@@ -1,3 +1,6 @@
+import type { SavedSheet } from '../simple-book-reviewed-audition';
+import { companionScaleAuthority } from '../companion-scale-authority';
+import type { ScaleEvidence } from '../companion-scale';
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
@@ -3058,5 +3061,82 @@ describe('entity-material-function/v1 at the actual render boundary (synthetic a
     expect(call[1]).toContain(quote);expect(call[1]).toContain('ENTITY MATERIAL/FUNCTION CONTRACT');
     const saved=h.saved.get('scene_repair_1_candidate') as any;
     expect(saved.recipeSha256).toBe(previewSha(canonicalJson({prompt:call[1],references:call[2],mode:call[3],roles:call[4],provenance:saved.sceneRepair})));
+  });
+});
+
+describe('companion-scale/v1 actual render/review/resume boundaries (synthetic adapters)',()=>{
+  it('material and scale conditioning coexist at the actual render boundary',async()=>{
+    const b=scaleBook() as any;b.materialFunction={version:'entity-material-function/v1',entities:[{id:'paper_boat',builtFrom:{sources:[{entityId:'ribbon'}],evidence:{citation:'p1:s1',quote:'Synthetic source material quote.'}}}]};
+    const h=runHarness(within,{pages:[1],book:b});await illustrateReviewedAudition({...h.args,pageAttempts:1});
+    expect(h.prompts.get('page_1_0')).toContain('SOURCE-BOUND CONSTRUCTION');expect(h.prompts.get('page_1_0')).toContain('APPROVED NATURAL STANDING SCALE');
+    expect(h.contexts.get('page_1_0_qa')).toHaveProperty('materialFunction');expect(h.contexts.get('page_1_0_qa')).toHaveProperty('companionScale');
+  });
+
+  it('a verified scene correction keeps the scale conditioning and seals the actual recipe',async()=>{
+    const h=runHarness(within,{pages:[1],coverage:true,judge:step=>step.startsWith('page_')?{environment:{verdict:'defect',issues:[issue('continuity','visual_language')]}}:{}});
+    await illustrateReviewedAudition({...h.args,pageAttempts:1,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    const page=h.saved.get('page_1') as SavedPage,context=h.contexts.get('page_1_0_qa');
+    await repairReviewedAuditionPage({page:1,prefix:'r1_',consumedAttemptsBefore:1,prior:page.chosen,context,contextSha:page.contextSha,
+      canonical:context.references,predecessor:null,check:h.args.check,render:h.args.render,judge:h.args.judge,identity:h.args.identity,save:h.args.save,materialScene:true});
+    const call=h.args.render.mock.calls[h.args.render.mock.calls.length-1],saved=h.saved.get('scene_repair_1_candidate') as any;
+    expect(call[1]).toContain('APPROVED NATURAL STANDING SCALE');expect(call[1]).not.toContain('return scaleEvidence');
+    expect(saved.recipeSha256).toBe(previewSha(canonicalJson({prompt:call[1],references:call[2],mode:call[3],roles:call[4],provenance:saved.sceneRepair})));
+    expect((h.saved.get('scene_repair_1_result') as any).corrected.assessment.companionScale.disposition).toBe('pass');
+  });
+
+  const scaleBook=(id='elephant_momo')=>{const b=typedFixture() as any,a=companionScaleAuthority(id),r=a.scale.standingHeightInChildHeights;
+    b.companionScale=a;b.plan.continuity.companionStandingHeightInChildHeights=(r.min+r.max)/2;return b as PersonalStoryboard;};
+  const runHarness=(evidence:ScaleEvidence,extra:{coverage?:true;pages?:number[];judge?:(step:string)=>Spec;book?:PersonalStoryboard}={pages:[1]})=>{
+    const h=harness({book:scaleBook(),...extra}),original=h.args.judge;
+    const judge=vi.fn(async(...args:Parameters<typeof original>)=>{
+      const reply=await original(...args),context=args[2] as any;
+      return context.companionScale?{...reply,scaleEvidence:evidence}:reply;
+    });
+    return {...h,args:{...h.args,companionDescription:'Momo, a medium upright elephant in his admitted natural pose',judge}};
+  };
+  const within={comparable:true,reason:'same_plane_standing' as const,estimatedRatio:.7};
+  const airborne={comparable:false,reason:'airborne' as const,estimatedRatio:null};
+  it('a good standing frame carries its authority into the actual render, judge context and manifest',async()=>{
+    const h=runHarness(within),m=await illustrateReviewedAudition({...h.args,pageAttempts:1});
+    expect(h.prompts.get('page_1_0')).toContain('APPROVED NATURAL STANDING SCALE');
+    expect(h.prompts.get('page_1_0')).not.toContain('return scaleEvidence');
+    expect(h.contexts.get('page_1_0_qa').companionScale.companionId).toBe('elephant_momo');
+    expect(m.scaleVerification).toMatchObject({status:'observed_within_range',comparableFrames:1,abstainedFrames:0});
+    expect(m.pages[0].companionScale?.disposition).toBe('pass');expect(m.pages[0].identityPassed).toBe(true);
+  });
+  it('an all-pass model checklist cannot certify an observed oversize or an airborne frame',async()=>{
+    const bad=runHarness({...within,estimatedRatio:.9}),m=await illustrateReviewedAudition({...bad.args,pageAttempts:1});
+    expect(m.pages[0].status).toBe('held');expect(m.pages[0].companionScale?.disposition).toBe('defect');
+    const air=runHarness(airborne),a=await illustrateReviewedAudition({...air.args,pageAttempts:3});
+    expect([...air.prompts.keys()].filter(k=>k.startsWith('page_'))).toHaveLength(1);
+    expect(a.pages[0].status).toBe('held');expect(a.pages[0].companionScale?.disposition).toBe('abstain');
+    expect(a.scaleVerification?.status).toBe('unverified');expect(a.pages[0].identityPassed).toBe(true);
+    expect(auditionCorrections((air.saved.get('page_1') as SavedPage).chosen,'page')).not.toContain('Standing scale abstained');
+  });
+  it('all nine incomparable frames remain scale unverified even with full diagnostic coverage',async()=>{
+    const h=runHarness(airborne,{coverage:true}),m=await illustrateReviewedAudition({...h.args,pageAttempts:1,structuralAnatomy:true,
+      landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,freshCohort:'audition-fresh-cohort/v1'});
+    expect(m.scope.complete).toBe(true);expect(m.pages).toHaveLength(9);
+    expect(m.scaleVerification).toMatchObject({status:'unverified',comparableFrames:0,abstainedFrames:9});
+    expect(m.pages.every(p=>p.status==='held'&&p.companionScale?.disposition==='abstain')).toBe(true);
+    expect(m.productionQualified).toBe(false);
+  });
+  it('resumes by re-deriving the actual scale evidence; saved assessments cannot turn an abstention into a pass',async()=>{
+    const old=runHarness(airborne);await illustrateReviewedAudition({...old.args,pageAttempts:1});
+    const designs=old.saved.get('audition_sheet_designs') as any,sheets={entities:old.saved.get('sheet_entities') as SavedSheet,locations:old.saved.get('sheet_locations') as SavedSheet};
+    const prior=old.saved.get('page_1') as SavedPage;
+    const resume={designs,sheets,pages:{1:prior},stepPrefix:'r1_'};
+    const next=runHarness(airborne),m=await illustrateReviewedAudition({...next.args,pageAttempts:1,resume});
+    expect(next.args.render).not.toHaveBeenCalled();expect(next.args.judge).not.toHaveBeenCalled();
+    expect(m.pages[0].companionScale?.disposition).toBe('abstain');expect(m.scaleVerification?.status).toBe('unverified');
+    const forged=structuredClone(prior);forged.chosen.assessment.companionScale!.disposition='pass';
+    const bad=runHarness(airborne);
+    await expect(illustrateReviewedAudition({...bad.args,pageAttempts:1,resume:{...resume,pages:{1:forged}}})).rejects.toThrow('audition_resume_binding');
+    expect(bad.args.render).not.toHaveBeenCalled();expect(bad.args.judge).not.toHaveBeenCalled();
+  });
+  it('a missing measurement is unusable review evidence, never an instruction to regenerate',async()=>{
+    const h=runHarness(within),judge=async(...args:Parameters<typeof h.args.judge>)=>{const reply=await h.args.judge(...args);const {scaleEvidence:_e,...rest}=reply as any;return rest;};
+    await expect(illustrateReviewedAudition({...h.args,judge,pageAttempts:2})).rejects.toThrow('audition_review_unusable');
+    expect([...h.prompts.keys()].filter(k=>k.startsWith('page_'))).toHaveLength(1);
   });
 });
