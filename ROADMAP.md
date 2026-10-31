@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Local engine continuity progress (2026-10-31)
+
+- C is committed locally at 222236db, pending independent Claude QA.
+- D source-bound material/function contract is implemented and locally validated, pending independent Claude QA.
+- Next E: per-companion standing height, comparable-frame evidence and abstention, offline only.
+
+
 ## Engine continuity implementation takeover (2026-10-31)
 
 - Guy transfers implementation to Codex; Claude independently reviews when available.

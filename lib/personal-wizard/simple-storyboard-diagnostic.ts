@@ -1,3 +1,5 @@
+import type { EngineContinuityOptions } from './engine-continuity-contracts';
+import { MATERIAL_REVIEW_ADDENDUM } from './storyboard-material-function';
 import 'server-only';
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
@@ -33,7 +35,7 @@ export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
  */
 export const storyboardReviewInstructions = (contracts: { momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
   selfCheckContract?: true; selfCheckSourceSpans?: true; reviewImpactPolicy?: true; claimBasisContract?: true; stagingFields?: true; calibrationContract?: true; presenceContract?: true; stateParityContract?: true;
-  instanceDistinctionContract?: true }) => {
+  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions }) => {
   if (contracts.stateParityContract !== undefined && (contracts.stateParityContract !== true || contracts.calibrationContract !== true || contracts.claimBasisContract !== true))
     throw Error('simple_storyboard_diagnostic_state_parity_policy');
   const calibrated = contracts.calibrationContract && contracts.claimBasisContract;
@@ -48,7 +50,7 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '')
     + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '')
     + (contracts.stateParityContract ? '\n' + STATE_PARITY_REVIEW_ADDENDUM : '')
-    + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '');
+    + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '');
 };
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
@@ -107,7 +109,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   /** Shared, prospective compiler attribute/time semantics; needs calibration and visible moment. */
   stateParityContract?: true;
   /** Opt-in instance distinction (instance-distinction/v1: needs the landmark-kind contract; the planner's schema/instruction/compile and the review's rule); absent keeps the exact existing calls. */
-  instanceDistinctionContract?: true;
+  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions;
 }) {
   if (args.selfCheckSourceSpans !== undefined && (args.selfCheckSourceSpans !== true || args.selfCheckContract !== true)) fail('self_check_source_spans_policy');
   if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
@@ -124,7 +126,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
     args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
     args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract, args.stateParityContract,
-    args.instanceDistinctionContract);
+    args.instanceDistinctionContract, args.engineContinuity);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length, args.selfCheckContract ? { selfCheck: true } : undefined);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -134,7 +136,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
         args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
         args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract, args.stateParityContract,
-        args.instanceDistinctionContract).sourceDigest !== source.sourceDigest)
+        args.instanceDistinctionContract, args.engineContinuity).sourceDigest !== source.sourceDigest)
         fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
@@ -173,7 +175,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
       ...(args.presenceContract ? { presenceContract: true as const } : {}),
       ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
-      ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}) } }), args.signal,
+      ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}), ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}) } }), args.signal,
     args.selfCheckNames || args.stagingFields || args.selfCheckSourceSpans ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}),
       ...(args.selfCheckSourceSpans ? { selfCheckSourceSpans: true as const } : {}) }
       : undefined);
@@ -190,7 +192,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.claimBasisContract ? { claimBasisContract: true as const } : {}),
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
       ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
-      ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}),
+      ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}), ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}),
       ...(reviewCapacity ? { reviewCapacity: reviewCapacity.version } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();

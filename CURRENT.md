@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Engine continuity stage D — local material/function milestone (2026-10-31)
+
+- C local commit: 222236db. D adds entity-material-function/v1 through explicit engineContinuity.materialFunction; it requires the
+  instance contract. Defaults and all old serialized books/contexts remain unchanged. Independent Claude review is pending for both.
+- Every continuity entity declares nullable builtFrom under the flag. Non-null lineage names declared entity components or declared
+  location-population kinds, plus an exact manuscript sentence citation/quote. Missing/unknown/duplicate/self/cyclic sources and unquoted
+  evidence refuse structurally. Quote matching proves binding, not semantic truth: the storyboard reviewer audits meaning/completeness.
+- The planner receives materialSourceSpans; the raw draft's annotations are split before legacy compilers, retained in the compiled
+  book/review/digest, and replayed during source checks after every await. The full flow refuses an invalid contract before callbacks.
+- Reference and visible-page contexts carry the lineage. Every render path (normal, fresh cohort and local scene correction) receives
+  the source-bound rule/data. The correction recipe seal hashes the actual complete prompt/references/mode/roles/provenance.
+- Permanent shape, material lineage and momentary contact remain separate. Wedges can land flat; grey/shading alone never asserts stone
+  or an invented palette. These are explicit judge duties; no pixel efficacy or model diligence is inferred from controlled answers.
+- Focused C/D cases pass; all 9 deliberate D breakages are killed by assertions and files restored. TSC passes. Detailed intermediate
+  failures and final JSON/mutation reports are retained in ART/claude-engine-continuity-20261029. No paid provider or key/.env read.
+- Next: E typed companion standing-scale authority and explicit measurement/abstention; no image-conditioning experiment, no book
+  repairs/new book, no change to 0.70 or LOW/HIGH, and no product/independent technical PASS by Codex.
+
+
 ## Engine continuity — Codex takeover and stage C local milestone (2026-10-31)
 
 - Guy explicitly transferred the unfinished implementation from Claude to Codex in the root chat; Claude is now the independent reviewer.

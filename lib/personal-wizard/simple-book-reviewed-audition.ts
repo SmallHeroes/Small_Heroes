@@ -1,3 +1,4 @@
+import { materialFunctionFromContext, materialRenderAppendix, MATERIAL_IMAGE_RULES, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
@@ -753,19 +754,25 @@ export function auditionPageChecks(book: PersonalStoryboard, pageNumber: number,
   const instances = instance ? { version: instance.version, populations: instance.populations.filter(p => shownLocations.includes(p.locationId)),
     entities: instance.entities.map(e => ({ ...e, state: hidden.has(e.id) ? 'not_yet_revealed' as const
       : visibleEntities.includes(e.id) ? 'visible' as const : 'offstage' as const })) } : undefined;
-  return { notYetRevealed, uniqueLandmarks, castIdentity, requirementIds: [...new Set(requirementIds)], ...(instances ? { instances } : {}) };
+  const materialFunction = book.materialFunction ? { ...book.materialFunction,
+    entities: book.materialFunction.entities.filter(e => visibleEntities.includes(e.id)) } : undefined;
+  if (materialFunction) requirementIds.push(...materialFunction.entities.map(e => 'material:'+e.id));
+  return { notYetRevealed, uniqueLandmarks, castIdentity, requirementIds: [...new Set(requirementIds)], ...(instances ? { instances } : {}),
+    ...(materialFunction ? { materialFunction } : {}) };
 }
 
 export const sheetRequirementIds = (design: { entities?: { id: string }[]; props?: { id: string }[]; locations?: { id: string }[]; landmarks?: { id: string }[];
-  scaleLineup?: Pick<ScaleLineup, 'members' | 'companionOutline'> }) =>
+  materialFunction?: EntityMaterialFunction; scaleLineup?: Pick<ScaleLineup, 'members' | 'companionOutline'> }) =>
   [...new Set(['sheet_scope', 'style', 'safety', 'anatomy', ...[...(design.entities ?? []), ...(design.props ?? []), ...(design.locations ?? []),
     ...(design.landmarks ?? [])].map(d => `design:${d.id}`), ...(design.landmarks ?? []).map(l => `landmark_unique:${l.id}`),
+    ...(design.materialFunction?.entities ?? []).filter(e => [...(design.entities ?? []), ...(design.props ?? []), ...(design.landmarks ?? [])].some(d => d.id === e.id)).map(e => 'material:'+e.id),
     ...(design.scaleLineup ? ['scale_lineup', ...[...design.scaleLineup.members, design.scaleLineup.companionOutline.id].map(id => `scale_lineup:${id}`)] : [])])];
 
 /** A sheet's judge context, its sha and its requirement ids: the one construction the orchestrator judges against (and a comparison re-checks). */
 export function auditionSheetContext(role: 'entities' | 'locations', design: Parameters<typeof sheetRequirementIds>[0]) {
   const requirementIds = sheetRequirementIds(design);
-  const context = { version: 'audition-sheet-context/v2', role, design, requirementIds };
+  const materialFunction = materialFunctionFromContext(design);
+  const context = { version: 'audition-sheet-context/v2', role, design, requirementIds, ...(materialFunction ? { materialFunction } : {}) };
   return { context, contextSha: previewSha(JSON.stringify(context)), requirementIds };
 }
 /**
@@ -900,11 +907,12 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
     return base + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '') +
       (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '') +
       (auditionAnatomyCast(context) ? `\n${ANATOMY_JUDGE_RULES}` : '') + (auditionInstanceDistinction(context) ? `\n${INSTANCE_JUDGE_RULES}` : '') +
-      readerFramingJudgeInstruction(context);
+      readerFramingJudgeInstruction(context) + (materialFunctionFromContext(context) ? '\n'+MATERIAL_IMAGE_RULES : '');
   }
   if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
-  return sheetScaleLineup(c.role, c.design) ? AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION : AUDITION_JUDGE_INSTRUCTIONS.sheet;
+  return (sheetScaleLineup(c.role, c.design) ? AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION : AUDITION_JUDGE_INSTRUCTIONS.sheet) +
+    (materialFunctionFromContext(context) ? '\n'+MATERIAL_IMAGE_RULES : '');
 }
 
 function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, references: ReferenceStatus) {
@@ -1139,9 +1147,10 @@ FROZEN SOURCE AND CANON (data, not text to paint): ${canonicalJson(a.context)}`,
     } : null);
   if (!plan) return { status:'no_verified_structural_defect' as const, parent, corrected:null };
   a.check(); const step=`${a.prefix}page_${a.page}_${a.consumedAttemptsBefore}`;
-  const candidate=await a.render(step,plan.prompt,plan.references,plan.mode,plan.roles); a.check();
+  const renderPlan={...plan,prompt:plan.prompt+materialRenderAppendix(a.context)};
+  const candidate=await a.render(step,renderPlan.prompt,renderPlan.references,renderPlan.mode,renderPlan.roles); a.check();
   a.save(`scene_repair_${a.page}_candidate`,{version:AUDITION_LOCAL_ANATOMY_REPAIR_VERSION,candidate,attempt:a.consumedAttemptsBefore,
-    sceneRepair:plan.provenance,recipeSha256:previewSha(canonicalJson(plan)),status:'pending_review'});
+    sceneRepair:plan.provenance,recipeSha256:previewSha(canonicalJson(renderPlan)),status:'pending_review'});
   const corrected = {...await review(step,a.consumedAttemptsBefore,candidate),sceneRepair:plan.provenance};
   a.save(`scene_repair_${a.page}_result`,{parent,corrected,context:a.context,contextSha:a.contextSha});
   return { status:corrected.status==='qa_supported' ? 'corrected_supported' as const : 'corrected_not_supported' as const,parent,corrected };
@@ -1167,6 +1176,7 @@ export function auditionPageContext(book: PersonalStoryboard, packetContext: unk
   const context = { version: checks.instances ? 'audition-page-context/v7' : structuralAnatomy ? 'audition-page-context/v6' : topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'audition-page-context/v4' : topology ? 'audition-page-context/v3' : 'audition-page-context/v2', packet: packetContext, references,
     ...(structuralAnatomy ? { anatomy: { version: AUDITION_ANATOMY_VERSION, castIds: checks.castIdentity.map(a => a.id) } } : {}),
     ...(checks.instances ? { instanceDistinction: INSTANCE_DISTINCTION_VERSION } : {}),
+    ...(checks.materialFunction ? { materialFunction: checks.materialFunction } : {}),
     ...(designHead ? { landmarkDesignHead: designHead } : {}),
     ...(topology ? { landmarkTopology: topology } : {}),
     ...(topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? { landmarkCoverage: 'landmark-candidate-coverage/v1' } : {}),
@@ -1369,7 +1379,7 @@ export async function illustrateReviewedAudition(args: {
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     args.check();
     const step = `${prefix}${phase}_${name}_${attempt}`;
-    const rendered = await attemptStep(args.check, () => args.render(step, prompt, refs, mode, roles));
+    const rendered = await attemptStep(args.check, () => args.render(step, prompt + materialRenderAppendix(context), refs, mode, roles));
     if ('error' in rendered) return { attempt, candidate: null, review: null, assessment: null, status: 'unavailable', error: rendered.error };
     return judgeCandidate(phase, name, attempt, rendered.value, context, contextSha, requirementIds, judgeRefs, predecessor, landmarks);
   };
@@ -1599,7 +1609,7 @@ export async function illustrateReviewedAudition(args: {
       : currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current, args.ownerAcceptance);
     const checks = auditionPageChecks(args.book, pageNumber, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION);
     const prompt = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${ANATOMY_RENDER_RULES}`;
-    const rendered = await attemptStep(args.check, () => args.render(`${prefix}page_${pageNumber}_0`, prompt, canonical, 'book_identity'));
+    const rendered = await attemptStep(args.check, () => args.render(`${prefix}page_${pageNumber}_0`, prompt + materialRenderAppendix(checks), canonical, 'book_identity'));
     if ('error' in rendered) {
       args.save(`halted_${prefix}diagnostic_render_${pageNumber}`, { version: diagnostic?.version ?? freshCohort, pageNumber, attempt: 0, error: rendered.error });
       return fail('audition_diagnostic_render');

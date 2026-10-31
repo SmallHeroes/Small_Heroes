@@ -1,3 +1,5 @@
+import { assertEngineContinuityOptions } from './engine-continuity-contracts';
+import { withMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
@@ -54,7 +56,11 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   // declares its population (absent, the exact existing wire schema).
   if (call.context.instanceDistinctionContract !== undefined && (call.context.instanceDistinctionContract !== true || call.context.landmarkKindContract !== true))
     throw new BookProviderError('book_provider_context');
-  const located = <T extends z.AnyZodObject>(draft: T): T => call.context.instanceDistinctionContract ? withLocationPopulations(draft) : draft;
+  const engine = assertEngineContinuityOptions(call.context.engineContinuity, call.context.instanceDistinctionContract);
+  const located = <T extends z.AnyZodObject>(draft: T): T => {
+    const schema = call.context.instanceDistinctionContract ? withLocationPopulations(draft) : draft;
+    return engine?.materialFunction ? withMaterialFunction(schema) : schema;
+  };
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');

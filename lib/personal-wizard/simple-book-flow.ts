@@ -1,3 +1,4 @@
+import { assertEngineContinuityOptions, type EngineContinuityOptions } from './engine-continuity-contracts';
 import 'server-only';
 import type { PersonalWizardOptions } from './options';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryCall } from './simple-story-engine';
@@ -51,7 +52,7 @@ export async function runSimpleWizardBook(args: {
   presenceContract?: true;
   stateParityContract?: true;
   /** Opt-in instance distinction (instance-distinction/v1; needs the landmark-kind contract); absent keeps the exact existing calls. */
-  instanceDistinctionContract?: true;
+  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions;
   /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
   storyboardRepair?: StoryboardRepair;
   /**
@@ -65,6 +66,7 @@ export async function runSimpleWizardBook(args: {
    */
   citationCorrector?: (stage: SimpleBookReadingCall['stage'], call: CitationCorrectionCall, signal: AbortSignal) => Promise<unknown>;
 }) {
+  assertEngineContinuityOptions(args.engineContinuity, args.instanceDistinctionContract);
   if (args.citationCorrector && args.correctReading) fail('simple_book_citation_correction_route');
   const repair = args.repair ? prepareSimpleStoryRepair(args.request, args.repair.prior, args.repair.readings, args.options) : null;
   const prepared = repair?.prepared ?? prepareSimpleStory(args.request, args.options, args.seed, args.storyExperience);
@@ -76,7 +78,8 @@ export async function runSimpleWizardBook(args: {
   if (repair && args.writingModel && repair.prior.accounting.model !== args.writingModel) fail('simple_book_repair_model');
   const bindingValue = () => ({ request: args.request, options: args.options, seed: args.seed, ...(args.repair ? { repair: args.repair } : {}),
     ...(args.writingModel ? { writingModel: args.writingModel } : {}), ...(args.reviewCapacity ? { reviewCapacity: args.reviewCapacity } : {}),
-    ...(args.storyExperience ? { storyExperience: args.storyExperience } : {}) });
+    ...(args.storyExperience ? { storyExperience: args.storyExperience } : {}),
+    ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}) });
   const binding = canonicalJson(bindingValue());
   const check = () => {
     if (args.signal.aborted) fail('simple_book_cancelled');
@@ -155,6 +158,7 @@ export async function runSimpleWizardBook(args: {
     ...(args.presenceContract ? { presenceContract: true as const } : {}),
     ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
     ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}),
+    ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}),
     ...(args.storyboardRepair ? { repair: args.storyboardRepair } : {}),
     generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');

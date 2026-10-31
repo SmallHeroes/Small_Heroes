@@ -1,3 +1,4 @@
+import type { EngineContinuityOptions } from './engine-continuity-contracts';
 import 'server-only';
 import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
@@ -15,7 +16,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, personalSt
 export type BookVisualCall = { stage: 'storyboard' | 'review'; instructions: string; input: string; maxOutputTokens: number;
   context: { narrativeSpreads: number; sourceDigest: string; storyboardDigest?: string; actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true;
     drawnInstantContract?: true; selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true; calibrationContract?: true;
-    presenceContract?: true; stateParityContract?: true; instanceDistinctionContract?: true;
+    presenceContract?: true; stateParityContract?: true; instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions;
     reviewCapacity?: import('./storyboard-review-capacity').StoryboardReviewCapacity } };
 export type PersonalBookProvider = { story: StoryProvider; editor: StoryEditorProvider;
   visual: { generate(call: BookVisualCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> } };

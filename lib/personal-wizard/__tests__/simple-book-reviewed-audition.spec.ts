@@ -3016,3 +3016,47 @@ describe('the one-call conservative debit (opt-in, owner-approved): bound to exa
     expect(() => conservativeDebitOf(pending.root, 'q')).toThrow('audition_meter_debit');
   });
 });
+
+describe('entity-material-function/v1 at the actual render boundary (synthetic adapters)',()=>{
+  it('the fresh-cohort render path also receives the exact material authority before its page reviews',async()=>{
+    const h=harness({book:materialBook(),coverage:true});
+    await illustrateReviewedAudition({...h.args,pageAttempts:1,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+      freshCohort:'audition-fresh-cohort/v1'});
+    const calls=h.args.render.mock.calls.filter(c=>c[0].startsWith('page_'));
+    expect(calls).toHaveLength(9);
+    // Only currently visible constructions enter the frame; hidden ones do not leak future material state.
+    for(const call of calls){const context=h.contexts.get(call[0]+'_qa');
+      expect(call[1]).toContain('ENTITY MATERIAL/FUNCTION CONTRACT');
+      if(context.materialFunction.entities.length)expect(call[1]).toContain(quote);
+    }
+  });
+
+  const quote='A paper boat made from its source material.';
+  const materialBook=()=>({...typedFixture(),materialFunction:{version:'entity-material-function/v1' as const,
+    entities:[{id:'paper_boat',builtFrom:{sources:[{entityId:'ribbon'}],evidence:{citation:'p1:s1',quote}}}]}}) as PersonalStoryboard;
+  it('binds source materials into actual sheet/page contexts and both first-render and correction prompts',async()=>{
+    const h=harness({book:materialBook(),pages:[1],judge:step=>step==='page_1_0_qa'?{props:{verdict:'defect',issues:[issue('continuity','material:paper_boat')]}}:{}});
+    await illustrateReviewedAudition({...h.args,pageAttempts:2});
+    for(const step of ['sheet_entities_0','sheet_locations_0','page_1_0','page_1_1']){
+      expect(h.prompts.get(step)).toContain(quote);expect(h.prompts.get(step)).toContain('ENTITY MATERIAL/FUNCTION CONTRACT');
+    }
+    const c=h.contexts.get('page_1_0_qa');expect(c.materialFunction.entities[0].id).toBe('paper_boat');
+    expect(c.requirementIds).toContain('material:paper_boat');
+  });
+  it('the opt-in does not add prompt/context bytes when absent',async()=>{
+    const h=harness({book:typedFixture(),pages:[1]});await illustrateReviewedAudition({...h.args,pageAttempts:1});
+    expect([...h.prompts.values()].every(p=>!p.includes('ENTITY MATERIAL/FUNCTION CONTRACT'))).toBe(true);
+    expect([...h.contexts.values()].every(c=>!('materialFunction' in c))).toBe(true);
+  });
+  it('local scene corrections retain the material rule and seal the actual complete render recipe',async()=>{
+    const h=harness({book:materialBook(),coverage:true,pages:[1],judge:step=>step.startsWith('page_')?{environment:{verdict:'defect',issues:[issue('continuity','visual_language')]}}:{}});
+    await illustrateReviewedAudition({...h.args,pageAttempts:1,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    const page=h.saved.get('page_1') as SavedPage,context=h.contexts.get('page_1_0_qa');
+    await repairReviewedAuditionPage({page:1,prefix:'r1_',consumedAttemptsBefore:1,prior:page.chosen,context,contextSha:page.contextSha,
+      canonical:context.references,predecessor:null,check:h.args.check,render:h.args.render,judge:h.args.judge,identity:h.args.identity,save:h.args.save,materialScene:true});
+    const call=h.args.render.mock.calls[h.args.render.mock.calls.length-1];
+    expect(call[1]).toContain(quote);expect(call[1]).toContain('ENTITY MATERIAL/FUNCTION CONTRACT');
+    const saved=h.saved.get('scene_repair_1_candidate') as any;
+    expect(saved.recipeSha256).toBe(previewSha(canonicalJson({prompt:call[1],references:call[2],mode:call[3],roles:call[4],provenance:saved.sceneRepair})));
+  });
+});

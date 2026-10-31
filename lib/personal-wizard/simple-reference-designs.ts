@@ -14,9 +14,10 @@ export const simpleReferenceStateSchema = z.object({
 }).strict();
 
 /** Data projection only; current storyboard admission remains the authority. */
-export function simpleReferenceEntityDesign(book: Pick<PersonalStoryboard, 'plan' | 'sequence'>, roleScoped?: true,
+export function simpleReferenceEntityDesign(book: Pick<PersonalStoryboard, 'plan' | 'sequence' | 'materialFunction'>, roleScoped?: true,
   stateAware?: true, texts: readonly string[] = []) {
   const base = { props: book.plan.recurringProps, entities: book.plan.continuity!.entities,
+    ...(book.materialFunction ? { materialFunction: book.materialFunction } : {}),
     ...(roleScoped ? { childClothingAuthority: book.plan.actorAppearance?.child.clothing ?? book.plan.wardrobe } : {}) };
   if (!stateAware) return base;
   if (!roleScoped) throw Error('simple_reference_state_scope');
@@ -58,10 +59,11 @@ export const referenceOwnershipSchema = z.object({ version: z.literal('disjoint-
 });
 
 /** The two existing sheets, with lossless opt-in ownership. Defaults are byte-exact. */
-export function simpleReferenceDesigns(book: Pick<PersonalStoryboard, 'plan' | 'sequence'>, roleScoped?: true,
+export function simpleReferenceDesigns(book: Pick<PersonalStoryboard, 'plan' | 'sequence' | 'materialFunction'>, roleScoped?: true,
   stateAware?: true, texts: readonly string[] = [], splitRoles?: true) {
   const full = simpleReferenceEntityDesign(book, roleScoped, stateAware, texts);
   const locations = { locations: book.plan.locations, geography: book.sequence.premise,
+    ...(book.materialFunction ? { materialFunction: book.materialFunction } : {}),
     ...(roleScoped ? { landmarks: full.entities.filter(e => e.kind === 'landmark') } : {}) };
   if (!splitRoles) return { entities: full, locations };
   if (!roleScoped || !stateAware || !('referenceState' in full)) throw Error('simple_reference_ownership_scope');
