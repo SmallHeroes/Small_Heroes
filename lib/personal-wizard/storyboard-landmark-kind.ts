@@ -21,6 +21,8 @@ uncertain. Two landmarks may share a kind only if their other fixed design still
 
 /** Words that turn a kind into a place, a relation or a negation rather than a sort of object. */
 const NOT_A_KIND = /\b(no|not|never|none|without|non|beside|behind|near|next|before|after|at|around|against|along|across|between|from|to|into|onto|on|in|under|beneath|below|above|over|inside|with|and|of)\b/i;
+/** The kind syntax: 1-3 plain words, never a place, a relation or a negation. */
+export const isKindPhrase = (value: string) => /^[a-z]+(?:[ -][a-z]+){0,2}$/i.test(value) && !NOT_A_KIND.test(value);
 
 /** The declared kind of every landmark; any syntax violation fails closed. */
 export function landmarkKinds(continuity: {
@@ -33,7 +35,7 @@ export function landmarkKinds(continuity: {
     const declared = e.invariants.filter(i => isKind(i.attribute));
     if (declared.length !== 1 || declared[0].attribute !== LANDMARK_KIND_ATTRIBUTE) bad();
     const value = declared[0].value.trim();
-    if (!/^[a-z]+(?:[ -][a-z]+){0,2}$/i.test(value) || NOT_A_KIND.test(value)) bad();
+    if (!isKindPhrase(value)) bad();
     if (mutableAttributes.some(m => m.entityId === e.id && isKind(m.attribute)) ||
       continuity.pages.some(p => p.changes.some(c => c.entityId === e.id && isKind(c.attribute)))) bad();
     return { id: e.id, kind: value.toLowerCase() };

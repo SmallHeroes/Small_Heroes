@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Engine continuity — Codex takeover and stage C local milestone (2026-10-31)
+
+- Guy explicitly transferred the unfinished implementation from Claude to Codex in the root chat; Claude is now the independent reviewer.
+- Preserved base: 5c931c9d9b86c3cc1627836efcae1e85635d945a on claude/book-render-20261009. All 11 unfinished C files were copied and hashed
+  before edits in ART/claude-engine-continuity-20261029/resume-20261031-1505. No second writer was live; unrelated Find Me tests were untouched.
+- A r3 and B independent PASS remain historical. C instance-distinction/v1 is a LOCAL milestone, pending independent Claude QA.
+- C binds canonical kind/population/distinction through planner schema, compiled source/book digests, semantic review, frame-scoped render
+  instructions and v7 landmark inventories. A set_dressing label alone never clears a possible copy: its distinction must be visibly contradicted.
+- Codex corrected the unfinished planner addendum: population belongs in EACH plan.locations entry, exactly as required by the wire schema;
+  no contradictory top-level populations instruction remains. New regression included.
+- Validation: 24/24 focused C cases; all 17 deliberate broken variants killed by assertions and restored; one actual existing SDK-payload
+  caller with fake transports passes; tsc --noEmit passes. Provider client is substituted with an offline constructor-denied class.
+- Limits: the earlier full-folder run retains 3539 pass/16 fail/1 pending. The broad Codex harness ran 771 cases, 661 pass/110 fail with
+  its schema-helper alias defect; it is NOT a release PASS. The corrected broad whole-flow retry was stopped as INCOMPLETE after eight
+  CPU-active minutes; all reports retained. A temporary SDK-overlay triage command was rejected by automatic approval review; no rejected
+  command ran, and that harness was retired. Its partial comparisons do not classify the 16 historical failures.
+- The all-prop annotation and book-wide collision checks are conservative opt-in supersets; semantic completeness still depends on review.
+  No claim is made that new images improve. Historical R17 v6, nine held images, assets, grants and spend are unchanged.
+- Next: source-bound material/function contract (D), then typed companion scale/abstention (E), in separate local commits. C/D/E await
+  independent Claude review when available. Zero provider calls/new book/manual repairs; 0.70 and production defaults unchanged.
+
+
 ## Engine continuity repair A–E (2026-10-29; Guy approved building A–E at $0, each stage gated by Codex)
 
 - Plan: REPAIR-PLAN-FINAL.txt (engine-diagnosis-20261029, Codex PASS as a plan). Milestone ART/claude-engine-continuity-20261029

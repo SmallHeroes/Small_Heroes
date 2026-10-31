@@ -15,7 +15,8 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, personalSt
 export type BookVisualCall = { stage: 'storyboard' | 'review'; instructions: string; input: string; maxOutputTokens: number;
   context: { narrativeSpreads: number; sourceDigest: string; storyboardDigest?: string; actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true;
     drawnInstantContract?: true; selfCheckContract?: true; reviewImpactPolicy?: true; claimBasisContract?: true; calibrationContract?: true;
-    presenceContract?: true; stateParityContract?: true; reviewCapacity?: import('./storyboard-review-capacity').StoryboardReviewCapacity } };
+    presenceContract?: true; stateParityContract?: true; instanceDistinctionContract?: true;
+    reviewCapacity?: import('./storyboard-review-capacity').StoryboardReviewCapacity } };
 export type PersonalBookProvider = { story: StoryProvider; editor: StoryEditorProvider;
   visual: { generate(call: BookVisualCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> } };
 export type BookStage = 'plan' | 'manuscript' | 'editor' | 'storyboard' | 'review';

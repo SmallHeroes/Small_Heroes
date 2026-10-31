@@ -18,6 +18,7 @@ import { BOOK_LIMITS, personalBookOutputLimits } from './book-config';
 import type { BookVisualCall, PersonalBookProvider } from './book-runner';
 import type { StoryUsage } from './story-contract';
 import { storyboardReviewCapacity } from './storyboard-review-capacity';
+import { withLocationPopulations } from './storyboard-instance-distinction';
 
 export class BookProviderError extends Error {
   providerUsage?: StoryUsage;
@@ -49,6 +50,11 @@ export function personalBookProviderSchema(call: BookVisualCall) {
     throw new BookProviderError('book_provider_context');
   if (call.context.stateParityContract !== undefined && (call.context.stateParityContract !== true || call.context.calibrationContract !== true))
     throw new BookProviderError('book_provider_context');
+  // Instance distinction keys entities by the landmark-kind syntax, so it needs that contract; on the planner wire each location also
+  // declares its population (absent, the exact existing wire schema).
+  if (call.context.instanceDistinctionContract !== undefined && (call.context.instanceDistinctionContract !== true || call.context.landmarkKindContract !== true))
+    throw new BookProviderError('book_provider_context');
+  const located = <T extends z.AnyZodObject>(draft: T): T => call.context.instanceDistinctionContract ? withLocationPopulations(draft) : draft;
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');
@@ -58,7 +64,7 @@ export function personalBookProviderSchema(call: BookVisualCall) {
     ? schema.extend({ selfCheck: call.context.calibrationContract ? calibrationSelfCheckWireSchema(count + 1) : selfCheckWireSchema(count + 1) }) : schema) as T;
   if (call.stage === 'storyboard' && call.context.momentContract && call.context.drawnInstantContract) {
     // Opt-in drawn-instant contract: exactly the moments shape below, with actorStates in every depicted instant.
-    const draft = call.context.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema;
+    const draft = located(call.context.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema);
     return withSelfCheck(draft.extend({
       plan: draft.shape.plan.extend({
         pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
@@ -78,7 +84,7 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   }
   if (call.stage === 'storyboard' && call.context.momentContract) {
     // Opt-in moments contract: same page-order metadata removal, plus one moments frame per page (cover first).
-    const draft = call.context.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema;
+    const draft = located(call.context.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema);
     return withSelfCheck(draft.extend({
       plan: draft.shape.plan.extend({
         pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
@@ -93,7 +99,7 @@ export function personalBookProviderSchema(call: BookVisualCall) {
     }));
   }
   if (call.stage === 'storyboard') {
-    const draft = call.context.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema;
+    const draft = located(call.context.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema);
     return draft.extend({
       plan: draft.shape.plan.extend({
         pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),

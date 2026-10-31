@@ -16,7 +16,9 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   auditionCorrections, landmarkFeatureCatalogue, assessLandmarkInventory, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect,
   sheetRepairPrompt, sheetRequirementIds, sheetScaleLineup, auditionJudgeInstruction, reviewedAuditionPolicy, REVIEWED_AUDITION_POLICY, SCALE_LINEUP_AUDITION_POLICY,
   AUDITION_SCALE_LINEUP_VERSION, AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_SCALE_LINEUP_SHEET_JUDGE_INSTRUCTION, AUDITION_PAGE_SUFFIX,
-  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, REFERENCE_QUALIFICATION_VERSION } from '../simple-book-reviewed-audition';
+  AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, REFERENCE_QUALIFICATION_VERSION,
+  INSTANCE_JUDGE_RULES, auditionInstanceDistinction } from '../simple-book-reviewed-audition';
+import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
   type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
@@ -236,6 +238,136 @@ describe('reference-qualification/v1: pages are conditioned only on approved ref
     const h = harness();
     await expect(illustrateReviewedAudition({ ...h.args, referenceQualification: 'reference-qualification/v0' as never })).rejects.toThrow('audition_reference_contract');
     expect(h.args.render).not.toHaveBeenCalled(); expect(h.saved.size).toBe(0);
+  });
+});
+
+describe('instance-distinction/v1 (page context v7): set dressing is told apart from the story object', () => {
+  const LIGHTNING = 'split by lightning down its trunk';
+  // The typed garden shows "tree" dressing; its old_tree landmark (kind tree) bears a fixed distinction; trail is a prop not yet revealed on page 1.
+  const instanceFixture = () => {
+    const b = typedFixture() as any;
+    b.plan.continuity.entities.find((e: any) => e.id === 'old_tree').invariants.push({ attribute: 'distinction', value: LIGHTNING });
+    b.plan.continuity.entities.find((e: any) => e.id === 'trail').invariants.push({ attribute: 'distinction', value: 'tiny star prints' });
+    b.instanceDistinction = { version: INSTANCE_DISTINCTION_VERSION, populations: [{ locationId: 'garden', kinds: ['tree'] }],
+      entities: [{ id: 'paper_boat', kind: 'boat', distinction: null }, { id: 'ribbon', kind: 'ribbon', distinction: null },
+        { id: 'trail', kind: 'trail', distinction: 'tiny star prints' }, { id: 'old_tree', kind: 'tree', distinction: LIGHTNING },
+        { id: 'stone', kind: 'stone', distinction: null }] };
+    return b as PersonalStoryboard;
+  };
+  const plainOf = (book: PersonalStoryboard) => { const { instanceDistinction: _record, ...plain } = book as any; return plain as PersonalStoryboard; };
+  const refs = { entities: { image: image('sheet_entities_0'), status: 'approved_reference' as const, knownFlaws: [] },
+    locations: { image: image('sheet_locations_0'), status: 'approved_reference' as const, knownFlaws: [] } };
+  const canonical = [image('child'), image('companion'), image('sheet_entities_0'), image('sheet_locations_0')];
+  const pageContext = (book: PersonalStoryboard, anatomy = true) => auditionPageContext(book, { pageNumber: 1 }, 1, 'copper dragon', canonical, refs, null,
+    LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION, anatomy ? true : undefined);
+  type Row = { association: string; observed: (aspect: string) => string; extent: string };
+  const own: Row = { association: 'this_landmark', observed: () => 'matches', extent: 'whole_instance' };
+  const unrelated: Row = { association: 'different_object', observed: a => a === 'kind' ? 'contradicted' : 'not_visible', extent: 'not_instance' };
+  const dressing: Row = { association: 'set_dressing', observed: a => a === 'kind' ? 'matches' : a === 'distinction' ? 'contradicted' : 'not_visible', extent: 'not_instance' };
+  // A complete synthetic v7 answer: the full object/landmark matrix, every pair, every binding, four scans and intact anatomy (not pixel proof).
+  const answer = (ctx: ReturnType<typeof pageContext>, objects: Record<string, Partial<Record<string, Row>>>, o: { populations?: unknown[]; spec?: Spec } = {}) => {
+    const landmarks = ctx.checks.uniqueLandmarks, ids = Object.keys(objects), populations = o.populations ?? [];
+    const row = (id: string, landmarkId: string) => objects[id][landmarkId] ?? unrelated;
+    return { ...review(sha('candidate'), ctx.contextSha, o.spec ?? {}),
+      landmarkInventory: { objects: ids.map(id => ({ objectId: id, region: `region of ${id}`, description: `object ${id}`, quadrants: ['top_left'] })),
+        landmarks: landmarks.map(l => ({ landmarkId: l.id, candidates: ids.map(id => ({ objectId: id, association: row(id, l.id).association, evidence: 'synthetic observation',
+          featureChecks: l.features.map(f => ({ featureId: f.id, observed: row(id, l.id).observed(f.aspect) })) })) })),
+        topology: { version: LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+          relations: ids.flatMap((a, i) => ids.slice(i + 1).map(b => ({ from: a, to: b, relation: 'separate_objects', basis: 'visible_separation', evidence: 'visibly separate objects' }))),
+          bindings: landmarks.flatMap(l => ids.map(id => ({ landmarkId: l.id, objectId: id, extent: row(id, l.id).extent,
+            sourceKind: l.features.find(f => f.aspect === 'kind')!.text, evidence: 'synthetic binding evidence' }))),
+          coverage: { version: 'landmark-candidate-coverage/v1', populations, scans: ['top_left', 'top_right', 'bottom_left', 'bottom_right'].map(quadrant => ({ quadrant,
+            status: 'complete', unresolvedReason: 'none', uncertainLandmarkIds: [], populationIds: quadrant === 'top_left' ? populations.map((p: any) => p.populationId) : [],
+            objectIds: quadrant === 'top_left' ? ids : [], evidence: 'synthetic complete quadrant witness' })) } } },
+      anatomy: { version: AUDITION_ANATOMY_VERSION, actors: (ctx.context.anatomy as { castIds: string[] }).castIds.map(actorId => ({ actorId, region: 'synthetic actor body, not pixel proof',
+        limbs: { part: 'limbs', condition: 'intact', expectedTotal: 4, expectationBasis: 'canonical_design', expectationEvidence: 'Synthetic four-limbed design',
+          visibleDistinct: 3, unseen: 'occluded', evidence: 'Three attached paths; fourth naturally hidden', correction: '' }, otherParts: [] })) } };
+  };
+  const assess = (raw: unknown, ctx = pageContext(instanceFixture()), legacy = false) =>
+    assessAuditionReview(raw, sha('candidate'), ctx.contextSha, ctx.checks.requirementIds, ctx.checks.uniqueLandmarks, LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+      (ctx.context.anatomy as { castIds: string[] }).castIds, legacy ? undefined : INSTANCE_DISTINCTION_VERSION).assessment;
+  const uniqueFindings = (a: ReturnType<typeof assess>) => a.findings.filter(f => f.requirement === 'landmark_unique:old_tree');
+
+  it('the distinction is one decisive cue of its own aspect only under the book record; without it, ordinary design text', () => {
+    const tree = (book: PersonalStoryboard) => auditionPageChecks(book, 1, 'x', LANDMARK_DESIGN_HEAD_VERSION).uniqueLandmarks.find(l => l.id === 'old_tree')!;
+    expect(tree(instanceFixture()).features.filter(f => f.aspect === 'distinction')).toEqual([expect.objectContaining({ text: LIGHTNING, decisive: true })]);
+    expect(tree(plainOf(instanceFixture())).features.some(f => f.aspect === 'distinction')).toBe(false);
+    const wrong = { ...instanceFixture(), instanceDistinction: { ...instanceFixture().instanceDistinction!, version: 'instance-distinction/v0' } };
+    expect(() => auditionPageChecks(wrong as never, 1, 'x')).toThrow('audition_instance_contract');
+  });
+
+  it('page context v7 is v6 plus the marker and the frame instance checks; it needs structural anatomy; a mismatched marker refuses', () => {
+    const { context, checks } = pageContext(instanceFixture());
+    expect(context).toMatchObject({ version: 'audition-page-context/v7', instanceDistinction: INSTANCE_DISTINCTION_VERSION });
+    expect(checks.instances).toEqual({ version: INSTANCE_DISTINCTION_VERSION, populations: [{ locationId: 'garden', kinds: ['tree'] }],
+      entities: expect.arrayContaining([{ id: 'old_tree', kind: 'tree', distinction: LIGHTNING, state: 'visible' },
+        { id: 'trail', kind: 'trail', distinction: 'tiny star prints', state: 'not_yet_revealed' }, { id: 'stone', kind: 'stone', distinction: null, state: 'offstage' }]) });
+    expect(auditionInstanceDistinction(context)).toBe(INSTANCE_DISTINCTION_VERSION);
+    expect(auditionJudgeInstruction('page', context)).toContain(INSTANCE_JUDGE_RULES);
+    expect(() => pageContext(instanceFixture(), false)).toThrow('audition_instance_contract');
+    const legacy = pageContext(plainOf(instanceFixture())).context;
+    expect(legacy.version).toBe('audition-page-context/v6'); expect('instanceDistinction' in legacy).toBe(false);
+    expect(auditionInstanceDistinction(legacy)).toBeUndefined(); expect(auditionJudgeInstruction('page', legacy)).not.toContain('INSTANCE DISTINCTION');
+    expect(() => auditionInstanceDistinction({ ...context, version: 'audition-page-context/v6' })).toThrow('audition_instance_contract');
+    expect(() => auditionInstanceDistinction({ ...context, instanceDistinction: undefined })).toThrow('audition_instance_contract');
+  });
+
+  it('render lines: only planned landmarks are unique here; dressing and each distinction are named; without the record, exactly as before', async () => {
+    const run = async (book: PersonalStoryboard) => { const h = harness({ book, coverage: true, pages: [1] });
+      await illustrateReviewedAudition({ ...h.args, pageAttempts: 1, structuralAnatomy: true, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION }); return h; };
+    const h = await run(instanceFixture()), prompt = h.prompts.get('page_1_0')!;
+    expect(prompt).toContain('UNIQUE LANDMARKS (one each, never duplicated): old_tree.');
+    expect(prompt).toContain('SET DRESSING (allowed here, never a story object): tree.');
+    expect(prompt).toContain(`old_tree: other tree objects are allowed; only this one bears ${LIGHTNING}.`);
+    expect(prompt).toContain('trail is not in the story yet: trail set dressing may appear, but nothing may bear tiny star prints.');
+    expect(h.contexts.get('page_1_0_qa').version).toBe('audition-page-context/v7');
+    const legacy = (await run(typedFixture())).prompts.get('page_1_0')!;
+    expect(legacy).toContain('UNIQUE LANDMARKS (one each, never duplicated): old_tree, stone.'); expect(legacy).not.toContain('SET DRESSING');
+  });
+
+  it('a tree visibly WITHOUT the distinction is set dressing and is not counted', () => {
+    const a = assess(answer(pageContext(instanceFixture()), { o1: { old_tree: own }, o2: { old_tree: dressing } }));
+    expect(uniqueFindings(a)).toEqual([]); expect(a.landmarks!.find(l => l.landmarkId === 'old_tree')!.instances).toBe(1);
+  });
+
+  it('a second object bearing the distinction is a duplicate (defect)', () => {
+    const a = assess(answer(pageContext(instanceFixture()), { o1: { old_tree: own }, o2: { old_tree: { association: 'possible_copy', observed: () => 'matches', extent: 'whole_instance' } } }));
+    expect(uniqueFindings(a)).toEqual([expect.objectContaining({ verdict: 'defect', impact: 'continuity' })]);
+  });
+
+  it('set_dressing whose distinction is not visibly absent stays counted and uncertain, never excluded on the label', () => {
+    const a = assess(answer(pageContext(instanceFixture()), { o1: { old_tree: own },
+      o2: { old_tree: { association: 'set_dressing', observed: x => x === 'kind' ? 'matches' : 'not_visible', extent: 'uncertain' } } }));
+    expect(uniqueFindings(a)).toEqual([expect.objectContaining({ verdict: 'uncertain' })]);
+  });
+
+  it('a decorative population is excluded by its visibly missing distinction (basis visible_distinction)', () => {
+    const ctx = pageContext(instanceFixture()), feature = (id: string, aspect: string) => ctx.checks.uniqueLandmarks.find(l => l.id === id)!.features.find(f => f.aspect === aspect)!.id;
+    const population = { populationId: 'p1', quadrants: ['top_left'], description: 'a stand of plain trees without any split', membership: 'uniform_noninstances',
+      witnessObjectIds: ['o2'], negativeChecks: [
+        { landmarkId: 'old_tree', featureId: feature('old_tree', 'distinction'), observed: 'contradicted', basis: 'visible_distinction', allMembersReadable: true,
+          evidence: 'no trunk in the stand is split', grounding: null },
+        { landmarkId: 'stone', featureId: feature('stone', 'kind'), observed: 'contradicted', basis: 'visible_kind', allMembersReadable: true,
+          evidence: 'these are trees, not a stone', grounding: null }] };
+    const raw = answer(ctx, { o1: { old_tree: own }, o2: { old_tree: dressing } }, { populations: [population] });
+    const a = assess(raw, ctx);
+    expect(uniqueFindings(a)).toEqual([]); expect(a.landmarks!.find(l => l.landmarkId === 'old_tree')!.topologyUncertain).toBe(false);
+  });
+
+  it('a set_dressing answer outside the v7 contract refuses (the legacy schema has no such association)', () => {
+    const ctx = pageContext(instanceFixture());
+    const raw = answer(ctx, { o1: { old_tree: own }, o2: { old_tree: dressing } });
+    expect(() => assess(raw, ctx, true)).toThrow(/set_dressing|invalid_enum_value|Invalid enum value/);
+    // The same picture answered with the legacy vocabulary (different_object, distinction contradicted) is the v6 judgement, unchanged.
+    expect(() => assess(answer(ctx, { o1: { old_tree: own }, o2: { old_tree: { ...dressing, association: 'different_object' } } }), ctx, true)).not.toThrow();
+  });
+
+  it('a not-yet-revealed entity drawn with its distinction is a bound story issue that holds the page', () => {
+    const ctx = pageContext(instanceFixture());
+    expect(ctx.checks.requirementIds).toContain('not_yet_revealed:trail');
+    const a = assess(answer(ctx, { o1: { old_tree: own } }, { spec: { scene: { issues: [issue('story', 'not_yet_revealed:trail', 'a trail of tiny star prints is drawn')] } } }), ctx);
+    expect(a.findings).toEqual(expect.arrayContaining([expect.objectContaining({ impact: 'story', requirement: 'not_yet_revealed:trail', bound: true })]));
+    expect(a.counts.story).toBe(1);
   });
 });
 

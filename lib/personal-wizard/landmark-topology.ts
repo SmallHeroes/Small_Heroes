@@ -45,6 +45,16 @@ export const landmarkCoverageTopologySchema = landmarkTopologySchema.extend({ ve
     }).strict()).length(4),
   }).strict(),
 }).strict();
+/**
+ * instance-distinction/v1 only (page context v7): a decorative population may also be excluded by visibly lacking a landmark's declared
+ * distinction (basis visible_distinction). Every other rule is the coverage contract's; absent, the exact coverage schema.
+ */
+const coveragePopulation = landmarkCoverageTopologySchema.shape.coverage.shape.populations.element;
+export const instanceCoverageTopologySchema = landmarkCoverageTopologySchema.extend({
+  coverage: landmarkCoverageTopologySchema.shape.coverage.extend({ populations: z.array(coveragePopulation.extend({
+    negativeChecks: z.array(negativeCheck.extend({ basis: z.enum(['visible_kind', 'visible_material', 'visible_colour', 'visible_shape',
+      'visible_distinction', 'grounded_size', 'not_readable']) })).max(16) })).max(6) }),
+});
 export type LandmarkTopology = z.infer<typeof landmarkTopologySchema> | z.infer<typeof landmarkCoverageTopologySchema>;
 type Feature = { id: string; text: string; aspect: string; decisive: boolean };
 type Landmark = { id: string; features: readonly Feature[]; plannedVisible?: boolean };
@@ -106,8 +116,10 @@ function assessCoverage(topology: z.infer<typeof landmarkCoverageTopologySchema>
 }
 
 /** Validate the physical graph separately from source ownership; never union component siblings. */
-export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Inventory, landmarks: readonly Landmark[]) {
-  const topology = raw.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? landmarkCoverageTopologySchema.parse(raw) : landmarkTopologySchema.parse(raw);
+export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Inventory, landmarks: readonly Landmark[], instance?: true) {
+  if (instance !== undefined && (instance !== true || raw.version !== LANDMARK_COVERAGE_TOPOLOGY_VERSION)) bad();
+  const topology = instance ? instanceCoverageTopologySchema.parse(raw) as z.infer<typeof landmarkCoverageTopologySchema>
+    : raw.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? landmarkCoverageTopologySchema.parse(raw) : landmarkTopologySchema.parse(raw);
   const ids = inventory.objects.map(o => o.objectId), known = new Set(ids);
   if (known.size !== ids.length) bad();
   const catalogue = new Map(landmarks.map(l => [l.id, l.features]));

@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Engine continuity implementation takeover (2026-10-31)
+
+- Guy transfers implementation to Codex; Claude independently reviews when available.
+- A r3 and B are independently passed. C is a validated local milestone (24 focused cases, 17 mutants), not an independent PASS.
+- Continue D → E offline in separate commits; exact ranges stay pending independent QA. No paid proof/new book/default switch.
+
+
 ## Engine continuity repair (2026-10-29)
 
 - Guy approved building A → B → C → D → E of the reviewed plan at $0, each stage gated by Codex. The paid image experiment is a
