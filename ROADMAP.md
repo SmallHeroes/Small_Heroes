@@ -1,6 +1,19 @@
 # SmallHeroes — Roadmap
 
-## Native C/D/E integration R1 implemented locally; manual independent QA next (2026-11-01)
+## Native C/D/E R1 PASS recorded; N1/N2 correction re-gate next (2026-11-01)
+
+- Claude independently passed c226f2a9 after manual routing: 745/745 in 18 specs, both TypeScript gates 0. Codex sealed the completed
+  report, all 48 QA artifacts and original source pins. R1 remains a technical integration PASS, not visual efficacy or product acceptance.
+- Codex corrected the two nonblocking pre-run notes at $0: reject unavailable companion scale during dry planning before claim, and
+  carry whole-book/sample/error status to a truthful prospective diagnostic viewer. Legacy viewer bytes and old R17 artifacts are preserved.
+- Correction validation: 758/758 in 18 relevant specs, both non-incremental TypeScript gates 0, five mutants caught and exact source restored,
+  four legacy viewer byte comparisons, nine identical saved reviews and all 321 historical preservation hashes matched.
+- Await Guy's manual Claude read-only re-gate on the fresh c226f2a9..corrective-head range. No automatic transfer or independent self-PASS.
+- N3 exact compiled-source/page-only visual scope, N4 real SDK HTTP coverage and N5 full remaining-run/narration cost remain separate
+  limitations. Any LOW visual proof still needs exact inputs, scope, budget/reserves, attempt/call caps and explicit owner approval.
+  No new executable cycle, provider spend, new book, customer production integration, threshold change or product acceptance is authorized.
+
+## Historical native C/D/E R1 implementation handoff — independently passed later (2026-11-01)
 
 - Guy approved the provider-free connection after R2. Codex wired explicit versioned C/D/E config -> recomputed plan -> every native
   storyboard call -> strict persisted-source admission -> sequential scale-gated sample -> manifest-owned book qualification.

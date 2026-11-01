@@ -1,6 +1,39 @@
 # SmallHeroes — Current Technical State
 
-## Native C/D/E integration R1 — local implementation complete, independent QA pending (2026-11-01)
+## Native C/D/E R1 independently passed; N1/N2 corrections locally complete, re-gate pending (2026-11-01)
+
+- Guy manually returned Claude Code's independent R1 PASS for c226f2a9cf1b3051479aba4c63ce36b788637fd7. Codex verified the final
+  assistant end_turn (2026-11-01T08:46:01.044Z), final report/index/ready, all 48 indexed QA files, 134 writer evidence files and 40 source
+  pins before recording it. The desktop carrier remains running; no process-exit claim, automatic dispatch or old coordinator was used.
+  Report SHA cf8ff3b886bb249d274769d0e3e3728cfba12df6db21d71e1f17a55ed3b0f99d; index SHA
+  d7f372de7a515b8530a9fef0e5ee26c47f0a81322263e79682d4cc4d720fdf3f. Independent 745/745 and both TypeScript gates passed.
+- R1 has no blocking findings. Its P3 N1/N2 are now corrected under the already approved provider-free milestone, in the same root
+  chat/worktree/branch. Decision Gate: docs/ai-workflow/NATIVE_CDE_N1_N2_CORRECTIONS_GATE_20261101.md. Base c226f2a9; Codex sole writer.
+- N1: actual planTrialInputs checks the selected companion's own approved standing-scale authority when native CDE is opted in,
+  before authority-directory, executable/reference, claim, key or provider work. Unsupported scale is an input refusal. Existing Momo
+  and bunny authorities pass independently; no universal ratio is introduced. Unmarked companion plans keep their legacy behavior.
+- N2: actual native sample/full/error terminals pass bookQa and scope (or an explicit interrupted-review status) into the diagnostic
+  viewer. The viewer shows whole-book HOLD, missing measurement versus measured size defect, and actual illustration coverage. A
+  partial sample explicitly says that remaining images/narration were not produced; a complete held run makes no such narration claim.
+  Individual qa_supported page labels cannot promote the book. Automated illustration support still says product acceptance is required.
+  Review errors get a stop notice, not the old complete-book headline. Four unmarked synthetic viewer outputs are byte-equal to R1.
+- Corrective local evidence: 758/758 across 18 relevant specs, zero failures/pending; both TypeScript gates exit 0 with incremental
+  cache disabled. Thirteen added cases include the actual native partial/error code writing the real viewer, not only a renderer mock.
+  Five deliberately broken preflight/forwarding/partial/qualification/error variants are caught; exact source bytes restored afterward.
+  All nine saved R17 reviews replay identically as 9 held / 0 supported; all 321 historical files (279 book files) and prior R1 evidence
+  remain unchanged. R1 Claude itself re-hashed all 321 this round; earlier C/E R2's independent preservation count remains 279, as recorded.
+- Red failures and the harmless cmd regex-pipe wrapper error are retained in native-cde-corrections-20261101-r2 under the engine artifact
+  root, with final results, mutation failures, legacy byte comparison and preservation records. Repository-wide npm run check is NOT
+  declared green; historical failed/incomplete suites remain. The corrective implementation does NOT have independent PASS yet.
+- N3/N4/N5 remain explicit limits: future LOW proof must bind an already compiled exact source/page-only scope or an eligible sample;
+  strict synthetic transport tests do not prove SDK HTTP behavior; a full native run can continue/narrate after a passed sample despite
+  later image HOLD, so its entire remaining scope/cost needs approval. No page-only grant or new executable cycle was created here.
+- Next: Guy manually forwards the fresh corrective freeze/range to Claude for read-only re-gate. Automatic transfers remain cancelled.
+  Native-cycle readiness, model/pixel efficacy, product/production acceptance remain false/unproven. Zero real provider calls/spend,
+  no new book, manual R17 patch, keys/.env, source server, push/merge/deploy or cleanup. Original R17 is still 0/9 supported with immutable
+  images, Dad narration, intake, grants, claims and accounting; resemblance remains 0.70. Paid visual proof needs a separate owner gate.
+
+## Historical native C/D/E R1 freeze — later independently passed; see corrective state above (2026-11-01)
 
 - Guy approved this provider-free milestone with "מאשר - תתחיל" after the manual Claude R2 report. Same root chat/worktree, branch
   claude/book-render-20261009, base 7350975229dbcbcc69d67f0693699d8770dacccf. Codex is the sole implementer; Claude Code independently

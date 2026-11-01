@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { z } from 'zod';
 import { nativeBookContinuitySchema, nativeBookContinuityContracts, type NativeBookContinuity } from '../lib/personal-wizard/engine-continuity-contracts';
 import { COMPANION_SCALE_VERSION, COMPANION_SCALE_SAMPLE_GATE } from '../lib/personal-wizard/companion-scale';
+import { companionScaleAuthority } from '../lib/personal-wizard/companion-scale-authority';
 import { INSTANCE_DISTINCTION_VERSION } from '../lib/personal-wizard/storyboard-instance-distinction';
 import { ENTITY_MATERIAL_FUNCTION_VERSION } from '../lib/personal-wizard/storyboard-material-function';
 import OpenAI from 'openai';
@@ -232,6 +233,8 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
     ?owner.includes('אוקי בוא נבדוק בספר חדש?')&&owner.includes(READER_SAFE_FRAMING_VERSION)
     :owner.includes('יש אישור לתשלום')))fail('trial_owner_record');
   const context=validateTrialProfile(read(config.profileFile));
+  // Prospective CDE must be stageable before its one-shot claim: unavailable scale is an input refusal, not a consumed trial.
+  if(config.engineContinuity)companionScaleAuthority(context.profile.companionId);
   if(portrait&&(momentum?MOMENTUM_BOOK_TRIAL.usedCompanions:['fox_uri','lion_shaket','dragon_dini','chameleon_koko']).includes(context.profile.companionId))fail('trial_new_companion_required');
   let narrationBinding:Record<string,unknown>|null=null;
   if(momentum){
@@ -1016,16 +1019,17 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
         progress:e=>{log(`${e.phase} ${e.name} attempt${e.attempt+1}: ${e.status}`);if(e.status==='ineligible_safety')fail('trial_safety_stop');}});
     }catch(error){
       save('diagnostic-review-stop',{code:(error as any)?.code??'review_failed',drawnFrames:[...saved.keys()].filter(n=>n.startsWith('diagnostic_render_'))});
-      writeTrialReader(config.bookDir,result.source.manuscript,saved,[],meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text');
+      writeTrialReader(config.bookDir,result.source.manuscript,saved,[],meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text',config.engineContinuity?{status:'review_stopped'}:undefined);
       throw error;
     }
     const sheets={entities:saved.get('sheet_entities') as SavedSheet,locations:saved.get('sheet_locations') as SavedSheet},references=referenceStatus(sheets),
       canonical=[childRef,companionRef,references.entities.image,references.locations.image];
     const selected:SavedPage[]=continuity?trialSelectedPages(manifest,saved):Array.from({length:9},(_,n)=>saved.get('page_'+n) as SavedPage);
     const bookQa=continuity?trialBookVisualQualification(manifest):undefined;
+    const readerVisualStatus:TrialReaderVisualStatus|undefined=bookQa?{status:manifest.scope.complete?'full_book_diagnostic':'held_visual_sample',bookQa,scope:manifest.scope}:undefined;
     if(continuity&&!manifest.scope.complete){
       save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,bookQa,detailNonblocking:true,productAccepted:false});
-      writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text');
+      writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text',readerVisualStatus);
       return finish('held_visual_sample',{bookQa,pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
         supported:selected.filter(p=>p.status==='qa_supported').length,fullCoverage:false,scope:manifest.scope,sourceRepairUsed,storyboardAttempts:boardAttempts,
         viewer:path.join(config.bookDir,'viewer','index.html')});
@@ -1058,7 +1062,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       }
     }
     save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,...(bookQa?{bookQa}:{}),detailNonblocking:true,productAccepted:false});
-    writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text');
+    writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text',readerVisualStatus);
     // Momentum: narrate the frozen text (one claimed call per page, no retry), then the local Reader bundle. A narration stop keeps its
     // evidence and gives an image-only Reader; it never retries, re-prices or presents partial audio as narration.
     let narration:Record<string,unknown>|null=null,readerPreview:ReturnType<typeof writeLocalReaderBundle>|null=null;
@@ -1091,8 +1095,23 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
  * Review UI only: exact source text and selected images; candidate-only frames never masquerade as QA-supported. `heldTextDir` is where
  * the held text and its readings live ('text_1' after a source repair; 'text' when the source is not repairable).
  */
-export function writeTrialReader(dir:string,story:{title:string;pages:{pageNumber:number;text:string}[]},saved:Map<string,any>,selected:SavedPage[],api:unknown,max:unknown,sourceAdmission?:unknown,heldTextDir:'text'|'text_1'='text_1'){
+export type TrialReaderVisualStatus={status:'held_visual_sample'|'full_book_diagnostic';bookQa:ReturnType<typeof trialBookVisualQualification>;
+  scope:Awaited<ReturnType<typeof illustrateReviewedAudition>>['scope']}|{status:'review_stopped'};
+export function writeTrialReader(dir:string,story:{title:string;pages:{pageNumber:number;text:string}[]},saved:Map<string,any>,selected:SavedPage[],api:unknown,max:unknown,sourceAdmission?:unknown,heldTextDir:'text'|'text_1'='text_1',visualStatus?:TrialReaderVisualStatus){
   const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+  let visualNotice='<p>ספר ניסוי חדש — כריכה ושמונה עמודים. הערות detail אינן חוסמות; HOLD אינו אישור מוצר. כל הטיוטות, הרפרנסים, הביקורות והעלויות נשמרו בתיקיית הספר.</p>';
+  if(visualStatus){
+    if(visualStatus.status==='review_stopped'){
+      visualNotice='<aside role="status" data-book-status="review_stopped"><h2>היצירה נעצרה לפני השלמת בדיקת האיורים</h2><p>אין אישור לספר או להשלמתו. פרטי העצירה והאיורים שהספיקו להישמר זמינים לבדיקה.</p><p><a href="../diagnostic-review-stop.json">פרטי עצירת הבדיקה</a></p></aside>';
+    }else{
+      const qa=visualStatus.bookQa,partial=!qa.complete;
+      const heading=partial?'הספר נעצר בשלב הדוגמה':qa.qaSupported?'בדיקות האיור האוטומטיות עברו':'הספר טרם אושר בביקורת האיורים';
+      const reason=qa.scaleVerification.status==='defect'?'נמדד גודל מלווה מחוץ לטווח המאושר.'
+        :qa.scaleVerification.status==='unverified'?'אין מדידת גודל תקפה של המלווה.'
+        :!qa.qaSupported?'חלק מבדיקות האיור עדיין מחזיקות את הספר לבדיקה.':'הבדיקות האוטומטיות תומכות באיורים שנוצרו.';
+      visualNotice=`<aside role="status" data-book-status="${esc(visualStatus.status)}" data-manifest-status="${esc(qa.manifestStatus)}" data-scale-gate="${esc(visualStatus.scope.sampleScaleGate?.status??'not_present')}"><h2>${heading}</h2><p>נוצרו ${selected.length} מתוך ${story.pages.length+1} איורים.</p><p>${reason}</p>${partial?'<p>לא נוצרו יתר האיורים ולא הופעלה קריינות.</p>':''}<p>אישור של עמודים בודדים אינו אישור לספר. עדיין נדרש אישור מוצר.</p><p><a href="../reviewed_audition_manifest.json">פרטי ביקורת האיורים</a></p></aside>`;
+    }
+  }
   const sourceNotice=sourceAdmission?`<header><h2>איכות הטקסט — הבחנה מפורשת לניסוי</h2><p>ביקורת ספרותית קודמת נשארה HOLD. ${heldTextDir==='text_1'?'הטקסט לא שונה שוב.':'הטקסט לא שונה (מקור זה אינו עובר תיקון).'} המשך האיור נשען על ביקורת חומרה חדשה ומוצמדת; זה אינו אישור מוצר או אישור ייצור.</p><p><a href="../${heldTextDir}/simple-book-result.json">הטקסט והביקורות הקודמות</a> · <a href="../source-impact-admission.json">הביקורת החדשה והנימוקים</a></p><details><summary>פירוט סיווג החומרה</summary><pre dir="ltr">${esc(JSON.stringify(sourceAdmission,null,2))}</pre></details></header>`:'';
   const frames=sourceNotice+Array.from({length:9},(_,n)=>{
     const p=selected.find(p=>p.pageNumber===n)??saved.get(`page_${n}`),candidate=p?.chosen?.candidate??saved.get(`diagnostic_render_${n}`)?.candidate;
@@ -1100,7 +1119,7 @@ export function writeTrialReader(dir:string,story:{title:string;pages:{pageNumbe
     return`<section id="p${n}"><h2>${n===0?esc(story.title):`עמוד ${n}`}</h2><img src="../illustrations/${esc(candidate.imageName)}" alt="${n===0?'כריכה':`עמוד ${n}`}"/><article><p class="story">${n?esc(story.pages.find(p=>p.pageNumber===n)?.text):esc(story.title)}</p><p>QA: <b dir="ltr">${esc(p?.status??'not_reviewed')}</b> · ${p?.attempts?.length??1} ניסיונות</p><ul>${(p?.chosen?.assessment?.findings??[]).map((f:any)=>`<li><b dir="ltr">${esc(f.impact)}</b>: ${esc(f.note)}</li>`).join('')}</ul>${p?.attempts?.length>1?`<details><summary>כל הניסיונות שנשמרו</summary>${p.attempts.map((a:any)=>a.candidate?`<figure><img loading="lazy" src="../illustrations/${esc(a.candidate.imageName)}"/><figcaption>${a.attempt+1} — ${esc(a.status)}</figcaption></figure>`:'').join('')}</details>`:''}</article></section>`;
   }).join('');
   const viewer=path.join(dir,'viewer');if(!existsSync(viewer))mkdirSync(viewer);
-  exclusiveText(path.join(viewer,'index.html'),`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(story.title)}</title><style>body{margin:0;background:#f6f2e8;color:#222;font:18px/1.7 system-ui}header,footer{padding:30px;max-width:1100px;margin:auto}section{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:25px;padding:30px;max-width:1200px;margin:20px auto;background:white;border-radius:16px}h2{grid-column:1/-1}img{width:100%;height:auto;border-radius:10px}.story{font-size:23px;white-space:pre-line}pre{white-space:pre-wrap;overflow-wrap:anywhere}figure{margin:15px 0}@media(max-width:750px){section{display:block;padding:16px}.story{font-size:21px}}</style><header><h1>${esc(story.title)}</h1><p>ספר ניסוי חדש — כריכה ושמונה עמודים. הערות detail אינן חוסמות; HOLD אינו אישור מוצר. כל הטיוטות, הרפרנסים, הביקורות והעלויות נשמרו בתיקיית הספר.</p></header>${frames}<footer><h2>חשבונאות אמיתית — API ו־Max בנפרד</h2><pre dir="ltr">${esc(JSON.stringify({api,claudeMaxResource:max,note:'Max reported resource, not API invoice'},null,2))}</pre></footer></html>`);
+  exclusiveText(path.join(viewer,'index.html'),`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(story.title)}</title><style>body{margin:0;background:#f6f2e8;color:#222;font:18px/1.7 system-ui}header,footer{padding:30px;max-width:1100px;margin:auto}section{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:25px;padding:30px;max-width:1200px;margin:20px auto;background:white;border-radius:16px}h2{grid-column:1/-1}img{width:100%;height:auto;border-radius:10px}.story{font-size:23px;white-space:pre-line}pre{white-space:pre-wrap;overflow-wrap:anywhere}figure{margin:15px 0}@media(max-width:750px){section{display:block;padding:16px}.story{font-size:21px}}</style><header><h1>${esc(story.title)}</h1>${visualNotice}</header>${frames}<footer><h2>חשבונאות אמיתית — API ו־Max בנפרד</h2><pre dir="ltr">${esc(JSON.stringify({api,claudeMaxResource:max,note:'Max reported resource, not API invoice'},null,2))}</pre></footer></html>`);
 }
 async function cli(){
   const args=process.argv.slice(2),at=(flag:string)=>args[args.indexOf(flag)+1];
