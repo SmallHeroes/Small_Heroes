@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## R5 bounded page-only envelope locally complete; manual combined R4/R5 QA next (2026-11-01)
+
+- R3 PASS is recorded at d5baa1d9. R4 commit85db0fd5 and separate R5 need Claude's independent read-only re-gate via Guy.
+- Exact page-only mode now connects actual C/D/E admission/reference preflight, LOW adapters, strict step rules and one consent-event
+  claim. At most two narrative images/one attempt, cumulative1 USD including all reviews and full UNKNOWN reserves; no remainder or audio.
+- Local842/842 in19 specs, both TypeScript exits0, nine final mutants caught/restored, four equal legacy viewer byte controls and unchanged
+  nine R17 reviews/321 historical hashes. Failed runs and the initial masked READY test gap remain preserved; no full-check green claim.
+- Input HOLD remains: the two historical R17 plans lack C/D/E and are refused. Need a genuinely reviewed existing CDE source and qualified
+  reused references, then a COMPLETE independent exact-grant execution gate. No executable grant/claim, source patch or spend was created.
+- Technical code PASS will not establish visual efficacy or product approval. Preserve R17's0/9 held art, Dad narration and accounting.
+  All forwarding is manual via Guy; no new book, paid preparation, push/merge/deploy, server or cleanup in this milestone.
+
 ## R4 returned-page diagnostics locally complete; bounded page-only preparation next (2026-11-01)
 
 - R3 independent technical PASS received and sealed at d5baa1d9 (259 reviewer files,35 writer files,42 source pins).

@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
+import vm from 'node:vm';
+import { transformSync } from 'esbuild';
 vi.mock('../storyboard', () => ({
   // A fifth argument (the owner's acceptance) is named in the packet, as the real frame does; four arguments give the exact packet as before.
   currentPersonalStoryboardFrame: (...a: unknown[]) =>
@@ -24,6 +26,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
 import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
 import { NATIVE_BOOK_CONTINUITY_VERSION } from '../engine-continuity-contracts';
 import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
+import { runNativePageProofFrames, preflightNativePageProofFrames } from '../native-page-proof-frames';
 import { runTrialAudition, trialBookVisualQualification, trialDrawnFrames, writeTrialReader } from '../../../scripts/personal-book-e2e-trial';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
@@ -3264,6 +3267,76 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     const h=nativeHarness(within),failure=new ReviewedAuditionError('audition_unknown_cost'),render=h.args.render;
     await expect(runTrialAudition({...h.args,visual:nativeVisual(),render:async(...a:Parameters<typeof render>)=>{if(a[0]==='page_1_0')throw failure;return render(...a);}})).rejects.toBe(failure);
     expect(h.saved.has('drawn_page_1')).toBe(false);expect([...h.saved.keys()].some(k=>k.startsWith('drawn_page_'))).toBe(false);
+  });
+  const proofInput=async(evidence:ScaleEvidence=within,pages=[1,2])=>{
+    const parent=nativeHarness(within);await runTrialAudition({...parent.args,visual:nativeVisual()});
+    const h=nativeHarness(evidence),a=h.args;
+    return{h,input:{book:a.book,rawReview:a.rawReview,texts:a.texts,current:a.current,child:a.child,companion:a.companion,companionDescription:a.companionDescription,
+      pages,reuseSheets:{entities:parent.saved.get('sheet_entities') as SavedSheet,locations:parent.saved.get('sheet_locations') as SavedSheet},
+      render:a.render,judge:a.judge,identity:a.identity,check:a.check,save:a.save}};
+  };
+  it.each([[1],[1,2],[3,5]])('R5 page-only proof stops after exact passed pages %j without buying a sheet or remainder',async(...values:any[])=>{
+    const pages=values.filter(x=>typeof x==='number'),{h,input}=await proofInput(within,pages);
+    const m=await runNativePageProofFrames(input);
+    expect([...h.prompts.keys()]).toEqual(pages.map(n=>'page_'+n+'_0'));expect(h.args.identity).toHaveBeenCalledTimes(pages.length);
+    expect(m.pages.map(p=>p.pageNumber)).toEqual(pages);expect(m.scope.complete).toBe(false);expect(m.scope.sampleScaleGate?.status).toBe('passed');
+    expect(m.status).not.toBe('qa_supported_audition');expect(m.productionQualified).toBe(false);
+  });
+  it('R5 all-abstained partial proof remains held and never expands beyond its requested pages',async()=>{
+    const {h,input}=await proofInput(airborne);const m=await runNativePageProofFrames(input);
+    expect(m.status).toBe('held_sample');expect(m.scaleVerification?.status).toBe('unverified');expect([...h.prompts.keys()]).toEqual(['page_1_0','page_2_0']);
+  });
+  it('R5 dry reference preflight reaches the real first-page boundary with zero provider callbacks or caller saves',async()=>{
+    const {h,input}=await proofInput(),{render,judge,identity,save,...dry}=input;
+    await preflightNativePageProofFrames(dry);expect(h.args.render).not.toHaveBeenCalled();expect(h.args.judge).not.toHaveBeenCalled();
+    expect(h.args.identity).not.toHaveBeenCalled();expect(h.saved.size).toBe(0);
+  });
+  it.each(['resume','fullBookDiagnostic','freshCohort','ownerAcceptance','localAnatomyRepair','sample'] as const)('R5 rejects a foreign %s flow before callbacks',async key=>{
+    const {h,input}=await proofInput();await expect(runNativePageProofFrames({...input,[key]:{}} as any)).rejects.toThrow('page_proof_scope');
+    expect(h.args.render).not.toHaveBeenCalled();expect(h.args.judge).not.toHaveBeenCalled();
+  });
+  it.each([[],[0],[1,1],[2,1],[1,2,3],[9]])('R5 invalid exact pages %j refuse before callbacks',async(...values:any[])=>{
+    const pages=values.filter(x=>typeof x==='number'),{h,input}=await proofInput(within,pages);
+    await expect(runNativePageProofFrames(input)).rejects.toThrow('page_proof_scope');expect(h.args.render).not.toHaveBeenCalled();
+  });
+  it('R5 missing or held reference authority never buys replacements',async()=>{
+    const {h,input}=await proofInput();delete(input.reuseSheets as any).locations;
+    await expect(runNativePageProofFrames(input)).rejects.toThrow('page_proof_scope');expect(h.args.render).not.toHaveBeenCalled();
+    const held=nativeHarness(within,{judge:step=>step.startsWith('sheet_entities_')?{props:{verdict:'defect',issues:[issue('continuity','design:trail')]}}:{}});
+    await expect(runTrialAudition({...held.args,visual:nativeVisual()})).rejects.toThrow('audition_reference_unqualified');
+    const fresh=await proofInput();fresh.input.reuseSheets.entities=held.saved.get('sheet_entities') as SavedSheet;
+    await expect(runNativePageProofFrames(fresh.input)).rejects.toThrow('audition_reference_unqualified');expect(fresh.h.args.render).not.toHaveBeenCalled();
+  });
+  it('R5 unknown-cost review stops before a second page and retains returned evidence',async()=>{
+    const {h,input}=await proofInput(),failure=new ReviewedAuditionError('audition_unknown_cost'),judge=input.judge;
+    await expect(runNativePageProofFrames({...input,judge:async(...a:Parameters<typeof judge>)=>{if(a[0]==='page_1_0_qa')throw failure;return judge(...a);}})).rejects.toBe(failure);
+    expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(trialDrawnFrames(h.saved)).toEqual(['drawn_page_1']);
+  });
+  it('R5 checks authority again after a returned review before identity or another draw',async()=>{
+    const {h,input}=await proofInput(),failure=new ReviewedAuditionError('audition_cancelled'),judge=input.judge;let revoked=false;
+    await expect(runNativePageProofFrames({...input,judge:async(...a:Parameters<typeof judge>)=>{const r=await judge(...a);revoked=true;return r;},check:()=>{if(revoked)throw failure;}})).rejects.toBe(failure);
+    expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(h.args.identity).not.toHaveBeenCalled();
+  });
+  const realProofRun=async(lost=false)=>{
+    const {h,input}=await proofInput(),source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-simple-book-reviewed-audition.ts'),'utf8');
+    const from=source.indexOf('  const frameScope=grant.scope;'),to=source.indexOf('  const images = new Map<string, string>();',from);
+    expect(from).toBeGreaterThan(0);expect(to).toBeGreaterThan(from);
+    const js=transformSync('async function executeFrames(){'+source.slice(from,to)+'return manifest;}globalThis.executeFrames=executeFrames;',{loader:'ts',format:'cjs'}).code;
+    const legacy=vi.fn(async()=>{throw Error('LEGACY_FLOW_FORBIDDEN');}),failure=new ReviewedAuditionError('audition_unknown_cost'),judge=input.judge;
+    const c:any={proof:{version:'native-cde-page-proof/v1'},proofScope:{pages:input.pages},grant:{scope:{mode:'render',pages:input.pages}},loaded:{...input},
+      child:input.child,companion:input.companion,reused:{sheets:input.reuseSheets},io:{render:input.render,judge:async(...a:Parameters<typeof judge>)=>{if(lost&&a[0]==='page_1_0_qa')throw failure;return judge(...a);},identity:input.identity,check:input.check},
+      runNativePageProofFrames,illustrateReviewedAudition:legacy,trialDrawnFrames,args:{out:'VIRTUAL'},resume:undefined,existsSync:()=>false,path,
+      meter:{snapshot:()=>({unknownCost:lost?1:0,reservedUnsettledMicroUsd:lost?600000:0})},save:input.save};
+    vm.createContext(c);vm.runInContext(js,c);return{h,c,legacy,failure};
+  };
+  it('R5 actual paid runner dispatches the real page-only boundary even after its sample passes',async()=>{
+    const {h,c,legacy}=await realProofRun(),m=await c.executeFrames();expect(m.pages).toHaveLength(2);expect(m.scope.complete).toBe(false);
+    expect([...h.prompts.keys()]).toEqual(['page_1_0','page_2_0']);expect(legacy).not.toHaveBeenCalled();
+  });
+  it('R5 actual paid runner preserves original lost-review error, returned-page evidence and full reserve',async()=>{
+    const {h,c,legacy,failure}=await realProofRun(true);await expect(c.executeFrames()).rejects.toBe(failure);
+    expect(h.saved.get('page-proof-stop')).toMatchObject({drawnFrames:['drawn_page_1'],spend:{unknownCost:1,reservedUnsettledMicroUsd:600000},productAccepted:false});
+    expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(legacy).not.toHaveBeenCalled();
   });
   it('NATIVE-CDE held references stop before even the first sample frame',async()=>{
     const h=nativeHarness(within,{judge:step=>step.startsWith('sheet_entities_')?{props:{verdict:'defect',issues:[issue('continuity','design:trail')]}}:{}});

@@ -9,10 +9,13 @@
 import path from 'node:path';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync, realpathSync } from 'node:fs';
 import sharp from 'sharp';
+import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput } from '../lib/personal-wizard/native-page-proof';
+import { runNativePageProofFrames, preflightNativePageProofFrames } from '../lib/personal-wizard/native-page-proof-frames';
+import { trialDrawnFrames } from '../lib/personal-wizard/native-page-render-evidence';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { storyboardContinuityAdmissionSchema, type StoryboardContinuityAdmission } from '../lib/personal-wizard/engine-continuity-contracts';
+import { nativeBookContinuityContracts, NATIVE_BOOK_CONTINUITY_VERSION, storyboardContinuityAdmissionSchema, type StoryboardContinuityAdmission } from '../lib/personal-wizard/engine-continuity-contracts';
 import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } from '../lib/generate-image';
 import { companionIdentityReference } from '../lib/personal-wizard/companion-identity';
 import { qualityDisposition } from '../lib/local-preview-quality';
@@ -433,6 +436,7 @@ export const auditionGrantSchema = z.object({
   capMicroUsd: z.number().int().positive(), maxCalls: z.number().int().positive().max(AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3),
   scope: z.discriminatedUnion('mode', [
     z.object({ mode: z.literal('render'), pages: z.array(z.number().int().min(0).max(8)).min(1).max(9),
+      pageProof: nativePageProofSchema.optional(),
       /** Optional early sample: drawn first; the other pages follow only if every sample page is qa_supported. Absent on every legacy grant. */
       sample: z.array(z.number().int().min(1).max(8)).min(1).max(2).optional(),
       /** Optional common-scale lineup on the entities sheet (the only source of that flag for a paid run). Absent on every legacy grant. */
@@ -454,6 +458,7 @@ export const auditionGrantSchema = z.object({
   /** A grant issued to one approved experiment: usable only through that experiment's guard (its claim, source pin and fixed output). */
   experiment: z.object({ slot: z.string().regex(/^[a-z0-9-]{1,60}$/), claimSha256: hash }).strict().optional(),
 }).strict().superRefine((g, ctx) => {
+  if(!nativePageProofGrantValid(g))ctx.addIssue({code:'custom',message:'page_proof_scope'});
   // A grant can only extend the ledger it names, by at most USD 8 of new API estimate.
   if (g.capMicroUsd <= g.ledger.priorKnownApiMicroUsd + (g.ledger.carriedUnresolvedMicroUsd ?? 0) || g.capMicroUsd - g.ledger.priorKnownApiMicroUsd > 8000000)
     ctx.addIssue({ code: 'custom', message: 'audition_grant_cap' });
@@ -475,11 +480,11 @@ export function grantReferenceStatus(references: GrantReferences): ReferenceStat
 }
 
 export function readAuditionGrant(file: string, book: { requestId: string; storyboardDigest: string; readerFraming?: ReaderSafeFramingVersion }) {
-  const grant = auditionGrantSchema.parse(read(file));
+  const text=fencedText(file,32000000),grant = auditionGrantSchema.parse(JSON.parse(text));
   if (grant.book.requestId !== book.requestId || grant.book.storyboardDigest !== book.storyboardDigest) fail('audition_grant_book');
   if (grant.book.readerFraming !== book.readerFraming) fail('audition_grant_reader_framing');
   for (const e of grant.ledger.evidence) if (!path.isAbsolute(e.file) || previewSha(readFileSync(e.file)) !== e.sha256) fail('audition_grant_evidence');
-  return { grant, sha256: previewSha(readFileSync(file)) };
+  return { grant, sha256: previewSha(text) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -1163,6 +1168,24 @@ export function readReusedSheets(reuse: { sourceRun: string; roles: readonly ('e
   return { sheets, binding: { sourceRun: path.resolve(reuse.sourceRun), admissionSha256: previewSha(admissionText), roles: [...reuse.roles], sheets: files } };
 }
 
+/** All files the real source/reference readers consume for a proof, derived by role rather than a caller-picked subset. */
+export function nativePageProofInputFiles(bookDir:string,layout:ReviewedBookLayout,sourceRun:string,companionId:string,ownerFile:string,workspace=process.cwd()){
+  const visual=path.join(bookDir,layout.storyboardDir),child=path.join(bookDir,layout.childDir),companionDir=path.join(workspace,'public/companions',companionId,'style01-sheets');
+  const files=[ownerFile,path.join(bookDir,'request.json'),path.join(visual,'visual_simple_book_result.json'),path.join(visual,'owned_storyboard_draft.json'),
+    path.join(child,'reference_child_adoption.json'),path.join(child,'illustrations',layout.childImage),path.join(companionDir,'manifest.json'),
+    ...['front.png','3-4.png','side.png','back.png','happy.png','theme.png'].map(n=>path.join(companionDir,n)),path.join(sourceRun,'admission.json')];
+  for(const name of [STORYBOARD_REPAIR_INPUT_FILE,STORYBOARD_OWNER_ACCEPTANCE_FILE]){const file=path.join(visual,name);if(existsSync(file))files.push(file);}
+  if(layout.savedCompanion!==null)files.push(path.join(bookDir,...layout.savedCompanion.split('/')));
+  for(const role of ['entities','locations'] as const){
+    const file=path.join(sourceRun,'sheet_'+role+'.json'),saved=read(file) as SavedSheet;files.push(file);
+    const name=saved?.chosen?.candidate?.imageName;if(!name||!/^[a-z0-9_]+\.png$/.test(name)||!Array.isArray(saved.attempts))fail('page_proof_reference_inputs');
+    files.push(path.join(sourceRun,'illustrations',name));
+    for(const a of saved.attempts)if(a.review){if(!Number.isInteger(a.attempt)||a.attempt<0||a.attempt>1)fail('page_proof_reference_inputs');
+      for(const suffix of ['wire','receipt'])files.push(path.join(sourceRun,'paid-stages','sheet_'+role+'_'+a.attempt+'_qa.'+suffix+'.json'));}
+  }
+  return [...new Set(files.map(f=>path.resolve(f)))].sort();
+}
+
 /**
  * RSM-1 (every resume): the paid progress an interrupted run left for ONE image (a sheet role or a page) that has no saved record,
  * reconstructed from the meter's bound journal. Each journaled render of that image, under any run prefix, is one spent attempt, numbered
@@ -1220,6 +1243,7 @@ export function rereviewAllowance(list: readonly { page: number; attempt: number
 
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout;
+  proofReview?: {file:string;sha256:string};
   /** Required exactly for a grant issued to an experiment: its slot, claim and guard (claim + source pin), run before every paid call. */
   experiment?: { slot: string; claimSha256: string; guard: () => void };
   /** Opt-in, owner-approved conservative debits of this audition's own unknown-cost records (see AuditionMeter); only with a resume. */
@@ -1271,10 +1295,20 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (existsSync(path.join(args.out, 'admission-coverage-orphan.json')) && !args.anatomyRecovery && !diagnostic) fail('audition_orphan_used');
   if (existsSync(path.join(args.out, 'admission-topology.json')) && !args.coverageContinuation && !args.anatomyRecovery && !diagnostic) fail('audition_topology_used');
   if (existsSync(path.join(args.out, 'admission-calibration.json')) && !args.topologyContinuation && !args.coverageContinuation && !args.anatomyRecovery && !diagnostic) fail('audition_calibration_used');
+  const proofGrantText=fencedText(args.grantFile,32000000),proofGrantRaw=JSON.parse(proofGrantText),proofRaw=proofGrantRaw?.scope?.pageProof;
+  const proofGrant=proofRaw===undefined?null:auditionGrantSchema.parse(proofGrantRaw);
+  const proofScope=proofGrant?.scope.mode==='render'?proofGrant.scope:null,proof=proofScope?.pageProof;
+  if(proof){args=snapshotNativePageProofArgs(args);if(args.layout!==undefined)args.layout=reviewedBookLayoutSchema.parse(args.layout);}
+  if(proof&&(args.resume||args.storyboardDir||args.experiment||args.debits?.length||args.rereview?.length||args.calibration||args.topologyContinuation||args.coverageContinuation||args.coverageOrphanRecovery||args.anatomyRecovery||args.fullBookDiagnostic))fail('page_proof_scope');
+  if(!proof&&args.proofReview)fail('page_proof_scope');
+  if(proof&&args.signal.aborted)fail('audition_cancelled');
+  if(proof&&!args.proofReview)fail('page_proof_execution_review_required');
+  const proofContinuity=proof?nativeBookContinuityContracts({version:NATIVE_BOOK_CONTINUITY_VERSION,sample:proofScope!.pages}):undefined;
   args.experiment?.guard();
-  const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
+  const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout, proofContinuity);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest,
     ...(loaded.current.readerFraming ? { readerFraming: loaded.current.readerFraming } : {}) });
+  if(proof&&previewSha(proofGrantText)!==grantSha256)fail('page_proof_grant_changed');
   if (!!grant.experiment !== !!args.experiment || grant.experiment && (grant.experiment.slot !== args.experiment!.slot ||
       grant.experiment.claimSha256 !== args.experiment!.claimSha256)) fail('audition_experiment_guard');
   assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
@@ -1289,13 +1323,31 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     child: { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) },
     companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out,
     derivedSheetContexts(loaded.book, loaded.texts, renderScope.reuseSheets.roles, scaleLineup)) : null;
+  let proofAuthority:ReturnType<typeof nativePageProofAuthority>|null=null;
+  const proofSteps=proof?nativePageProofSteps(proofScope!.pages):undefined;
+  if(proof){
+    if(loaded.replan||'ownerAcceptance' in loaded||proof.sourceDigest!==loaded.book.sourceDigest||proof.reviewSha256!==previewSha(canonicalJson(loaded.rawReview))||
+      proof.layoutSha256!==previewSha(canonicalJson(args.layout??LEGACY_BOOK_LAYOUT))||!reused)fail('page_proof_source_binding');
+    const required=nativePageProofInputFiles(args.bookDir,args.layout??LEGACY_BOOK_LAYOUT,renderScope!.reuseSheets!.sourceRun,
+      (loaded.queued.request as {companion:{id:string}}).companion.id,proof.ownerApproval.file);
+    proofAuthority=nativePageProofAuthority({workspace:process.cwd(),out:args.out,protectedRoots:[args.bookDir,renderScope!.reuseSheets!.sourceRun,process.cwd()],
+      grantFile:args.grantFile,grantSha256,grant,requiredInputs:required,review:args.proofReview});
+    const proofPrecheck=()=>{if(args.signal.aborted)fail('audition_cancelled');proofAuthority!.beforeClaim();};
+    proofPrecheck();
+    await preflightNativePageProofFrames({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
+      child:{imageName:'reference_child.png',imageSha:previewSha(loaded.childBytes)},companion:{imageName:'reference_companion.png',imageSha:previewSha(loaded.companionBytes)},
+      companionDescription:loaded.companionDescription,pages:proofScope!.pages,reuseSheets:reused!.sheets,check:proofPrecheck});
+    proofPrecheck();
+  }
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
+  if(proofAuthority&&args.signal.aborted)fail('audition_cancelled');
+  proofAuthority?.activate();
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
   // An experiment's audition (its grant names it, so a start or resume without its guard is refused above) re-derives its own calls before
   // every claim, resume and spend record: opted in exactly here. Every other run sums its saved records as before.
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
-    grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined, args.debits ?? [],
+    grant.ledger.carriedUnresolvedMicroUsd ?? 0, proofSteps ? step=>proofSteps.includes(step)?auditionMeterRules(step):undefined : args.experiment ? auditionMeterRules : undefined, args.debits ?? [],
     args.coverageOrphanRecovery ? [args.coverageOrphanRecovery.provision] : args.anatomyRecovery ? [args.anatomyRecovery.provision] : diagnostic ? [diagnostic.provision] : []);
   if (args.coverageOrphanRecovery) meter.snapshot();
   // A re-review's step must send exactly its lost request (filled below on a resume, before anything is dispatched).
@@ -1314,9 +1366,9 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     if (frames.length !== 7 || diagnostic.firstOperation.step !== `${prefix}page_${frames[0]}_0`) fail('audition_diagnostic_scope');
     diagnosticSteps = frames.flatMap(n => ['', '_qa', '_identity'].map(s => `${prefix}page_${n}_0${s}`));
   }
-  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}),
+  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(proofAuthority?{guard:proofAuthority.guard}:args.experiment ? { guard: args.experiment.guard } : {}),
     readerFraming: loaded.current.readerFraming,
-    expectedWire, ...(diagnosticSteps ? { allowedSteps: diagnosticSteps } : {}),
+    expectedWire, ...(proofSteps?{allowedSteps:proofSteps}:diagnosticSteps ? { allowedSteps: diagnosticSteps } : {}),
     ...(args.coverageOrphanRecovery || args.anatomyRecovery || diagnostic ? { durableReviews: { version: DURABLE_REVIEW_VERSION } } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
@@ -1324,7 +1376,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
     ...(loaded.current.readerFraming ? { readerFraming: loaded.current.readerFraming } : {}),
-    policy: reviewedAuditionPolicy(scaleLineup), grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
+    policy: proof?reviewedAuditionPolicy(undefined,true,LANDMARK_COVERAGE_TOPOLOGY_VERSION,true):reviewedAuditionPolicy(scaleLineup), grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
+    ...(proof?{pageProof:{version:proof.version,pages:proofScope!.pages,ownerApprovalSha256:proof.ownerApproval.sha256,claimFile:proofAuthority!.claimFile}}:{}),
     reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
     ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
       pairPages: loaded.replan.pairPages } } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
@@ -1429,11 +1482,18 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     return { mode: 'rejudge' as const, results, spend };
   }
   // A later run of the same audition (a resume after a finished run) keeps the earlier manifest and writes its own beside it.
-  const engineSave = (name: string, value: unknown) => save(name === 'reviewed_audition_manifest' && resume && existsSync(path.join(args.out, `${name}.json`))
-    ? `${name}-${resume.stepPrefix.slice(0, -1)}` : name, value);
-  const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
-    child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
-    ...(grant.scope.sample ? { sample: grant.scope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
+  const frameScope=grant.scope;
+  const proofSaved=new Map<string,any>();
+  const engineSave = (name: string, value: unknown) => {if(proof)proofSaved.set(name,value);return save(name === 'reviewed_audition_manifest' && resume && existsSync(path.join(args.out, `${name}.json`))
+    ? `${name}-${resume.stepPrefix.slice(0, -1)}` : name, value);};
+
+  const runFrames=async()=>{
+    if(proof)return runNativePageProofFrames({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
+      companionDescription:loaded.companionDescription,pages:proofScope!.pages,reuseSheets:reused!.sheets,
+      render:io.render,judge:io.judge,identity:io.identity,check:io.check,save:engineSave});
+    return illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
+    child, companion, companionDescription: loaded.companionDescription, pages: frameScope.pages,
+    ...(frameScope.sample ? { sample: frameScope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
     ...(scaleLineup ? { scaleLineup } : {}), ...(reused ? { reuseSheets: reused.sheets } : {}),
     ...(renderScope?.pageAttempts !== undefined ? { pageAttempts: renderScope.pageAttempts } : {}), ...(recovery ? { recovery } : {}),
     ...(args.calibration ? { calibration: args.calibration.contract } : {}),
@@ -1445,6 +1505,14 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save: engineSave, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
+
+  };
+  let manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>;
+  try{manifest=await runFrames();}catch(error){
+    if(proof){let spend:unknown;try{spend=meter.snapshot();}catch{spend={status:'unreconciled',furtherPaymentAllowed:false};}
+      save('page-proof-stop',{code:(error as any)?.code??'audition_attempt_failed',drawnFrames:trialDrawnFrames(proofSaved),spend,productAccepted:false});}
+    throw error;
+  }
   const images = new Map<string, string>();
   const used = [manifest.references.child, manifest.references.companion, manifest.references.entities, manifest.references.locations,
     ...manifest.pages.flatMap(p => [p.candidate, ...p.alternatives.map(a => a.candidate).filter((c): c is AuditionImage => !!c)])];
@@ -1457,6 +1525,33 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     reviewedAuditionHTML(manifest, { title: loaded.title, pages: loaded.pages }, (img, size) => images.get(`${img.imageName}:${size}`)!));
   const spend = meter.snapshot(); save(args.resume ? `spend-${resume!.stepPrefix.slice(0, -1)}` : 'spend', spend);
   return { mode: 'render' as const, manifest, spend };
+}
+
+/** Source/reference-only proof preflight. Never reads a key/review, creates a claim/output or calls a provider. */
+export async function dryNativePageProof(args:{bookDir:string;out:string;grantFile:string;layout?:ReviewedBookLayout;signal?:AbortSignal}){
+  const workspace=process.cwd(),bookDir=args.bookDir,out=args.out,grantFile=args.grantFile,layout=reviewedBookLayoutSchema.parse(args.layout??LEGACY_BOOK_LAYOUT),signal=args.signal;
+  if([bookDir,out,grantFile].some(p=>!path.isAbsolute(p))||signal?.aborted)fail(signal?.aborted?'audition_cancelled':'page_proof_scope');
+  const text=fencedText(grantFile,32000000),parsed=auditionGrantSchema.parse(JSON.parse(text)),scope=parsed.scope;
+  if(scope.mode!=='render'||!scope.pageProof)return fail('page_proof_scope');const proof=scope.pageProof;
+  if(path.resolve(proof.workspace).toLowerCase()!==path.resolve(workspace).toLowerCase())fail('page_proof_workspace');
+  verifyNativePageProofOutput(out,[bookDir,scope.reuseSheets!.sourceRun,workspace]);
+  const loaded=loadReviewedBook(bookDir,workspace,undefined,layout,nativeBookContinuityContracts({version:NATIVE_BOOK_CONTINUITY_VERSION,sample:scope.pages}));
+  const binding=readAuditionGrant(grantFile,{requestId:loaded.queued.requestId,storyboardDigest:loaded.book.storyboardDigest,
+    ...(loaded.current.readerFraming?{readerFraming:loaded.current.readerFraming}:{})});
+  if(binding.sha256!==previewSha(text)||loaded.replan||'ownerAcceptance' in loaded||proof.sourceDigest!==loaded.book.sourceDigest||
+    proof.reviewSha256!==previewSha(canonicalJson(loaded.rawReview))||proof.layoutSha256!==previewSha(canonicalJson(layout)))fail('page_proof_source_binding');
+  const child={imageName:'reference_child.png',imageSha:previewSha(loaded.childBytes)},companion={imageName:'reference_companion.png',imageSha:previewSha(loaded.companionBytes)};
+  const reuse=scope.reuseSheets!,reused=readReusedSheets(reuse,{requestId:loaded.queued.requestId,storyboardDigest:loaded.book.storyboardDigest,child,companion},out,
+    derivedSheetContexts(loaded.book,loaded.texts,reuse.roles));
+  const required=nativePageProofInputFiles(bookDir,layout,reuse.sourceRun,(loaded.queued.request as {companion:{id:string}}).companion.id,proof.ownerApproval.file,workspace);
+  const check=()=>{if(signal?.aborted)fail('audition_cancelled');verifyNativePageProofCode(workspace,proof.sourceHead);verifyNativePageProofPins(proof,required);
+    if(previewSha(fencedText(grantFile,32000000))!==binding.sha256)fail('page_proof_grant_changed');};
+  check();await preflightNativePageProofFrames({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
+    companionDescription:loaded.companionDescription,pages:scope.pages,reuseSheets:reused.sheets,check});check();
+  return{version:'native-page-proof-preflight/v1',requestId:loaded.queued.requestId,sourceDigest:loaded.book.sourceDigest,storyboardDigest:loaded.book.storyboardDigest,
+    sourceHead:proof.sourceHead,grantSha256:binding.sha256,pages:scope.pages,allowedSteps:nativePageProofSteps(scope.pages),capMicroUsd:parsed.capMicroUsd,
+    maxCalls:parsed.maxCalls,imageQuality:'low',sourceAndReferencesAdmitted:true,executionReady:false,
+    remainingGates:['complete independent execution review for exact grant','unused owner approval claim at execution'],providerCalls:0,sourceWrites:0};
 }
 
 /** Zero-provider admission, checks and prompt preview. `scaleLineup` previews the opt-in lineup (a paid run takes it from its grant only). */
@@ -1493,7 +1588,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
   // --scale-lineup previews the opt-in lineup in a dry run only: a paid run takes it from its grant, never from an argument.
   const previewLineup = process.argv.includes('--scale-lineup');
   if (previewLineup && process.argv.includes('--execute')) fail('audition_args');
-  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir, layout, previewLineup ? true : undefined), null, 2)); }
+  if(process.argv.includes('--page-proof-preflight')){
+    if(process.argv.includes('--execute')||process.argv.includes('--resume')||storyboardDir||previewLineup)fail('page_proof_scope');
+    const grantFile=argValue('--grant')??fail('audition_grant_required'),out=argValue('--out')??fail('audition_args');
+    dryNativePageProof({bookDir,out,grantFile,layout}).then(r=>console.log(JSON.stringify(r,null,2))).catch(error=>{console.error('REFUSED',error?.code??error?.message);process.exitCode=1;});
+  }else if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir, layout, previewLineup ? true : undefined), null, 2)); }
   else {
     const out = argValue('--out') ?? fail('audition_args'), keyFile = argValue('--key-env-file') ?? fail('audition_args'), grantFile = argValue('--grant') ?? fail('audition_grant_required');
     if (![out!, keyFile!, grantFile!].every(p => path.isAbsolute(p))) fail('audition_args');
@@ -1502,6 +1601,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const started = Date.now();
     runReviewedAudition({ bookDir: bookDir!, out: out!, keyFile: keyFile!, grantFile: grantFile!, signal: controller.signal, ...(layout ? { layout } : {}),
       ...(process.argv.includes('--resume') ? { resume: true as const } : {}), ...(storyboardDir ? { storyboardDir } : {}),
+      ...(argValue('--proof-review-ready')?{proofReview:{file:argValue('--proof-review-ready')!,sha256:argValue('--proof-review-sha')??''}}:{}),
       log: line => console.log(`[${((Date.now() - started) / 60000).toFixed(1)}m] ${line}`) })
       .then(result => console.log(JSON.stringify({ status: 'complete', mode: result.mode, spend: result.spend }, null, 2)))
       .catch(error => { console.error('FAILED', error?.code ?? error?.message ?? error); process.exitCode = 1; });

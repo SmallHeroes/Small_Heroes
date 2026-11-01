@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## R5 bounded page-only envelope locally complete; manual combined R4/R5 QA next (2026-11-01)
+
+- R3 independent PASS remains sealed at d5baa1d9; R4 local commit85db0fd5 fixes returned-page evidence before lost review/identity.
+  R5 is a separate prospective provider-free milestone on the same branch/worktree. Neither new milestone has independent PASS yet.
+- New opt-in native-cde-page-proof/v1 grant routes the actual LOW audition runner through a dedicated page-only C/D/E boundary.
+  One or two ascending narrative pages, sample exactly those pages, one attempt each, two pre-existing qualified reference sheets only.
+  A passing sample never draws the remaining book or cover; no narration, new sheets, resume, recovery, rejudge or repair path is admitted.
+  The old full-native guard is unchanged. Shared R4 returned-image evidence is extracted without changing its public exports/semantics.
+- Actual meter and adapters receive exact page_N_0/render+review+identity step rules, max3 calls/page and cap<=1,000,000 microUSD.
+  All known costs and full pending/UNKNOWN reservations remain inside that cumulative separate visual-proof allowance. UNKNOWN stops
+  every further dispatch. This separate Guy-approved diagnostic is not a continuation/reset of the consumed R17 allowance or invoices.
+- Source HEAD/clean worktree, canonical layout/source/raw-review digests and the complete derived input/reference byte set are pinned.
+  Both references undergo the real engine's provider-denied preflight before claim. An exclusive claim keyed by the stable owner-consent
+  event ID prevents restart via another grant/output or reformatted approval bytes. Source/input/grant/review/claim and physical output
+  parent are rechecked before claim, at dispatch and after awaits. Output aliases/overlap cannot touch the original book/dependencies.
+- Paid execution also requires a COMPLETE independent execution READY/report bound to the exact prospective grant and source HEAD.
+  Code QA PASS or the approved dollar alone cannot authorize it. The new --page-proof-preflight path reads source/reference evidence
+  without key, execution review, claim, output or provider; it returns executionReady:false even after source admission succeeds.
+- Final local evidence:842/842 in19 relevant specs; both nonincremental TypeScript gates0; nine final negative variants caught with exact
+  bytes restored. Initial seven narrowing errors, three legacy-refusal-order regressions, the initially surviving READY mutant and helper
+  setup limits are preserved. Two isolated READY-field controls closed the test gap. Full npm run check is NOT declared green.
+  Four legacy viewer byte comparisons match; nine actual R17 reviews replay identically0/9; all321 historical files/279 book files match.
+- INPUT HOLD: the exact old text and text_1 storyboard candidates lack instanceDistinction/materialFunction/companionScale; both are
+  refused by the real page-only boundary with zero callbacks. No actual eligible CDE source/exact pages/reference set has been admitted,
+  no real visual grant/claim exists. Do not upgrade/relabel R17, buy preparation/references or invent a replacement source inside this scope.
+- Next: Guy manually forwards the frozen d5baa1d9..new R5 HEAD range (R4+R5) to Claude Code for a first-pass read-only re-gate.
+  After that, qualify a genuine already reviewed CDE source/reference package or return an exact separately scoped source-preparation
+  decision. No automatic Claude routing, provider/image/audio call, key/.env read, new book, server, push/merge/deploy or cleanup occurred.
+  R17 remains0/9 held with immutable Dad audio/assets/costs; resemblance0.70 and model efficacy/product acceptance remain unchanged.
+
 ## R3 independent PASS recorded; R4 returned-page evidence locally complete (2026-11-01)
 
 - Guy manually returned Claude's completed R3 PASS at d5baa1d9. Codex verified the actual end_turn, final report/index/ready, all259
