@@ -308,3 +308,55 @@ describe('actual native terminal selection / narration boundary (compiled source
     expect(r.outcome).not.toHaveProperty('bookQa'); expect(r.outcome.supported).toBe(9);expect(r.viewerStates[0]).toBeUndefined();
   });
 });
+
+
+describe('halted paid-page diagnostic truth before visual proof',()=>{
+  const source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-book-e2e-trial.ts'),'utf8');
+  const from=source.indexOf("      save('diagnostic-review-stop'"),to=source.indexOf('      throw error;',from)+'      throw error;'.length;
+  const catchJs=transformSync('function stopped(){'+source.slice(from,to)+'}globalThis.stopped=stopped;',{loader:'ts',format:'cjs'}).code;
+  const story={title:'Synthetic stop',pages:Array.from({length:8},(_,i)=>({pageNumber:i+1,text:'Synthetic page '+(i+1)}))};
+  const candidate=(n:number)=>({imageName:'paid-page-'+n+'.png',imageSha:String(n).repeat(64)});
+  const stop=(saved:Map<string,any>,marked=true)=>{
+    const dir=mkdtempSync(path.join(tmpdir(),'native-cde-paid-stop-')),error=Error('ORIGINAL_REVIEW_STOP'),records:any[]=[];
+    const c:any={config:{bookDir:dir,engineContinuity:marked?policy():undefined},result:{source:{manuscript:story}},
+      saved,meter:{snapshot:()=>({settledMicroUsd:12345})},max:{snapshot:()=>({})},sourceAdmission:undefined,sourceRepairUsed:0,error,
+      save:(name:string,value:unknown)=>records.push({name,value}),writeTrialReader};
+    vm.createContext(c);vm.runInContext(catchJs,c);expect(()=>c.stopped()).toThrow(error);
+    expect(records).toHaveLength(1);expect(records[0].name).toBe('diagnostic-review-stop');
+    return{html:readFileSync(path.join(dir,'viewer','index.html'),'utf8'),stop:records[0].value};
+  };
+  it.each(['review_unusable','identity_unusable'] as const)('keeps an actually drawn first page visible after %s without qualifying or retrying it',status=>{
+    const saved=new Map<string,any>([['halted_page_1',{phase:'page',name:'1',attempts:[{attempt:0,candidate:candidate(1),status,error:{code:status}}]}]]);
+    const r=stop(saved);
+    expect(r.stop.drawnFrames).toEqual(['halted_page_1']);
+    expect(r.html).toContain('../illustrations/paid-page-1.png');
+    expect(r.html).toContain('האיור נוצר, אך הביקורת לא הושלמה');
+    expect(r.html).toContain(status);expect(r.html).not.toContain('qa_supported');
+    expect((r.html.match(/לא נוצר איור/g)||[]).length).toBe(8);
+    expect(r.html).toContain('12345');
+  });
+  it('includes earlier completed pages and the later halted paid candidate in the real native stop',()=>{
+    const saved=new Map<string,any>([
+      ['page_1',{pageNumber:1,status:'qa_supported',attempts:[{candidate:candidate(1)}],chosen:{candidate:candidate(1)}}],
+      ['halted_page_2',{phase:'page',name:'2',attempts:[{attempt:0,candidate:candidate(2),status:'review_unusable'}]}]
+    ]);
+    const r=stop(saved);
+    expect(r.stop.drawnFrames).toEqual(['page_1','halted_page_2']);
+    expect(r.html).toContain('paid-page-1.png');expect(r.html).toContain('paid-page-2.png');
+    expect((r.html.match(/לא נוצר איור/g)||[]).length).toBe(7);
+    expect((r.html.match(/qa_supported/g)||[]).length).toBe(1);
+    expect(r.html).toContain('data-book-status="review_stopped"');
+  });
+  it('does not call an undrawn render or a failed reference sheet a drawn page',()=>{
+    const r=stop(new Map<string,any>([
+      ['halted_diagnostic_render_1',{pageNumber:1,error:{code:'render_failed'}}],
+      ['halted_sheet_entities',{phase:'sheet',attempts:[{candidate:candidate(7),status:'review_unusable'}]}]
+    ]));
+    expect(r.stop.drawnFrames).toEqual([]);expect(r.html).not.toContain('<img');
+    expect((r.html.match(/לא נוצר איור/g)||[]).length).toBe(9);
+  });
+  it('keeps unmarked viewer bytes identical when an unused halted record is present',()=>{
+    const a=stop(new Map(),false),b=stop(new Map([['halted_page_1',{attempts:[{candidate:candidate(1),status:'review_unusable'}]}]]),false);
+    expect(a.html).toBe(b.html);expect(b.stop.drawnFrames).toEqual([]);
+  });
+});

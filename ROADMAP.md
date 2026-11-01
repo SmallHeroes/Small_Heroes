@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Native CDE R2 independently passed; pre-visual halted-page truth corrected (2026-11-01)
+
+- Received and hash-verified independent R2 PASS at a3ab1f88 (41 source, 108 writer, 59 reviewer pins). Keep that scope separate from the new correction and all visual/product acceptance.
+- R3 fixes the known paid-drawn-page diagnostic omission generally, without changing generation, verdicts, accounting or retry policy. Local 763/763 in 18 specs, both TypeScript gates0, three red regressions, four legacy byte controls and 321 historical preservation hashes. Independent R3 review remains pending and manual via Guy.
+- Owner visual allowance is now explicit: at most two LOW page images, cumulative 1 USD with all reviews and full pending/UNKNOWN reserves, no full book/narration/extensions. Do not consume an old native cycle. Next visual milestone must bind an existing eligible compiled CDE source and exact pages/references to a hard page-only envelope; current native sample success still continues to the rest and refuses page overrides. No paid dispatch until the scope can actually be enforced.
+
 ## Native C/D/E R1 PASS recorded; N1/N2 correction re-gate next (2026-11-01)
 
 - Claude independently passed c226f2a9 after manual routing: 745/745 in 18 specs, both TypeScript gates 0. Codex sealed the completed
