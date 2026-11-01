@@ -4,7 +4,7 @@ import { LANDMARK_KIND_ATTRIBUTE, isKindPhrase } from './storyboard-landmark-kin
 /**
  * Opt-in instance-distinction contract (engine continuity stage C): a story's landmarks and props must stay tellable apart from the
  * same-sort set dressing around them. Every landmark and prop declares its kind (one shared broad key, the landmark-kind syntax), every
- * location declares the kinds of its repeated set dressing (`populations`, beside the plan, split off before the unchanged compiler), and
+ * location declares the kinds of its repeated set dressing (`population` on each plan.locations entry, split off before the unchanged compiler), and
  * an entity whose kind is dressing anywhere in the book, or shared with another landmark or prop, carries one fixed `distinction`
  * invariant. Bound into the source and the compiled book only when enabled (it needs the landmark-kind contract): without it every
  * existing source, book, digest, instruction, schema and packet stays byte-identical.

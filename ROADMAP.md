@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## C/E R2 after independent R1 (2026-11-01)
+
+- R1 final: C HOLD, D PASS, E HOLD; final report and all32 indexed files sealed after reviewer exit.
+- Codex repairs future-cue render leakage and restores nonblocking scale abstention with a book-level comparable-evidence gate.
+- Same existing root chat/worktree, $0, no new book, no source-specific repair. Focused corrections then exact-source independent Claude re-gate.
+- Visual efficacy/product acceptance remain unproven; a paid sample still needs a separate approved envelope.
+
+
 ## C–E local completion and next gate (2026-10-31)
 
 - C canonical instance identity: local 222236db. D material lineage/contact: local 8c995ce9. E standing scale/evidence/abstention: local in this range.

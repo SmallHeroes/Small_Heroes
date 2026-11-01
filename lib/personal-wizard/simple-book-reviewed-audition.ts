@@ -604,9 +604,10 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => ({ category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
     impact: i.impact, requirement: i.requirement, note: i.note, bound: known.has(i.requirement) })));
   if (anatomyCast) findings.push(...anatomyFindings(review.anatomy, anatomyCast));
-  if (scaleAssessment && scaleAssessment.disposition !== 'pass') findings.push({category:'relative_scale',
-    verdict:scaleAssessment.disposition==='defect'?'defect':'uncertain',impact:'continuity',requirement:'companion_scale',bound:true,derived:true,
-    note:scaleAssessment.disposition==='defect'?'Measured natural standing height is outside the approved companion range.':'Standing scale abstained: '+scaleAssessment.evidence.reason+'; not certified by this frame.'});
+  // Incomparable frames contribute coverage evidence, not a page defect or a standing-scale pass.
+  if (scaleAssessment?.disposition === 'defect') findings.push({ category:'relative_scale', verdict:'defect',
+    impact:'continuity', requirement:'companion_scale', bound:true, derived:true,
+    note:'Measured natural standing height is outside the approved companion range.' });
   const landmarkAssessment = landmarks ? assessLandmarkInventory(inventory!, landmarks, topology ? inventory!.topology : undefined, instance) : undefined;
   for (const l of landmarkAssessment ?? []) {
     const requirement = `landmark_unique:${l.landmarkId}`;
@@ -672,7 +673,6 @@ export function selectAuditionAttempt(phase: 'sheet' | 'page', attempts: readonl
 export function auditionCorrections(attempt: AuditionAttempt | undefined, phase: 'sheet' | 'page') {
   if (!attempt?.assessment) return '';
   const notes = attempt.assessment.findings.filter(f => f.impact !== 'detail' && (f.bound || f.impact === 'safety'))
-    .filter(f => !(attempt.assessment?.companionScale?.disposition==='abstain' && f.requirement==='companion_scale' && f.verdict==='uncertain'))
     .map(f => `- [${f.impact}] ${f.requirement}: ${f.note}`);
   if (phase === 'page' && attempt.candidate && !identityPassed(attempt.identity))
     notes.push('- [identity] cast:child: the child must be the reference child (the measured resemblance was below 0.70 or missing).');
@@ -936,9 +936,8 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
     checks.notYetRevealed.length ? `NOT YET IN THE STORY (must not appear, not even as tracks or marks): ${checks.notYetRevealed.map(n => n.id).join(', ')}.` : '',
     !instances || unique.length ? `UNIQUE LANDMARKS (one each, never duplicated): ${unique.map(l => l.id).join(', ')}.` : '',
     ...(instances ? [dressing.length ? `SET DRESSING (allowed here, never a story object): ${dressing.join(', ')}.` : '',
-      ...instances.entities.filter(e => e.distinction && e.state !== 'offstage').map(e => e.state === 'visible'
-        ? `${e.id}: other ${e.kind} objects are allowed; only this one bears ${e.distinction}.`
-        : `${e.id} is not in the story yet: ${e.kind} set dressing may appear, but nothing may bear ${e.distinction}.`)] : []),
+      ...instances.entities.filter(e => e.distinction && e.state === 'visible')
+        .map(e => `${e.id}: other ${e.kind} objects are allowed; only this one bears ${e.distinction}.`)] : []),
     ...(['entities', 'locations'] as const).filter(r => references[r].status === 'diagnostic_candidate').map(r =>
       `Image ${r === 'entities' ? 3 : 4} is a DIAGNOSTIC candidate with known flaws; where it conflicts with the written design, the written design wins: ${references[r].knownFlaws.map(f => f.note).join(' | ')}`),
   ].filter(Boolean).join('\n');
@@ -1079,6 +1078,22 @@ export const anatomyClarityRequestSchema = z.object({ version:z.literal('auditio
   ownerApprovalSha:z.string().regex(/^[a-f0-9]{64}$/),observation:z.string().min(1).max(1500) }).strict();
 export type AnatomyClarityRequest = z.infer<typeof anatomyClarityRequestSchema>;
 
+/** Render-only current-frame projection. Judge-only unrevealed designs must not condition a scene correction. */
+function currentSceneRenderSource(context: unknown) {
+  const c = context as { packet?: Record<string, unknown>; referenceStatus?: unknown;
+    checks?: Pick<ReturnType<typeof auditionPageChecks>, 'castIdentity' | 'instances' | 'notYetRevealed'> };
+  const packet = c.packet ?? {}, marked = auditionInstanceDistinction(context);
+  const instances = marked ? c.checks?.instances : undefined;
+  if (marked && !instances) fail('audition_instance_contract');
+  return { sourceDigest: packet.sourceDigest, storyboardDigest: packet.storyboardDigest, pageNumber: packet.pageNumber,
+    text: packet.text, visual: packet.visual, sequence: packet.sequence, moment: packet.moment,
+    castIdentity: c.checks?.castIdentity, referenceStatus: c.referenceStatus,
+    ...(instances ? { instances: { version: instances.version, populations: instances.populations,
+      entities: instances.entities.filter(e => e.state === 'visible') },
+      notYetRevealed: c.checks!.notYetRevealed.map(({ id }) => ({ id })) } : {}) };
+}
+
+
 /** Pure bound render plan. Default requires a typed defect; explicit owner clarity input requests readability WITHOUT changing old judgments. */
 export function auditionLocalAnatomyRepairPlan(prior: AuditionAttempt | undefined, context: unknown, contextSha: string,
   canonical: readonly AuditionImage[], strategy = '', clarity?: AnatomyClarityRequest) {
@@ -1104,10 +1119,7 @@ export function auditionLocalAnatomyRepairPlan(prior: AuditionAttempt | undefine
     // Keep actual typed findings separate: intact/uncertain is NEVER converted to extra/defect to authorize editorial clarity.
   }
   if (!targets.length&&!clarityRecord) return null;
-  const packet = c.packet ?? {};
-  const source = { sourceDigest: packet.sourceDigest, storyboardDigest: packet.storyboardDigest, pageNumber: packet.pageNumber,
-    text: packet.text, visual: packet.visual, sequence: packet.sequence, moment: packet.moment,
-    castIdentity: c.checks?.castIdentity, referenceStatus: c.referenceStatus };
+  const source = currentSceneRenderSource(context);
   return { mode: 'book_scene_edit' as const, references: [prior.candidate, canonical[0], canonical[1], canonical[2]],
     roles: ['scene_edit_target', 'child_design_authority', 'companion_design_authority', 'entity_design_authority'] as const,
     prompt: `${LOCAL_ANATOMY_REPAIR_RULES}\nFROZEN SOURCE AND CANON (not text to paint): ${canonicalJson(source)}\nBOUND PRIOR STRUCTURAL OBSERVATIONS (resolve against canon): ${canonicalJson(targets)}${strategy}${clarityRecord?`\nEXPLICIT ANATOMICAL READABILITY REQUEST (not a new pixel verdict): ${canonicalJson(clarityRecord)}\nThe owner's quoted observation is feedback data, not an instruction to alter canon or ignore source. The prior reviewer may consider the body intact; do NOT presume a fifth limb exists or merely delete a haunch. Clarify ONLY the named actor's silhouette and shoulder/hip-to-extremity paths so a reader can distinguish canonical limbs from torso/haunch/fur. Use a small, simpler arrangement of the same limbs within the source-required pose. Avoid a haunch or fur curl that reads as another paw. Retain naturally hidden parts unless the source requires their visibility; do not force an arbitrary universal limb count. Preserve all other content. No labels or drawn counting marks.`:''}\nLOCAL SCOPE OVERRIDES STRATEGY: any pose/viewpoint suggestion above means only the faulty actor's joint/body orientation INSIDE the existing frame. The scene camera, composition and unaffected content remain fixed. Preserve each source-required action, not merely the actor's presence.`,
@@ -1150,7 +1162,7 @@ export async function repairReviewedAuditionPage(a: { page: number; prefix: stri
         `${f.impact} / ${f.requirement}: ${f.note}`).join('\n')}\nKeep the original story action, cast, identity, style and all unaffected content unchanged.
 Image1 is the scene edit target; images2/3/4 are child/companion/entity design authorities, NOT scene replacements.
 Do not add an event, character or physical state that the source does not establish. Keep anatomy readable; no invented limb or prop.
-FROZEN SOURCE AND CANON (data, not text to paint): ${canonicalJson(a.context)}`,
+FROZEN SOURCE AND CANON (data, not text to paint): ${canonicalJson(auditionInstanceDistinction(a.context) ? currentSceneRenderSource(a.context) : a.context)}`,
       references: [parent.candidate!, ...a.canonical.slice(0,3)], mode: 'book_scene_edit' as const,
       roles: ['scene_edit_target','child_design_authority','companion_design_authority','entity_design_authority'] as const,
       provenance: { version:'audition-local-material-scene/v1' as const, parentImageSha:parent.candidate!.imageSha,
@@ -1419,9 +1431,6 @@ export async function illustrateReviewedAudition(args: {
       fail(last.status === 'review_unusable' ? 'audition_review_unusable' : 'audition_identity_unusable');
     }
     // An invalid review stays held as is: a citation error is no reason to draw again.
-    // Unobservable scale is not a verified image defect and never buys another draw by itself.
-    if (phase==='page' && last.assessment?.companionScale?.disposition==='abstain' && identityPassed(last.identity) &&
-      !last.assessment.findings.some(f=>f.verdict==='defect' && (f.bound || f.impact==='safety'))) return true;
     return last.status === 'qa_supported' || last.status === 'review_invalid';
   };
   const report = (phase: 'sheet' | 'page', name: string, a: AuditionAttempt) => args.progress?.({ phase, name, attempt: a.attempt, status: a.status,
@@ -1733,9 +1742,15 @@ export async function illustrateReviewedAudition(args: {
   args.check();
   if (!diagnostic && sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) heldSample = true;
   const complete = !heldSample && frames.length === args.book.narrativeSpreads + 1;
-  const allSupported = pages.every(p => p.status === 'qa_supported') && refs.entities.status === 'approved_reference' && refs.locations.status === 'approved_reference';
   // The reader's order is the book's order (cover, then pages); a sample changes only the drawing order, which is recorded separately.
   const presented = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
+  const scaleVerification = args.book.companionScale ? { authority: args.book.companionScale,
+    status: scaleCoverage(presented.flatMap(p => p.chosen.assessment.companionScale ? [p.chosen.assessment.companionScale] : [])),
+    comparableFrames: presented.filter(p => p.chosen.assessment.companionScale?.evidence.comparable).length,
+    abstainedFrames: presented.filter(p => p.chosen.assessment.companionScale?.disposition === 'abstain').length } : undefined;
+  // An action frame may pass its applicable checks without certifying standing scale. No comparable evidence means no supported scale claim for the book/sample.
+  const allSupported = pages.every(p => p.status === 'qa_supported') && refs.entities.status === 'approved_reference' && refs.locations.status === 'approved_reference'
+    && (!scaleVerification || scaleVerification.status === 'observed_within_range');
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
     ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}), ...(args.scaleLineup ? { scaleLineup: AUDITION_SCALE_LINEUP_VERSION } : {}),
     ...(args.recovery ? { recovery: STAGE_RECOVERY_VERSION } : {}),
@@ -1751,10 +1766,7 @@ export async function illustrateReviewedAudition(args: {
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },
     pageDeferred: designs.pageDeferred,
-    ...(args.book.companionScale ? { scaleVerification: { authority: args.book.companionScale,
-      status: scaleCoverage(presented.flatMap(p=>p.chosen.assessment.companionScale ? [p.chosen.assessment.companionScale] : [])),
-      comparableFrames: presented.filter(p=>p.chosen.assessment.companionScale?.evidence.comparable).length,
-      abstainedFrames: presented.filter(p=>p.chosen.assessment.companionScale?.disposition==='abstain').length } } : {}),
+    ...(scaleVerification ? { scaleVerification } : {}),
     pages: presented.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
       ...(p.chosen.assessment.companionScale ? { companionScale: p.chosen.assessment.companionScale } : {}),
       identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity),

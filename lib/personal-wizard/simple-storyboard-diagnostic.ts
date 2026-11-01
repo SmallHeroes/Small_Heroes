@@ -1,4 +1,4 @@
-import { SCALE_STORYBOARD_ADDENDUM } from './companion-scale';
+import { SCALE_REVIEW_ADDENDUM } from './companion-scale';
 import type { EngineContinuityOptions } from './engine-continuity-contracts';
 import { MATERIAL_REVIEW_ADDENDUM } from './storyboard-material-function';
 import 'server-only';
@@ -51,7 +51,7 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '')
     + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '')
     + (contracts.stateParityContract ? '\n' + STATE_PARITY_REVIEW_ADDENDUM : '')
-    + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.companionScale ? '\n' + SCALE_STORYBOARD_ADDENDUM : '');
+    + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.companionScale ? '\n' + SCALE_REVIEW_ADDENDUM : '');
 };
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {

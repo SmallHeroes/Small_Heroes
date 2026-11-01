@@ -9,6 +9,7 @@ import { preparePersonalStoryboard,compilePersonalStoryboard,personalStoryboardR
 import { runSimpleWizardBook } from '../simple-book-flow';
 import { assessAuditionReview,auditionPageReviewSchemaForContext,auditionJudgeInstruction } from '../simple-book-reviewed-audition';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
+import { storyboardReviewInstructions } from '../simple-storyboard-diagnostic';
 import { zodTextFormat } from 'openai/helpers/zod';
 
 const measured=(ratio:number)=>({comparable:true,reason:'same_plane_standing' as const,estimatedRatio:ratio});
@@ -51,7 +52,12 @@ describe('companion-scale/v1 approved authority and honest measurements',()=>{
     expect(assess(measured(.7)).counts.continuity).toBe(0);
     expect(assess(measured(.9)).findings.some(f=>f.requirement==='companion_scale'&&f.verdict==='defect')).toBe(true);
     const airborne=assess(abstain('airborne'),true);
-    expect(airborne.companionScale?.disposition).toBe('abstain');expect(airborne.counts.identity).toBe(1);expect(airborne.counts.continuity).toBe(1);
+    expect(airborne.companionScale?.disposition).toBe('abstain');expect(airborne.counts.identity).toBe(1);expect(airborne.counts.continuity).toBe(0);
+  });
+  it('CE-R2 storyboard scale review verifies the proposed plan rather than issuing planner commands',()=>{
+    const instruction=storyboardReviewInstructions({engineContinuity:{companionScale:true}});
+    expect(instruction).toContain('Verify the supplied companionScale');
+    expect(instruction).not.toContain('Choose\ncompanionStandingHeightInChildHeights');
   });
   it('the actual native review schema requires evidence only on marked contexts; legacy answers cannot smuggle it in',()=>{
     const context={version:'audition-page-context/v2',companionScale:companionScaleAuthority('elephant_momo')};

@@ -315,17 +315,52 @@ describe('instance-distinction/v1 (page context v7): set dressing is told apart 
     expect(() => auditionInstanceDistinction({ ...context, instanceDistinction: undefined })).toThrow('audition_instance_contract');
   });
 
-  it('render lines: only planned landmarks are unique here; dressing and each distinction are named; without the record, exactly as before', async () => {
+  it('CE-R2 render lines: only visible distinctions prime drawing; unrevealed cues stay with the judge', async () => {
     const run = async (book: PersonalStoryboard) => { const h = harness({ book, coverage: true, pages: [1] });
       await illustrateReviewedAudition({ ...h.args, pageAttempts: 1, structuralAnatomy: true, landmarkTopology: LANDMARK_COVERAGE_TOPOLOGY_VERSION }); return h; };
     const h = await run(instanceFixture()), prompt = h.prompts.get('page_1_0')!;
     expect(prompt).toContain('UNIQUE LANDMARKS (one each, never duplicated): old_tree.');
     expect(prompt).toContain('SET DRESSING (allowed here, never a story object): tree.');
     expect(prompt).toContain(`old_tree: other tree objects are allowed; only this one bears ${LIGHTNING}.`);
-    expect(prompt).toContain('trail is not in the story yet: trail set dressing may appear, but nothing may bear tiny star prints.');
+    expect(prompt).not.toContain('tiny star prints');
     expect(h.contexts.get('page_1_0_qa').version).toBe('audition-page-context/v7');
     const legacy = (await run(typedFixture())).prompts.get('page_1_0')!;
     expect(legacy).toContain('UNIQUE LANDMARKS (one each, never duplicated): old_tree, stone.'); expect(legacy).not.toContain('SET DRESSING');
+  });
+
+
+  it('CE-R2 hidden distinctions stay judge-only through first/repeated renders and the fresh cohort', async () => {
+    const b=instanceFixture(),h=harness({book:b,coverage:true,pages:[1,2],
+      judge:step=>step==='page_1_0_qa'?{scene:{issues:[issue('story','scene_plan','A verified current action is missing.')]}}:{}});
+    await illustrateReviewedAudition({...h.args,pageAttempts:2,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    expect(h.prompts.has('page_1_1')).toBe(true);
+    for(const step of ['page_1_0','page_1_1'])expect(h.prompts.get(step)).not.toContain('tiny star prints');
+    expect(h.prompts.get('page_2_0')).toContain('tiny star prints');
+    expect(canonicalJson(h.contexts.get('page_1_0_qa'))).toContain('tiny star prints');
+    const fresh=harness({book:b,coverage:true});
+    await illustrateReviewedAudition({...fresh.args,pageAttempts:1,structuralAnatomy:true,
+      landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,freshCohort:'audition-fresh-cohort/v1'});
+    for(const step of ['page_0_0','page_1_0'])expect(fresh.prompts.get(step)).not.toContain('tiny star prints');
+    expect(fresh.prompts.get('page_2_0')).toContain('tiny star prints');
+  });
+
+  it.each(['material','anatomy'] as const)('CE-R2 %s scene correction keeps the visible canon but not unrevealed judge-only cues',async kind=>{
+    const h=harness({book:instanceFixture(),coverage:true,pages:[1],
+      judge:step=>kind==='material'&&step.startsWith('page_')?{environment:{issues:[issue('continuity','visual_language','Verified current scene defect.')]}}:{},
+      ...(kind==='anatomy'?{anatomy:(_step:string,_context:any,normal:any)=>({...normal,actors:normal.actors.map((actor:any)=>actor.actorId==='child'?
+        {...actor,limbs:{...actor.limbs,condition:'extra',expectedTotal:4,visibleDistinct:5,unseen:'not_applicable',evidence:'Five distinct attached limb paths.',
+          correction:'Restore four canonical limb paths without changing the current scene.'}}:actor)})}:{})});
+    await illustrateReviewedAudition({...h.args,pageAttempts:1,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+    const p=h.saved.get('page_1') as SavedPage,context=h.contexts.get('page_1_0_qa'),before=canonicalJson(context);
+    await repairReviewedAuditionPage({page:1,prefix:'r2_',consumedAttemptsBefore:1,prior:p.chosen,context,contextSha:p.contextSha,
+      canonical:context.references,predecessor:null,check:h.args.check,render:h.args.render,judge:h.args.judge,identity:h.args.identity,
+      save:h.args.save,...(kind==='material'?{materialScene:true}:{})});
+    const render=h.args.render.mock.calls[h.args.render.mock.calls.length-1]!;
+    expect(render[0]).toBe('r2_page_1_1');expect(render[1]).not.toContain('tiny star prints');
+    expect(render[1]).toContain(LIGHTNING);expect(canonicalJson(context)).toBe(before);
+    expect(before).toContain('tiny star prints');
+    const saved=h.saved.get('scene_repair_1_candidate') as any;
+    expect(saved.recipeSha256).toBe(previewSha(canonicalJson({prompt:render[1],references:render[2],mode:render[3],roles:render[4],provenance:saved.sceneRepair})));
   });
 
   it('a tree visibly WITHOUT the distinction is set dressing and is not counted', () => {
@@ -3109,7 +3144,7 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect(m.pages[0].status).toBe('held');expect(m.pages[0].companionScale?.disposition).toBe('defect');
     const air=runHarness(airborne),a=await illustrateReviewedAudition({...air.args,pageAttempts:3});
     expect([...air.prompts.keys()].filter(k=>k.startsWith('page_'))).toHaveLength(1);
-    expect(a.pages[0].status).toBe('held');expect(a.pages[0].companionScale?.disposition).toBe('abstain');
+    expect(a.pages[0].status).toBe('qa_supported');expect(a.pages[0].companionScale?.disposition).toBe('abstain');expect(a.status).toBe('held_audition_with_findings');
     expect(a.scaleVerification?.status).toBe('unverified');expect(a.pages[0].identityPassed).toBe(true);
     expect(auditionCorrections((air.saved.get('page_1') as SavedPage).chosen,'page')).not.toContain('Standing scale abstained');
   });
@@ -3118,9 +3153,39 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
       landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,freshCohort:'audition-fresh-cohort/v1'});
     expect(m.scope.complete).toBe(true);expect(m.pages).toHaveLength(9);
     expect(m.scaleVerification).toMatchObject({status:'unverified',comparableFrames:0,abstainedFrames:9});
-    expect(m.pages.every(p=>p.status==='held'&&p.companionScale?.disposition==='abstain')).toBe(true);
+    expect(m.pages.every(p=>p.status==='qa_supported'&&p.companionScale?.disposition==='abstain')).toBe(true);
     expect(m.productionQualified).toBe(false);
   });
+
+  it('CE-R2 all-abstained normal books keep valid action pages but cannot claim book-level scale qualification',async()=>{
+    const h=runHarness(airborne,{}),m=await illustrateReviewedAudition({...h.args,pageAttempts:3});
+    expect(m.scope.complete).toBe(true);expect(m.pages).toHaveLength(9);
+    expect(m.pages.every(p=>p.status==='qa_supported'&&p.companionScale?.disposition==='abstain')).toBe(true);
+    expect(m.scaleVerification).toMatchObject({status:'unverified',comparableFrames:0,abstainedFrames:9});
+    expect(m.status).toBe('held_audition_with_findings');
+    expect([...h.prompts.keys()].filter(k=>k.startsWith('page_'))).toHaveLength(9);
+    expect(m.runtimeEligible).toBe(false);expect(m.productionQualified).toBe(false);
+  });
+  it('CE-R2 a comparable standing cover plus an unmeasurable action page supports only the measured coverage',async()=>{
+    const h=runHarness(within,{pages:[0,1]}),original=h.args.judge;
+    const judge=async(...args:Parameters<typeof original>)=>{const reply=await original(...args),context=args[2] as any;
+      return context.companionScale?{...reply,scaleEvidence:context.packet.pageNumber===0?within:airborne}:reply;};
+    const m=await illustrateReviewedAudition({...h.args,judge,pageAttempts:3});
+    expect(m.pages.map(p=>p.status)).toEqual(['qa_supported','qa_supported']);
+    expect(m.pages.map(p=>p.companionScale?.disposition)).toEqual(['pass','abstain']);
+    expect(m.scaleVerification).toMatchObject({status:'observed_within_range',comparableFrames:1,abstainedFrames:1});
+    expect(m.status).toBe('qa_supported_sample');expect(m.scope.complete).toBe(false);expect(m.productionQualified).toBe(false);
+  });
+  it.each(['uncertain','defect'] as const)('CE-R2 the existing non-scale %s retry policy is independent of scale measurability',async verdict=>{
+    // This preserves the existing policy; deciding all uncertain retries globally is a separate gate, not part of E.
+    const finding=(step:string):Spec=>step.startsWith('page_')?{scene:{verdict,issues:[issue('story','scene_plan','Current action evidence needs resolution.')]}}:{};
+    const plain=harness({book:typedFixture(),pages:[1],judge:finding}),standing=runHarness(within,{pages:[1],judge:finding}),
+      action=runHarness(airborne,{pages:[1],judge:finding});
+    for(const h of [plain,standing,action])await illustrateReviewedAudition({...h.args,pageAttempts:3});
+    const draws=(h:typeof plain)=>h.args.render.mock.calls.filter(c=>String(c[0]).startsWith('page_1_')).length;
+    expect([draws(plain),draws(standing),draws(action)]).toEqual([3,3,3]);
+  });
+
   it('resumes by re-deriving the actual scale evidence; saved assessments cannot turn an abstention into a pass',async()=>{
     const old=runHarness(airborne);await illustrateReviewedAudition({...old.args,pageAttempts:1});
     const designs=old.saved.get('audition_sheet_designs') as any,sheets={entities:old.saved.get('sheet_entities') as SavedSheet,locations:old.saved.get('sheet_locations') as SavedSheet};

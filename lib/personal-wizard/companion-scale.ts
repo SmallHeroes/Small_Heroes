@@ -28,11 +28,16 @@ export const SCALE_STORYBOARD_ADDENDUM = `COMPANION SCALE CONTRACT: use the supp
 companionStandingHeightInChildHeights inside its inclusive min/max. This is the companion's OWN natural standing pose and geometry from
 its admitted views, relative to the child's standing height; a quadruped stands on four legs, never forced upright like a human. No
 universal ratio. Scale is compared only on the same ground plane at comparable depth. Keep action-pose identity and relative-scale checks.`;
+export const SCALE_REVIEW_ADDENDUM = `COMPANION SCALE CONTRACT REVIEW: Verify the supplied companionScale authority and
+the proposed companionStandingHeightInChildHeights against its inclusive min/max. Do not choose or invent a replacement ratio. Check
+the companion's OWN admitted natural standing geometry and compare only same-ground, comparable-depth standing poses; never force a
+quadruped upright. Preserve action-pose identity and relative-scale checks. Missing or unsupported authority cannot be inferred.`;
 export const SCALE_IMAGE_RULES = `COMPANION SCALE CONTRACT: return scaleEvidence {comparable,reason,estimatedRatio}. Comparable means
 the child and companion are on the same ground plane at comparable depth, each in its natural standing pose. Only then use reason
 same_plane_standing and a finite positive ratio of companion height to child height. Compare with context.companionScale.scale.
 Otherwise comparable=false, estimatedRatio=null, reason different_depth/not_standing/airborne/occluded: this is ABSTENTION, never a scale
-pass or a size defect. Keep all existing identity and relative_scale checks for action poses. A quadruped is never measured upright.
+pass or a size defect. Record it as coverage evidence; do not create a standing-scale issue merely because the frame is incomparable.
+Keep all existing identity and relative_scale checks for action poses. A quadruped is never measured upright.
 An entire book of abstentions is scale unverified, never scale passed. Do not infer missing measurements from the requested ratio.`;
 
 export const SCALE_RENDER_RULES = 'COMPANION SCALE CONTRACT: keep the approved companion in its OWN natural standing geometry and height range relative to the child, as in the admitted views. Keep the planned action and camera: do not force a quadruped upright or an airborne actor into a standing pose. Perspective and depth change apparent height; preserve the character design. Do not draw measuring bars, labels, JSON or QA evidence.';

@@ -1,6 +1,39 @@
 # SmallHeroes — Current Technical State
 
-## Engine continuity C–E — local implementation complete, independent review pending (2026-10-31)
+## C/E R2 — independent HOLD reconciled; focused correction pending re-gate (2026-11-01)
+
+- Claude R1 is complete: C HOLD, D PASS, E HOLD. Root verified all 32 final indexed evidence files and actual native/launcher/supervisor
+  exit before consuming it. Final report SHA c97d9a3746d080db586935d0f77edcf9c3d3a9d8756ea845081386cb6965d6d2, evidence index
+  7b7f35e0db96b1844bac418b3510e9ebf681f6d693b8c3c823a62d19385e0ccb. R1 and its held source 38dfd431 are preserved.
+- Guy's approved plan already treats action frames as action/identity checks, not forced standing measurements. Codex's earlier stricter
+  per-frame abstention HOLD was an unsupported interpretation; R2 restores the approved plan. No new stricter policy or paid proof chosen.
+- C-F1: future distinctions no longer prime page render instructions; unrevealed IDs stay forbidden and full cues stay in the bound judge
+  context. The material scene-correction lane no longer serializes that entire QA context under C; both scene-repair paths use current
+  frame source plus visible instance facts, while keeping the complete actual recipe hash. Unmarked material inputs remain as before.
+- E-F1: an abstention is explicit non-pass coverage evidence without a critical page issue by itself. Measured out-of-range size still
+  creates a bound defect, and existing action identity/relative-scale findings, child 0.70, safety, source and unknown-outcome gates remain.
+  Individual valid action pages can be qa_supported while their companionScale disposition remains abstain. At book/sample level,
+  no comparable in-range selected frame means scale unverified and NO qa_supported book/sample label. Mixed standing/action coverage can
+  support an automated sample without certifying the unmeasured action frame or declaring product/production acceptance.
+- E-F2: remove the scale-specific finish/correction special cases. Ordinary non-scale findings keep the same bounded legacy retry policy
+  whether scale is measurable or not. Existing uncertain-finding retry policy is separate debt, not enlarged/approved by these tests.
+  Abstention alone produces no page finding and naturally stops after one supported page; it does not request another image.
+- Related P3: storyboard scale REVIEW instructions verify the proposed ratio instead of commanding the planner; population comment now
+  names location.population. Marked payloads are prospective: older reselect/fresh/replan/scale scripts that lack C/E arguments refuse
+  rather than process them; no such script is advertised as C/E-ready. E's earlier structural-anatomy resume propagation enabled a legacy
+  path previously rejected; saved historical assessments do not change. Old marked candidate assessments are re-derived and refuse on drift.
+- Local evidence: 31/31 focused regressions pass; all 6 new deliberately broken C/E variants are detected and source bytes restored.
+  The first broad run passed 586/586 in 11 specs; its normal typecheck caught a test-only Array.at library mismatch, now replaced by indexing.
+  Final full rerun: 586/586 across 11 specs, zero failures/pending; both TypeScript gates and required npx --no-install tsc --noEmit exit 0.
+  Replayed all9 actual saved R17 reviews exactly (0/9 held); all321 historical files unchanged, no extra book files.
+  Historical full-folder 16 failures/1 pending and incomplete broad retries remain preserved; repository-wide npm run check is not green.
+- Codex implements and commits this focused milestone in the same root chat/worktree. Claude independently re-gates the exact new range,
+  first pass read-only. D's R1 PASS is retained; changed C/E and combined behavior require the re-gate. No independent self-PASS.
+- No provider calls, new book, manual R17 repair, secret/.env read, source server, push/merge/deploy or cleanup. R17 remains the original
+  held diagnostic with Dad narration and unchanged grants/costs. Visual efficacy remains UNPROVEN; a visual sample needs a separate Guy gate.
+
+
+## Prior C–E candidate — superseded by the R1 findings and C/E R2 above (2026-10-31)
 
 - Guy transferred implementation to Codex on 2026-10-31 rather than wait for Claude's quota. C: 222236db; D: 8c995ce9; E follows here.
   Claude Code is the independent read-only reviewer of the frozen ranges when available. Codex grants no independent PASS.
