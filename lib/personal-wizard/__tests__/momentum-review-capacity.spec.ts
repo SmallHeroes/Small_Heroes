@@ -1,4 +1,5 @@
 import { beforeAll, describe, it, expect } from 'vitest';
+import { NATIVE_BOOK_CONTINUITY_VERSION,type NativeBookContinuity } from '../engine-continuity-contracts';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -32,16 +33,19 @@ describe('R17-F1: the momentum cycle reaches storyboard review with the existing
   describe('the actual executeBookTrial orchestration forwards it to every fresh board (exact source slice, virtual stage IO)', () => {
     const source = readFileSync(TRIAL, 'utf8'), body = source.slice(source.indexOf('export async function executeBookTrial'));
     const start = body.indexOf('    let io=stageIO('), end = body.indexOf('    guard();\n    const layoutBase=');
-    const js = transformSync(`async function probe(){${body.slice(start, end)}\nreturn{status:result.status,finalTextDir};}\nglobalThis.probe=probe;`, { loader: 'ts', format: 'cjs' }).code;
+    const contractsStart=body.indexOf('  const contracts=trialRunContracts('),contractsEnd=body.indexOf(';',contractsStart)+1;
+    const js = transformSync(`async function probe(){${body.slice(contractsStart,contractsEnd)}
+${body.slice(start, end)}\nreturn{status:result.status,finalTextDir};}\nglobalThis.probe=probe;`, { loader: 'ts', format: 'cjs' }).code;
     it('computes its contracts once, from the shared function, and binds them to the grant', () => {
       expect(start).toBeGreaterThan(0); expect(end).toBeGreaterThan(start);
       const head = body.slice(0, start);
       expect(head.match(/const contracts=/g)).toHaveLength(1);
-      expect(head).toContain('const contracts=trialRunContracts(config.cycle,!!portraitRecovery);');
+      expect(head).toContain('const contracts=trialRunContracts(config.cycle,!!portraitRecovery,config.engineContinuity);');
       expect(head).toContain("if(momentum&&!same(grant.contracts,contracts))fail('trial_contracts_binding');");
     });
-    async function run(cycle: string, o: { held?: boolean; boardHeld?: number } = {}) {
-      const seen: { call: string; reviewCapacity: unknown; repair: boolean }[] = [];
+    async function run(cycle: string, o: { held?: boolean; boardHeld?: number;continuity?:NativeBookContinuity } = {}) {
+      const seen: { call: string; reviewCapacity: unknown; repair: boolean;continuity?:unknown;instances?:true }[] = [];
+      const marked=(args:any)=>args.engineContinuity?{continuity:args.engineContinuity,instances:args.instanceDistinctionContract}:{};
       let boards = 0;
       const legacy = cycle !== MOMENTUM_BOOK_TRIAL.id, story = { title: 'Synthetic routing', pages: [{ pageNumber: 1, text: 'synthetic' }] };
       const board = () => ({ status: ++boards <= (o.boardHeld ?? 0) ? 'held_uncertain' : 'review_supported', storyboardDigest: `s${boards}`, rawReview: {} });
@@ -49,16 +53,16 @@ describe('R17-F1: the momentum cycle reaches storyboard review with the existing
         SOL_WRITING: { model: 'gpt-6.1-sol' }, portraitRecovery: null, receiptRecovery: null, bundleRecovery: null, sol: null, spanning: false, parent: null, completing: false,
         momentum: !legacy, portrait: true, readerSafe: true, continuationTextIndex: 2, sourceRepairUsed: 0, finalTextDir: 'text', sourceAdmissionSha: null, result: null,
         get boardAttempts() { return boards; }, set boardAttempts(v: number) { boards = v; },
-        contracts: trialRunContracts(cycle as any), baseCurrent: {}, profile: { seed: 'fixture', child: { age: 6 } }, prepared: { accepted: { canonical: {} } }, options: {},
-        signal: new AbortController().signal, config: { bookDir: 'VIRTUAL' }, grant: { requestId: 'fixture' }, policy: {}, log: () => {}, path, shaFile: () => 'f'.repeat(64),
+        trialRunContracts, baseCurrent: {}, profile: { seed: 'fixture', child: { age: 6 } }, prepared: { accepted: { canonical: {} } }, options: {},
+        signal: new AbortController().signal, config: { bookDir: 'VIRTUAL',cycle,engineContinuity:o.continuity }, grant: { requestId: 'fixture' }, policy: {}, log: () => {}, path, shaFile: () => 'f'.repeat(64),
         canonicalJson: JSON.stringify, key: () => { throw Error('KEY_FORBIDDEN'); },
         stageIO: (index: number) => ({ dir: index ? `VIRTUAL/text_${index}` : 'VIRTUAL/text', opus() {}, reader() {}, visual() {}, draft: () => ({}),
           ...(legacy ? { correctReading() {} } : { citationCorrector() {} }) }),
         runSimpleWizardBook: async (args: any) => {
-          seen.push({ call: 'flow', reviewCapacity: args.reviewCapacity, repair: !!args.repair });
+          seen.push({ call: 'flow', reviewCapacity: args.reviewCapacity, repair: !!args.repair,...marked(args) });
           return o.held ? { status: 'story_held', source: { manuscript: story }, readings: [], storyboard: null } : { status: board().status, source: {}, storyboard: { storyboardDigest: 's', rawReview: {} } };
         },
-        runSimpleStoryboardDiagnostic: async (args: any) => { seen.push({ call: 'board', reviewCapacity: args.reviewCapacity, repair: !!args.repair }); return board(); },
+        runSimpleStoryboardDiagnostic: async (args: any) => { seen.push({ call: 'board', reviewCapacity: args.reviewCapacity, repair: !!args.repair,...marked(args) }); return board(); },
         exclusiveJson() {}, save() {}, simpleStoryReadingPackets: () => ({ final: {} }), prepareSourceImpactReview: () => ({ packetDigest: 'p' }),
         runTrialSourceImpact: async () => ({ status: 'diagnostic_source_supported_with_notes' }),
         admittedStatus: (s: string) => s === 'review_supported' || s === 'review_supported_with_notes', finish: (status: string) => ({ status }), fail: (code: string) => { throw Error(code); } };
@@ -78,6 +82,11 @@ describe('R17-F1: the momentum cycle reaches storyboard review with the existing
       expect(r.out).toEqual({ status: 'review_supported', finalTextDir: 'text_3' });
       expect(r.seen).toEqual([{ call: 'flow', reviewCapacity: capacity.version, repair: false }, { call: 'board', reviewCapacity: capacity.version, repair: false },
         { call: 'board', reviewCapacity: capacity.version, repair: true }, { call: 'board', reviewCapacity: capacity.version, repair: true }]);
+    });
+    it.each([{}, {boardHeld:1}, {held:true,boardHeld:2}])('prospective CDE reaches every initial/successor/repair board in the actual runner slice %#',async o=>{
+      const r=await run(MOMENTUM_BOOK_TRIAL.id,{...o,continuity:{version:NATIVE_BOOK_CONTINUITY_VERSION,sample:[1,2]}});
+      expect(r.out.status).toBe('review_supported');expect(r.seen.length).toBeGreaterThan(0);
+      expect(r.seen.every(x=>x.instances===true&&JSON.stringify(x.continuity)===JSON.stringify({materialFunction:true,companionScale:true}))).toBe(true);
     });
     it('legacy portrait fresh run: no marker on any board, exactly as before (source repair, then successor)', async () => {
       const r = await run(PORTRAIT_BOOK_TRIAL.id, { held: true });

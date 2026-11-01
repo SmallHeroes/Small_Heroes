@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const COMPANION_SCALE_VERSION = 'companion-scale/v1' as const;
+/** Additional prospective sample stop; absence preserves the existing action-abstention policy. */
+export const COMPANION_SCALE_SAMPLE_GATE = 'companion-scale-sample-gate/v1' as const;
 export const standingScaleSchema = z.object({ standingHeightInChildHeights: z.object({ min: z.number().finite().positive(), max: z.number().finite().positive() }).strict()
   .refine(r => r.min <= r.max, 'inverted standing-height range') }).strict();
 export type StandingScale = z.infer<typeof standingScaleSchema>;

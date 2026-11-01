@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Native C/D/E integration R1 — local implementation complete, independent QA pending (2026-11-01)
+
+- Guy approved this provider-free milestone with "מאשר - תתחיל" after the manual Claude R2 report. Same root chat/worktree, branch
+  claude/book-render-20261009, base 7350975229dbcbcc69d67f0693699d8770dacccf. Codex is the sole implementer; Claude Code independently
+  reviews only after Guy manually forwards the frozen handoff. Automatic transfers remain cancelled; no new reviewer was dispatched.
+- Decision Gate: docs/ai-workflow/NATIVE_CDE_INTEGRATION_DECISION_GATE_20261101.md. Scope is the experimental native book runner, not
+  the customer order/chunk production pipeline. No new cycle, executable grant, provider allowance or model efficacy is approved.
+- A strict optional native-book-continuity/v1 config binds C+D+E and 1–2 ascending narrative sample IDs. The recomputed plan carries
+  those contracts through initial, successor and repaired storyboards. Explicit bound reload reconstructs all C/D/E inputs and verifies
+  the raw review, digests and all nine saved frame packets; old/unbound/replan/continuation authority cannot silently upgrade.
+- The new native mode uses one image attempt/frame, qualified entity/location references and sequential sample review; it does not use
+  the legacy all-frames-first cohort or its outer scene-repair loop. The actual plan records that choice; legacy opt-out behavior stays
+  unchanged. Companions need their own approved scale authority; there is no universal Momo ratio or forced action/standing pose.
+- Applicable action checks can pass with explicit scale abstention. The new bound sample stop requires actual comparable in-range
+  evidence and otherwise supported sample pages before any remaining frame. Unverified/held samples return held_visual_sample with
+  exact partial selection before later corrections, key access, narration or audio Reader work. No abstained frame becomes measured.
+- Native bookQa is projected from manifest status, full scope and scaleVerification; a supported-page count remains a metric only. A
+  diagnostic/held/unverified book is not promoted even if every page says qa_supported. Selected page/candidate/status/scale must bind
+  to that manifest. Native CDE ordinary resume/recovery upgrades remain refused; same-run typed storyboard repair is exercised.
+- Local evidence: 745/745 cases in 18 relevant specs, no failures/pending; both final TypeScript gates exit 0. Eight deliberately broken
+  bindings/stops/qualification variants are detected, then exact source bytes restored. All nine saved R17 v6 reviews replay identically
+  as 9 held / 0 supported. Codex re-hashed all 321 historical preservation files, including the 279 book files; no extra book file.
+- Failed red runs, setup errors, constructor-denied runs and their fixes remain in the milestone evidence. Three transport fixtures
+  formerly tried the SDK constructor despite fake fetch; their runtime route/transport source is byte-equal to base. The tests now use
+  a strict in-memory client, synthetic key and marked offline fetch; the real SDK remains denied. SDK HTTP integration is not proved.
+  Historical full-folder 16 failures/1 pending and incomplete runs remain; repository-wide npm run check is not declared green.
+- Evidence/freeze/manual request: claude-engine-continuity-20261029/native-cde-integration-20261101-r1 under the existing local artifact
+  root. This milestone is locally validated, NOT independently passed yet. nativeCycleReady/productAccepted/productionQualified stay
+  false pending the relevant independent and visual/owner gates. The R2 implementation PASS remains historical at 3e294e7d.
+- CURRENT's R2 preservation attribution is corrected: Claude re-hashed 279 book files and checked that Codex's record was unchanged;
+  Codex performed the 321-file hash replay. No Claude 321-file independent check is claimed.
+- Next: manual read-only Claude QA of this exact integration commit. A later small LOW visual proof needs its own page-only scope,
+  exact separately approved grant/budget and independent envelope review; a passed early sample never authorizes a new/full book by
+  implication. No new runnable cycle was created here. Zero real provider calls/spend, no source server, push/merge/deploy or cleanup.
+  The original R17 stays 0/9 held with identical images, Dad narration, intake, claims, grants and journals; resemblance remains 0.70.
+
 ## C/D/E — independent technical PASS; native integration and visual proof remain separate (2026-11-01)
 
 - Guy manually returned Claude Code's complete C/E R2 report. Codex verified its final assistant end_turn and all 35 indexed QA files,
@@ -9,8 +45,9 @@
   C PASS, D PASS retained/rechecked, E PASS; no blocking findings. Report SHA a2ea0962456412c4ba928b9728a67c053cf017dddfff68e199954157aa8e5e6f.
   Evidence index SHA 73d17dc7540198acb21706c32e4f510dfb98823204727e98ccb5d0a0aafb1984. C's inherited authorship is disclosed; this is not blind C QA.
 - Independent evidence: 586/586 across 11 specs; three TypeScript gates exit 0; 10 adversarial probes including a real compiled packet.
-  One wrong-CWD probe setup failure is preserved with the passing rerun. R17 reviews replay exactly as 9 held / 0 supported; all 321
-  historical preservation files still match. Repository-wide npm run check is NOT declared green; historical failures/incomplete runs remain.
+  One wrong-CWD probe setup failure is preserved with the passing rerun. Claude replayed R17 as 9 held / 0 supported and re-hashed all 279
+  R17 book files. Separately, Codex re-hashed the complete 321-file historical preservation set; Claude verified that record was unchanged.
+  Repository-wide npm run check is NOT declared green; historical failures/incomplete runs remain.
 - R2-O1..O4 are nonblocking and preserved in CE-R2-ACCEPTANCE-AND-NEXT-GATE-20261101.txt under the engine artifact directory. In particular,
   future early samples need eligible same-ground standing frames or a bounded stop rule before further draws; future native CDE wiring
   must use manifest status / scaleVerification for book qualification rather than page-count alone. The existing trial runner has no E

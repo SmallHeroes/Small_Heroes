@@ -1,5 +1,5 @@
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
-import { resolvePersonalWizardOptions } from '../options';
+import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../options';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryDraft } from '../simple-story-engine';
 import { createCurrentSimpleStorySource } from '../simple-story-source';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard } from '../storyboard';
@@ -9,11 +9,12 @@ import { textCanonOptions } from '../../../scripts/personal-simple-story';
  * The 6-spread storyboard fixture re-admitted as a CURRENT simple source (the re-plan driver's only input), with an actor-owned-appearance
  * parent draft and its synthetic supported review. Synthetic structure only: no literary, visual or product acceptance.
  */
-export async function replanFixture() {
-  const f = await personalStoryboardFixture(), options = textCanonOptions(resolvePersonalWizardOptions());
+export async function replanFixture(companionId?:string, currentOptions?:PersonalWizardOptions) {
+  const f = await personalStoryboardFixture('short',companionId), options = currentOptions ?? textCanonOptions(resolvePersonalWizardOptions());
   const prepared = prepareSimpleStory(f.request, options, 'diagnostic-fixture'), plan = f.result.plan;
+  const companionSentence=companionId ? `נועה ו${prepared.book.companion.shortName} משחקות בציור.` : 'נועה ודיני משחקות בציור.';
   const story: SimpleStoryDraft = { title: plan.title, childGoal: plan.childGoal, companionWant: plan.companionWant, comicPromise: plan.comicPromise,
-    ending: plan.ending, pages: f.result.manuscript.pages.map(page => ({ text: `${page.text} נועה ודיני משחקות בציור.` })),
+    ending: plan.ending, pages: f.result.manuscript.pages.map(page => ({ text: `${page.text} ${companionSentence}` })),
     pageMap: plan.beats.map(({ pageNumber: _page, ...row }) => row),
     resilienceMoments: plan.resilience.moments.map(({ pageNumber, ...row }) => ({ page: pageNumber, ...row })) };
   const records: Record<string, unknown> = {};

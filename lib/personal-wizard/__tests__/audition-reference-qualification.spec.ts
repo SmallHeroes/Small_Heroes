@@ -14,14 +14,17 @@ describe('reference-qualification/v1 binding in the book trial', () => {
     for (const bad of [true, 'reference-qualification/v2', null, 1]) expect(() => trialAuditionContracts({ referenceQualification: bad })).toThrow('trial_visual_contract');
   });
 
-  it('the one illustration call forwards the grant visual binding after the grant is bound to its plan; no cycle declares it (no default flip)', () => {
+  it('the native wrapper receives grant visual authority only after grant/plan binding; legacy cycles stay unmarked by default', () => {
     const source = readFileSync(TRIAL, 'utf8'), body = source.slice(source.indexOf('export async function executeBookTrial'));
     expect(source.match(/illustrateReviewedAudition\(/g)).toHaveLength(1);
-    const at = body.indexOf('illustrateReviewedAudition('), call = body.slice(at, body.indexOf('progress:e=>', at));
-    expect(call.match(/\.\.\.trialAuditionContracts\(grant\.visual\)/g)).toHaveLength(1);
+    const at = body.indexOf('runTrialAudition('), call = body.slice(at, body.indexOf('progress:e=>', at));
+    expect(call).toContain('visual:grant.visual');
+    const wrapper = source.slice(source.indexOf('export async function runTrialAudition'), source.indexOf('export function trialBookVisualQualification'));
+    expect(wrapper).toContain('bound=trialAuditionContracts(visual)'); expect(wrapper).toContain('...bound');
     expect(body.indexOf("if(!same(grant,plan))fail('trial_plan_changed');")).toBeGreaterThan(0);
     expect(body.indexOf("if(!same(grant,plan))fail('trial_plan_changed');")).toBeLessThan(at);
     const plan = source.slice(source.indexOf('function planTrialInputs'), source.indexOf('export function planBookTrial'));
-    expect(plan).toContain('visual:{freshCohort:'); expect(plan).not.toContain('referenceQualification');
+    expect(plan).toContain('visual:{...(config.engineContinuity?');
+    expect(plan).toContain('}:{freshCohort:AUDITION_FRESH_COHORT_VERSION})');
   });
 });

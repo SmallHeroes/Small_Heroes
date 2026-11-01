@@ -1,4 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import OpenAI from 'openai';
+// No provider SDK is constructed. This test-only client accepts only the marked in-memory fetch and an explicit synthetic key.
+// Even a mistakenly supplied global fetch cannot reach a provider: it is unmarked and the only URL below has an offline scheme.
+vi.mock('openai',()=>({default:class SyntheticResponsesClient {
+  responses:{create:(body:unknown)=>Promise<any>};
+  constructor(args:any){
+    if(args.apiKey!=='SYNTHETIC-NOT-A-KEY'||args.fetch?.[Symbol.for('small-heroes.offline-responses-fetch')]!==true)
+      throw Error('SYNTHETIC_CLIENT_ONLY');
+    this.responses={create:async body=>{const response=await args.fetch('offline://small-heroes-unit/responses',{method:'POST',body:JSON.stringify(body)});
+      if(!response.ok)throw Error('SYNTHETIC_RESPONSE_FAILED');return response.json();}};
+  }
+}}));
 import { z } from 'zod';
 import { mkdtempSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -20,6 +32,10 @@ import { READER_PORTRAIT_FRAMING_VERSION as portrait } from '../../storybook-sce
 
 const options = resolvePersonalWizardOptions(), folder = () => mkdtempSync(path.join(tmpdir(), 'momentum-book-'));
 const PRIOR = 3_185_794;
+it('offline transport fixture refuses default/unmarked fetch and any nonsynthetic key before a request',()=>{
+  expect(()=>new OpenAI({apiKey:'SYNTHETIC-NOT-A-KEY',fetch:globalThis.fetch})).toThrow('SYNTHETIC_CLIENT_ONLY');
+  expect(()=>new OpenAI({apiKey:'NOT-A-REAL-KEY',fetch:responses(()=>({}),{n:0})})).toThrow('SYNTHETIC_CLIENT_ONLY');
+});
 const request = { kind: 'personal_book_request', version: 'reviewed-personal-book-request/v3', draftId: 'd_momentumspec01', draftRevision: 1,
   child: { name: 'עידו', age: 6, address: 'boy', residence: 'עיר הדמיון', nameSource: 'typed', ageSource: 'typed', addressSource: 'typed', residenceSource: 'typed' },
   facts: [{ id: 'f_momentumspec01', kind: 'interest', value: 'לסדר קוביות', source: 'typed' }], noDifficulty: true,
@@ -39,12 +55,12 @@ function draftFor(call: SimpleStoryCall) {
 }
 const USAGE = { input_tokens: 1000, output_tokens: 500, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 } };
 let seq = 0;
-const responses = (answer: (body: any) => unknown, count: { n: number }) => (async (_url: unknown, init: any) => {
+const responses = (answer: (body: any) => unknown, count: { n: number }) => Object.assign((async (_url: unknown, init: any) => {
   count.n++; const body = JSON.parse(String(init.body)), output = answer(body), text = JSON.stringify(output), id = `resp_synthetic_momentum_${seq++}`;
   return new Response(JSON.stringify({ id, model: SOL_WRITING.model, status: 'completed', service_tier: 'default', output_text: text, usage: USAGE,
     output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text, annotations: [] }] }] }),
     { status: 200, headers: { 'content-type': 'application/json' } });
-}) as unknown as typeof fetch;
+}) as unknown as typeof fetch,{[Symbol.for('small-heroes.offline-responses-fetch')]:true});
 /** The saved shape of an actual Claude CLI reply (runClaudeCli), with synthetic content and session. */
 function cliRecord(call: SimpleStoryCall) {
   const output = draftFor(call), usage = { inputTokens: 1000, outputTokens: 2000 }, termination = { code: 0, signal: null };

@@ -12,6 +12,7 @@ import sharp from 'sharp';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
+import { storyboardContinuityAdmissionSchema, type StoryboardContinuityAdmission } from '../lib/personal-wizard/engine-continuity-contracts';
 import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } from '../lib/generate-image';
 import { companionIdentityReference } from '../lib/personal-wizard/companion-identity';
 import { qualityDisposition } from '../lib/local-preview-quality';
@@ -303,17 +304,19 @@ export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: strin
 }
 
 /** The reviewed request and storyboard of a book (no references yet): every saved part recompiled and bound. */
-export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(), layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT) {
+export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(), layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT,
+  continuity?: StoryboardContinuityAdmission) {
   realDirectory(bookDir);
   const visual = path.join(bookDir, layout.storyboardDir), repairFile = path.join(visual, STORYBOARD_REPAIR_INPUT_FILE),
     acceptanceFile = path.join(visual, STORYBOARD_OWNER_ACCEPTANCE_FILE);
   return admitReviewedStoryboardBundle({queued:read(path.join(bookDir,'request.json')),
     result:read(path.join(visual,'visual_simple_book_result.json')),draft:read(path.join(visual,'owned_storyboard_draft.json')),
-    repair:existsSync(repairFile)?read(repairFile):undefined,ownerAcceptance:existsSync(acceptanceFile)?read(acceptanceFile):undefined},workspace,layout);
+    repair:existsSync(repairFile)?read(repairFile):undefined,ownerAcceptance:existsSync(acceptanceFile)?read(acceptanceFile):undefined},workspace,layout,continuity);
 }
 /** Shared provider-free admission of ALL persisted compile inputs. Filesystem loading and checkpoint preflight use this same path. */
 export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;draft:unknown;repair?:StoryboardRepair;ownerAcceptance?:unknown},
-  workspace=process.cwd(),layout:ReviewedBookLayout=LEGACY_BOOK_LAYOUT){
+  workspace=process.cwd(),layout:ReviewedBookLayout=LEGACY_BOOK_LAYOUT,continuity?:StoryboardContinuityAdmission){
+  if(continuity!==undefined)continuity=storyboardContinuityAdmissionSchema.parse(continuity);
   const queued = z.object({ version: z.literal('local-simple-wizard-request/v1'), requestId: z.string(), optionsFingerprint: z.string(),
     request: z.unknown() }).passthrough().parse(bundle.queued);
   const options = resolvePersonalWizardOptions(workspace), prepared = prepareSimpleStory(queued.request, options, layout.seed);
@@ -337,7 +340,8 @@ export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), bundle.repair,
     savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
-    savedClaimBasisContract(saved), savedCalibrationContract(saved), savedPresenceContract(saved), savedStateParityContract(saved));
+    savedClaimBasisContract(saved), savedCalibrationContract(saved), savedPresenceContract(saved), savedStateParityContract(saved),
+    continuity?.instanceDistinctionContract,continuity?.engineContinuity);
   const parentDraft = bundle.draft;
   const names = savedSelfCheckNames(saved), fields = savedStagingFields(saved), spans = savedSelfCheckSourceSpans(saved);
   const book = names || fields || spans ? compilePersonalStoryboard(source, parentDraft, { ...names, ...fields, ...spans }) : compilePersonalStoryboard(source, parentDraft);
@@ -363,8 +367,10 @@ export const reviewedChildDesign = (prepared: { brief: { child: { age: number; a
   ({ age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: layout.childDesign,
     wardrobe: book.plan.wardrobe, role: 'child', clothing: book.plan.actorAppearance!.child.clothing });
 
-export function loadReviewedBook(bookDir: string, workspace = process.cwd(), replanDir?: string, layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT) {
-  const loadedBoard = loadReviewedStoryboard(bookDir, workspace, layout);
+export function loadReviewedBook(bookDir: string, workspace = process.cwd(), replanDir?: string, layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT,
+  continuity?: StoryboardContinuityAdmission) {
+  if(continuity!==undefined&&replanDir!==undefined)fail('audition_continuity_replan_scope');
+  const loadedBoard = loadReviewedStoryboard(bookDir, workspace, layout, continuity);
   const { queued, options, prepared, result, source, parentDraft, book, rawReview, current } = loadedBoard;
   const ownerAcceptance = 'ownerAcceptance' in loadedBoard ? loadedBoard.ownerAcceptance : undefined;
   // A re-plan's parent is a supported storyboard; an owner-accepted held one is never re-planned here.

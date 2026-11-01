@@ -1,4 +1,4 @@
-import { companionScaleFromContext, withCompanionScaleReview, assessCompanionScale, scaleRenderAppendix, scaleCoverage, SCALE_IMAGE_RULES, type CompanionScaleAuthority, type ScaleEvidence } from './companion-scale';
+import { companionScaleFromContext, withCompanionScaleReview, assessCompanionScale, scaleRenderAppendix, scaleCoverage, SCALE_IMAGE_RULES, COMPANION_SCALE_SAMPLE_GATE, type CompanionScaleAuthority, type ScaleEvidence } from './companion-scale';
 import { materialFunctionFromContext, materialRenderAppendix, MATERIAL_IMAGE_RULES, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import { z } from 'zod';
@@ -1228,6 +1228,8 @@ export async function illustrateReviewedAudition(args: {
    * each sample page is qa_supported; otherwise the run stops with held_sample. Absent keeps the exact existing order and behaviour.
    */
   sample?: readonly number[];
+  /** New native grant opt-in: sample pages must also establish comparable in-range scale before any remaining frame. */
+  sampleScaleGate?: typeof COMPANION_SCALE_SAMPLE_GATE;
   progress?: (event: { phase: 'sheet' | 'page'; name: string; attempt: number; status: AttemptStatus; counts: Record<Impact, number> | null;
     identity?: number | null; error?: string }) => void;
   /**
@@ -1353,6 +1355,8 @@ export async function illustrateReviewedAudition(args: {
   const sample = args.sample ? [...args.sample] : null;
   if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
       sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
+  if (args.sampleScaleGate !== undefined && (args.sampleScaleGate !== COMPANION_SCALE_SAMPLE_GATE || !sample ||
+      !args.book.companionScale || args.resume || calibration || diagnostic || freshCohort || args.anatomyRecovery)) fail('audition_scale_sample_scope');
   if (diagnostic && (frames.length !== args.book.narrativeSpreads + 1 || diagnostic.pages.length !== 2 ||
       diagnostic.pages.some(p => !frames.includes(p.page)))) fail('audition_diagnostic_scope');
   // Diagnostic drawing is body-first, cover last; the final reader remains cover-first. Ordinary sample admission is unchanged.
@@ -1646,9 +1650,18 @@ export async function illustrateReviewedAudition(args: {
       recipeSha256: previewSha(canonicalJson({ prompt, references: canonical, mode: 'book_identity' })), status: 'pending_review' });
   }
   let heldSample = false;
+  const scaleSampleResult = () => {
+    if (!args.sampleScaleGate || !sample) return undefined;
+    const selected = sample.flatMap(n => pages.filter(p => p.pageNumber === n));
+    const coverage = scaleCoverage(selected.flatMap(p => p.chosen.assessment.companionScale ? [p.chosen.assessment.companionScale] : []));
+    const status = selected.length !== sample.length || selected.some(p => p.status !== 'qa_supported') ? 'held_quality' as const
+      : coverage === 'defect' ? 'held_scale_defect' as const : coverage !== 'observed_within_range' ? 'held_unverified' as const : 'passed' as const;
+    return {version:COMPANION_SCALE_SAMPLE_GATE,status,scaleCoverage:coverage};
+  };
   for (const pageNumber of order) {
-    // The early sample gates the rest: continue only when every sample page is qa_supported.
-    if (!diagnostic && sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) { heldSample = true; break; }
+    // An action page can pass its applicable checks; the new native sample additionally needs real standing-scale coverage.
+    if (!diagnostic && sample && pages.length === sample.length &&
+        (pages.some(p => p.status !== 'qa_supported') || (args.sampleScaleGate && scaleSampleResult()!.status !== 'passed'))) { heldSample = true; break; }
     args.check();
     const packet = args.ownerAcceptance === undefined ? currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current)
       : currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current, args.ownerAcceptance);
@@ -1740,7 +1753,8 @@ export async function illustrateReviewedAudition(args: {
     args.save(`page_${pageNumber}`, pages[pages.length - 1]);
   }
   args.check();
-  if (!diagnostic && sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) heldSample = true;
+  if (!diagnostic && sample && pages.length === sample.length &&
+      (pages.some(p => p.status !== 'qa_supported') || (args.sampleScaleGate && scaleSampleResult()!.status !== 'passed'))) heldSample = true;
   const complete = !heldSample && frames.length === args.book.narrativeSpreads + 1;
   // The reader's order is the book's order (cover, then pages); a sample changes only the drawing order, which is recorded separately.
   const presented = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
@@ -1760,7 +1774,8 @@ export async function illustrateReviewedAudition(args: {
       newFrameAttempts: 1, renderThenReview: true, renderOrder: order.filter(n => !diagnosticParents.has(n)) } } : {}),
     scope: { frames: heldSample ? presented.map(p => p.pageNumber) : frames, complete,
       ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}),
-      ...(args.pageAttempts !== undefined ? { pageAttempts } : {}), ...(reusedRoles.length ? { reusedSheets: reusedRoles } : {}) },
+      ...(args.pageAttempts !== undefined ? { pageAttempts } : {}), ...(reusedRoles.length ? { reusedSheets: reusedRoles } : {}),
+      ...(args.sampleScaleGate ? {sampleScaleGate:scaleSampleResult()} : {}) },
     ...(freshCohort ? { freshCohort: { version: freshCohort, purpose: 'whole-book visual evaluation, not admission', renderThenReview: true, renderOrder: order } } : {}),
     status: diagnostic || freshCohort ? 'diagnostic_audition' : heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },

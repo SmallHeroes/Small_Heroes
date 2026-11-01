@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Native C/D/E integration R1 implemented locally; manual independent QA next (2026-11-01)
+
+- Guy approved the provider-free connection after R2. Codex wired explicit versioned C/D/E config -> recomputed plan -> every native
+  storyboard call -> strict persisted-source admission -> sequential scale-gated sample -> manifest-owned book qualification.
+- All-abstained or held samples stop before every remaining image and before narration/audio Reader work; partial output is truthful.
+  Existing configs keep the legacy cohort/repair path. The new mode is one attempt/frame, no legacy recovery upgrade or new paid cycle.
+- Local validation: 745/745 in 18 relevant specs, both TypeScript gates 0, eight mutants killed/restored; all nine old reviews unchanged
+  and Codex's 321-file preservation replay matches. Real SDK constructors remain denied; transport tests use an explicit in-memory client.
+- Awaiting Guy-manual read-only Claude QA on the frozen base/head. No independent self-PASS or automatic forwarding.
+- After technical re-gate, a separate bounded LOW visual-proof Decision Gate must bind exact page-only scope, inputs/assets, price and
+  journal/reserve accounting, attempt/call limits and owner approval. No book, grant, paid sample, threshold change or publication is
+  authorized here. Native customer production integration, visual efficacy and product acceptance remain unproven/unapproved.
+
 ## C/D/E independent technical re-gate complete (2026-11-01)
 
 - C PASS, D PASS retained/rechecked, E PASS at reviewed code 3e294e7d; Claude final report a2ea0962456412c4ba928b9728a67c053cf017dddfff68e199954157aa8e5e6f.

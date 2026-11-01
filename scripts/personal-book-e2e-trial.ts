@@ -4,6 +4,10 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'nod
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { z } from 'zod';
+import { nativeBookContinuitySchema, nativeBookContinuityContracts, type NativeBookContinuity } from '../lib/personal-wizard/engine-continuity-contracts';
+import { COMPANION_SCALE_VERSION, COMPANION_SCALE_SAMPLE_GATE } from '../lib/personal-wizard/companion-scale';
+import { INSTANCE_DISTINCTION_VERSION } from '../lib/personal-wizard/storyboard-instance-distinction';
+import { ENTITY_MATERIAL_FUNCTION_VERSION } from '../lib/personal-wizard/storyboard-material-function';
 import OpenAI from 'openai';
 import { previewSha } from '../lib/local-story-preview';
 import { momentumVoiceAccounting } from '../lib/personal-wizard/local-voice-intake';
@@ -96,7 +100,7 @@ const source=path.resolve(__dirname,'..');
 const git=(...args:string[])=>execFileSync('git',args,{cwd:source,encoding:'utf8'}).trim();
 const trialConfigFields={version:z.literal('book-e2e-trial-config/v1'),
   ownerFile:absolute,ownerSha:hash,bookDir:absolute,profileFile:absolute,profileSha:hash,
-  executable:absolute,executableSha256:hash,keyFile:absolute};
+  executable:absolute,executableSha256:hash,keyFile:absolute,engineContinuity:nativeBookContinuitySchema.optional()};
 /**
  * A Wizard-sourced momentum request's exact receipt, sealed by its grant-bound config (2026-10-29, R17 R4 F1): the intake the route
  * recorded, the operator's binding of it and the Wizard config. Their expected hashes live here, never in a replaceable file.
@@ -132,19 +136,49 @@ const PINNED=[...new Set([...FRESH_BOOK_STORYBOARD_PRESENCE_PINNED,'scripts/pers
  * successor, repairs) receives exactly these. Momentum opts in from the start to the existing storyboard review INPUT capacity (the
  * portrait book line needed it to reach review); that is distinct from the image audition review capacity. Others: exactly as before.
  */
-export function trialRunContracts(cycle:TrialConfig['cycle'],portraitRecovery=false){
+export function trialRunContracts(cycle:TrialConfig['cycle'],portraitRecovery=false,continuity?:NativeBookContinuity){
+  if(portraitRecovery&&continuity)fail('trial_continuity_fresh_scope');
   const momentum=cycle===MOMENTUM_BOOK_TRIAL.id,portrait=cycle===PORTRAIT_BOOK_TRIAL.id||momentum,readerSafe=cycle===READER_SAFE_BOOK_TRIAL.id||portrait;
   return{...CONTRACTS,...(readerSafe?{selfCheckSourceSpans:true as const}:{}),...(portrait?{stateParityContract:true as const}:{}),
-    ...(portraitRecovery||momentum?{reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version}:{})};
+    ...(portraitRecovery||momentum?{reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version}:{}),...nativeBookContinuityContracts(continuity)};
 }
 /**
  * The image-stage contracts a grant's `visual` binding opts into (engine continuity, 2026-10-30), passed to illustrateReviewedAudition.
- * The grant equals its recomputed plan, so only a cycle whose plan declares one can carry it. Absent (every cycle so far): none, as before.
+ * The grant equals its recomputed plan. Legacy cycles declare none by default; a prospective explicit CDE config binds its sample and stop.
  */
 export function trialAuditionContracts(visual:object){
-  const value=(visual as {referenceQualification?:unknown}).referenceQualification;
-  if(value===undefined)return{};
-  return value===REFERENCE_QUALIFICATION_VERSION?{referenceQualification:REFERENCE_QUALIFICATION_VERSION}:fail('trial_visual_contract');
+  const v=visual as {referenceQualification?:unknown;engineContinuity?:unknown;sampleScaleGate?:unknown;freshCohort?:unknown;
+    pageAttempts?:unknown;structuralAnatomy?:unknown;landmarkTopology?:unknown;materialSceneRepair?:unknown};
+  if(v.referenceQualification!==undefined&&v.referenceQualification!==REFERENCE_QUALIFICATION_VERSION)fail('trial_visual_contract');
+  const reference=v.referenceQualification===undefined?{}:{referenceQualification:REFERENCE_QUALIFICATION_VERSION};
+  if(v.engineContinuity===undefined){if(v.sampleScaleGate!==undefined)fail('trial_visual_contract');return reference;}
+  const parsed=nativeBookContinuitySchema.safeParse(v.engineContinuity);
+  if(!parsed.success)return fail('trial_visual_contract');
+  if(v.sampleScaleGate!==COMPANION_SCALE_SAMPLE_GATE||v.freshCohort!==undefined||v.pageAttempts!==1||v.materialSceneRepair!==false||
+    v.structuralAnatomy!==true||v.landmarkTopology!==LANDMARK_COVERAGE_TOPOLOGY_VERSION||v.referenceQualification!==REFERENCE_QUALIFICATION_VERSION)return fail('trial_visual_contract');
+  return {...reference,sample:parsed.data.sample,sampleScaleGate:COMPANION_SCALE_SAMPLE_GATE};
+}
+/** The actual native illustration boundary, exercised provider-free with synthetic adapters. */
+export async function runTrialAudition(args:Omit<Parameters<typeof illustrateReviewedAudition>[0],
+  'freshCohort'|'sample'|'sampleScaleGate'|'pageAttempts'|'structuralAnatomy'|'landmarkTopology'|'referenceQualification'>&{visual:object}){
+  const {visual,...input}=args,bound=trialAuditionContracts(visual),marked='sampleScaleGate' in bound;
+  if(marked&&(input.book.instanceDistinction?.version!==INSTANCE_DISTINCTION_VERSION||input.book.materialFunction?.version!==ENTITY_MATERIAL_FUNCTION_VERSION||
+      input.book.companionScale?.version!==COMPANION_SCALE_VERSION||input.resume||input.ownerAcceptance||input.calibration||input.fullBookDiagnostic||
+      input.topologyContinuation||input.coverageContinuation||input.anatomyRecovery||input.pages||input.reuseSheets))fail('trial_continuity_book_binding');
+  return illustrateReviewedAudition({...input,pageAttempts:1,...(marked?{}:{freshCohort:AUDITION_FRESH_COHORT_VERSION}),structuralAnatomy:true,
+    landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,...bound});
+}
+/** Page counts are metrics, not book qualification. Only the returned engine manifest owns that label. */
+export function trialBookVisualQualification(manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>){
+  if(!manifest.scaleVerification)return fail('trial_continuity_manifest_binding');
+  return {manifestStatus:manifest.status,scaleVerification:manifest.scaleVerification,
+    qaSupported:manifest.status==='qa_supported_audition'&&manifest.scope.complete&&manifest.scaleVerification.status==='observed_within_range',
+    complete:manifest.scope.complete,manifestSha256:previewSha(canonicalJson(manifest)),productAccepted:false as const,productionQualified:false as const};
+}
+export function trialSelectedPages(manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>,saved:Map<string,any>):SavedPage[]{
+  return manifest.pages.map(p=>{const record=saved.get('page_'+p.pageNumber) as SavedPage|undefined;
+    if(!record||record.pageNumber!==p.pageNumber||record.status!==p.status||!same(record.chosen.candidate,p.candidate)||!same(record.chosen.assessment.companionScale,p.companionScale))return fail('trial_continuity_selection_binding');
+    return record;});
 }
 function inside(root:string,file:string){const rel=path.relative(path.resolve(root),path.resolve(file));return rel!==''&&!rel.startsWith('..')&&!path.isAbsolute(rel);}
 export function validateTrialProfile(raw:unknown,root=source){
@@ -182,6 +216,7 @@ export function assertRequestBinding(config:TrialConfig,prepared:ReturnType<type
 /** Pure admission checks. No folder/meter/client/key is created by the dry plan. */
 function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false,portraitRecovery=false){
   trialConfigSchema.parse(config);
+  if(config.engineContinuity&&(existing||solContinuation||portraitRecovery))fail('trial_continuity_fresh_scope');
   const trial=bookTrialPolicy(config.cycle),momentum=config.cycle===MOMENTUM_BOOK_TRIAL.id,
     portrait=config.cycle===PORTRAIT_BOOK_TRIAL.id||momentum,readerSafe=config.cycle===READER_SAFE_BOOK_TRIAL.id||portrait;
   if(momentum&&(existing||solContinuation||portraitRecovery))fail('trial_momentum_scope');
@@ -233,12 +268,17 @@ function planTrialInputs(config:TrialConfig,existing=false,solContinuation=false
         'lib/personal-wizard/simple-story-child-policy.ts','lib/personal-wizard/simple-story-shape-policy.ts','lib/personal-wizard/storyboard-review-capacity.ts',
         'scripts/personal-book-narration.ts','lib/personal-wizard/local-voice-intake.ts','lib/personal-wizard/local-voice-intake-evidence.ts',
         'lib/personal-wizard/momentum-book-bridge.ts','lib/personal-wizard/companion-identity.ts','lib/personal-wizard/personal-companions.ts','backend/providers/audio.ts','backend/config/voices.ts','lib/local-reader-preview.ts','lib/story-gen-v2/tts-ambiguity-niqqud.ts']:[]),
-      ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
+       ...(config.engineContinuity?['lib/personal-wizard/engine-continuity-contracts.ts','lib/personal-wizard/storyboard-instance-distinction.ts',
+         'lib/personal-wizard/storyboard-material-function.ts','lib/personal-wizard/companion-scale.ts','lib/personal-wizard/companion-scale-authority.ts','lib/personal-wizard/personal-companions.ts',
+         'scripts/personal-simple-book-reviewed-audition.ts']:[]),
+       ...CHILD_ANCHOR_TECHNIQUE_MANIFEST.map(t=>t.file)].map(f=>[f,shaFile(path.join(source,f))])),
     companion:{id:companion.id,file:companionPath,sha:shaFile(companionPath)},bookDir:path.resolve(config.bookDir),
     requestId:context.prepared.accepted.requestId,...(requestBinding?{requestBinding}:{}),limits:{...trial,...(voiceIntake?{priorApiMicroUsd:voiceIntake.priorApiMicroUsd+voiceIntake.knownMicroUsd,
-      maxApiCalls:trial.maxApiCalls-voiceIntake.calls}:{})},...(voiceIntake?{voiceIntake}:{}),contracts:trialRunContracts(config.cycle),
-    visual:{freshCohort:AUDITION_FRESH_COHORT_VERSION,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
-      materialSceneRepair:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {}),
+      maxApiCalls:trial.maxApiCalls-voiceIntake.calls}:{})},...(voiceIntake?{voiceIntake}:{}),contracts:trialRunContracts(config.cycle,false,config.engineContinuity),
+    visual:{...(config.engineContinuity?{engineContinuity:nativeBookContinuitySchema.parse(config.engineContinuity),referenceQualification:REFERENCE_QUALIFICATION_VERSION,
+      sampleScaleGate:COMPANION_SCALE_SAMPLE_GATE,pageAttempts:1 as const}:{freshCohort:AUDITION_FRESH_COHORT_VERSION}),
+      landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,structuralAnatomy:true,
+      materialSceneRepair:config.engineContinuity?false:true,detailNonblocking:true,productionQualified:false,...(readerSafe?{readerFraming:portrait?READER_PORTRAIT_FRAMING_VERSION:READER_SAFE_FRAMING_VERSION,sourceReviewImpact:SOURCE_REVIEW_IMPACT}: {}),
       ...(portrait?{reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION,writing:SOL_WRITING,pricing:SOL_CACHE_BUDGET}:{}),
       ...(momentum?{writingRoles:SIMPLE_WRITING_ROLES,storyExperience:SIMPLE_CHILD_MOMENTUM_EXPERIENCE,storyboardReviewCapacity:STORYBOARD_REVIEW_CAPACITY,
         citationCorrection:{version:SOURCE_CITATION_CORRECTION_VERSION,instructions:'v2',perReading:1},narration:narrationBinding}:{})}};
@@ -711,7 +751,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     isSourceContinuation=completing||grant.version==='book-e2e-source-impact-continuation/v1',
     parent=portraitRecovery?portraitRecovery.parent:solFamily?solFamily.parent:spanning?(grant as StoryboardSpanGrant).parent:isSourceContinuation?(grant as SourceContinuationGrant).parent:null,
     plan=portraitRecovery?await planPortraitReviewInputRecovery(config,portraitRecovery.approval):bundleRecovery?await planBookSolBundleContinuation(config,bundleRecovery.approval,bundleRecovery.parent.grantFile):receiptRecovery?await planBookSolReceiptRecovery(config,receiptRecovery.approval):sol?planBookSolContinuation(config,sol.approval):spanning?planBookStoryboardSpanContinuation(config):isSourceContinuation?planBookSourceContinuation(config,completing):planBookTrial(config);
-  const contracts=trialRunContracts(config.cycle,!!portraitRecovery);
+  const contracts=trialRunContracts(config.cycle,!!portraitRecovery,config.engineContinuity);
   if((solFamily||portrait)&&!runtimeGuard)fail('trial_sol_runtime_lease');
   if(!same(grant,plan))fail('trial_plan_changed');
   if(momentum&&!same(grant.contracts,contracts))fail('trial_contracts_binding');
@@ -949,7 +989,8 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
       catch(error){narrationPlanError=(error as any)?.code??'narration_plan_failed';save('narration-plan-refused',{code:narrationPlanError});}
     }
     const narrationReserve=narrationPlan?.reserveMicroUsd??0;
-    const board=loadReviewedStoryboard(config.bookDir,source,reviewedBookLayoutSchema.parse(layoutBase));
+    const continuity=nativeBookContinuityContracts(config.engineContinuity);
+    const board=loadReviewedStoryboard(config.bookDir,source,reviewedBookLayoutSchema.parse(layoutBase),continuity);
     const childDir=path.join(config.bookDir,'child'),childImages=path.join(childDir,'illustrations');mkdirSync(childDir);mkdirSync(childImages);
     const childIO=auditionAdapters({directory:childImages,meter,key,signal,guard}),judges=childAnchorJudges({bytesOf:i=>readAuditionImage(childImages,i),meter,key,signal,guard});
     const anchor=anchorAuthority(profile,board.book.plan.wardrobe,CHILD_ANCHOR_POSE_V2);
@@ -960,7 +1001,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     if(child.status!=='passed')return finish('held_child',{disposition:child.disposition});
     childSave('reference_child_adoption',{name:'child',context:anchor.context,candidate:child.candidate,authority:'new_book_trial_reviewed_passed',anchor:child.record});
     const layout=reviewedBookLayoutSchema.parse({...layoutBase,childImage:child.candidate.imageName});save('book-layout',layout);
-    const loaded=loadReviewedBook(config.bookDir,source,undefined,layout);
+    const loaded=loadReviewedBook(config.bookDir,source,undefined,layout,continuity);
     if(readerSafe&&loaded.current.readerFraming!==grant.visual.readerFraming)fail('trial_reader_framing_binding');
     const art=auditionAdapters({directory:imageDir,meter,key,signal,guard,readerFraming:loaded.current.readerFraming,
       ...(portrait?{reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION}:{})});
@@ -969,10 +1010,9 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     const saveArt=(name:string,v:unknown)=>{saved.set(name,v);save(name,v);};
     let manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>;
     try{
-      manifest=await illustrateReviewedAudition({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
+      manifest=await runTrialAudition({visual:grant.visual,book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
         child:childRef,companion:companionRef,companionDescription:loaded.companionDescription,render:art.render,judge:art.judge,identity:art.identity,
-        check:guard,save:saveArt,pageAttempts:1,freshCohort:AUDITION_FRESH_COHORT_VERSION,structuralAnatomy:true,
-        landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,...trialAuditionContracts(grant.visual),
+        check:guard,save:saveArt,
         progress:e=>{log(`${e.phase} ${e.name} attempt${e.attempt+1}: ${e.status}`);if(e.status==='ineligible_safety')fail('trial_safety_stop');}});
     }catch(error){
       save('diagnostic-review-stop',{code:(error as any)?.code??'review_failed',drawnFrames:[...saved.keys()].filter(n=>n.startsWith('diagnostic_render_'))});
@@ -981,8 +1021,17 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
     }
     const sheets={entities:saved.get('sheet_entities') as SavedSheet,locations:saved.get('sheet_locations') as SavedSheet},references=referenceStatus(sheets),
       canonical=[childRef,companionRef,references.entities.image,references.locations.image];
-    const selected:SavedPage[]=Array.from({length:9},(_,n)=>saved.get(`page_${n}`) as SavedPage);
-    for(const page of selected){
+    const selected:SavedPage[]=continuity?trialSelectedPages(manifest,saved):Array.from({length:9},(_,n)=>saved.get('page_'+n) as SavedPage);
+    const bookQa=continuity?trialBookVisualQualification(manifest):undefined;
+    if(continuity&&!manifest.scope.complete){
+      save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,bookQa,detailNonblocking:true,productAccepted:false});
+      writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text');
+      return finish('held_visual_sample',{bookQa,pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
+        supported:selected.filter(p=>p.status==='qa_supported').length,fullCoverage:false,scope:manifest.scope,sourceRepairUsed,storyboardAttempts:boardAttempts,
+        viewer:path.join(config.bookDir,'viewer','index.html')});
+    }
+    // The prospective CDE mode is one attempt/frame with a sample stop. Legacy post-hoc repair authority never upgrades into it.
+    for(const page of continuity?[]:selected){
       let last=page.attempts[page.attempts.length-1];
       for(let attempt=page.attempts.length;attempt<BOOK_E2E_TRIAL.pageAttempts&&page.status==='held';attempt++){
         // Keep sufficient reservation for one edit, its full review and identity. A lack of headroom is not an unknown charge.
@@ -1008,7 +1057,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
         if(['review_unusable','identity_unusable','review_invalid','ineligible_safety'].includes(fixed.corrected.status))fail('trial_unusable_repair_stop');
       }
     }
-    save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,detailNonblocking:true,productAccepted:false});
+    save('final-selection',{manifestSha:previewSha(canonicalJson(manifest)),pages:selected,...(bookQa?{bookQa}:{}),detailNonblocking:true,productAccepted:false});
     writeTrialReader(config.bookDir,result.source.manuscript,saved,selected,meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text');
     // Momentum: narrate the frozen text (one claimed call per page, no retry), then the local Reader bundle. A narration stop keeps its
     // evidence and gives an image-only Reader; it never retries, re-prices or presents partial audio as narration.
@@ -1029,7 +1078,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
         narration:made&&narrationPlan?{voice:narrationPlan.voice,pages:made.pages}:null});
       log(`phase reader_ready ${readerPreview.url}`);
     }
-    return finish('full_book_diagnostic',{...(momentum?{narration,readerPreview}:{}),pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
+    return finish('full_book_diagnostic',{...(bookQa?{bookQa}:{}),...(momentum?{narration,readerPreview}:{}),pages:selected.map(p=>({page:p.pageNumber,status:p.status,attempts:p.attempts.length,candidate:p.chosen.candidate})),
       supported:selected.filter(p=>p.status==='qa_supported').length,fullCoverage:selected.length===9,sourceRepairUsed,storyboardAttempts:boardAttempts,
       ...(sourceAdmission?{sourceAdmission}:{}),
       viewer:path.join(config.bookDir,'viewer','index.html')});

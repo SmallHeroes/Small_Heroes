@@ -22,6 +22,9 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, REFERENCE_QUALIFICATION_VERSION,
   INSTANCE_JUDGE_RULES, auditionInstanceDistinction } from '../simple-book-reviewed-audition';
 import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
+import { NATIVE_BOOK_CONTINUITY_VERSION } from '../engine-continuity-contracts';
+import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
+import { runTrialAudition, trialBookVisualQualification } from '../../../scripts/personal-book-e2e-trial';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
   type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
@@ -3121,7 +3124,7 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
 
   const scaleBook=(id='elephant_momo')=>{const b=typedFixture() as any,a=companionScaleAuthority(id),r=a.scale.standingHeightInChildHeights;
     b.companionScale=a;b.plan.continuity.companionStandingHeightInChildHeights=(r.min+r.max)/2;return b as PersonalStoryboard;};
-  const runHarness=(evidence:ScaleEvidence,extra:{coverage?:true;pages?:number[];judge?:(step:string)=>Spec;book?:PersonalStoryboard}={pages:[1]})=>{
+  const runHarness=(evidence:ScaleEvidence,extra:Parameters<typeof harness>[0]={pages:[1]})=>{
     const h=harness({book:scaleBook(),...extra}),original=h.args.judge;
     const judge=vi.fn(async(...args:Parameters<typeof original>)=>{
       const reply=await original(...args),context=args[2] as any;
@@ -3155,6 +3158,85 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect(m.scaleVerification).toMatchObject({status:'unverified',comparableFrames:0,abstainedFrames:9});
     expect(m.pages.every(p=>p.status==='qa_supported'&&p.companionScale?.disposition==='abstain')).toBe(true);
     expect(m.productionQualified).toBe(false);
+  });
+
+  it('NATIVE-CDE new gate stops an all-abstained sample before any remaining frame',async()=>{
+    const h=runHarness(airborne,{}),m=await illustrateReviewedAudition({...h.args,pageAttempts:1,sample:[1,2],
+      sampleScaleGate:'companion-scale-sample-gate/v1'} as any);
+    expect([...h.prompts.keys()].filter(k=>k.startsWith('page_'))).toEqual(['page_1_0','page_2_0']);
+    expect(m.status).toBe('held_sample');expect(m.scope.complete).toBe(false);
+    expect(m.pages.every(p=>p.status==='qa_supported'&&p.companionScale?.disposition==='abstain')).toBe(true);
+    expect(m.scaleVerification?.status).toBe('unverified');
+    expect((m as any).scope.sampleScaleGate).toMatchObject({version:'companion-scale-sample-gate/v1',status:'held_unverified'});
+  });
+  it('NATIVE-CDE new gate also stops a sample-only request without comparable evidence',async()=>{
+    const h=runHarness(airborne,{pages:[1,2]}),m=await illustrateReviewedAudition({...h.args,pageAttempts:1,sample:[1,2],
+      sampleScaleGate:'companion-scale-sample-gate/v1'} as any);
+    expect(m.status).toBe('held_sample');expect(m.scope.complete).toBe(false);
+    expect(m.pages).toHaveLength(2);expect(m.scaleVerification?.status).toBe('unverified');
+  });
+
+  const nativeVisual=()=>({engineContinuity:{version:NATIVE_BOOK_CONTINUITY_VERSION,sample:[1,2]},referenceQualification:REFERENCE_QUALIFICATION_VERSION,
+    sampleScaleGate:COMPANION_SCALE_SAMPLE_GATE,pageAttempts:1,materialSceneRepair:false,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION});
+  const nativeHarness=(evidence:ScaleEvidence,extra:Parameters<typeof harness>[0]={},id='elephant_momo')=>{
+    const b=scaleBook(id) as any;
+    b.instanceDistinction={version:INSTANCE_DISTINCTION_VERSION,populations:[],entities:b.plan.continuity.entities.map((e:any)=>({id:e.id,
+      kind:e.id==='paper_boat'?'boat':e.id==='old_tree'?'tree':e.id,distinction:null}))};
+    b.materialFunction={version:'entity-material-function/v1',entities:[{id:'paper_boat',builtFrom:{sources:[{entityId:'ribbon'}],
+      evidence:{citation:'p1:s1',quote:texts[0]}}}]};
+    return runHarness(evidence,{book:b,coverage:true,...extra});
+  };
+  it('NATIVE-CDE actual native wrapper stops after its unmeasured sample and carries all three contracts',async()=>{
+    const h=nativeHarness(airborne),m=await runTrialAudition({...h.args,visual:nativeVisual()});
+    expect([...h.prompts.keys()].filter(k=>k.startsWith('page_'))).toEqual(['page_1_0','page_2_0']);
+    expect(m.status).toBe('held_sample');expect(m.scope.complete).toBe(false);
+    expect(h.contexts.get('page_1_0_qa')).toMatchObject({instanceDistinction:INSTANCE_DISTINCTION_VERSION,
+      materialFunction:{version:'entity-material-function/v1'},companionScale:{companionId:'elephant_momo'}});
+    expect(trialBookVisualQualification(m)).toMatchObject({qaSupported:false,manifestStatus:'held_sample',productAccepted:false});
+  });
+  it.each([['elephant_momo',.7],['bunny_ometz',.3]] as const)('NATIVE-CDE valid standing/action coverage uses the own %s authority and retains the action abstention',async(id,ratio)=>{
+    const h=nativeHarness(airborne,{},id),original=h.args.judge;
+    const judge=async(...args:Parameters<typeof original>)=>{const reply=await original(...args),context=args[2] as any;
+      return context.companionScale?{...reply,scaleEvidence:context.packet.pageNumber===1?{...within,estimatedRatio:ratio}:airborne}:reply;};
+    const m=await runTrialAudition({...h.args,judge,visual:nativeVisual()});
+    expect(m.pages).toHaveLength(9);expect(m.scope.complete).toBe(true);expect(m.status).toBe('qa_supported_audition');
+    expect(m.pages.find(p=>p.pageNumber===2)?.companionScale?.disposition).toBe('abstain');
+    expect(m.scope.sampleScaleGate).toMatchObject({status:'passed'});expect(trialBookVisualQualification(m).qaSupported).toBe(true);
+    expect([...h.prompts.keys()].filter(k=>k.startsWith('page_'))).toHaveLength(9);
+  });
+  it.each(['measured_defect','child_identity','unrelated_story'] as const)('NATIVE-CDE %s stops before any non-sample draw and never uses legacy outer repair',async(kind)=>{
+    const h=nativeHarness(kind==='measured_defect'?{...within,estimatedRatio:.9}:within,
+      kind==='child_identity'?{score:()=>.62}:kind==='unrelated_story'?{judge:step=>step.startsWith('page_')?{scene:{verdict:'defect',issues:[issue('story','scene_plan')]}}:{}}:{});
+    const m=await runTrialAudition({...h.args,visual:nativeVisual()});
+    expect([...h.prompts.keys()].filter(k=>k.startsWith('page_'))).toEqual(['page_1_0','page_2_0']);
+    expect(m.status).toBe('held_sample');expect(m.scope.complete).toBe(false);expect(trialBookVisualQualification(m).qaSupported).toBe(false);
+  });
+  it('NATIVE-CDE a later measured defect blocks the book despite a passed early sample',async()=>{
+    const h=nativeHarness(within),original=h.args.judge;
+    const judge=async(...args:Parameters<typeof original>)=>{const reply=await original(...args),context=args[2] as any;
+      return context.companionScale?{...reply,scaleEvidence:{...within,estimatedRatio:context.packet.pageNumber===4?.9:.7}}:reply;};
+    const m=await runTrialAudition({...h.args,judge,visual:nativeVisual()});
+    expect(m.scope.sampleScaleGate?.status).toBe('passed');expect(m.scaleVerification?.status).toBe('defect');
+    expect(m.status).toBe('held_audition_with_findings');expect(trialBookVisualQualification(m).qaSupported).toBe(false);
+  });
+  it.each(['unmarked_book','partial_scope','resume','owner_acceptance'] as const)('NATIVE-CDE refuses %s before any provider-shaped callback',async(kind)=>{
+    const h=nativeHarness(within),args:any={...h.args,visual:nativeVisual()};
+    if(kind==='unmarked_book')args.book=scaleBook();
+    if(kind==='partial_scope')args.pages=[1];
+    if(kind==='resume')args.resume={};
+    if(kind==='owner_acceptance')args.ownerAcceptance={};
+    await expect(runTrialAudition(args)).rejects.toThrow('trial_continuity_book_binding');
+    expect(h.args.render).not.toHaveBeenCalled();expect(h.args.judge).not.toHaveBeenCalled();expect(h.args.identity).not.toHaveBeenCalled();
+  });
+  it('NATIVE-CDE held references stop before even the first sample frame',async()=>{
+    const h=nativeHarness(within,{judge:step=>step.startsWith('sheet_entities_')?{props:{verdict:'defect',issues:[issue('continuity','design:trail')]}}:{}});
+    await expect(runTrialAudition({...h.args,visual:nativeVisual()})).rejects.toThrow('audition_reference_unqualified');
+    expect([...h.prompts.keys()].some(k=>k.startsWith('page_'))).toBe(false);
+  });
+  it.each([null,'wrong',true] as const)('NATIVE-CDE unknown sample gate %s refuses before callbacks',async value=>{
+    const h=runHarness(within,{});
+    await expect(illustrateReviewedAudition({...h.args,sample:[1,2],sampleScaleGate:value} as any)).rejects.toThrow('audition_scale_sample_scope');
+    expect(h.args.render).not.toHaveBeenCalled();expect(h.args.judge).not.toHaveBeenCalled();
   });
 
   it('CE-R2 all-abstained normal books keep valid action pages but cannot claim book-level scale qualification',async()=>{
