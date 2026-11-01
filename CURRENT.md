@@ -1,6 +1,27 @@
 # SmallHeroes — Current Technical State
 
-## C/E R2 — independent HOLD reconciled; focused correction pending re-gate (2026-11-01)
+## C/D/E — independent technical PASS; native integration and visual proof remain separate (2026-11-01)
+
+- Guy manually returned Claude Code's complete C/E R2 report. Codex verified its final assistant end_turn and all 35 indexed QA files,
+  74 local evidence files and 28 source pins before recording the verdict. The persistent Claude desktop carrier is left running; no CLI
+  process-exit claim or automatic handoff is made. Manual routing remains in force and the old heartbeat remains removed.
+- Reviewed implementation: 3e294e7df93c27f5503be0a80360cabdd45372e7 on claude/book-render-20261009; R2 base 38dfd431, full CDE base 5c931c9d.
+  C PASS, D PASS retained/rechecked, E PASS; no blocking findings. Report SHA a2ea0962456412c4ba928b9728a67c053cf017dddfff68e199954157aa8e5e6f.
+  Evidence index SHA 73d17dc7540198acb21706c32e4f510dfb98823204727e98ccb5d0a0aafb1984. C's inherited authorship is disclosed; this is not blind C QA.
+- Independent evidence: 586/586 across 11 specs; three TypeScript gates exit 0; 10 adversarial probes including a real compiled packet.
+  One wrong-CWD probe setup failure is preserved with the passing rerun. R17 reviews replay exactly as 9 held / 0 supported; all 321
+  historical preservation files still match. Repository-wide npm run check is NOT declared green; historical failures/incomplete runs remain.
+- R2-O1..O4 are nonblocking and preserved in CE-R2-ACCEPTANCE-AND-NEXT-GATE-20261101.txt under the engine artifact directory. In particular,
+  future early samples need eligible same-ground standing frames or a bounded stop rule before further draws; future native CDE wiring
+  must use manifest status / scaleVerification for book qualification rather than page-count alone. The existing trial runner has no E
+  wiring, so nativeCycleReady remains false. Action abstention alone stays nonblocking; measured defects and identity gates remain binding.
+- Next proposed milestone: separately approved provider-free native integration with synthetic/constructor-denied tests, then independent
+  manual Claude QA, then a separate exact-source, bounded LOW visual-proof Decision Gate for Guy. Neither milestone is started by this
+  closure. No current paid grant, fresh budget, model efficacy or production readiness is implied. Visual efficacy remains UNPROVEN.
+- This closure changes documentation only after the reviewed code commit; its later documentation HEAD is not represented as the reviewed
+  implementation. R17 remains 0/9 held with unchanged Dad narration, bytes, grants and costs. Product/production acceptance remains false.
+
+## Historical C/E R2 corrective handoff — superseded by final technical PASS (2026-11-01)
 
 - Claude R1 is complete: C HOLD, D PASS, E HOLD. Root verified all 32 final indexed evidence files and actual native/launcher/supervisor
   exit before consuming it. Final report SHA c97d9a3746d080db586935d0f77edcf9c3d3a9d8756ea845081386cb6965d6d2, evidence index

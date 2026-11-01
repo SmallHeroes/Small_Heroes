@@ -1,6 +1,17 @@
 # SmallHeroes — Roadmap
 
-## C/E R2 after independent R1 (2026-11-01)
+## C/D/E independent technical re-gate complete (2026-11-01)
+
+- C PASS, D PASS retained/rechecked, E PASS at reviewed code 3e294e7d; Claude final report a2ea0962456412c4ba928b9728a67c053cf017dddfff68e199954157aa8e5e6f.
+- Independent 586/586 cases in 11 specs, three TypeScript exits 0, ten adversarial probes; final report/index and 35 evidence files verified.
+- R1 HOLD and all failed/incomplete evidence remain historical. R17 stays 0/9 held; no image, narration or financial artifact was changed.
+- Pending a separate Guy decision: provider-free native CDE integration using manifest-level scale qualification and a bounded eligible
+  early sample. This is proposed, not started or authorized by the QA report. Native-cycle readiness remains false.
+- After that implementation and independent QA, separately prepare the smallest LOW visual-proof sample with exact source/input/asset
+  pins, reconciled remaining authority, price/reserve verification, bounded calls/attempts and an explicit sample stop rule. No paid
+  sample, new book, threshold change or product/production acceptance is approved. Automatic transfers remain cancelled; routing is via Guy.
+
+## Historical C/E R2 correction plan — completed and re-gated (2026-11-01)
 
 - R1 final: C HOLD, D PASS, E HOLD; final report and all32 indexed files sealed after reviewer exit.
 - Codex repairs future-cue render leakage and restores nonblocking scale abstention with a book-level comparable-evidence gate.
