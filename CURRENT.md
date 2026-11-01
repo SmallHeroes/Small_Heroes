@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## R3 independent PASS recorded; R4 returned-page evidence locally complete (2026-11-01)
+
+- Guy manually returned Claude's completed R3 PASS at d5baa1d9. Codex verified the actual end_turn, final report/index/ready, all259
+  reviewer artifacts,35 writer artifacts and42 working/committed source pins. Report5314854f9e5be39bb1542050532c471076c52b67a0342853ba698ab1661c0a84;
+  indexa8eafc8c55843db5d91726adfc6d4f4a98d9344aff06fe2bbb52b58ff26a3b88. Independent763/763, both TypeScript exits0,42 probes twice,
+  seven killed and two equivalent in-memory mutants. No automatic transfer or persistent-desktop termination.
+- New sibling R3-F1 was valid: a returned/paid image can lack a page record when a review/identity response is lost or a following guard
+  throws. R4 persists versioned drawn_page_N evidence in the actual native CDE render callback BEFORE review/identity. It is a copied
+  candidate snapshot, never a selected/approved page or an input that authorizes retry. Failed renders with no returned image create none.
+- The native stop and real viewer now resolve completed > halted > drawn > diagnostic evidence, count each logical frame once and retain
+  draw order. Lost answers remain review_incomplete, not approved; the exact original stop and full UNKNOWN accounting remain. Sheets,
+  invalid frame IDs and malformed records cannot invent a drawn page. Unmarked callbacks/viewers remain legacy; old R17 is not rewritten.
+- Same root chat/worktree/branch; base d5baa1d9, sole Codex writer. Gate: docs/ai-workflow/NATIVE_CDE_RENDER_EVIDENCE_GATE_20261101.md.
+  Six expected red regressions reproduced the gap, then773/773 in18 specs and ten new real-path cases pass. Both nonincremental TypeScript
+  gates pass; five bounded mutants caught and exact source restored. Nine actual saved R17 reviews replay identically0/9; all321 historical
+  files match. Setup marker/PowerShell argument failures are retained. Full npm run check remains NOT declared green.
+- R4 is locally validated, independent re-gate still pending. Next is the separately committed provider-free page-only envelope preparation,
+  using existing reviewed source/reference bytes and an exact step allowlist. The approved ceiling remains1,000,000 microUSD for at most
+  two LOW page images including all reviews and full UNKNOWN reserves, no full-book/narration/retry/extension or old-claim reset.
+  No actual eligible CDE source/page IDs/reference set has been admitted yet; a missing source must refuse, not silently upgrade R17.
+- Zero provider/image/audio calls, no keys/.env, server, push/merge/deploy or cleanup. Automatic routing remains cancelled; Guy forwards
+  the final frozen corrective/envelope handoff to Claude for read-only review before any paid operation. R17 remains0/9 held with original
+  Dad narration, grants, claims and costs; resemblance0.70, visual efficacy and product acceptance remain unproven.
+
 ## Native CDE R2 PASS received; halted-page diagnostic correction R3 locally green (2026-11-01)
 
 - Guy manually returned Claude Code's independent technical PASS for a3ab1f886130e098becf15883f03cd652942c78e. Codex verified the ready record, report/index hashes, all 59 reviewer evidence files, 108 writer evidence files and 41 working/committed source pins. This records that received PASS only; visual efficacy and product acceptance remain unproven.

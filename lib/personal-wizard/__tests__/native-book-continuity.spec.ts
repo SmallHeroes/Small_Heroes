@@ -13,7 +13,7 @@ import { nativeBookContinuitySchema, nativeBookContinuityContracts, NATIVE_BOOK_
 import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
 import { companionScaleAuthority } from '../companion-scale-authority';
 import { sourceSpans } from '../storyboard-claim-basis';
-import { trialConfigSchema, trialRunContracts, trialAuditionContracts, trialBookVisualQualification, trialSelectedPages, writeTrialReader,
+import { trialConfigSchema, trialRunContracts, trialAuditionContracts, trialBookVisualQualification, trialSelectedPages, trialDrawnFrames, trialPageRenderEvidence, writeTrialReader,
   BOOK_E2E_TRIAL, MOMENTUM_BOOK_TRIAL, PORTRAIT_BOOK_TRIAL, READER_SAFE_BOOK_TRIAL, bookTrialPolicy, planBookSourceContinuation, planBookStoryboardSpanContinuation } from '../../../scripts/personal-book-e2e-trial';
 import { admitReviewedStoryboardBundle, loadReviewedStoryboard, loadReviewedBook, reviewedBookLayoutSchema } from '../../../scripts/personal-simple-book-reviewed-audition';
 import { REFERENCE_QUALIFICATION_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION } from '../simple-book-reviewed-audition';
@@ -295,7 +295,7 @@ describe('actual native terminal selection / narration boundary (compiled source
     const catchJs=transformSync('function stopped(){'+source.slice(from,to)+'}globalThis.stopped=stopped;',{loader:'ts',format:'cjs'}).code;
     const dir=mkdtempSync(path.join(tmpdir(),'native-cde-real-stopped-viewer-')),error=Error('SYNTHETIC_REVIEW_STOP'),writes:string[]=[],states:any[]=[];
     const c:any={config:{bookDir:dir,engineContinuity:marked?policy():undefined},result:{source:{manuscript:{title:'Synthetic',pages:Array.from({length:8},(_,i)=>({pageNumber:i+1,text:'Synthetic'}))}}},
-      saved:new Map(),meter:{snapshot:()=>({})},max:{snapshot:()=>({})},sourceAdmission:undefined,sourceRepairUsed:0,error,
+      saved:new Map(),meter:{snapshot:()=>({})},max:{snapshot:()=>({})},sourceAdmission:undefined,sourceRepairUsed:0,error,trialDrawnFrames,
       save:(name:string)=>writes.push(name),writeTrialReader:(...args:any[])=>{states.push(args[8]);(writeTrialReader as (...a:any[])=>void)(...args);}};
     vm.createContext(c);vm.runInContext(catchJs,c);expect(()=>c.stopped()).toThrow(error);
     expect(writes).toEqual(['diagnostic-review-stop']);expect(states[0]).toEqual(marked?{status:'review_stopped'}:undefined);
@@ -319,7 +319,7 @@ describe('halted paid-page diagnostic truth before visual proof',()=>{
   const stop=(saved:Map<string,any>,marked=true)=>{
     const dir=mkdtempSync(path.join(tmpdir(),'native-cde-paid-stop-')),error=Error('ORIGINAL_REVIEW_STOP'),records:any[]=[];
     const c:any={config:{bookDir:dir,engineContinuity:marked?policy():undefined},result:{source:{manuscript:story}},
-      saved,meter:{snapshot:()=>({settledMicroUsd:12345})},max:{snapshot:()=>({})},sourceAdmission:undefined,sourceRepairUsed:0,error,
+      saved,meter:{snapshot:()=>({settledMicroUsd:12345})},max:{snapshot:()=>({})},sourceAdmission:undefined,sourceRepairUsed:0,error,trialDrawnFrames,
       save:(name:string,value:unknown)=>records.push({name,value}),writeTrialReader};
     vm.createContext(c);vm.runInContext(catchJs,c);expect(()=>c.stopped()).toThrow(error);
     expect(records).toHaveLength(1);expect(records[0].name).toBe('diagnostic-review-stop');
@@ -358,5 +358,40 @@ describe('halted paid-page diagnostic truth before visual proof',()=>{
   it('keeps unmarked viewer bytes identical when an unused halted record is present',()=>{
     const a=stop(new Map(),false),b=stop(new Map([['halted_page_1',{attempts:[{candidate:candidate(1),status:'review_unusable'}]}]]),false);
     expect(a.html).toBe(b.html);expect(b.stop.drawnFrames).toEqual([]);
+  });
+});
+
+describe('R4 returned-page receipts and actual native stopped viewer',()=>{
+  const source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-book-e2e-trial.ts'),'utf8');
+  const from=source.indexOf("      save('diagnostic-review-stop'"),to=source.indexOf('      throw error;',from)+'      throw error;'.length;
+  const js=transformSync('function stopped(){'+source.slice(from,to)+'}globalThis.stopped=stopped;',{loader:'ts',format:'cjs'}).code;
+  const image={imageName:'paid-before-review.png',imageSha:'a'.repeat(64)};
+  it('R4 actual render receipt -> native catch -> real viewer retains the candidate and original stop',async()=>{
+    const saved=new Map<string,any>(),records:any[]=[],dir=mkdtempSync(path.join(tmpdir(),'native-cde-returned-page-')),error=Error('ORIGINAL_UNKNOWN_COST');
+    const render=trialPageRenderEvidence(async()=>image,(name,value)=>saved.set(name,value));
+    expect(await render('page_1_0','Synthetic only',[],'book_identity')).toBe(image);
+    const c:any={config:{bookDir:dir,engineContinuity:policy()},result:{source:{manuscript:{title:'Synthetic',pages:Array.from({length:8},(_,i)=>({pageNumber:i+1,text:'Synthetic'}))}}},
+      saved,meter:{snapshot:()=>({unknownReserveMicroUsd:600000})},max:{snapshot:()=>({})},sourceAdmission:undefined,sourceRepairUsed:0,error,trialDrawnFrames,writeTrialReader,
+      save:(name:string,value:unknown)=>records.push({name,value})};
+    vm.createContext(c);vm.runInContext(js,c);expect(()=>c.stopped()).toThrow(error);
+    expect(records[0]).toMatchObject({name:'diagnostic-review-stop',value:{drawnFrames:['drawn_page_1']}});
+    const html=readFileSync(path.join(dir,'viewer/index.html'),'utf8');expect(html).toContain(image.imageName);expect(html).toContain('review_incomplete');
+    expect(html).toContain('האיור אינו מאושר');expect(html).not.toContain('qa_supported');expect((html.match(/לא נוצר איור/g)||[]).length).toBe(8);
+    expect(html).toContain('600000');
+  });
+  it('R4 logical-frame accounting deduplicates returned/completed/halted records and excludes invalid/sheet/undrawn records',()=>{
+    const saved=new Map<string,any>([
+      ['drawn_page_3',{candidate:image}],['page_3',{chosen:{candidate:image}}],['drawn_page_5',{candidate:image}],
+      ['halted_page_5',{attempts:[{candidate:image}]}],['drawn_page_0',{candidate:image}],
+      ['halted_sheet_entities',{attempts:[{candidate:image}]}],['drawn_page_9',{candidate:image}],['halted_page_01',{attempts:[{candidate:image}]}],
+      ['halted_page_7',{attempts:'malformed'}],['drawn_page_8',{}],
+    ]);
+    expect(trialDrawnFrames(saved)).toEqual(['page_3','halted_page_5','drawn_page_0']);
+  });
+  it('R4 evidence snapshots do not become an approved page or inherit later mutable transport changes',async()=>{
+    const candidate={...image},saved=new Map<string,any>();const render=trialPageRenderEvidence(async()=>candidate,(n,v)=>saved.set(n,v));
+    await render('page_0_0','Synthetic only',[],'book_identity');candidate.imageName='later-mutation.png';
+    expect(saved.get('drawn_page_0').candidate.imageName).toBe(image.imageName);expect(saved.has('page_0')).toBe(false);
+    await render('sheet_entities_0','Synthetic only',[],'book_design');expect([...saved.keys()]).toEqual(['drawn_page_0']);
   });
 });

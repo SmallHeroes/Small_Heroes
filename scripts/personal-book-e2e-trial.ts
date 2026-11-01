@@ -166,8 +166,30 @@ export async function runTrialAudition(args:Omit<Parameters<typeof illustrateRev
   if(marked&&(input.book.instanceDistinction?.version!==INSTANCE_DISTINCTION_VERSION||input.book.materialFunction?.version!==ENTITY_MATERIAL_FUNCTION_VERSION||
       input.book.companionScale?.version!==COMPANION_SCALE_VERSION||input.resume||input.ownerAcceptance||input.calibration||input.fullBookDiagnostic||
       input.topologyContinuation||input.coverageContinuation||input.anatomyRecovery||input.pages||input.reuseSheets))fail('trial_continuity_book_binding');
-  return illustrateReviewedAudition({...input,pageAttempts:1,...(marked?{}:{freshCohort:AUDITION_FRESH_COHORT_VERSION}),structuralAnatomy:true,
+  return illustrateReviewedAudition({...input,...(marked?{render:trialPageRenderEvidence(input.render,input.save)}:{}),pageAttempts:1,...(marked?{}:{freshCohort:AUDITION_FRESH_COHORT_VERSION}),structuralAnatomy:true,
     landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,...bound});
+}
+/** A returned image is diagnostic evidence before any subsequent review/identity/guard await; it grants no selection authority. */
+export const NATIVE_PAGE_RENDER_EVIDENCE_VERSION='native-page-render-evidence/v1' as const;
+type TrialPageRender=Parameters<typeof illustrateReviewedAudition>[0]['render'];
+export function trialPageRenderEvidence(render:TrialPageRender,save:Parameters<typeof illustrateReviewedAudition>[0]['save']):TrialPageRender {
+  return async(...call)=>{
+    const candidate=await render(...call),frame=/^page_([0-8])_0$/.exec(call[0]);
+    if(frame)save('drawn_page_'+frame[1],{version:NATIVE_PAGE_RENDER_EVIDENCE_VERSION,pageNumber:Number(frame[1]),attempt:0,step:call[0],candidate:{...candidate}});
+    return candidate;
+  };
+}
+/** One record per actual drawn frame, in draw order. More complete records replace evidence without counting the page twice. */
+export function trialDrawnFrames(saved:ReadonlyMap<string,any>):string[]{
+  const frames=new Map<number,{name:string;rank:number}>();
+  for(const [name,value]of saved){
+    const m=/^(page|halted_page|drawn_page|diagnostic_render)_([0-8])$/.exec(name);if(!m)continue;
+    const candidate=m[1]==='halted_page'?(Array.isArray(value?.attempts)?value.attempts.some((a:any)=>!!a?.candidate):false):!!(value?.chosen?.candidate??value?.candidate);
+    if(!candidate)continue;
+    const frame=Number(m[2]),rank=m[1]==='page'?4:m[1]==='halted_page'?3:m[1]==='drawn_page'?2:1;
+    if(rank>(frames.get(frame)?.rank??0))frames.set(frame,{name,rank});
+  }
+  return [...frames.values()].map(v=>v.name);
 }
 /** Page counts are metrics, not book qualification. Only the returned engine manifest owns that label. */
 export function trialBookVisualQualification(manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>){
@@ -1018,7 +1040,7 @@ export async function executeBookTrial(config:TrialConfig,grantFile:string,grant
         check:guard,save:saveArt,
         progress:e=>{log(`${e.phase} ${e.name} attempt${e.attempt+1}: ${e.status}`);if(e.status==='ineligible_safety')fail('trial_safety_stop');}});
     }catch(error){
-      save('diagnostic-review-stop',{code:(error as any)?.code??'review_failed',drawnFrames:config.engineContinuity?[...saved.entries()].filter(([n,v])=>/^(?:page_|diagnostic_render_)[0-9]+$/.test(n)&&!!(v?.chosen?.candidate??v?.candidate)||/^halted_page_[0-9]+$/.test(n)&&v?.attempts?.some((a:any)=>!!a?.candidate)).map(([n])=>n):[...saved.keys()].filter(n=>n.startsWith('diagnostic_render_'))});
+      save('diagnostic-review-stop',{code:(error as any)?.code??'review_failed',drawnFrames:config.engineContinuity?trialDrawnFrames(saved):[...saved.keys()].filter(n=>n.startsWith('diagnostic_render_'))});
       writeTrialReader(config.bookDir,result.source.manuscript,saved,[],meter.snapshot(),max.snapshot(),sourceAdmission,sourceRepairUsed?'text_1':'text',config.engineContinuity?{status:'review_stopped'}:undefined);
       throw error;
     }
@@ -1115,9 +1137,12 @@ export function writeTrialReader(dir:string,story:{title:string;pages:{pageNumbe
   const sourceNotice=sourceAdmission?`<header><h2>איכות הטקסט — הבחנה מפורשת לניסוי</h2><p>ביקורת ספרותית קודמת נשארה HOLD. ${heldTextDir==='text_1'?'הטקסט לא שונה שוב.':'הטקסט לא שונה (מקור זה אינו עובר תיקון).'} המשך האיור נשען על ביקורת חומרה חדשה ומוצמדת; זה אינו אישור מוצר או אישור ייצור.</p><p><a href="../${heldTextDir}/simple-book-result.json">הטקסט והביקורות הקודמות</a> · <a href="../source-impact-admission.json">הביקורת החדשה והנימוקים</a></p><details><summary>פירוט סיווג החומרה</summary><pre dir="ltr">${esc(JSON.stringify(sourceAdmission,null,2))}</pre></details></header>`:'';
   const frames=sourceNotice+Array.from({length:9},(_,n)=>{
     const ready=selected.find(p=>p.pageNumber===n)??saved.get(`page_${n}`),halted=visualStatus?.status==='review_stopped'&&!ready?saved.get(`halted_page_${n}`):undefined;
-    const last=halted?.attempts?.[halted.attempts.length-1],p=ready??(last?.candidate?{chosen:last,attempts:halted.attempts,status:last.status}:undefined),candidate=p?.chosen?.candidate??saved.get(`diagnostic_render_${n}`)?.candidate;
+    const drawn=visualStatus?.status==='review_stopped'&&!ready?saved.get(`drawn_page_${n}`):undefined;
+    const last=Array.isArray(halted?.attempts)?[...halted.attempts].reverse().find(a=>!!a?.candidate):undefined;
+    const unreviewed=drawn?.candidate?{attempt:drawn.attempt,candidate:drawn.candidate,status:'review_incomplete'}:undefined;
+    const pending=last??unreviewed,p=ready??(pending?{chosen:pending,attempts:last?halted.attempts:[pending],status:pending.status}:undefined),candidate=p?.chosen?.candidate??saved.get(`diagnostic_render_${n}`)?.candidate;
     if(!candidate)return`<section><h2>${n===0?'כריכה':`עמוד ${n}`}</h2><p>לא נוצר איור. אין כאן השלמת ספר.</p></section>`;
-    return`<section id="p${n}"><h2>${n===0?esc(story.title):`עמוד ${n}`}</h2><img src="../illustrations/${esc(candidate.imageName)}" alt="${n===0?'כריכה':`עמוד ${n}`}"/><article><p class="story">${n?esc(story.pages.find(p=>p.pageNumber===n)?.text):esc(story.title)}</p>${halted?'<p data-illustration-state="drawn_review_incomplete">האיור נוצר, אך הביקורת לא הושלמה. האיור אינו מאושר.</p>':''}<p>QA: <b dir="ltr">${esc(p?.status??'not_reviewed')}</b> · ${p?.attempts?.length??1} ניסיונות</p><ul>${(p?.chosen?.assessment?.findings??[]).map((f:any)=>`<li><b dir="ltr">${esc(f.impact)}</b>: ${esc(f.note)}</li>`).join('')}</ul>${p?.attempts?.length>1?`<details><summary>כל הניסיונות שנשמרו</summary>${p.attempts.map((a:any)=>a.candidate?`<figure><img loading="lazy" src="../illustrations/${esc(a.candidate.imageName)}"/><figcaption>${a.attempt+1} — ${esc(a.status)}</figcaption></figure>`:'').join('')}</details>`:''}</article></section>`;
+    return`<section id="p${n}"><h2>${n===0?esc(story.title):`עמוד ${n}`}</h2><img src="../illustrations/${esc(candidate.imageName)}" alt="${n===0?'כריכה':`עמוד ${n}`}"/><article><p class="story">${n?esc(story.pages.find(p=>p.pageNumber===n)?.text):esc(story.title)}</p>${!ready&&pending?'<p data-illustration-state="drawn_review_incomplete">האיור נוצר, אך הביקורת לא הושלמה. האיור אינו מאושר.</p>':''}<p>QA: <b dir="ltr">${esc(p?.status??'not_reviewed')}</b> · ${p?.attempts?.length??1} ניסיונות</p><ul>${(p?.chosen?.assessment?.findings??[]).map((f:any)=>`<li><b dir="ltr">${esc(f.impact)}</b>: ${esc(f.note)}</li>`).join('')}</ul>${p?.attempts?.length>1?`<details><summary>כל הניסיונות שנשמרו</summary>${p.attempts.map((a:any)=>a.candidate?`<figure><img loading="lazy" src="../illustrations/${esc(a.candidate.imageName)}"/><figcaption>${a.attempt+1} — ${esc(a.status)}</figcaption></figure>`:'').join('')}</details>`:''}</article></section>`;
   }).join('');
   const viewer=path.join(dir,'viewer');if(!existsSync(viewer))mkdirSync(viewer);
   exclusiveText(path.join(viewer,'index.html'),`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(story.title)}</title><style>body{margin:0;background:#f6f2e8;color:#222;font:18px/1.7 system-ui}header,footer{padding:30px;max-width:1100px;margin:auto}section{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:25px;padding:30px;max-width:1200px;margin:20px auto;background:white;border-radius:16px}h2{grid-column:1/-1}img{width:100%;height:auto;border-radius:10px}.story{font-size:23px;white-space:pre-line}pre{white-space:pre-wrap;overflow-wrap:anywhere}figure{margin:15px 0}@media(max-width:750px){section{display:block;padding:16px}.story{font-size:21px}}</style><header><h1>${esc(story.title)}</h1>${visualNotice}</header>${frames}<footer><h2>חשבונאות אמיתית — API ו־Max בנפרד</h2><pre dir="ltr">${esc(JSON.stringify({api,claudeMaxResource:max,note:'Max reported resource, not API invoice'},null,2))}</pre></footer></html>`);

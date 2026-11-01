@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## R4 returned-page diagnostics locally complete; bounded page-only preparation next (2026-11-01)
+
+- R3 independent technical PASS received and sealed at d5baa1d9 (259 reviewer files,35 writer files,42 source pins).
+- R4 closes the lost-answer sibling generally by recording returned candidates before asynchronous review/identity/guard failure.
+  Native stop/viewer retains each drawn page once without granting approval, retry or changing accounting. Local773/773 in18 specs,
+  both TypeScript exits0, five killed mutants, nine identical historical reviews and321 preservation hashes. Independent R4 QA pending.
+- Continue at$0 to a separate versioned page-only envelope within the already approved$1/two-LOW ceiling. Exact admitted source/assets,
+  strict step allowlist, full reserve accounting and no remainder/narration are mandatory. Actual paid dispatch waits for independent
+  re-gate and exact-source admission; no old R17 authority is reopened. Manual routing via Guy remains in force.
+
 ## Native CDE R2 independently passed; pre-visual halted-page truth corrected (2026-11-01)
 
 - Received and hash-verified independent R2 PASS at a3ab1f88 (41 source, 108 writer, 59 reviewer pins). Keep that scope separate from the new correction and all visual/product acceptance.

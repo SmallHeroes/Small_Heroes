@@ -24,7 +24,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
 import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
 import { NATIVE_BOOK_CONTINUITY_VERSION } from '../engine-continuity-contracts';
 import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
-import { runTrialAudition, trialBookVisualQualification } from '../../../scripts/personal-book-e2e-trial';
+import { runTrialAudition, trialBookVisualQualification, trialDrawnFrames, writeTrialReader } from '../../../scripts/personal-book-e2e-trial';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
   type ConservativeDebit } from '../../../scripts/personal-simple-book-reviewed-audition';
@@ -3227,6 +3227,43 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     if(kind==='owner_acceptance')args.ownerAcceptance={};
     await expect(runTrialAudition(args)).rejects.toThrow('trial_continuity_book_binding');
     expect(h.args.render).not.toHaveBeenCalled();expect(h.args.judge).not.toHaveBeenCalled();expect(h.args.identity).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['review', 'temporary_connection_failure', 1, 'audition_page_1_unavailable'],
+    ['review', 'audition_unknown_cost', 2, 'audition_unknown_cost'],
+    ['review', 'audition_transport_unavailable', 0, 'audition_transport_unavailable'],
+    ['identity', 'audition_unknown_cost', 1, 'audition_unknown_cost'],
+    ['identity', 'audition_transport_unavailable', 6, 'audition_transport_unavailable'],
+  ] as const)('R4 returned image survives lost %s %s on frame %s',async(kind,code,page,expected)=>{
+    const h=nativeHarness(within),failure=new ReviewedAuditionError(code),trace:string[]=[],oldJudge=h.args.judge,oldIdentity=h.args.identity,oldSave=h.args.save;
+    const args={...h.args,visual:nativeVisual(),save:(name:string,value:unknown)=>{trace.push('save:'+name);oldSave(name,value);},
+      judge:async(...a:Parameters<typeof oldJudge>)=>{if(kind==='review'&&a[0]==='page_'+page+'_0_qa'){trace.push('lost');throw failure;}return oldJudge(...a);},
+      identity:async(...a:Parameters<typeof oldIdentity>)=>{if(kind==='identity'&&a[0]==='page_'+page+'_0_identity'){trace.push('lost');throw failure;}return oldIdentity(...a);}};
+    let caught:any;try{await runTrialAudition(args);}catch(error){caught=error;}
+    expect(caught?.code).toBe(expected);if(expected===code)expect(caught).toBe(failure);
+    expect(h.saved.get('drawn_page_'+page)).toMatchObject({version:'native-page-render-evidence/v1',pageNumber:page,attempt:0,candidate:image('page_'+page+'_0')});
+    expect(trace.indexOf('save:drawn_page_'+page)).toBeGreaterThan(-1);expect(trace.indexOf('save:drawn_page_'+page)).toBeLessThan(trace.indexOf('lost'));
+    const pageCalls=[...h.prompts.keys()].filter(x=>x.startsWith('page_'));expect(pageCalls[pageCalls.length-1]).toBe('page_'+page+'_0');
+    expect(pageCalls.filter(x=>x==='page_'+page+'_0')).toHaveLength(1);expect(h.saved.has('page_'+page)).toBe(false);
+    expect(trialDrawnFrames(h.saved)).toHaveLength(pageCalls.length);expect(trialDrawnFrames(h.saved)).toContain('drawn_page_'+page);
+    const dir=mkdtempSync(path.join(tmpdir(),'native-cde-lost-review-viewer-'));
+    writeTrialReader(dir,{title:'Synthetic lost answer',pages:texts.map((text,i)=>({pageNumber:i+1,text}))},h.saved,[],{pendingUnknownReserve:600000},{},undefined,'text',{status:'review_stopped'});
+    const html=readFileSync(path.join(dir,'viewer/index.html'),'utf8');
+    expect(html).toContain('src="../illustrations/page_'+page+'_0.png"');expect(html).toContain('data-illustration-state="drawn_review_incomplete"');
+    expect(html).toContain('review_incomplete');expect(html).toContain('האיור אינו מאושר');expect(html).toContain('600000');
+    expect((html.match(/לא נוצר איור/g)||[]).length).toBe(9-pageCalls.length);
+
+  });
+  it('R4 returned image is preserved before a post-render cancellation guard stops the real engine',async()=>{
+    const h=nativeHarness(within),failure=new ReviewedAuditionError('audition_cancelled'),render=h.args.render;let returned=false;
+    await expect(runTrialAudition({...h.args,visual:nativeVisual(),render:async(...a:Parameters<typeof render>)=>{const v=await render(...a);if(a[0]==='page_1_0')returned=true;return v;},
+      check:()=>{if(returned)throw failure;}})).rejects.toBe(failure);
+    expect(h.saved.get('drawn_page_1')).toMatchObject({candidate:image('page_1_0')});expect(h.contexts.has('page_1_0_qa')).toBe(false);
+  });
+  it('R4 a failed render with unknown cost creates no invented returned candidate',async()=>{
+    const h=nativeHarness(within),failure=new ReviewedAuditionError('audition_unknown_cost'),render=h.args.render;
+    await expect(runTrialAudition({...h.args,visual:nativeVisual(),render:async(...a:Parameters<typeof render>)=>{if(a[0]==='page_1_0')throw failure;return render(...a);}})).rejects.toBe(failure);
+    expect(h.saved.has('drawn_page_1')).toBe(false);expect([...h.saved.keys()].some(k=>k.startsWith('drawn_page_'))).toBe(false);
   });
   it('NATIVE-CDE held references stop before even the first sample frame',async()=>{
     const h=nativeHarness(within,{judge:step=>step.startsWith('sheet_entities_')?{props:{verdict:'defect',issues:[issue('continuity','design:trail')]}}:{}});
