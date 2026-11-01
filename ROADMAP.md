@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## R6 authority corrections locally complete; manual re-gate next (2026-11-01)
+
+- R4/R5 independent code PASS at c6784d5a recorded after176 reviewer,331 writer and65 source pins matched. R6 remains independently pending.
+- Correct R5-F1 via first-line verdict/unique leading metadata, and R5-F2 via one existing fixed host shared across every code copy.
+  Proof-only PNG directory recheck and original-error preservation also close the related R5-O1 local I/O observation.
+- Local857/857 in19 specs, both TypeScript exits0, ten red reproductions, six caught/restored variants and five actual-runner synthetic
+  integration cases. Four legacy byte pairs, nine saved review outcomes and321 historical hashes are preserved. No full-check green claim.
+- Guy manually forwards the fresh c6784d5a..R6-head range to Claude for read-only re-gate; no repeat R4/R5 assignment or auto-routing.
+- Source INPUT_HOLD and Guy's separate CDE-source decision remain. No actual proof grant/claim, paid preparation/image/book, expense,
+  production acceptance, server, push/merge/deploy or cleanup. The existing$1/two-LOW and full-reserve limits remain unchanged.
+
 ## R5 bounded page-only envelope locally complete; manual combined R4/R5 QA next (2026-11-01)
 
 - R3 PASS is recorded at d5baa1d9. R4 commit85db0fd5 and separate R5 need Claude's independent read-only re-gate via Guy.

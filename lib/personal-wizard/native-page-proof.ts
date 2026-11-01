@@ -1,11 +1,12 @@
 import 'server-only';
 import path from 'node:path';
-import { existsSync, lstatSync, readFileSync, realpathSync, mkdirSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { z } from 'zod';
 import { previewSha } from '../local-story-preview';
 import { canonicalJson } from './request-acceptance';
 import { exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
+import { NATIVE_PAGE_PROOF_AUTHORITY_ROOT } from './native-page-proof-authority-host';
 
 export const NATIVE_PAGE_PROOF_VERSION='native-cde-page-proof/v1' as const;
 export const NATIVE_PAGE_PROOF_CAP_MICRO_USD=1_000_000;
@@ -64,8 +65,13 @@ export function verifyNativePageProofReview(input:{file:string;sha256:string}|un
   const r=executionReady.parse(JSON.parse(bytes.toString('utf8')));if(r.sourceHead!==sourceHead||r.grantSha256!==grantSha256)fail('page_proof_execution_review_binding');
   const file=path.isAbsolute(r.report.file)?r.report.file:path.resolve(path.dirname(input.file),r.report.file),report=safeFile(file);
   if(previewSha(report)!==r.report.sha256)fail('page_proof_execution_review_changed');
-  const lines=report.toString('utf8').split(/\r?\n/).map(s=>s.trim());
-  if(!lines.includes('DISPOSITION: PASS')||!lines.includes('GRANT_SHA256: '+grantSha256)||!lines.includes('SOURCE_HEAD: '+sourceHead))fail('page_proof_execution_review_binding');
+  const lines=report.toString('utf8').replace(/^\uFEFF/,'').split(/\r?\n/);
+  if(lines[0]!=='DISPOSITION: PASS')fail('page_proof_execution_review_binding');
+  // Only the leading unindented metadata header owns authority. Body examples never do.
+  const header=new Map<string,string>();
+  for(const line of lines){const field=/^([A-Z][A-Z0-9_]*):[ \t]*(.*)$/.exec(line);if(!field)break;
+    if(header.has(field[1]))fail('page_proof_execution_review_binding');header.set(field[1],field[2]);}
+  if(header.get('GRANT_SHA256')!==grantSha256||header.get('SOURCE_HEAD')!==sourceHead)fail('page_proof_execution_review_binding');
 }
 export function verifyNativePageProofOutput(out:string,protectedRoots:readonly string[]){
   const output=path.resolve(out).toLowerCase(),inside=(a:string,b:string)=>a===b||a.startsWith(b+path.sep);
@@ -81,9 +87,12 @@ export function nativePageProofAuthority(args:{workspace:string;out:string;prote
   const approvalBytes=safeFile(proof.ownerApproval.file);if(previewSha(approvalBytes)!==proof.ownerApproval.sha256)fail('page_proof_input_changed');
   const approval=nativePageProofOwnerApprovalSchema.parse(JSON.parse(approvalBytes.toString('utf8')));
   verifyNativePageProofOutput(args.out,args.protectedRoots);const output=path.resolve(args.out).toLowerCase();
-  const root=path.resolve(args.workspace,'../book-authority'),claim=path.join(root,'native-page-proof-'+approval.approvalId+'.claim.json');
+  const root=NATIVE_PAGE_PROOF_AUTHORITY_ROOT,claim=path.join(root,'native-page-proof-'+approval.approvalId+'.claim.json');
+  const checkAuthorityRoot=()=>{try{realDirectory(root);}catch{fail('page_proof_authority_root');}};
+  checkAuthorityRoot();
   let active=false,claimSha:string|null=null;
   const beforeClaim=()=>{
+    checkAuthorityRoot();
     verifyNativePageProofOutput(args.out,args.protectedRoots);
     verifyNativePageProofCode(args.workspace,proof.sourceHead);verifyNativePageProofPins(proof,args.requiredInputs);
     if(previewSha(safeFile(args.grantFile))!==args.grantSha256)fail('page_proof_grant_changed');
@@ -92,7 +101,7 @@ export function nativePageProofAuthority(args:{workspace:string;out:string;prote
     if(active&&(claimSha===null||previewSha(safeFile(claim))!==claimSha))fail('page_proof_claim_changed');
   };
   const activate=()=>{
-    if(active)fail('page_proof_consumed');beforeClaim();if(!existsSync(root))mkdirSync(root);realDirectory(root);
+    if(active)fail('page_proof_consumed');beforeClaim();
     try{exclusiveJson(claim,{version:'native-page-proof-claim/v1',ownerApprovalSha256:proof.ownerApproval.sha256,ownerApprovalId:approval.approvalId,grantSha256:args.grantSha256,
       sourceHead:proof.sourceHead,out:output,requestId:args.grant.book.requestId,storyboardDigest:args.grant.book.storyboardDigest,pages:args.grant.scope.pages,
       capMicroUsd:args.grant.capMicroUsd,maxCalls:args.grant.maxCalls});}catch(error){if((error as any)?.code==='EEXIST')fail('page_proof_consumed');throw error;}

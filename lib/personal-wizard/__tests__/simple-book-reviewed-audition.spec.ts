@@ -3338,6 +3338,12 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect(h.saved.get('page-proof-stop')).toMatchObject({drawnFrames:['drawn_page_1'],spend:{unknownCost:1,reservedUnsettledMicroUsd:600000},productAccepted:false});
     expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(legacy).not.toHaveBeenCalled();
   });
+  it.each([false,true])('R6 a failed stop-record save preserves the exact original error (frozen=%s)',async frozen=>{
+    const {h,c,failure}=await realProofRun(true),save=c.save,writeFailure=Error('SYNTHETIC_DIAGNOSTIC_WRITE_FAILED');if(frozen)Object.freeze(failure);
+    c.save=(name:string,value:unknown)=>{if(name==='page-proof-stop')throw writeFailure;return save(name,value);};
+    await expect(c.executeFrames()).rejects.toBe(failure);if(!frozen)expect((failure as any).diagnosticWriteError).toBe(writeFailure);
+    expect(trialDrawnFrames(h.saved)).toEqual(['drawn_page_1']);expect([...h.prompts.keys()]).toEqual(['page_1_0']);
+  });
   it('NATIVE-CDE held references stop before even the first sample frame',async()=>{
     const h=nativeHarness(within,{judge:step=>step.startsWith('sheet_entities_')?{props:{verdict:'defect',issues:[issue('continuity','design:trail')]}}:{}});
     await expect(runTrialAudition({...h.args,visual:nativeVisual()})).rejects.toThrow('audition_reference_unqualified');

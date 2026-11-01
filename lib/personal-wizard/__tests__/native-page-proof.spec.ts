@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from 'vitest';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,symlinkSync,renameSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,symlinkSync,renameSync,openSync,closeSync,fsyncSync} from 'node:fs';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import vm from 'node:vm';
@@ -10,10 +10,14 @@ import {canonicalJson} from '../request-acceptance';
 import {nativePageProofSchema,nativePageProofOwnerApprovalSchema,nativePageProofGrantValid,nativePageProofSteps,
   verifyNativePageProofPins,verifyNativePageProofReview,nativePageProofAuthority,snapshotNativePageProofArgs} from '../native-page-proof';
 import {auditionGrantSchema,runReviewedAudition,dryNativePageProof,readAuditionGrant,AuditionMeter,auditionMeterRules,auditionRenderPlan,auditionRenderRule,auditionReviewRule,REVIEW_MODEL} from '../../../scripts/personal-simple-book-reviewed-audition';
+import {realDirectory} from '../../../scripts/personal-causal-trial-journal';
+// This mock changes only the physical host address; claims, pins, Git and file guards remain real.
+const host=vi.hoisted(()=>({root:''}));
+vi.mock('../native-page-proof-authority-host',()=>({get NATIVE_PAGE_PROOF_AUTHORITY_ROOT(){if(!host.root)throw Error('SYNTHETIC_HOST_NOT_SET');return host.root;}}));
 const pin=(file:string)=>{const b=readFileSync(file);return{file,bytes:b.length,sha256:previewSha(b)};};
 const owner=()=>({version:'native-page-proof-owner-approval/v1',owner:'Guy',approvalId:previewSha('synthetic-owner-consent-event'),approvalReference:'SYNTHETIC TEST ONLY: not a real owner execution approval; fixed proof allowance',capMicroUsd:1000000,maxLowImages:2,allReviewsAndFullUnknownReserves:true,fullBook:false,narration:false,paidRetries:false});
 function fixture(git=false){
-  const root=mkdtempSync(path.join(tmpdir(),'native-page-proof-unit-')),workspace=path.join(root,'source');mkdirSync(workspace);
+  const root=mkdtempSync(path.join(tmpdir(),'native-page-proof-unit-')),workspace=path.join(root,'source');mkdirSync(workspace);host.root=path.join(root,'book-authority');mkdirSync(host.root);
   let head='a'.repeat(40);
   if(git){const run=(...a:string[])=>execFileSync('git',['-C',workspace,...a],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
     run('init','-q');run('config','user.name','Synthetic Test');run('config','user.email','synthetic@example.invalid');writeFileSync(path.join(workspace,'source.txt'),'Synthetic code pin\n');
@@ -68,6 +72,29 @@ describe('native page-proof strict grant and evidence fences',()=>{
     const f=fixture(),ready=JSON.parse(readFileSync(f.readyFile,'utf8'));ready[field]='0'.repeat(field==='sourceHead'?40:64);writeFileSync(f.readyFile,JSON.stringify(ready));
     expect(()=>verifyNativePageProofReview({file:f.readyFile,sha256:pin(f.readyFile).sha256},f.grantSha,f.head)).toThrow('page_proof_execution_review_binding');
   });
+  it.each(['hold-first-quoted-pass','hold-first-pass','duplicate-disposition','duplicate-grant','duplicate-head','grant-only-in-body','head-only-in-body'])(
+    'R6 refuses ambiguous execution report %s even when READY says PASS',kind=>{
+    const f=fixture(),header=['DISPOSITION: PASS','GRANT_SHA256: '+f.grantSha,'SOURCE_HEAD: '+f.head];let report=header.join('\n')+'\n\nReviewed body\n';
+    if(kind==='hold-first-quoted-pass')report='DISPOSITION: HOLD\nGRANT_SHA256: '+f.grantSha+'\nSOURCE_HEAD: '+f.head+'\n\n  DISPOSITION: PASS\n';
+    if(kind==='hold-first-pass')report=report.replace('DISPOSITION: PASS','DISPOSITION: HOLD')+'DISPOSITION: PASS\n';
+    if(kind==='duplicate-disposition')report='DISPOSITION: HOLD\n'+report;
+    if(kind==='duplicate-grant')report=header[0]+'\nGRANT_SHA256: '+'0'.repeat(64)+'\n'+header.slice(1).join('\n')+'\n';
+    if(kind==='duplicate-head')report=header.join('\n')+'\nSOURCE_HEAD: '+'0'.repeat(40)+'\n';
+    if(kind==='grant-only-in-body')report=header[0]+'\n'+header[2]+'\n\n'+header[1]+'\n';
+    if(kind==='head-only-in-body')report=header.slice(0,2).join('\n')+'\n\n'+header[2]+'\n';
+    writeFileSync(f.report,report);const ready=JSON.parse(readFileSync(f.readyFile,'utf8'));ready.report.sha256=pin(f.report).sha256;writeFileSync(f.readyFile,JSON.stringify(ready));
+    expect(()=>verifyNativePageProofReview({file:f.readyFile,sha256:pin(f.readyFile).sha256},f.grantSha,f.head)).toThrow('page_proof_execution_review_binding');
+  });
+  it('R6 a clean copy under another parent cannot restart the same consent event with a new grant and review',()=>{
+    const f=fixture(true),first=nativePageProofAuthority(f.authorityArgs);first.activate();
+    const otherParent=path.join(f.root,'other-parent'),copy=path.join(otherParent,'copy');mkdirSync(otherParent);
+    execFileSync('git',['clone','--quiet','--local','--no-hardlinks',f.workspace,copy],{stdio:'pipe'});
+    const g:any=structuredClone(f.grant);g.scope.pageProof.workspace=copy;const grantFile=path.join(f.root,'copy-grant.json');writeFileSync(grantFile,JSON.stringify(g));const grantSha=pin(grantFile).sha256;
+    const report=path.join(f.root,'copy-review.txt');writeFileSync(report,'DISPOSITION: PASS\nGRANT_SHA256: '+grantSha+'\nSOURCE_HEAD: '+f.head+'\nSYNTHETIC ONLY\n');
+    const readyFile=path.join(f.root,'copy-ready.json');writeFileSync(readyFile,JSON.stringify({complete:true,disposition:'PASS',scope:'NATIVE_CDE_PAGE_PROOF_EXECUTION',sourceHead:f.head,grantSha256:grantSha,report:{file:report,sha256:pin(report).sha256}}));
+    const second=nativePageProofAuthority({...f.authorityArgs,workspace:copy,out:path.join(f.root,'copy-output'),grant:auditionGrantSchema.parse(g),grantFile,grantSha256:grantSha,review:{file:readyFile,sha256:pin(readyFile).sha256}});
+    expect(()=>second.beforeClaim()).toThrow('page_proof_consumed');expect(second.claimFile).toBe(first.claimFile);expect(existsSync(path.join(otherParent,'book-authority'))).toBe(false);
+  });
   it('one owner approval cannot be restarted through another output; authority is rechecked after await',async()=>{
     const f=fixture(true),a=nativePageProofAuthority(f.authorityArgs);a.beforeClaim();expect(existsSync(a.claimFile)).toBe(false);a.activate();a.guard();
     const second=nativePageProofAuthority({...f.authorityArgs,out:path.join(f.root,'other-output')});expect(()=>second.beforeClaim()).toThrow('page_proof_consumed');
@@ -97,6 +124,26 @@ describe('native page-proof strict grant and evidence fences',()=>{
     renameSync(late,preserved);symlinkSync(protectedBook,late,'junction');expect(()=>authority.beforeClaim()).toThrow('page_proof_output_fence');
     expect(existsSync(authority.claimFile)).toBe(false);expect(existsSync(path.join(protectedBook,'output'))).toBe(false);
   });
+  it('R6 valid leading authority header ignores quoted body decisions and supports UTF8 BOM',()=>{
+    const f=fixture();writeFileSync(f.report,'\uFEFFDISPOSITION: PASS\nGRANT_SHA256: '+f.grantSha+'\nSOURCE_HEAD: '+f.head+'\n\n  DISPOSITION: HOLD\nGRANT_SHA256: body example\n');
+    const ready=JSON.parse(readFileSync(f.readyFile,'utf8'));ready.report.sha256=pin(f.report).sha256;writeFileSync(f.readyFile,JSON.stringify(ready));
+    verifyNativePageProofReview({file:f.readyFile,sha256:pin(f.readyFile).sha256},f.grantSha,f.head);
+  });
+  it.each(['missing','aliased'])('R6 the canonical authority host must already exist as a real directory (%s)',kind=>{
+    const f=fixture(true),existing=host.root;host.root=path.join(f.root,'unprovisioned-host');if(kind==='aliased')symlinkSync(existing,host.root,'junction');
+    expect(()=>nativePageProofAuthority(f.authorityArgs)).toThrow('page_proof_authority_root');expect(existsSync(path.join(existing,'native-page-proof-'+owner().approvalId+'.claim.json'))).toBe(false);
+    if(kind==='missing')expect(existsSync(host.root)).toBe(false);
+  });
+  it.each([true,false])('R6 actual image-write boundary rechecks a mid-await parent alias only for proof mode (%s)',async fenced=>{
+    const f=fixture(),parent=path.join(f.root,'out-parent'),directory=path.join(parent,'illustrations'),protectedRoot=path.join(f.root,'synthetic-protected');mkdirSync(parent);mkdirSync(directory);mkdirSync(protectedRoot);mkdirSync(path.join(protectedRoot,'illustrations'));
+    const source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-simple-book-reviewed-audition.ts'),'utf8'),from=source.indexOf('  const writeImage = async '),to=source.indexOf('  const bytesOf = ',from);expect(from).toBeGreaterThan(0);expect(to).toBeGreaterThan(from);
+    const c:any={args:{directory,...(fenced?{fencedImageWrites:true}:{})},path,openSync,writeFileSync,fsyncSync,closeSync,previewSha,realDirectory,fail:(code:string)=>{throw Error(code);},
+      sharp:()=>({metadata:async()=>{await Promise.resolve();const old=path.join(f.root,'out-parent-preserved');expect(path.dirname(parent)).toBe(f.root);expect(path.dirname(old)).toBe(f.root);renameSync(parent,old);symlinkSync(protectedRoot,parent,'junction');return{format:'png',width:1,height:1};}})};
+    vm.createContext(c);vm.runInContext(transformSync(source.slice(from,to)+'globalThis.writeImage=writeImage;',{loader:'ts',format:'cjs'}).code,c);
+    const bytes=Buffer.from('SYNTHETIC local write-boundary bytes; metadata is explicitly stubbed'),work=c.writeImage('synthetic.png',bytes);
+    if(fenced){await expect(work).rejects.toThrow('causal_host_directory');expect(existsSync(path.join(protectedRoot,'illustrations','synthetic.png'))).toBe(false);}
+    else{await expect(work).resolves.toMatchObject({imageName:'synthetic.png',imageSha:previewSha(bytes)});expect(readFileSync(path.join(protectedRoot,'illustrations','synthetic.png'))).toEqual(bytes);}
+  });
   it.each(['resume','storyboardDir','calibration','topologyContinuation','coverageContinuation','anatomyRecovery','fullBookDiagnostic','rereview','debits','experiment'])(
     'actual runner rejects foreign %s before source/key/output',async kind=>{
     const f=fixture(),args:any={bookDir:path.join(f.root,'missing-book'),out:path.join(f.root,'output'),keyFile:path.join(f.root,'NEVER-READ'),grantFile:f.grantFile,signal:new AbortController().signal,log:()=>{}};
@@ -123,7 +170,7 @@ describe('native page-proof strict grant and evidence fences',()=>{
     const f=fixture(),legacy:any=structuredClone(f.grant);delete legacy.scope.pageProof;writeFileSync(f.grantFile,JSON.stringify(legacy));
     const args={bookDir:path.join(f.root,'missing-book'),out:path.join(f.root,'out'),grantFile:f.grantFile};
     await expect(dryNativePageProof(args)).rejects.toThrow('page_proof_scope');const c=new AbortController();c.abort();
-    await expect(dryNativePageProof({...args,signal:c.signal})).rejects.toThrow('audition_cancelled');expect(existsSync(args.out)).toBe(false);expect(existsSync(path.join(f.root,'book-authority'))).toBe(false);
+    await expect(dryNativePageProof({...args,signal:c.signal})).rejects.toThrow('audition_cancelled');expect(existsSync(args.out)).toBe(false);expect(existsSync(path.join(f.root,'book-authority'))).toBe(true);expect(existsSync(path.join(f.root,'book-authority','native-page-proof-'+owner().approvalId+'.claim.json'))).toBe(false);
   });
   it('grant parsing and its digest refer to the same actual UTF8 snapshot, and reject foreign secret evidence before reading it',()=>{
     const f=fixture(),bound=readAuditionGrant(f.grantFile,f.grant.book);expect(bound.sha256).toBe(pin(f.grantFile).sha256);expect(bound.grant.book).toEqual(f.grant.book);

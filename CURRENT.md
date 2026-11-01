@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## R4/R5 independent PASS recorded; R6 authority corrections locally complete (2026-11-01)
+
+- Guy returned Claude's completed R4/R5 code PASS at c6784d5a. Codex verified its final manual end_turn, reportdb409b6d, index7725dcbb,
+  READY26a34622, all176 reviewer/331 writer artifacts and65 working/committed source pins. That PASS remains specific to c6784d5a;
+  the new R6 corrective range awaits independent review. Manual forwarding via Guy remains in force; no reviewer was dispatched.
+- R5-F1: execution review now requires DISPOSITION: PASS as the first physical report line (optional UTF8 BOM), plus exactly bound
+  grant/head in an unambiguous leading metadata header. HOLD-first/quoted PASS, duplicate metadata and authority only in the body refuse.
+  Header parsing never promotes an example to a decision; READY/report hashes, scope and exact source/grant checks remain.
+- R5-F2: native-page-proof-authority-host.ts fixes the existing C:/GNart/Work/book-authority host independently of checkout, parent,
+  grant/output and environment. It must already be a real directory; no auto-mkdir or public override. All copies share the same consent-ID
+  claim and recheck the host at each authority guard. No actual proof claim existed to migrate; no real grant/claim was created by R6.
+- Related R5-O1 hardening is proof-only: realDirectory is checked immediately before PNG open after asynchronous metadata preparation.
+  A failed stop-record write attaches diagnosticWriteError where possible and always preserves the exact original error, even if frozen.
+  Unmarked adapters remain unchanged. This is a local path recheck, not an atomic defence against a fully privileged filesystem actor.
+- R6 local evidence:10 expected red regressions reproduced before the correction;857/857 cases in19 relevant specs pass, both
+  nonincremental TypeScript gates0; six deliberately broken header/host/write/error variants caught with exact source restored.
+  Five actual-runner integration cases pass using a real compiler-admitted SYNTHETIC source, actual admission/meter/adapters and a
+  canonical scratch host address-only mock; SDK/fetch denied, no real key or model call. These are Codex evidence, not independent PASS.
+  Four legacy viewer byte pairs match; nine actual saved R17 reviews still0/9; all321 historical hashes/279 book files and inventory match.
+- Scope limits retained: R5-O2 early invalid-grant refusal order is unchanged. R5-L1 adapter post-await cancellation/source refusal can
+  still leave a receipt/PNG without a returned drawn_page record; R6 does not add orphan recovery. No full npm run check green claim,
+  real SDK HTTP/model efficacy or visual/product acceptance. Original failed/red evidence and prior independent reports remain intact.
+- Same root chat, branch claude/book-render-20261009, worktree C:/GNart/Work/sh-book-render-20261009, basec6784d5a, one Codex writer.
+  Gate:docs/ai-workflow/NATIVE_CDE_AUTHORITY_CORRECTIONS_GATE_20261101.md. Next is a focused local commit/freeze and Guy-manual
+  first-pass read-only Claude re-gate of R6 only. No source preparation, automatic transfer, server, push/merge/deploy or cleanup.
+- Actual input remains HOLD: neither old R17 text/text_1 plan is an admitted CDE source/reference package. Guy's source-preparation
+  decision is separate. An eventual paid proof still needs source/reference admission, a COMPLETE exact-grant execution review and
+  Guy's explicit go. The existing$1/two-LOW allowance and full UNKNOWN reserves are unchanged; R17 remains0/9 held with immutable Dad
+  narration, grants, accounting and assets. R6 incurred zero real provider expense; resemblance stays0.70.
+
 ## R5 bounded page-only envelope locally complete; manual combined R4/R5 QA next (2026-11-01)
 
 - R3 independent PASS remains sealed at d5baa1d9; R4 local commit85db0fd5 fixes returned-page evidence before lost review/identity.

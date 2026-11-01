@@ -992,6 +992,8 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   expectedWire?: Readonly<Record<string, string>>;
   /** Fixed native diagnostic operations only, each still atomically single-use in the ORIGINAL cumulative meter. */
   allowedSteps?: readonly string[];
+  /** Page-proof only: recheck the physical directory after async PNG preparation and before opening its output. */
+  fencedImageWrites?: true;
   /** Native grant opt-in, never a CLI/default switch. Reconciliation names just ONE existing job and cannot claim a new generation. */
   durableReviews?: { version: typeof DURABLE_REVIEW_VERSION; resumeStep?: string } }) {
   readerSceneImageSize(args.readerFraming); // Unknown explicit contracts refuse before any claim or key read.
@@ -1010,6 +1012,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     if (!/^[a-z0-9_]+\.png$/.test(name)) fail('audition_image_path');
     const meta = await sharp(bytes).metadata();
     if (meta.format !== 'png' || !meta.width || !meta.height || meta.width > 1536 || meta.height > 1536) fail('audition_image_dimensions');
+    if(args.fencedImageWrites)realDirectory(args.directory);
     const fd = openSync(path.join(args.directory, name), 'wx'); try { writeFileSync(fd, bytes); fsyncSync(fd); } finally { closeSync(fd); }
     return { imageName: name, imageSha: previewSha(bytes) };
   };
@@ -1366,7 +1369,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     if (frames.length !== 7 || diagnostic.firstOperation.step !== `${prefix}page_${frames[0]}_0`) fail('audition_diagnostic_scope');
     diagnosticSteps = frames.flatMap(n => ['', '_qa', '_identity'].map(s => `${prefix}page_${n}_0${s}`));
   }
-  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(proofAuthority?{guard:proofAuthority.guard}:args.experiment ? { guard: args.experiment.guard } : {}),
+  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(proofAuthority?{guard:proofAuthority.guard,fencedImageWrites:true}:args.experiment ? { guard: args.experiment.guard } : {}),
     readerFraming: loaded.current.readerFraming,
     expectedWire, ...(proofSteps?{allowedSteps:proofSteps}:diagnosticSteps ? { allowedSteps: diagnosticSteps } : {}),
     ...(args.coverageOrphanRecovery || args.anatomyRecovery || diagnostic ? { durableReviews: { version: DURABLE_REVIEW_VERSION } } : {}) });
@@ -1510,7 +1513,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   let manifest:Awaited<ReturnType<typeof illustrateReviewedAudition>>;
   try{manifest=await runFrames();}catch(error){
     if(proof){let spend:unknown;try{spend=meter.snapshot();}catch{spend={status:'unreconciled',furtherPaymentAllowed:false};}
-      save('page-proof-stop',{code:(error as any)?.code??'audition_attempt_failed',drawnFrames:trialDrawnFrames(proofSaved),spend,productAccepted:false});}
+      try{save('page-proof-stop',{code:(error as any)?.code??'audition_attempt_failed',drawnFrames:trialDrawnFrames(proofSaved),spend,productAccepted:false});}
+      catch(diagnosticWriteError){if(error&&typeof error==='object'){try{Object.defineProperty(error,'diagnosticWriteError',{value:diagnosticWriteError,configurable:true});}catch{}}}}
     throw error;
   }
   const images = new Map<string, string>();
