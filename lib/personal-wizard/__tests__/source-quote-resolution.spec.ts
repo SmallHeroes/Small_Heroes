@@ -20,6 +20,10 @@ describe('source quote resolution (whitespace-only variants)', () => {
     const out = resolveSourceQuotes({ grounding: [{ assertion: 'a', quote: '\\u0000' }, { assertion: 'b', quote: '\u0000' }, { assertion: 'c', quote: 'לפיל היה חדק!' }], note: '\\u0000' }, texts);
     expect(out).toEqual({ grounding: [{ assertion: 'a', quote: null }, { assertion: 'b', quote: null }, { assertion: 'c', quote: 'לפיל היה חדק!' }], note: '\\u0000' });
   });
+  it('turns an absent designPhrase placeholder into null but never resolves or changes a real phrase', () => {
+    const out = resolveSourceQuotes({ attributes: [{ designPhrase: '\\u0000' }, { designPhrase: ' ' }, { designPhrase: 'בקצה  המגרש.\nלפיל' }, { designPhrase: 'red trunk' }] }, texts);
+    expect(out).toEqual({ attributes: [{ designPhrase: null }, { designPhrase: null }, { designPhrase: 'בקצה  המגרש.\nלפיל' }, { designPhrase: 'red trunk' }] });
+  });
   it('turns an empty or whitespace-only quote into null', () => {
     expect(resolveSourceQuotes({ grounding: [{ quote: '' }, { quote: ' \n' }], evidence: '' }, texts)).toEqual({ grounding: [{ quote: null }, { quote: null }], evidence: null });
   });
