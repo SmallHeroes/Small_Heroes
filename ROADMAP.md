@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## R2 independent PASS received; exact operator/envelope review next, spend still blocked (2026-11-02)
+
+- Independent engine PASS at0c0bd78f is verified; R2-F1 is nonblocking P3 backlog. Engine implementation remains unchanged.
+- Isolated operator/supervisor now bind the exact source/grant/proposed terms/final review and an ABSENT separate Guy activation.
+  Two text calls -> owner page-choice wait -> four reference calls; no automatic choice, retry, page/cover/child/audio or USD1 proof.
+- Local1019/1019/27 specs, bothTS0; provider-denied synthetic real-core/SDK-seam controls and native durable timer probe pass.
+  Original red/timeouts/probe failures remain; no case timeout increase.321 historical/279 book/77 real authority entries unchanged.
+- Manual first-pass read-only Claude execution QA covers the focused local operator range and exact prospective package. No automatic
+  transfer. Technical operator/execution PASS remains PENDING and would not prove image efficacy or product acceptance.
+- After completed independent execution review, Guy separately decides the proposed5 USD cap and existing credential reuse. No GO,
+  actual source/reference/paid call, server, push/merge/deploy/cleanup or R17 edit. R17 remains0/9 held; separate USD1 proof still gated.
+
 ## Source preparation R1 code PASS recorded; A-C corrective re-gate next (2026-11-02)
 
 - Independent R1 PASS at5e92477a sealed:105 reviewer/153 writer artifacts,434 source pins,977/977 and bothTS0.

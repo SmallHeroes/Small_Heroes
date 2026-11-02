@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## R2 independent code PASS received; isolated execution envelope locally green, manual execution QA next (2026-11-02)
+
+- Guy manually returned Claude's COMPLETE SOURCE_PREPARATION_CORRECTIONS_R2 PASS at0c0bd78f, report75c3bf9e, READYa407ab86,
+  indexe4dca2ed. Codex verified49 reviewer/98 writer artifacts,435 source pins and the actual final exits. No independent verdict
+  is claimed for the new operator. Manual forwarding via Guy remains in force.
+- R2-F1 post-answer reordered-wardrobe STOP wording is explicitly P3 BACKLOG. The refusal, known receipt and no-next-call rule
+  are correct. No preparation/storyboard/appearance/policy engine code changed in this milestone; no extra engine correction loop.
+- New isolated operator and hidden durable supervisor require an exact final execution review AND a separately recorded explicit
+  Guy activation before reading the inherited credential or dispatching. Prospective terms are not consent; activation is ABSENT.
+  First phase makes2 text calls then waits for Guy's actual reviewed-frame choice; continuation makes4 sheet calls under the same
+  source/consent/ledger. No automatic frame selection, retry, source repair, page/cover/child/audio generation or USD1 proof.
+- The adapter preserves exact prepared payload/body/reference bytes, fixed endpoint and maxRetries0, returns raw answers to the
+  reviewed meter, and rechecks authority after async multipart preparation. Existing core UNKNOWN/cache/full-reserve stops remain.
+  Both supervisor bootstrap and direct worker check authority before trace creation; actual operator repeats it before credential IO.
+- Local1019/1019 in27 relevant specs, actual native exit0/no unhandled errors, both nonincremental TypeScript gates0.
+  Real-input synthetic core/SDK-seam tests cover absent/expired/changed activation, grant/review/source/listener refusal before factory,
+  start/wait/continue/replay fences, exact raw cost preservation and changed reference rejection. Network/provider constructors denied.
+  Native timer-only supervisor probe proves child survival after bootstrap exit and a durably captured native exit0, without API IO.
+- Initial failed test fixtures/types, a Vitest task-update RPC timeout and the original null supervisor exit-code probe are preserved.
+  Test cases were split by the real start/continue boundaries; the60-second per-case cap and acceptance were not relaxed. Capturing
+  the native process handle fixes PowerShell exit-code loss; task-update macrotasks prevent synthetic RPC starvation.
+- Historical321 hashes/exact279 book inventory,153+98 prior writer and105+49 reviewer artifacts and77 actual authority entries match.
+  R17 stays0/9 held with all text/images/Dad audio/claims/costs intact. Full npm run check green, real SDK HTTP/model availability,
+  image efficacy, provider balances/invoices and product/production acceptance are unproven. A2/D/E limits remain documented.
+- Same chat sole writer, branch claude/book-render-20261009, worktree C:/GNart/Work/sh-book-render-20261009, base0c0bd78f.
+  Gate:docs/ai-workflow/SOURCE_PREPARATION_EXECUTION_GATE_20261102.md. New source commit is local/unpushed; a separate exact inactive
+  terms/grant/envelope/source/input freeze is handed manually to Claude for read-only SOURCE_PREPARATION_EXECUTION review.
+- NOW:0 provider calls/expense/key-env reads/actual claim/activation/preparation output/server/push/cleanup/automatic transfer.
+  Proposed preparation ceiling5 USD/6 calls/2 LOW references includes full UNKNOWN/cache reserves; it is NOT approval. Only after
+  COMPLETE independent execution PASS does Guy decide cap + inherited credential reuse. The later USD1 proof remains separate.
+
 ## Source preparation R1 independently passed; A-C corrections locally complete, R2 QA pending (2026-11-02)
 
 - Guy manually returned Claude's COMPLETE independent code PASS for336eeb28..5e92477a. Report187aed766ab37b7af49427c1176d62fee786c3941372e6a474d1e8e261fd3409,
