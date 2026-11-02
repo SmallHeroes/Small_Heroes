@@ -112,7 +112,7 @@ export function preparationOperatorTransport(args:{grant:PreparationGrant;client
   };
 }
 function noSourceServer(){
-  const command="$ErrorActionPreference='Stop'; $l=Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object LocalPort -eq 3482; if($l){exit 23}";
+  const command="$ErrorActionPreference='Stop'; $l=[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object Port -eq 3482; if($l){exit 23}";
   try{execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',command],{stdio:'ignore',windowsHide:true,timeout:15000});}
   catch{prepFail('operator_source_listener');}
 }

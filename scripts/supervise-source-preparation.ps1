@@ -30,7 +30,8 @@ if($Probe){
   $label='probe'
 }else{
   $envelope=Read-OperatorJson $EnvelopeFile
-  $selfHash=(Get-FileHash -Algorithm SHA256 -LiteralPath $PSCommandPath).Hash.ToLowerInvariant()
+  $sha=[Security.Cryptography.SHA256]::Create()
+  try{$selfHash=[BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($PSCommandPath))).Replace('-','').ToLowerInvariant()}finally{$sha.Dispose()}
   if($envelope.supervisor.sha256 -ne $selfHash -or [IO.Path]::GetFullPath($envelope.supervisor.file) -ne [IO.Path]::GetFullPath($PSCommandPath)){throw 'supervisor_pin_changed'}
   $grant=Read-OperatorJson $envelope.grant.file
   if([IO.Path]::GetFullPath($grant.workspace) -ne [IO.Path]::GetFullPath($workspace)){throw 'supervisor_workspace'}

@@ -68,3 +68,12 @@ General isolated execution boundary; opt-out engine unchanged. No new production
 Existing USD0 preparation workflow and returned next-step request cover this engineering package; monetary activation is pending.
 No provider/API/key/env read, GO/real claim, new book, R17 edit, manual book repair, paid retry, USD1 dispatch, server start,
 push/merge/deploy/publication, cleanup/move/prune/branch deletion, global power change or automatic Claude transfer.
+
+## 12. Native Windows portability followup
+
+The actual NoProfile authorization-negative check found Get-FileHash unavailable before the operator could run. The failed
+probe and unused f6261720 root-level package are permanently held history. Only new launch files change: SHA256 and listener
+checks use .NET without optional cmdlets/modules. No engine/P3 fix or monetary authority is added. Native listener/timer probes,
+37 final operator controls and bothTS gates validate the followup;1019/27 full gate belongs to f6261720. Before handoff, regenerate
+the exact inactive package-r2 on the final clean source and require BOTH bootstrap/direct-worker absent-activation refusals with
+no trace/output/claim. The initial prospective package is never reused; owner activation remains absent.

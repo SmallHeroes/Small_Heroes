@@ -5,6 +5,8 @@
 - Independent engine PASS at0c0bd78f is verified; R2-F1 is nonblocking P3 backlog. Engine implementation remains unchanged.
 - Isolated operator/supervisor now bind the exact source/grant/proposed terms/final review and an ABSENT separate Guy activation.
   Two text calls -> owner page-choice wait -> four reference calls; no automatic choice, retry, page/cover/child/audio or USD1 proof.
+- Windows launch followup: standalone child lacked Get-FileHash; old prospective package held unused. .NET hash/listener
+  replacement passes37 operator controls, finalTS0 and native probes. Full1019/27 is atf6261720; exact package-r2/absence checks gate release.
 - Local1019/1019/27 specs, bothTS0; provider-denied synthetic real-core/SDK-seam controls and native durable timer probe pass.
   Original red/timeouts/probe failures remain; no case timeout increase.321 historical/279 book/77 real authority entries unchanged.
 - Manual first-pass read-only Claude execution QA covers the focused local operator range and exact prospective package. No automatic

@@ -14,6 +14,10 @@
 - The adapter preserves exact prepared payload/body/reference bytes, fixed endpoint and maxRetries0, returns raw answers to the
   reviewed meter, and rechecks authority after async multipart preparation. Existing core UNKNOWN/cache/full-reserve stops remain.
   Both supervisor bootstrap and direct worker check authority before trace creation; actual operator repeats it before credential IO.
+- Native portability followup: the real NoProfile negative launch found Get-FileHash unavailable. The original unused package
+  is retained as permanent HOLD history. New launch files now use .NET SHA256/listener enumeration; no optional module or engine change.
+  Full1019/27 belongs tof6261720; followup37/37 operator controls, final npxTS0/autonomousTS0, actual port-command0 and durable
+  timer probe pass. Release additionally requires both actual absent-GO entry checks on regenerated package-r2; no old package reuse.
 - Local1019/1019 in27 relevant specs, actual native exit0/no unhandled errors, both nonincremental TypeScript gates0.
   Real-input synthetic core/SDK-seam tests cover absent/expired/changed activation, grant/review/source/listener refusal before factory,
   start/wait/continue/replay fences, exact raw cost preservation and changed reference rejection. Network/provider constructors denied.
