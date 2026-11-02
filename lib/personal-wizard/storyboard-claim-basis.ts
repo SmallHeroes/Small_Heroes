@@ -60,6 +60,17 @@ export const claimBasisIssueSchema = storyboardReviewIssueSchema.extend({ citati
 export const CLAIM_BASIS_STAGING_FIELDS_VERSION = 'storyboard-claim-basis-staging-fields/v1' as const;
 export const STAGEABLE_PLAN_FIELDS = Object.freeze(['composition', 'childAction', 'childExpression', 'childGaze', 'companionAction'] as const);
 const planFieldRefs = (n: number) => new Set(STAGEABLE_PLAN_FIELDS.map(f => `p${n}:${f}`));
+/**
+ * Under storyboard-claim-basis-staging-fields/v1: a staging ref written as the plan path `p{n}:plan.<field>` of a stageable direction field
+ * is the same reference as `p{n}:<field>`. Only that exact alias is rewritten; every other ref is left for the validator. Returns a new value.
+ */
+export function canonicalStagingRefs<T>(raw: T): T {
+  const d = structuredClone(raw) as { moments?: { frames?: { staging?: { ref?: unknown }[] }[] } };
+  const alias = new RegExp(`^p(\\d+):plan\\.(${STAGEABLE_PLAN_FIELDS.join('|')})$`);
+  d?.moments?.frames?.forEach(frame => frame?.staging?.forEach(s => {
+    const m = typeof s?.ref === 'string' ? alias.exec(s.ref) : null; if (m) s.ref = `p${m[1]}:${m[2]}`; }));
+  return d as T;
+}
 /** The staging entries that name a plan direction field (frame order), for a record of what the correction admitted. */
 export const stagedPlanFields = (moments: { frames: readonly object[] }) => moments.frames.flatMap((frame, n) =>
   ((frame as { staging?: readonly { ref: string }[] }).staging ?? []).filter(s => planFieldRefs(n).has(s.ref)).map(s => ({ page: n, ref: s.ref })));
@@ -184,7 +195,7 @@ export function citationBinds(issue: { impact: string; ref: string; citation: st
 
 export const CLAIM_BASIS_STORYBOARD_ADDENDUM = `CLAIM BASIS (storyboard-claim-basis/v1; the compiler and the review apply it; it refines the rules above):
 - Stated claims (requirements show/avoid, the drawn instant, overrides, temporary looks, changes, transitions, scene cuts) say what the text states. Bind each to the exact sentence that states it, not a neighbouring one; a claim that needs two sentences gets one self-check part per sentence.
-- Visual direction: a gesture, gaze, expression, posture or exact arrangement or placement that the text does not state but that fits it. Never present it as a stated fact. When a claim of a frame carries such a choice, list its ref in that frame's staging as {ref, reason}, the reason saying why it fits the text without adding, removing or reversing an event, a meaning, an identity or a canon detail. Never stage the drawn instant, a scene cut, a consequential action, a reveal or a change the story depends on. Every frame lists staging, empty when there is none.
+- Visual direction: a gesture, gaze, expression, posture or exact arrangement or placement that the text does not state but that fits it. Never present it as a stated fact. When a claim of a frame carries such a choice, list its ref in that frame's staging as {ref, reason}, the reason saying why it fits the text without adding, removing or reversing an event, a meaning, an identity or a canon detail. Never stage the drawn instant, a scene cut, a consequential action, a reveal or a change the story depends on. Every frame lists staging, empty when there is none. A staging ref is exactly one of that frame's own claim refs (the refs its self-check claims use) or one of its plan direction fields written p{n}:composition, p{n}:childAction, p{n}:childExpression, p{n}:childGaze or p{n}:companionAction; never p{n}:plan or p{n}:plan.<field>. Where a quote may be null and the text states none, write null, never a placeholder string.
 - Withheld until a reveal: when something must not appear before its reveal, use a requirement {kind: "withhold", entityId (an entity or cast id), revealPage, subject, evidence}: revealPage is the FIRST later frame whose visible ids include that entity, evidence the exact sentence of that page that reveals it; the entity stays out of every visible id list before it. Never write it as "avoid" with a quote that cannot establish an absence. show and avoid requirements give entityId and revealPage null.
 - Visible state: a frame shows exactly the entities in its visibleCastIds and visibleEntityIds. Override and describe only those; an entity that is not visible needs no override, and the compiler drops any override of one. The composition never places a visible entity differently from its relation at the drawn instant: placement comes from the relations.
 - Self-check resolutions name book-level sections exactly: book:plan.<key>, book:continuity.<key>, book:sequence.<key> or book:moments.<key>.`;

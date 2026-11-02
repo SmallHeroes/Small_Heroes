@@ -8,11 +8,15 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * A planner quote that differs from the page text ONLY in whitespace (for example two adjacent sentences joined by a space where the
  * page breaks the line) is resolved to the page's exact span; every exact quote gate downstream then sees source bytes. Nothing else is
  * normalized (no punctuation, niqqud, case or quote-mark folding). An exact quote, a quote with no whitespace-equivalent span, or one
- * whose whitespace-equivalent spans differ is left untouched, so those gates refuse it exactly as before. Returns a new value; the
+ * whose whitespace-equivalent spans differ is left untouched, so those gates refuse it exactly as before. A NUL placeholder becomes null.
+ * Returns a new value; the
  * caller's draft (the saved model answer) is never modified.
  */
 export function resolveSourceQuotes<T>(draft: T, texts: readonly string[]): T {
-  const resolve = (quote: string) => {
+  const resolve = (quote: string): string | null => {
+    // A NUL placeholder (raw or JSON-escaped) is never page text: models emit it for "no quote". It becomes null, and the schema still
+    // decides whether null is allowed there (a non-nullable quote refuses exactly as before).
+    if (quote === '\u0000' || quote === '\\u0000') return null;
     if (texts.some(t => t.includes(quote))) return quote;
     const words = quote.trim().split(/\s+/).filter(Boolean);
     if (words.length < 2) return quote;

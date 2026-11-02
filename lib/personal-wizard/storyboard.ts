@@ -42,6 +42,7 @@ import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, STO
 import { STORYBOARD_REVIEW_IMPACT_VERSION, storyboardReviewIssueSchema, storyboardReviewRefs, storyboardImpactDisposition, storyboardFrameClaims } from './storyboard-review-impact';
 import { storyboardDiagnosis, diagnosisDigest, chainAttempts, changedSections, STORYBOARD_MAX_ATTEMPTS, type ChainAttempt, type StoryboardDiagnosis } from './storyboard-diagnosis';
 import { recoveryState, assertNextAttempt, StageRecoveryError } from './stage-recovery';
+import { canonicalStagingRefs } from './storyboard-claim-basis';
 import { CLAIM_BASIS_CONTRACT_VERSION, CLAIM_BASIS_STORYBOARD_ADDENDUM, CLAIM_BASIS_DRAWN_INSTANT_RULE, claimBasisMomentsSchema, claimBasisMomentsPolicy,
   claimBasisWholeBookDraftSchema, ownedClaimBasisWholeBookDraftSchema, claimBasisIssueSchema, dropHiddenOverrides, droppedRefs, validateClaimBasis,
   sourceSpans, citationBinds, claimBasisSectionsView, CLAIM_BASIS_STAGING_FIELDS_VERSION, STAGEABLE_PLAN_FIELDS, type HiddenOverride,
@@ -468,6 +469,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   if(source.existingChildAppearance)assertExistingChildClothing(source.existingChildAppearance,rawDraft);
   // Whitespace-only quote variants resolve to the page's exact span before every quote gate; exact drafts pass through unchanged.
   rawDraft = resolveSourceQuotes(rawDraft, previewStoryEvidence(source.story).texts);
+  if (options?.stagingFields === true && source.claimBasisContract) rawDraft = canonicalStagingRefs(rawDraft);
   if (options !== undefined) {
     const keys = Object.keys(options);
     if (!keys.length || keys.some(k => k !== 'selfCheckNames' && k !== 'stagingFields' && k !== 'selfCheckSourceSpans') ||
