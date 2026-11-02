@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Source preparation R1 code PASS recorded; A-C corrective re-gate next (2026-11-02)
+
+- Independent R1 PASS at5e92477a sealed:105 reviewer/153 writer artifacts,434 source pins,977/977 and bothTS0.
+- R2 narrows ambiguous opt-in clothing items, adds actual direct after-await/choice-packet/exclusive-entry tests, and preserves
+  the structured dispatch cause in the stop summary without changing thrown errors, receipts, budget/reserves or no-retry behaviour.
+- Origin source hashes remain caller-bound provenance, not a new standalone archive attestation. D fail-closed crash and E TEMP
+  hygiene notes remain explicit; no cleanup or recovery path is introduced.
+- Local982/982/25 specs + bothTS0. Five in-memory broken-policy variants caught; one extra redundant-check survivor preserved.
+  Historical321/279 files,77 authority entries and all prior writer/reviewer evidence unchanged; full check/visual acceptance unclaimed.
+- Manual Claude R2 read-only re-gate on the fresh5e92477a..corrective-head range. No automatic forwarding or self-awarded PASS.
+  No actual plan/reference generation, operator/SDK/key/env/spend/grant/server/push/cleanup or old-book edits.
+- Only afterward: separately scoped exact execution envelope and explicit Guy preparation-cap decision. USD5 preparation and USD1
+  proof limits are code bounds; neither is execution permission. R17 remains0/9 held.
+
 ## Source preparation implemented at USD0; manual independent code QA next (2026-11-02)
 
 - Prior R6 code PASS at336eeb28 and source-preparation PLAN R2 PASS verified. Guy authorized implementation with N1-N4 only.

@@ -24,6 +24,16 @@ function fixture(){
   return{authority,adoption,candidateSha,contextSha,clothing};
 }
 describe('portable generic admitted appearance contract, no R17 or provider dependency',()=>{
+
+  it.each([0,1])('A rejects ambiguous clothing partition at boundary %s without rewriting accepted wardrobe',index=>{
+    const f=fixture(),data=existingChildAppearanceData(f.authority),clothing=[...f.clothing];
+    clothing.splice(index,2,clothing[index]+'; '+clothing[index+1]);data.child.clothing=clothing;
+    expect(clothing.join('; ')).toBe(f.clothing.join('; ')); // The old joined-context check alone cannot distinguish this.
+    expect(()=>admitExistingChildAppearance(data,f.adoption,f.candidateSha)).toThrow();
+    expect(()=>deriveExistingChildAppearance({requestId:f.authority.requestId,sourceDigest:f.authority.originalSourceDigest,
+      storyboardDigest:f.authority.originalStoryboardDigest,clothing},{age:f.authority.child.age,gender:f.authority.child.gender,
+      design:f.authority.child.design,acceptance:f.authority.child.acceptance},f.adoption,f.candidateSha)).toThrow();
+  });
   it('derives accepted context/recipe/design from actual existing validators, with arbitrary source-owned clothes',()=>{
     const f=fixture();expect(f.authority.contextSha).toBe(f.contextSha);expect(f.authority.child.clothing).toEqual(f.clothing);
     expect(admitExistingChildAppearance(existingChildAppearanceData(f.authority),f.adoption,f.candidateSha)).toEqual(f.authority);

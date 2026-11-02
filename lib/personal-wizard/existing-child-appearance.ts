@@ -8,19 +8,22 @@ import { assertChildAnchorInspectedAccepted, childAnchorInspectionContext, child
 export const EXISTING_CHILD_APPEARANCE = 'existing-admitted-child-appearance/v1' as const;
 export const EXISTING_CHILD_APPEARANCE_FILE = 'existing_child_appearance.json';
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
+const WARDROBE_SEPARATOR = '; ';
+// The accepted wardrobe is joined with this delimiter; an item must not admit another partition of the same bytes.
+const clothingItem = z.string().min(1).max(400).refine(item=>!item.includes(WARDROBE_SEPARATOR),'existing_child_appearance_ambiguous_clothing');
 export const existingChildAppearanceSchema = z.object({version:z.literal(EXISTING_CHILD_APPEARANCE),requestId:hash,
   originalSourceDigest:hash,originalStoryboardDigest:hash,candidateSha:hash,adoptionSha:hash,contextSha:hash,recipeSha:hash,
   child:z.object({age:z.number().int().min(2).max(12),gender:z.enum(['boy','girl']),design:z.string().min(20).max(1500),
-    clothing:z.array(z.string().min(1).max(400)).min(1).max(12),acceptance:z.enum(childAnchorAcceptanceVersions),pose:z.enum(childAnchorPoseVersions).optional()}).strict()}).strict();
+    clothing:z.array(clothingItem).min(1).max(12),acceptance:z.enum(childAnchorAcceptanceVersions),pose:z.enum(childAnchorPoseVersions).optional()}).strict()}).strict();
 export type ExistingChildAppearanceData = z.infer<typeof existingChildAppearanceSchema>;
 declare const admitted: unique symbol;
 export type ExistingChildAppearance = ExistingChildAppearanceData & {readonly [admitted]:true};
 const admittedRecords = new WeakMap<object,string>();
 const fail=():never=>{throw Error('existing_child_appearance_binding');};
 
-/** Raw authority is never accepted by the compiler: restore by checking the actual copied adoption and image on every load. */
+/** Restore identity from actual adoption/image. Origin digests are provenance declarations; the caller must bind them to its admitted original-board/source/grant chain. */
 export function admitExistingChildAppearance(data:unknown,adoption:any,candidateSha:string):ExistingChildAppearance {
-  const d=existingChildAppearanceSchema.parse(data),c=d.child,child={age:c.age,gender:c.gender,design:c.design,wardrobe:c.clothing.join('; ')};
+  const d=existingChildAppearanceSchema.parse(data),c=d.child,child={age:c.age,gender:c.gender,design:c.design,wardrobe:c.clothing.join(WARDROBE_SEPARATOR)};
   const prompt=c.pose?childAnchorPoseDescriptionRequest(child,c.pose).prompt:childAnchorDescriptionRequest(child).prompt;
   const context=childAnchorInspectionContext(child,prompt,c.acceptance,c.pose);
   if(d.candidateSha!==candidateSha||adoption?.name!=='child'||adoption?.candidate?.imageSha!==candidateSha||

@@ -127,14 +127,23 @@ function openExecution(args:Execution,continuation?:true){
     if(resolvePersonalWizardOptions(grant.workspace).fingerprint!==plan.original.queued.optionsFingerprint)prepFail('options_changed');};
   return{grant,plan,authority,check};
 }
-function stop(out:string,error:unknown,meter?:AuditionMeter){
+type DispatchFailure={details?:{step:Step;code:string}};
+const preparationErrorCode=(error:unknown)=>{
+  if(error&&typeof error==='object'&&'code'in error&&typeof error.code==='string'&&error.code.length<=128&&/^[a-z0-9_]+$/.test(error.code))return error.code;
+  // Only these known internal wrapper literals are classified from messages; arbitrary error text is never logged.
+  if(error instanceof Error&&(error.message==='personal_storyboard_author_failed'||error.message==='personal_storyboard_cancelled'))return error.message;
+  return undefined;
+};
+function stop(out:string,error:unknown,meter?:AuditionMeter,failure?:DispatchFailure){
   if(!existsSync(out)||existsSync(at(out,'PREPARATION-STOP.json')))return;
   let spend:unknown=null;try{spend=meter?.snapshot()??null;}catch{/* A corrupt/unknown ledger stays preserved and blocks. */}
-  const code=error&&typeof error==='object'&&'code'in error&&typeof error.code==='string'&&/^[a-z0-9_]+$/.test(error.code)?error.code:'source_prep_failed';
-  try{exclusiveJson(at(out,'PREPARATION-STOP.json'),{version:SOURCE_PREPARATION,status:'HELD',code,spend,paidRetryAllowed:false,at:new Date().toISOString()});}catch{/* Preserve original error. */}
+  const wrapperCode=preparationErrorCode(error),details=failure?.details,code=details?.code??wrapperCode??'source_prep_failed';
+  try{exclusiveJson(at(out,'PREPARATION-STOP.json'),{version:SOURCE_PREPARATION,status:'HELD',code,
+    ...(details?{failedStep:details.step}:{}),...(wrapperCode&&wrapperCode!==code?{wrapperCode}:{}),spend,paidRetryAllowed:false,at:new Date().toISOString()});}catch{/* Preserve original error. */}
 }
-function dispatcher(args:Execution,grant:PreparationGrant,meter:AuditionMeter,check:()=>void){
+function dispatcher(args:Execution,grant:PreparationGrant,meter:AuditionMeter,check:()=>void,failure:DispatchFailure){
   return async<T>(step:Step,wire:unknown,decode:(raw:any)=>T):Promise<T>=>{
+    try{
     check();const i=PREPARATION_STEPS.indexOf(step),state=meter.snapshot();
     if(state.calls!==i||state.failed||state.unknownCost||state.unknownOutcome||existsSync(at(grant.out,'PREPARATION-STOP.json')))prepFail('stage_order');
     const own=preparationMeterRules(step)!,maximum=own.reserve(wire);if(maximum===null)prepFail('wire_policy');
@@ -157,6 +166,7 @@ function dispatcher(args:Execution,grant:PreparationGrant,meter:AuditionMeter,ch
     });
     check();if(actual===null)prepFail('unknown_cost');if(actual>maximum)prepFail('cost_over_reserve');
     meter.snapshot();return value;
+    }catch(error){const code=preparationErrorCode(error);if(code)failure.details={step,code};throw error;}
   };
 }
 
@@ -166,7 +176,7 @@ export async function startSourcePreparation(args:Execution){
   const e=openExecution(args),{grant,plan,authority,check}=e;
   if(existsSync(grant.out))prepFail('output_exists');
   // All input admission, exact wire size, price, code and execution review checks precede this one-use claim.
-  authority.activate();let meter:AuditionMeter|undefined;
+  authority.activate();let meter:AuditionMeter|undefined;const failure:DispatchFailure={};
   try{
     directories(grant.out,plan.targetLayout);const bookDir=at(grant.out,'book'),sourceRun=at(grant.out,'sourceRun');
     exclusiveJson(at(grant.out,'PROCESS-START.json'),{version:SOURCE_PREPARATION,grantSha256:authority.grantSha256,sourceHead:grant.sourceHead,
@@ -177,7 +187,7 @@ export async function startSourcePreparation(args:Execution){
     exclusiveBinary(at(bookDir,plan.targetLayout.childDir,'illustrations',plan.targetLayout.childImage),plan.original.childBytes);
     exclusiveJson(at(bookDir,plan.targetLayout.childDir,EXISTING_CHILD_APPEARANCE_FILE),existingChildAppearanceData(plan.appearance));
     meter=new AuditionMeter(at(sourceRun,'paid-stages'),5000000,6,0,0,preparationMeterRules);
-    const dispatch=dispatcher(args,grant,meter,check);let rawDraft:unknown;
+    const dispatch=dispatcher(args,grant,meter,check,failure);let rawDraft:unknown;
     const diagnostic=await runSimpleStoryboardDiagnostic({request:plan.original.queued.request,writerResult:plan.original.result.source,options:resolvePersonalWizardOptions(grant.workspace),
       ...PREPARATION_CONTRACTS,existingChildAppearance:plan.appearance,reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,signal:args.signal,
       generate:async call=>{
@@ -197,7 +207,7 @@ export async function startSourcePreparation(args:Execution){
       storyboardDigest:diagnostic.storyboardDigest,sourceDigest:diagnostic.sourceDigest,bookDir,sourceRun,layout:plan.targetLayout,
       files:bookFiles(bookDir,plan.targetLayout).map(preparationPin),spend:meter.snapshot(),at:new Date().toISOString(),noPaidRetries:true};
     check();exclusiveJson(at(grant.out,'WAITING-OWNER.json'),waiting);authority.sealWaiting(preparationFile(at(grant.out,'WAITING-OWNER.json')));return waiting;
-  }catch(error){stop(grant.out,error,meter);throw error;}
+  }catch(error){stop(grant.out,error,meter,failure);throw error;}
 }
 
 /** Forward-only after owner choice, same claim and ledger. No retry/replan/re-review/recovery, even after interruption. */
@@ -218,7 +228,7 @@ export async function continueSourcePreparation(args:Execution&{choiceFile:strin
     waiting.storyboardDigest!==loaded.book.storyboardDigest||waiting.sourceDigest!==loaded.book.sourceDigest||
     packets[choice.standingPage].packetDigest!==choice.standingPacketSha256||packets[choice.continuityPage].packetDigest!==choice.continuityPacketSha256)prepFail('page_choice_binding');
   const guard=()=>{check();if(previewSha(preparationFile(waitingFile))!==previewSha(waitingBytes)||previewSha(preparationFile(args.choiceFile))!==previewSha(choiceBytes))prepFail('waiting_changed');verifyPreparationPins(waiting.files,bookFiles(bookDir,layout));};
-  const meter=new AuditionMeter(at(sourceRun,'paid-stages'),5000000,6,0,0,preparationMeterRules),before=meter.snapshot();
+  const meter=new AuditionMeter(at(sourceRun,'paid-stages'),5000000,6,0,0,preparationMeterRules),before=meter.snapshot(),failure:DispatchFailure={};
   if(before.calls!==2||before.failed||before.unknownCost||before.unknownOutcome||canonicalJson(before)!==canonicalJson(waiting.spend))prepFail('waiting_ledger');
   // Exclusive and permanent: even a crashed continuation cannot dispatch again under another process/output alias.
   guard();exclusiveJson(at(grant.out,'CONTINUATION-ENTERED.json'),{grantSha256:authority.grantSha256,waitingSha256:previewSha(waitingBytes),choiceSha256:previewSha(choiceBytes),pid:process.pid,parentPid:process.ppid,startedAt:new Date().toISOString()});
@@ -228,7 +238,7 @@ export async function continueSourcePreparation(args:Execution&{choiceFile:strin
     exclusiveBinary(at(sourceRun,'illustrations',child.imageName),loaded.childBytes);exclusiveBinary(at(sourceRun,'illustrations',companion.imageName),loaded.companionBytes);
     exclusiveJson(at(sourceRun,'admission.json'),{version:SOURCE_PREPARATION,requestId:loaded.queued.requestId,storyboardDigest:loaded.book.storyboardDigest,child,companion,
       sourceDigest:loaded.book.sourceDigest,grantSha256:authority.grantSha256});
-    const designs=auditionSheetDesigns(loaded.book,loaded.texts),dispatch=dispatcher(args,grant,meter,guard),sheets={} as Record<'entities'|'locations',SavedSheet>;
+    const designs=auditionSheetDesigns(loaded.book,loaded.texts),dispatch=dispatcher(args,grant,meter,guard,failure),sheets={} as Record<'entities'|'locations',SavedSheet>;
     for(const role of ['entities','locations'] as const){
       guard();const context=auditionSheetContext(role,designs[role]),prompt=auditionSheetPrompt(role,designs[role]);
       const render=auditionRenderPlan(at(sourceRun,'illustrations'),prompt,[child,companion],'book_design',['child_design_authority','companion_design_authority']);
@@ -254,7 +264,7 @@ export async function continueSourcePreparation(args:Execution&{choiceFile:strin
       sourceHead:grant.sourceHead,bookDir,sourceRun,storyboardDigest:loaded.book.storyboardDigest,pages:choice.pages,spend:meter.snapshot(),
       runtimeEligible:false,productAccepted:false,executionReady:false,remainingGates:['actual dryNativePageProof with exact prospective USD1 grant','independent exact page execution review','Guy explicit page go'],at:new Date().toISOString()};
     exclusiveJson(at(grant.out,'PREPARATION-COMPLETE.json'),outcome);return outcome;
-  }catch(error){stop(grant.out,error,meter);throw error;}
+  }catch(error){stop(grant.out,error,meter,failure);throw error;}
 }
 
 /** Separate provider-free consumer check. Never creates a page grant/claim/output and never executes a provider. */

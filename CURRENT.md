@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Source preparation R1 independently passed; A-C corrections locally complete, R2 QA pending (2026-11-02)
+
+- Guy manually returned Claude's COMPLETE independent code PASS for336eeb28..5e92477a. Report187aed766ab37b7af49427c1176d62fee786c3941372e6a474d1e8e261fd3409,
+  READY0c6bf625, indexaefa2ca3: all105 reviewer/153 writer artifacts,434 working/committed pins and native977/977/25 specs + bothTS0 verified.
+  That PASS belongs to5e92477a only. Codex remains implementer; manual forwarding via Guy remains in force.
+- R2-A1: opt-in clothing items now reject the exact "; " join delimiter. Two different ordered partitions can no longer share
+  the accepted joined wardrobe bytes. No split/normalization/answer rewrite; ambiguous input fails before the first claim/paid call.
+  Normal admitted clothing and absent-marker legacy paths remain unchanged. A2 origin digests remain provenance declarations:
+  the original-board -> caller/source/wire/grant/wait/page-pin chain supplies authority. No standalone old-board attestation is claimed.
+- R2-B: direct tests now reach after-await failed-call accounting, wrong chosen packet refusal BEFORE entry/reference claim, and
+  EEXIST at a pre-existing continuation marker while the two-call waiting ledger is untouched. This closes the prior test-coverage gap;
+  the entry test no longer relies on the first caller having already advanced the ledger.
+- R2-C: the caller retains a safe dispatch code/step across the diagnostic wrapper. PREPARATION-STOP now reports the original code
+  and failedStep, plus wrapperCode when different; the thrown wrapper and raw receipts/known or UNKNOWN accounting are unchanged.
+  Arbitrary messages/cause traversal are not logged; only structured bounded codes and two known internal wrapper literals classify.
+- Local982/982 in25 relevant specs, native exit0, both nonincremental TypeScript gates0. Five targeted in-memory failures are
+  assertion-killed, source bytes unchanged. One additional single-check mutant survives because its duplicate check still protects
+  the same transaction; removing both checks is caught. All six results and the initial probe mistake/actual red evidence remain.
+  Full npm run check, real SDK/HTTP/model/image efficacy and product acceptance are not claimed.
+- Historical321 hashes/exact279-book inventory, old153 writer/105 reviewer evidence and77 real authority-host entries match.
+  R17 stays0/9 held with unchanged text/images/Dad audio/claims/costs. D crash/no-retry policy and E TEMP-cleanup debt remain recorded.
+- Same chat/worktree/branch, base5e92477a. Gate:docs/ai-workflow/SOURCE_PREPARATION_CORRECTIONS_GATE_20261102.md.
+  Focused local corrective commit/freeze is for a MANUAL independent R2 read-only re-gate. No automatic reviewer/Claude transfer,
+  provider/key/.env/expense/grant/claim/server/push/merge/deploy/cleanup or old-book edit. Prospective5 USD/1 USD remain unspent/unapproved.
+- Next: Guy forwards R2 brief to Claude; Codex fixes valid findings if any. A future exact operator/grant/execution review and Guy's
+  explicit preparation-cap decision remain separate. This milestone does not implement or dispatch a live operator.
+
+
 ## Source preparation implemented at USD0; manual independent code QA pending (2026-11-02)
 
 - Guy approved implementation of plan R2 with N1-N4, provider-free tests, local commit and manual Claude handoff.

@@ -15,6 +15,38 @@ afterEach(()=>{vi.restoreAllMocks();if(!shared)return;writeFileSync(path.join(sh
 const fixture=()=>{const f=preparationExecutionFixture(shared);vi.spyOn(process,'cwd').mockReturnValue(shared.workspace);return f;};
 
 describe.runIf(!!process.env.SMALL_HEROES_R17_READONLY_BOOK)('actual preparation caller, actual Git/fs/meter/reader, synthetic paid answers only',()=>{
+
+  it('R2 after-await refusal preserves known cost and reports original cause without changing thrown wrapper',async()=>{
+    const f=fixture(),normal=f.args.transport;
+    f.args.transport=async(step,wire,signal)=>{const raw=await normal(step,wire,signal);
+      if(step==='prep_storyboard_0')writeFileSync(path.join(f.workspace,'code-marker.txt'),'SYNTHETIC changed DURING call');return raw;};
+    const error:any=await startSourcePreparation(f.args).then(()=>null,e=>e);
+    expect(error?.message).toBe('personal_storyboard_author_failed');expect(f.calls).toEqual(['prep_storyboard_0']);
+    const ledger=path.join(f.grant.out,'sourceRun','paid-stages'),failureFile=path.join(ledger,'prep_storyboard_0.failure.json');
+    expect(existsSync(failureFile)).toBe(true);
+    const failure=read(failureFile),result=read(path.join(ledger,'prep_storyboard_0.result.json')),stopped=read(path.join(f.grant.out,'PREPARATION-STOP.json'));
+    expect(failure.code).toBe('page_proof_source_changed');expect(result.completed).toBe(false);expect(result.estimatedMicroUsd).toBeGreaterThan(0);
+    expect(stopped.code).toBe(failure.code);expect(stopped.wrapperCode).toBe(error.message);expect(stopped.failedStep).toBe('prep_storyboard_0');
+    expect(stopped.spend.unknownOutcome+stopped.spend.unknownCost).toBe(0);expect(existsSync(path.join(f.grant.out,'WAITING-OWNER.json'))).toBe(false);
+  });
+  it('R2 wrong chosen packet refuses before exclusive entry or any reference claim',async()=>{
+    const f=fixture(),waiting=await startSourcePreparation(f.args),choiceFile=f.choice(waiting),choice=read(choiceFile);
+    choice.standingPacketSha256='a'.repeat(64);put(choiceFile,choice);
+    f.args.transport=async step=>{f.calls.push(step);throw Error('SYNTHETIC forbidden reference dispatch');};
+    await expect(continueSourcePreparation({...f.args,choiceFile})).rejects.toThrow('page_choice_binding');
+    expect(f.calls).toEqual(PREPARATION_STEPS.slice(0,2));expect(existsSync(path.join(f.grant.out,'CONTINUATION-ENTERED.json'))).toBe(false);
+    expect(existsSync(path.join(f.grant.out,'sourceRun','paid-stages','sheet_entities_0.claim.json'))).toBe(false);
+  });
+  it('R2 an already entered continuation refuses at exclusive entry with the waiting ledger still untouched',async()=>{
+    const f=fixture(),waiting=await startSourcePreparation(f.args),choiceFile=f.choice(waiting),entry=path.join(f.grant.out,'CONTINUATION-ENTERED.json');
+    put(entry,{synthetic:'Previously entered process; this test deliberately leaves the two-call waiting ledger untouched.'});
+    const before=readFileSync(entry);
+    f.args.transport=async step=>{f.calls.push(step);throw Error('SYNTHETIC forbidden duplicate dispatch');};
+    await expect(continueSourcePreparation({...f.args,choiceFile})).rejects.toThrow('EEXIST');
+    expect(readFileSync(entry)).toEqual(before);expect(f.calls).toEqual(PREPARATION_STEPS.slice(0,2));
+    expect(existsSync(path.join(f.grant.out,'OWNER-PAGE-CHOICE.json'))).toBe(false);
+    expect(existsSync(path.join(f.grant.out,'sourceRun','paid-stages','sheet_entities_0.claim.json'))).toBe(false);
+  });
   it('starts only the two text calls, preserves base frames, waits without refs, then admits the SAME serialized bundle into real USD1 dry proof',async()=>{
     const f=fixture(),waiting=await startSourcePreparation(f.args);
     expect(f.calls).toEqual(PREPARATION_STEPS.slice(0,2));expect(waiting.status).toBe('WAITING_FOR_OWNER_PAGE_SELECTION');
