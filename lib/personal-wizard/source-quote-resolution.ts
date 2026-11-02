@@ -16,8 +16,9 @@ export function resolveSourceQuotes<T>(draft: T, texts: readonly string[]): T {
     if (texts.some(t => t.includes(quote))) return quote;
     const words = quote.trim().split(/\s+/).filter(Boolean);
     if (words.length < 2) return quote;
-    const pattern = new RegExp(words.map(escape).join('\\s+'), 'g'), spans = new Set<string>();
-    for (const text of texts) for (const m of text.matchAll(pattern)) spans.add(m[0]);
+    // A lookahead enumerates every start (overlapping candidates included); group 1 is the exact source span.
+    const pattern = new RegExp('(?=(' + words.map(escape).join('\\s+') + '))', 'g'), spans = new Set<string>();
+    for (const text of texts) for (const m of text.matchAll(pattern)) spans.add(m[1]);
     return spans.size === 1 ? [...spans][0] : quote;
   };
   const walk = (value: unknown, key: string | null): unknown => {

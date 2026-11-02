@@ -15,6 +15,10 @@ describe('source quote resolution (whitespace-only variants)', () => {
     const out = resolveSourceQuotes(draft, texts);
     expect(out).toEqual(draft);
   });
+  it('leaves overlapping distinct source spans ambiguous', () => {
+    const draft = { quote: 'go\tgo' };
+    expect(resolveSourceQuotes(draft, ['go go\ngo'])).toEqual(draft);
+  });
   it('resolves every quote-bearing key and array element', () => {
     const out = resolveSourceQuotes({ x: [{ quote: 'בקצה המגרש. לפיל' }], sceneChangeEvidence: 'בקצה  המגרש.\nלפיל היה' }, texts);
     expect(out).toEqual({ x: [{ quote: 'בקצה המגרש.\nלפיל' }], sceneChangeEvidence: 'בקצה המגרש.\nלפיל היה' });
