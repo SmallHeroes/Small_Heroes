@@ -11,7 +11,9 @@ export const LANDMARK_KIND_ATTRIBUTE = 'kind';
 
 export const KIND_STORYBOARD_ADDENDUM = `LANDMARK KIND CONTRACT: give EVERY continuity entity whose kind is "landmark" exactly one invariant with attribute "kind":
 1-3 plain words naming what sort of object that landmark itself is (for example: tree, gate, fountain, well). Name the object itself, never
-its place, its neighbours, one of its parts, its colour, material, size or state, and never use negation. The kind is fixed: never list it in
+its place, its neighbours, one of its parts, its colour, material, size or state, and never use negation. Never name what it is used for or
+the kind of place it makes (not playground, park, yard, court, field or arena): for something built, name the built thing itself (for example:
+slide, platform, sculpture, structure). The kind is fixed: never list it in
 mutableAttributes or change it on a page. The landmark's other invariants keep describing its design as before.`;
 
 export const KIND_REVIEW_ADDENDUM = `LANDMARK KIND CONTRACT (active): landmarkKindContract lists each landmark's declared kind. In the continuity check,
