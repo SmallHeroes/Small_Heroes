@@ -20,6 +20,9 @@ describe('source quote resolution (whitespace-only variants)', () => {
     const out = resolveSourceQuotes({ grounding: [{ assertion: 'a', quote: '\\u0000' }, { assertion: 'b', quote: '\u0000' }, { assertion: 'c', quote: 'לפיל היה חדק!' }], note: '\\u0000' }, texts);
     expect(out).toEqual({ grounding: [{ assertion: 'a', quote: null }, { assertion: 'b', quote: null }, { assertion: 'c', quote: 'לפיל היה חדק!' }], note: '\\u0000' });
   });
+  it('turns an empty or whitespace-only quote into null', () => {
+    expect(resolveSourceQuotes({ grounding: [{ quote: '' }, { quote: ' \n' }], evidence: '' }, texts)).toEqual({ grounding: [{ quote: null }, { quote: null }], evidence: null });
+  });
   it('canonicalizes only the exact p{n}:plan.<stageable field> staging alias', () => {
     const raw = { moments: { frames: [{ staging: [{ ref: 'p0:plan', reason: 'r' }] }, { staging: [{ ref: 'p1:plan.childGaze', reason: 'r' }, { ref: 'p1:requirement:0', reason: 'r' },
       { ref: 'p1:plan.background', reason: 'r' }] }] } };

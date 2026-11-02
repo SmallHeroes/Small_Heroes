@@ -16,7 +16,8 @@ export function resolveSourceQuotes<T>(draft: T, texts: readonly string[]): T {
   const resolve = (quote: string): string | null => {
     // A NUL placeholder (raw or JSON-escaped) is never page text: models emit it for "no quote". It becomes null, and the schema still
     // decides whether null is allowed there (a non-nullable quote refuses exactly as before).
-    if (quote === '\u0000' || quote === '\\u0000') return null;
+    // The same holds for an empty or whitespace-only quote: no page text is quoted by it.
+    if (quote === '\u0000' || quote === '\\u0000' || quote.trim() === '') return null;
     if (texts.some(t => t.includes(quote))) return quote;
     const words = quote.trim().split(/\s+/).filter(Boolean);
     if (words.length < 2) return quote;
