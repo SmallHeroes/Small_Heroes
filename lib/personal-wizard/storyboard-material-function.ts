@@ -15,7 +15,8 @@ export type EntityMaterialFunction = { version: typeof ENTITY_MATERIAL_FUNCTION_
 export const MATERIAL_STORYBOARD_ADDENDUM = `ENTITY MATERIAL/FUNCTION CONTRACT: every plan.continuity.entities entry declares builtFrom,
 null for an object that is not built from other things, otherwise { sources, evidence }. Each source is {entityId} naming a continuity entity
 or {locationId,kind} naming an actual population kind in that location. Use evidence {citation,quote}: the exact materialSourceSpans sentence id and
-its verbatim sentence that states the construction. Never invent components or rewrite the manuscript. Shapes belong to invariants;
+its verbatim sentence that states the construction. That one sentence must itself name the components: a sentence that refers to them only
+as "them", "it" or "they" does not state the construction, so cite the sentence that names them instead. Never invent components or rewrite the manuscript. Shapes belong to invariants;
 momentary contact/action belongs to the existing page prop states and depicted relations. A wedge may land on its broad flat face; landing
 flat does not make it a cube. Palette is required only when the source states it; grey/shading alone is not another material.`;
 export const MATERIAL_REVIEW_ADDENDUM = `ENTITY MATERIAL/FUNCTION CONTRACT: verify that every built object's declared builtFrom is complete,
