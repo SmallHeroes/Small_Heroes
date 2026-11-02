@@ -128,10 +128,12 @@ function openExecution(args:Execution,continuation?:true){
   return{grant,plan,authority,check};
 }
 type DispatchFailure={details?:{step:Step;code:string}};
-const preparationErrorCode=(error:unknown)=>{
+/** Internal engine refusals throw message-only codes with these fixed prefixes (e.g. a compiler gate after a paid answer). */
+const INTERNAL_CODE=/^(?:storyboard|personal_storyboard|existing_child_appearance|book_provider|audition|page_proof|source_prep)_[a-z0-9_]{1,120}$/;
+export const preparationErrorCode=(error:unknown)=>{
   if(error&&typeof error==='object'&&'code'in error&&typeof error.code==='string'&&error.code.length<=128&&/^[a-z0-9_]+$/.test(error.code))return error.code;
-  // Only these known internal wrapper literals are classified from messages; arbitrary error text is never logged.
-  if(error instanceof Error&&(error.message==='personal_storyboard_author_failed'||error.message==='personal_storyboard_cancelled'))return error.message;
+  // Only internal code-shaped messages are classified; arbitrary error text (provider, I/O) is never logged.
+  if(error instanceof Error&&INTERNAL_CODE.test(error.message))return error.message;
   return undefined;
 };
 function stop(out:string,error:unknown,meter?:AuditionMeter,failure?:DispatchFailure){

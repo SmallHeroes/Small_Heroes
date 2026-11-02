@@ -3,6 +3,7 @@ import { COMPANION_SCALE_VERSION, SCALE_STORYBOARD_ADDENDUM, validateCompanionSc
 import { assertEngineContinuityOptions, type EngineContinuityOptions } from './engine-continuity-contracts';
 import { ENTITY_MATERIAL_FUNCTION_VERSION, MATERIAL_STORYBOARD_ADDENDUM, withMaterialFunction, splitMaterialFunction, compileMaterialFunction, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
+import { resolveSourceQuotes } from './source-quote-resolution';
 import { assertExistingChildAppearance, assertExistingChildClothing, existingChildAppearanceData, withExistingChildAppearanceSchema, EXISTING_CHILD_APPEARANCE_INSTRUCTION,
   type ExistingChildAppearance, type ExistingChildAppearanceData } from './existing-child-appearance';
 
@@ -465,6 +466,8 @@ These roles are distinct from supporting cast and scene props. Preserve the supp
 export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true; stagingFields?: true; selfCheckSourceSpans?: true }): PersonalStoryboard {
   assertSource(source);
   if(source.existingChildAppearance)assertExistingChildClothing(source.existingChildAppearance,rawDraft);
+  // Whitespace-only quote variants resolve to the page's exact span before every quote gate; exact drafts pass through unchanged.
+  rawDraft = resolveSourceQuotes(rawDraft, previewStoryEvidence(source.story).texts);
   if (options !== undefined) {
     const keys = Object.keys(options);
     if (!keys.length || keys.some(k => k !== 'selfCheckNames' && k !== 'stagingFields' && k !== 'selfCheckSourceSpans') ||

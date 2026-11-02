@@ -13,7 +13,7 @@ import {preparationGrantSchema,preparationOwnerSchema,preparationPinSchema,prepa
 import {verifyNativePageProofCode,verifyNativePageProofOutput} from '../lib/personal-wizard/native-page-proof';
 import {NATIVE_PAGE_PROOF_AUTHORITY_ROOT} from '../lib/personal-wizard/native-page-proof-authority-host';
 import {exclusiveJson,realDirectory} from './personal-causal-trial-journal';
-import {planSourcePreparation,startSourcePreparation,continueSourcePreparation,preparationMeterRules,type PreparationTransport} from './personal-source-preparation';
+import {planSourcePreparation,startSourcePreparation,continueSourcePreparation,preparationMeterRules,preparationErrorCode,type PreparationTransport} from './personal-source-preparation';
 import {longCallFetch} from './personal-long-call-fetch';
 import {SOL_WRITING} from './personal-sol-writing-transport';
 
@@ -145,7 +145,7 @@ export async function runPreparationOperator(args:{envelopeFile:string;phase:Pha
     exclusiveJson(path.join(envelope.traceRoot,args.phase+'.operator-outcome.json'),{status:result.status,at:new Date().toISOString(),result,paidRetryAllowed:false});
     return result;
   }catch(error){
-    const code=error&&typeof error==='object'&&'code'in error&&typeof error.code==='string'&&/^[a-z0-9_]+$/.test(error.code)?error.code:'operator_held';
+    const code=preparationErrorCode(error)??'operator_held';
     try{exclusiveJson(path.join(envelope.traceRoot,args.phase+'.operator-outcome.json'),{status:'HELD',code,at:new Date().toISOString(),paidRetryAllowed:false});}catch{/* Preserve original error and core journal. */}
     throw error;
   }
