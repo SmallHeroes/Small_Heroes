@@ -16,7 +16,9 @@ export const MATERIAL_STORYBOARD_ADDENDUM = `ENTITY MATERIAL/FUNCTION CONTRACT: 
 null for an object that is not built from other things, otherwise { sources, evidence }. Each source is {entityId} naming a continuity entity
 or {locationId,kind} naming an actual population kind in that location. Use evidence {citation,quote}: the exact materialSourceSpans sentence id and
 its verbatim sentence that states the construction. That one sentence must itself name the components: a sentence that refers to them only
-as "them", "it" or "they" does not state the construction, so cite the sentence that names them instead. Never invent components or rewrite the manuscript. Shapes belong to invariants;
+as "them", "it" or "they" does not state the construction, so cite the sentence that names them instead. Keep each entity's design and builtFrom
+consistent: a design or kind that says the object is made of other things (for example a tower of blocks) needs builtFrom; when no sentence
+states what it is made of, use builtFrom null and describe only its stated look, never its components. Never invent components or rewrite the manuscript. Shapes belong to invariants;
 momentary contact/action belongs to the existing page prop states and depicted relations. A wedge may land on its broad flat face; landing
 flat does not make it a cube. Palette is required only when the source states it; grey/shading alone is not another material.`;
 export const MATERIAL_REVIEW_ADDENDUM = `ENTITY MATERIAL/FUNCTION CONTRACT: verify that every built object's declared builtFrom is complete,
