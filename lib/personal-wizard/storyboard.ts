@@ -3,6 +3,8 @@ import { COMPANION_SCALE_VERSION, SCALE_STORYBOARD_ADDENDUM, validateCompanionSc
 import { assertEngineContinuityOptions, type EngineContinuityOptions } from './engine-continuity-contracts';
 import { ENTITY_MATERIAL_FUNCTION_VERSION, MATERIAL_STORYBOARD_ADDENDUM, withMaterialFunction, splitMaterialFunction, compileMaterialFunction, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
+import { assertExistingChildAppearance, assertExistingChildClothing, existingChildAppearanceData, withExistingChildAppearanceSchema, EXISTING_CHILD_APPEARANCE_INSTRUCTION,
+  type ExistingChildAppearance, type ExistingChildAppearanceData } from './existing-child-appearance';
 
 import { z } from 'zod';
 import { personalCompanionVisual } from './personal-companions';
@@ -100,6 +102,7 @@ type BookData = {
   stateParity?: typeof STORYBOARD_STATE_PARITY_VERSION;
   /** Present only under the opt-in instance-distinction contract: every location's population and every landmark's and prop's kind and distinction. */
   instanceDistinction?: InstanceDistinction;
+  existingChildAppearance?: ExistingChildAppearanceData;
   materialFunction?: EntityMaterialFunction;
   companionScale?: CompanionScaleAuthority;
 };
@@ -138,7 +141,11 @@ const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: 
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true,
   landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true, repair?: StoryboardRepair,
   drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true, claimBasisContract?: true,
-  calibrationContract?: true, presenceContract?: true, stateParityContract?: true, instanceDistinctionContract?: true, engineContinuity?: EngineContinuityOptions) {
+  calibrationContract?: true, presenceContract?: true, stateParityContract?: true, instanceDistinctionContract?: true, engineContinuity?: EngineContinuityOptions, existingChildAppearance?: ExistingChildAppearance) {
+  if(existingChildAppearance!==undefined){
+    assertExistingChildAppearance(existingChildAppearance);
+    if(actorOwnedAppearance!==true||repair!==undefined||preservation!==undefined)fail('existing_child_appearance_scope');
+  }
   engineContinuity = assertEngineContinuityOptions(engineContinuity, instanceDistinctionContract);
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
   // Instance distinction keys entities by the landmark-kind syntax and extends kinds to props, so it needs that contract.
@@ -177,6 +184,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   }
   const prepared = preparePersonalStory(request, options);
   const result = storyboardWriterResultSchema.parse(writerResult);
+  if(existingChildAppearance)assertExistingChildAppearance(existingChildAppearance,prepared.accepted.requestId,prepared.brief.child.age,prepared.brief.child.address);
   // Writer output was already normalised at its own boundary. Do not silently trim
   // a subsequently edited manuscript/plan and call it the same final source.
   if (canonicalJson(writerResult) !== canonicalJson(result)) fail('noncanonical_writer_result');
@@ -328,6 +336,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(stateParityContract ? { stateParityContract: STORYBOARD_STATE_PARITY_VERSION } : {}),
     ...(instanceDistinctionContract ? { instanceDistinctionContract: INSTANCE_DISTINCTION_VERSION } : {}),
     ...(companionScale ? { companionScale } : {}),
+    ...(existingChildAppearance ? { existingChildAppearance:existingChildAppearanceData(existingChildAppearance) } : {}),
     ...(engineContinuity ? { engineContinuity } : {}),
     ...(prior ? { storyboardPreservation: { version: STORYBOARD_PRESERVATION_VERSION, parentStoryboardDigest: prior.parentStoryboardDigest, draft: digest(prior.draft) } } : {}),
     ...(held ? { storyboardRepair: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, draft: digest(held.draft),
@@ -338,6 +347,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
+    ...(existingChildAppearance ? { existingChildAppearance } : {}),
     ...(actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
     ...(momentContract ? { momentContract: true as const } : {}),
     ...(landmarkKindContract ? { landmarkKindContract: true as const } : {}),
@@ -362,6 +372,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     planningInput: {
       ...wholeBookPlanningInput(story, prepared.brief.child.age, prepared.brief.child.address, companionVisualAuthority.description),
       companionVisualAuthority,
+      ...(existingChildAppearance ? { existingChildAppearance:existingChildAppearanceData(existingChildAppearance) } : {}),
       ...(companionScale ? { companionScale } : {}),
       ...(engineContinuity?.materialFunction ? { materialSourceSpans: sourceSpans(previewStoryEvidence(story).texts) } : {}),
       ...(stateParityContract ? { stateParity: stateParityRules() } : {}),
@@ -402,10 +413,10 @@ function parentStoryboardDigest(request: unknown, writerResult: unknown, options
 export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true,
   momentContract?: true, landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true,
   repair?: StoryboardRepair, drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true,
-  claimBasisContract?: true, calibrationContract?: true, presenceContract?: true, stateParityContract?: true, instanceDistinctionContract?: true, engineContinuity?: EngineContinuityOptions) {
+  claimBasisContract?: true, calibrationContract?: true, presenceContract?: true, stateParityContract?: true, instanceDistinctionContract?: true, engineContinuity?: EngineContinuityOptions, existingChildAppearance?: ExistingChildAppearance) {
   return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract,
     landmarkKindContract, preservation, sceneLocationContract, compilerRulesContract, repair, drawnInstantContract, visibleMomentContract,
-    selfCheckContract, reviewImpactPolicy, claimBasisContract, calibrationContract, presenceContract, stateParityContract, instanceDistinctionContract, engineContinuity);
+    selfCheckContract, reviewImpactPolicy, claimBasisContract, calibrationContract, presenceContract, stateParityContract, instanceDistinctionContract, engineContinuity, existingChildAppearance);
 }
 
 function assertSource(source: Source) {
@@ -453,6 +464,7 @@ These roles are distinct from supporting cast and scene props. Preserve the supp
  */
 export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true; stagingFields?: true; selfCheckSourceSpans?: true }): PersonalStoryboard {
   assertSource(source);
+  if(source.existingChildAppearance)assertExistingChildClothing(source.existingChildAppearance,rawDraft);
   if (options !== undefined) {
     const keys = Object.keys(options);
     if (!keys.length || keys.some(k => k !== 'selfCheckNames' && k !== 'stagingFields' && k !== 'selfCheckSourceSpans') ||
@@ -480,6 +492,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   const compiled = compileWholeBookDraft(source.momentContract ? draft : planned, source.story, source.actorOwnedAppearance === true);
   const texts = previewStoryEvidence(source.story).texts;
   const companionScale = source.companionScale;
+  const existingChildAppearance=source.existingChildAppearance;
   if (companionScale) validateCompanionScale(companionScale, compiled.plan.continuity!.companionStandingHeightInChildHeights);
   // Claim basis: an override of an entity its frame does not show is dropped first (recorded; it cannot change the picture), then the contract's
   // moments are validated with visible-only completeness and its requirement pages, then its own fields (staging, withhold) structurally.
@@ -551,7 +564,8 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}), ...(selfCheckNames ? { selfCheckNames } : {}),
     ...(selfCheckSourceSpans ? { selfCheckSourceSpans } : {}),
     ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}), ...(calibration ? { calibration } : {}),
-    ...(presence ? { presence } : {}), ...(stateParity ? { stateParity } : {}), ...(instances ? { instanceDistinction: instances } : {}), ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}) });
+    ...(presence ? { presence } : {}), ...(stateParity ? { stateParity } : {}), ...(instances ? { instanceDistinction: instances } : {}), ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}),
+    ...(existingChildAppearance ? {existingChildAppearance:existingChildAppearanceData(existingChildAppearance)} : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
@@ -560,7 +574,8 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(visibleMoment ? { visibleMoment } : {}), ...(selfCheck ? { selfCheck } : {}), ...(reviewImpact ? { reviewImpact } : {}),
     ...(selfCheckNames ? { selfCheckNames } : {}), ...(selfCheckSourceSpans ? { selfCheckSourceSpans } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}),
     ...(calibration ? { calibration } : {}), ...(presence ? { presence } : {}), ...(stateParity ? { stateParity } : {}),
-    ...(instances ? { instanceDistinction: instances } : {}), ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}) } as PersonalStoryboard;
+    ...(instances ? { instanceDistinction: instances } : {}), ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}),
+    ...(existingChildAppearance ? {existingChildAppearance:existingChildAppearanceData(existingChildAppearance)} : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -591,6 +606,7 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
   return { scope: 'semantic_diagnostic_not_product_acceptance', sourceDigest: book.sourceDigest,
     storyboardDigest: book.storyboardDigest, approvedBrief: source.brief, manuscript: source.result.manuscript,
     companionVisualAuthority: source.companionVisualAuthority,
+    ...(book.existingChildAppearance?{existingChildAppearance:book.existingChildAppearance}:{}),
     ...(book.stateParity ? { stateParity: stateParityAuthority(book.plan, book.sequence) } : {}),
     ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
     narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}),
@@ -719,7 +735,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
     source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract,
-    source.presenceContract, source.stateParityContract, source.instanceDistinctionContract, source.engineContinuity);
+    source.presenceContract, source.stateParityContract, source.instanceDistinctionContract, source.engineContinuity, source.existingChildAppearance);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   const accepted = ownerAcceptance === undefined ? null : bindOwnerAcceptance(book, decision, ownerAcceptance);
@@ -742,6 +758,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     storyboardDigest: book.storyboardDigest, reviewDigest: decision.reviewDigest,
     requestId: book.requestId, pageNumber, text, ...(book.selfCheckSourceSpans ? { selfCheckSourceSpans: book.selfCheckSourceSpans } : {}),
     companion: { id: source.request.companion.id, description: source.companionDescription },
+    ...(book.existingChildAppearance?{existingChildAppearance:book.existingChildAppearance}:{}),
     visual: selectedDraftQaContext(plan, pageNumber), sequence, ...(readerFraming ? { readerFraming } : {}),
     ...(book.stateParity ? { stateParity: stateParityRules() } : {}),
     ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
@@ -770,7 +787,7 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract,
     source.visibleMomentContract, source.selfCheckContract, source.reviewImpactPolicy, source.claimBasisContract, source.calibrationContract,
-    source.presenceContract, source.stateParityContract, source.instanceDistinctionContract, source.engineContinuity);
+    source.presenceContract, source.stateParityContract, source.instanceDistinctionContract, source.engineContinuity, source.existingChildAppearance);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return ownerAcceptance === undefined ? personalStoryboardFrame(book, rawReview, pageNumber, current)
     : personalStoryboardFrame(book, rawReview, pageNumber, current, ownerAcceptance);
@@ -780,7 +797,7 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
 export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; preservation?: unknown;
   sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true;
   selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true; presenceContract?: true; stateParityContract?: true;
-  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions }) => {
+  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions; existingChildAppearance?: ExistingChildAppearance }) => {
   if (source.stateParityContract !== undefined && (source.stateParityContract !== true || source.calibrationContract !== true ||
     source.claimBasisContract !== true || source.visibleMomentContract !== true)) fail('state_parity_policy');
   return (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '')
@@ -796,6 +813,7 @@ export const storyboardInstructions = (source: { actorOwnedAppearance?: true; mo
   + (source.calibrationContract ? '\n' + (source.stateParityContract ? stateParityPlannerCalibration() : CALIBRATION_STORYBOARD_ADDENDUM) : '')
   + (source.presenceContract ? '\n' + PRESENCE_STORYBOARD_ADDENDUM : '')
   + (source.stateParityContract ? '\n' + STATE_PARITY_PLANNER_ADDENDUM : '')
+  + (source.existingChildAppearance ? '\n' + EXISTING_CHILD_APPEARANCE_INSTRUCTION : '')
   + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM : '');
 };
 /** The drawn-instant addendum under the claim basis: its completeness rule stated for visible entities (replaced, never contradicted). */
@@ -809,7 +827,7 @@ function claimBasisDrawnInstantAddendum() {
 const momentDraftSchema = (source: { actorOwnedAppearance?: true; drawnInstantContract?: true }) => source.drawnInstantContract
   ? (source.actorOwnedAppearance ? ownedDrawnInstantWholeBookDraftSchema : drawnInstantWholeBookDraftSchema)
   : (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema);
-export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
+const appearanceBaseStoryboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; drawnInstantContract?: true;
   selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true; presenceContract?: true; instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions }) => {
   const schema = baseStoryboardDraftSchema(source);
   // The instance-distinction contract adds each plan location's population; absent, the exact existing schema object.
@@ -824,6 +842,14 @@ const baseStoryboardDraftSchema = (source: { actorOwnedAppearance?: true; moment
   : source.momentContract && source.selfCheckContract ? (momentDraftSchema(source) as typeof drawnInstantWholeBookDraftSchema).extend({ selfCheck: selfCheckSchema })
     : source.momentContract ? momentDraftSchema(source)
       : (source.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema);
+
+/** The exact existing items constrain the response schema; the compiler also checks order before review. */
+export function storyboardDraftSchema(source:Parameters<typeof appearanceBaseStoryboardDraftSchema>[0] & {existingChildAppearance?:ExistingChildAppearance}){
+  const base=appearanceBaseStoryboardDraftSchema(source);
+  if(!source.existingChildAppearance)return base;
+  const appearance=assertExistingChildAppearance(source.existingChildAppearance);
+  return withExistingChildAppearanceSchema(base,existingChildAppearanceData(appearance));
+}
 
 function drawnSequenceState(book: PersonalStoryboard, pageNumber: number, ledger: ReturnType<typeof sequencePageState>,
   depicted: NonNullable<StoryboardMoments['frames'][number]['depicted']>) {

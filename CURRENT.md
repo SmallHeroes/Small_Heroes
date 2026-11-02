@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Source preparation implemented at USD0; manual independent code QA pending (2026-11-02)
+
+- Guy approved implementation of plan R2 with N1-N4, provider-free tests, local commit and manual Claude handoff.
+  R6's independent code PASS belongs to336eeb28 (report61212eb3); plan R2 PASS ee6e95c9 does not approve this implementation.
+- New existing-admitted-child-appearance/v1 binds the original ordered wardrobe and admitted candidate/adoption/recipe/context
+  across source, actual provider schema, raw-answer compiler, semantic review, frames and persisted bundle admission.
+  A clothing synonym/order change refuses before semantic review. No answer rewrite or child-specific runtime exception.
+- The exported preparation caller has no CLI/default provider/key loader. The actual original request/options/seed/child and
+  complete new wire are admitted before claim. Two text calls lead to a durable zero-cost owner page-choice wait; only then
+  can four sheet calls run. Page selection never steers the planner. The same serialized book/sourceRun feeds the real proof reader.
+- N1 real R17-input/options admission and actual downstream dryNativePageProof succeed with explicitly SYNTHETIC paid answers.
+  N2 all nine stored base packets omit readerFraming and rebuild exactly. N3 the external freeze gives relative paths for every
+  source pin. N4 exact clean HEAD, stable consent claim, sealed waiting bytes and exclusive continuation forbid drift/repetition.
+- Future dispatch still requires Guy's separate exact owner cap approval, pinned operator/grant and COMPLETE independent execution
+  review. Fixed host claims span code/output copies. Max6 steps/two LOW references/5,000,000 microUSD are prospective code restrictions,
+  not spend permission. Full UNKNOWN/cache reserves survive lost/in-progress answers. No paid retry, pages, child, cover or narration.
+- Local final evidence:977/977 in25 relevant specs, actual native exit0, both nonincremental TypeScript gates0, four
+  assertion-killed variants with exact source restoration. Real-input tests are opt-in; portable appearance/policy controls
+  require no R17 files. SDK constructors/fetch/http/https denied. Initial failures and JSON-green/native-exit1 evidence remain.
+  The visible reporter traced the latter to Vitest onTaskUpdate RPC timeout; synthetic transport now yields actual macrotasks.
+  Test timeouts/acceptance were not relaxed. Full npm run check is NOT declared green; real SDK/HTTP and model efficacy unproven.
+- All321 historical hashes, exact279 book files,33 prior-plan files,25 R2 planning artifacts,5 R2 QA and98 R6 QA artifacts match.
+  R17 remains0/9 held; text, images, Dad audio, claims, costs and receipts unchanged. No actual new storyboard or references exist.
+- Same chat is sole writer; claude/book-render-20261009 at C:/GNart/Work/sh-book-render-20261009, base336eeb28.
+  Gate:docs/ai-workflow/SOURCE_PREPARATION_GATE_20261102.md. Focused local commit/freeze and adversarial handoff through Guy only.
+  Implementation's independent verdict remains PENDING. No provider/key/.env/expense/server/push/merge/deploy/cleanup/old-book edit
+  or automatic Claude transfer occurred. Resemblance0.70 and Guy's product-acceptance gate remain.
+- Next: manual read-only Claude code QA, valid fixes/re-gate, then a separately reviewed exact execution envelope and Guy's explicit
+  preparation-cap decision. Actual new plan review precedes owner page choice; the later USD1 proof still needs its own grant/review/go.
+
+Earlier dated entries below preserve historical states and do not override this current entry.
+
 ## R4/R5 independent PASS recorded; R6 authority corrections locally complete (2026-11-01)
 
 - Guy returned Claude's completed R4/R5 code PASS at c6784d5a. Codex verified its final manual end_turn, reportdb409b6d, index7725dcbb,

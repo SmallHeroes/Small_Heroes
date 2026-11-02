@@ -7,6 +7,7 @@
  * never resets spending. Not production, customer or release authority. Every paid call is journaled before dispatch.
  */
 import path from 'node:path';
+import { EXISTING_CHILD_APPEARANCE_FILE, admitExistingChildAppearance } from '../lib/personal-wizard/existing-child-appearance';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync, realpathSync } from 'node:fs';
 import sharp from 'sharp';
 import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput } from '../lib/personal-wizard/native-page-proof';
@@ -312,12 +313,15 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   realDirectory(bookDir);
   const visual = path.join(bookDir, layout.storyboardDir), repairFile = path.join(visual, STORYBOARD_REPAIR_INPUT_FILE),
     acceptanceFile = path.join(visual, STORYBOARD_OWNER_ACCEPTANCE_FILE);
-  return admitReviewedStoryboardBundle({queued:read(path.join(bookDir,'request.json')),
+  const appearanceFile=path.join(bookDir,layout.childDir,EXISTING_CHILD_APPEARANCE_FILE);
+  const existingAppearance=existsSync(appearanceFile)?{record:read(appearanceFile),adoption:read(path.join(bookDir,layout.childDir,'reference_child_adoption.json')),
+    candidateSha:previewSha(readFileSync(path.join(bookDir,layout.childDir,'illustrations',layout.childImage)))}:undefined;
+  return admitReviewedStoryboardBundle({...(existingAppearance?{existingAppearance}:{}),queued:read(path.join(bookDir,'request.json')),
     result:read(path.join(visual,'visual_simple_book_result.json')),draft:read(path.join(visual,'owned_storyboard_draft.json')),
     repair:existsSync(repairFile)?read(repairFile):undefined,ownerAcceptance:existsSync(acceptanceFile)?read(acceptanceFile):undefined},workspace,layout,continuity);
 }
 /** Shared provider-free admission of ALL persisted compile inputs. Filesystem loading and checkpoint preflight use this same path. */
-export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;draft:unknown;repair?:StoryboardRepair;ownerAcceptance?:unknown},
+export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;draft:unknown;repair?:StoryboardRepair;ownerAcceptance?:unknown;existingAppearance?:{record:unknown;adoption:unknown;candidateSha:string}},
   workspace=process.cwd(),layout:ReviewedBookLayout=LEGACY_BOOK_LAYOUT,continuity?:StoryboardContinuityAdmission){
   if(continuity!==undefined)continuity=storyboardContinuityAdmissionSchema.parse(continuity);
   const queued = z.object({ version: z.literal('local-simple-wizard-request/v1'), requestId: z.string(), optionsFingerprint: z.string(),
@@ -336,6 +340,10 @@ export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;
   if (result.source?.simpleSource?.evidence?.seed !== prepared.seed) fail('audition_request_binding');
   // The rebuilt source must reproduce the saved markers exactly: a stripped or added marker changes the digests and fails the board binding.
   const saved = result.storyboard?.storyboard;
+  if((bundle.existingAppearance!==undefined)!==(saved?.existingChildAppearance!==undefined))fail('audition_existing_child_appearance');
+  const existingAppearance=bundle.existingAppearance?admitExistingChildAppearance(bundle.existingAppearance.record,bundle.existingAppearance.adoption,bundle.existingAppearance.candidateSha):undefined;
+  if(existingAppearance&&(canonicalJson(existingAppearance)!==canonicalJson(saved.existingChildAppearance)||existingAppearance.child.design!==layout.childDesign||
+    existingAppearance.child.acceptance!==layout.childAnchor||existingAppearance.child.pose!==layout.childAnchorPose))fail('audition_existing_child_appearance');
   // A repaired storyboard's source includes its saved repair input (the held parent's draft and review), present exactly when the saved book
   // names its parent; the engine re-binds that input to the parent (and the parent's review must hold it), and any other input changes the
   // source digest and fails the board binding the same way.
@@ -344,7 +352,7 @@ export function admitReviewedStoryboardBundle(bundle:{queued:unknown;result:any;
     undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), bundle.repair,
     savedDrawnInstantContract(saved), savedVisibleMomentContract(saved), savedSelfCheckContract(saved), savedReviewImpactPolicy(saved),
     savedClaimBasisContract(saved), savedCalibrationContract(saved), savedPresenceContract(saved), savedStateParityContract(saved),
-    continuity?.instanceDistinctionContract,continuity?.engineContinuity);
+    continuity?.instanceDistinctionContract,continuity?.engineContinuity,existingAppearance);
   const parentDraft = bundle.draft;
   const names = savedSelfCheckNames(saved), fields = savedStagingFields(saved), spans = savedSelfCheckSourceSpans(saved);
   const book = names || fields || spans ? compilePersonalStoryboard(source, parentDraft, { ...names, ...fields, ...spans }) : compilePersonalStoryboard(source, parentDraft);
@@ -1179,6 +1187,7 @@ export function nativePageProofInputFiles(bookDir:string,layout:ReviewedBookLayo
     ...['front.png','3-4.png','side.png','back.png','happy.png','theme.png'].map(n=>path.join(companionDir,n)),path.join(sourceRun,'admission.json')];
   for(const name of [STORYBOARD_REPAIR_INPUT_FILE,STORYBOARD_OWNER_ACCEPTANCE_FILE]){const file=path.join(visual,name);if(existsSync(file))files.push(file);}
   if(layout.savedCompanion!==null)files.push(path.join(bookDir,...layout.savedCompanion.split('/')));
+  const appearance=path.join(child,EXISTING_CHILD_APPEARANCE_FILE);if(existsSync(appearance))files.push(appearance);
   for(const role of ['entities','locations'] as const){
     const file=path.join(sourceRun,'sheet_'+role+'.json'),saved=read(file) as SavedSheet;files.push(file);
     const name=saved?.chosen?.candidate?.imageName;if(!name||!/^[a-z0-9_]+\.png$/.test(name)||!Array.isArray(saved.attempts))fail('page_proof_reference_inputs');

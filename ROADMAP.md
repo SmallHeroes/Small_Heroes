@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Source preparation implemented at USD0; manual independent code QA next (2026-11-02)
+
+- Prior R6 code PASS at336eeb28 and source-preparation PLAN R2 PASS verified. Guy authorized implementation with N1-N4 only.
+- General admitted-child wardrobe authority reaches actual planner/schema/compiler/reload; preparation serializes the native
+  book/sourceRun format and waits for post-review owner selection under one forward-only consent/claim/ledger.
+- N1 real-input/options and same-bundle downstream dry admission; N2 base packets; N3 relative source pins; N4 changed code/wait
+  state and duplicate continuation refusal are locally covered. Final977/977 in25 specs, both TypeScript gates0,4 restored mutants.
+-321 historical hashes and279-book-file inventory preserved. Full check/model efficacy/product acceptance are not claimed;
+  prior red/fixture/RPC-timeout evidence remains. Synthetic IO scheduling fixed the observed test-runner RPC starvation.
+- Next is manual independent Claude read-only code review on the focused local commit/freeze. No automatic routing.
+  No genuine new CDE storyboard/reference set, executable grant, provider/key/env/spend/server/push/cleanup or old-book edit.
+- Prospective preparation <=6 calls/two LOW references/5 USD includes full UNKNOWN/cache reserves, no retries/pages/audio.
+  Code bounds do not authorize expense: exact owner/operator/grant and independent execution review remain necessary.
+  Then owner selects actual reviewed frames and the separate USD1 proof needs its own exact grant/review/go. R17 stays0/9 held.
+
 ## R6 authority corrections locally complete; manual re-gate next (2026-11-01)
 
 - R4/R5 independent code PASS at c6784d5a recorded after176 reviewer,331 writer and65 source pins matched. R6 remains independently pending.

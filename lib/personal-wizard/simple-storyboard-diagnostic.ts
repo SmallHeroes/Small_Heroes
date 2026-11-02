@@ -2,6 +2,7 @@ import { SCALE_REVIEW_ADDENDUM } from './companion-scale';
 import type { EngineContinuityOptions } from './engine-continuity-contracts';
 import { MATERIAL_REVIEW_ADDENDUM } from './storyboard-material-function';
 import 'server-only';
+import {existingChildAppearanceData,type ExistingChildAppearance} from './existing-child-appearance';
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
 import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema,
@@ -110,7 +111,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   /** Shared, prospective compiler attribute/time semantics; needs calibration and visible moment. */
   stateParityContract?: true;
   /** Opt-in instance distinction (instance-distinction/v1: needs the landmark-kind contract; the planner's schema/instruction/compile and the review's rule); absent keeps the exact existing calls. */
-  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions;
+  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions; existingChildAppearance?: ExistingChildAppearance;
 }) {
   if (args.selfCheckSourceSpans !== undefined && (args.selfCheckSourceSpans !== true || args.selfCheckContract !== true)) fail('self_check_source_spans_policy');
   if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
@@ -127,7 +128,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
     args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
     args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract, args.stateParityContract,
-    args.instanceDistinctionContract, args.engineContinuity);
+    args.instanceDistinctionContract, args.engineContinuity, args.existingChildAppearance);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length, args.selfCheckContract ? { selfCheck: true } : undefined);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -137,7 +138,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
         args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
         args.selfCheckContract, args.reviewImpactPolicy, args.claimBasisContract, args.calibrationContract, args.presenceContract, args.stateParityContract,
-        args.instanceDistinctionContract, args.engineContinuity).sourceDigest !== source.sourceDigest)
+        args.instanceDistinctionContract, args.engineContinuity, args.existingChildAppearance).sourceDigest !== source.sourceDigest)
         fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
@@ -176,7 +177,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
       ...(args.presenceContract ? { presenceContract: true as const } : {}),
       ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
-      ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}), ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}) } }), args.signal,
+      ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}), ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}),
+      ...(args.existingChildAppearance?{existingChildAppearance:existingChildAppearanceData(args.existingChildAppearance)}:{}) } }), args.signal,
     args.selfCheckNames || args.stagingFields || args.selfCheckSourceSpans ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}),
       ...(args.selfCheckSourceSpans ? { selfCheckSourceSpans: true as const } : {}) }
       : undefined);
@@ -194,6 +196,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
       ...(args.calibrationContract ? { calibrationContract: true as const } : {}),
       ...(args.stateParityContract ? { stateParityContract: true as const } : {}),
       ...(args.instanceDistinctionContract ? { instanceDistinctionContract: true as const } : {}), ...(args.engineContinuity ? { engineContinuity: args.engineContinuity } : {}),
+      ...(args.existingChildAppearance?{existingChildAppearance:existingChildAppearanceData(args.existingChildAppearance)}:{}),
       ...(reviewCapacity ? { reviewCapacity: reviewCapacity.version } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();
