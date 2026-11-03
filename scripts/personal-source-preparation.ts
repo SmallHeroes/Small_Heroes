@@ -230,7 +230,9 @@ export async function startSourcePreparation(args:Execution){
       if(!supported(loaded.result.status)||loaded.book.storyboardDigest!==adopted.storyboardDigest||loaded.book.sourceDigest!==adopted.sourceDigest)prepFail('adopt_binding');
       const waiting={version:SOURCE_PREPARATION,status:'WAITING_FOR_OWNER_PAGE_SELECTION',grantSha256:authority.grantSha256,sourceHead:grant.sourceHead,
         storyboardDigest:loaded.book.storyboardDigest,sourceDigest:loaded.book.sourceDigest,bookDir,sourceRun,layout:plan.targetLayout,
-        files:mine.map(preparationPin),spend:meter.snapshot(),at:new Date().toISOString(),noPaidRetries:true,
+        // The new WAITING pins are the approved SEALED pins at the destination paths, never re-read from mutable destination bytes.
+        files:mine.map((file,k)=>{const pin=adopted.pins.get(path.resolve(theirs[k]).toLowerCase());if(!pin)return prepFail('adopt_bytes');
+          return{file:path.resolve(file),bytes:pin.bytes,sha256:pin.sha256};}),spend:meter.snapshot(),at:new Date().toISOString(),noPaidRetries:true,
         adoptedFrom:{out:adopted.out,approvalId:adopted.approvalId,waitingSha256:adopted.waitingSha256,grantSha256:adopted.grantSha256}};
       check();assertAdoptedBytes(adopted,mine,theirs);exclusiveJson(at(grant.out,'WAITING-OWNER.json'),waiting);authority.sealWaiting(preparationFile(at(grant.out,'WAITING-OWNER.json')));return waiting;
     }

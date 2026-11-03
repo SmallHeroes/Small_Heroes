@@ -37,6 +37,8 @@ describe.runIf(!!process.env.SMALL_HEROES_R17_READONLY_BOOK)('actual preparation
     const b=adopting(a),waiting:any=await startSourcePreparation(b.args);
     expect(b.calls).toEqual([]);expect(waiting.spend.calls).toBe(0);expect(waiting.adoptedFrom.out).toBe(path.resolve(a.grant.out));
     expect(waiting.storyboardDigest).toBe(approved.storyboardDigest);expect(existsSync(path.join(b.grant.out,'sourceRun','paid-stages','prep_storyboard_0.claim.json'))).toBe(false);
+    // The adopted WAITING pins are exactly the approved sealed pins (same bytes/sha, by position), not a re-read of the destination.
+    expect(waiting.files.map((f:any)=>[f.bytes,f.sha256])).toEqual(approved.files.map((f:any)=>[f.bytes,f.sha256]));
     const done=await continueSourcePreparation({...b.args,choiceFile:b.choice(waiting)});
     expect(b.calls).toEqual(PREPARATION_STEPS.slice(2));expect(done.spend.calls).toBe(4);expect(done.status).toBe('REFERENCES_QUALIFIED_EXACT_PAGE_PROOF_DRY_PENDING');
     await expect(startSourcePreparation(b.args)).rejects.toThrow('consumed');
