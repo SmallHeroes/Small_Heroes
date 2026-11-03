@@ -207,6 +207,42 @@ describe('native page-proof strict grant and evidence fences',()=>{
     const state=m.snapshot();expect(state.unknownCost).toBe(1);expect(state.reservedUnsettledMicroUsd).toBe(reserve);expect(state.cumulativeAccountedMicroUsd).toBe(reserve);
     const dispatch=vi.fn();await expect(m.run('page_2_0_qa',wire,reserve,dispatch)).rejects.toThrow('audition_unknown_cost');expect(dispatch).not.toHaveBeenCalled();
   });
+  const bookOwner=()=>({...owner(),version:'native-book-owner-approval/v1',approvalReference:'SYNTHETIC TEST ONLY: not a real owner execution approval; fixed whole-book allowance',
+    capMicroUsd:7000000,maxLowImages:27,pageAttempts:3,fullBook:true});
+  function bookFixture(){
+    const f=fixture(),g:any=structuredClone(f.grant);writeFileSync(f.ownerFile,JSON.stringify(bookOwner()));
+    g.scope.pageProof={...g.scope.pageProof,version:'native-cde-book/v1',ownerApproval:pin(f.ownerFile),inputs:[pin(f.ownerFile),pin(f.inputFile)]};
+    g.ledger.evidence=[{file:f.ownerFile,sha256:g.scope.pageProof.ownerApproval.sha256}];
+    g.scope.pages=[0,1,2,3,4,5,6,7,8];delete g.scope.sample;g.scope.pageAttempts=3;g.capMicroUsd=7000000;g.maxCalls=81;
+    return{...f,grant:g,proof:nativePageProofSchema.parse(g.scope.pageProof)};
+  }
+  it('native book: only the whole fixed book with its correction ceiling, never a sample, cap or call widening',()=>{
+    const f=bookFixture();expect(auditionGrantSchema.safeParse(f.grant).success).toBe(true);
+    const steps=nativePageProofSteps(f.grant.scope.pages,3);expect(steps).toHaveLength(81);expect(steps).toContain('page_0_2_identity');expect(steps).not.toContain('page_1_3');
+    for(const kind of ['sample','no-cover','attempts','cap','calls','prior','proof-cap-on-book'] as const){
+      const g:any=structuredClone(f.grant),s=g.scope;if(kind==='sample')s.sample=[3,7];if(kind==='no-cover')s.pages=[1,2,3,4,5,6,7,8];if(kind==='attempts')s.pageAttempts=2;
+      if(kind==='cap')g.capMicroUsd=7000001;if(kind==='calls')g.maxCalls=80;if(kind==='prior')g.ledger.priorKnownApiMicroUsd=1;
+      if(kind==='proof-cap-on-book'){s.pageProof.version='native-cde-page-proof/v1';}
+      expect(auditionGrantSchema.safeParse(g).success,kind).toBe(false);
+    }
+  });
+  it('native book: the owner approval version must match the grant mode, both ways',()=>{
+    const f=bookFixture();verifyNativePageProofPins(f.proof,[f.ownerFile,f.inputFile]);
+    writeFileSync(f.ownerFile,JSON.stringify(owner()));const proofApproval={...f.proof,ownerApproval:pin(f.ownerFile),inputs:[pin(f.ownerFile),pin(f.inputFile)]};
+    expect(()=>verifyNativePageProofPins(proofApproval,[f.ownerFile,f.inputFile])).toThrow();
+    const p=fixture();writeFileSync(p.ownerFile,JSON.stringify(bookOwner()));const bookApproval={...p.proof,ownerApproval:pin(p.ownerFile),inputs:[pin(p.ownerFile),pin(p.inputFile)]};
+    expect(()=>verifyNativePageProofPins(bookApproval,[p.ownerFile,p.inputFile])).toThrow();
+  });
+  it('native book: the actual meter rules admit exactly the book allowlist',async()=>{
+    const f=bookFixture(),allowed=nativePageProofSteps(f.grant.scope.pages,3),m=new AuditionMeter(path.join(f.root,'meter'),7000000,81,0,0,s=>allowed.includes(s)?auditionMeterRules(s):undefined);
+    const plan=auditionRenderPlan(f.root,'Synthetic bounded page',[],'book_identity'),dispatch=vi.fn();
+    for(const step of ['page_1_3','sheet_entities_0','page_9_0'])await expect(m.run(step,plan.wire,plan.maximumMicroUsd,dispatch)).rejects.toThrow('audition_meter_rule');
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+  it('native book frames refuse any frame set other than the whole fixed book before any callback',async()=>{
+    const {runNativeBookFrames}=await import('../native-page-proof-frames'),render=vi.fn();
+    await expect(runNativeBookFrames({pages:[1,2,3,4,5,6,7,8],render} as any)).rejects.toThrow('page_proof_scope');expect(render).not.toHaveBeenCalled();
+  });
   it('cumulative known cost plus the next full reserve is checked before any paid dispatch',async()=>{
     const f=fixture(),m=new AuditionMeter(path.join(f.root,'meter'),1000000,6,500001),dispatch=vi.fn();
     await expect(m.run('page_1_0_qa',{},500000,dispatch)).rejects.toThrow('audition_budget_exhausted');expect(dispatch).not.toHaveBeenCalled();expect(m.snapshot().calls).toBe(0);

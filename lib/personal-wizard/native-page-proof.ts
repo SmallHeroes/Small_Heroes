@@ -10,14 +10,26 @@ import { NATIVE_PAGE_PROOF_AUTHORITY_ROOT } from './native-page-proof-authority-
 
 export const NATIVE_PAGE_PROOF_VERSION='native-cde-page-proof/v1' as const;
 export const NATIVE_PAGE_PROOF_CAP_MICRO_USD=1_000_000;
+/** The whole native book (cover + 8 pages) under the engine's own bounded correction ceiling; same pins, review and one-use claim as a proof. */
+export const NATIVE_BOOK_VERSION='native-cde-book/v1' as const;
+export const NATIVE_BOOK_CAP_MICRO_USD=7_000_000;
+export const NATIVE_BOOK_FRAMES=Object.freeze([0,1,2,3,4,5,6,7,8]);
+export const NATIVE_BOOK_PAGE_ATTEMPTS=3;
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const pin=z.object({file:z.string().min(1),bytes:z.number().int().nonnegative().max(20_000_000),sha256:hash}).strict();
-export const nativePageProofSchema=z.object({version:z.literal(NATIVE_PAGE_PROOF_VERSION),workspace:z.string().min(1),sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
+export const nativePageProofSchema=z.object({version:z.enum([NATIVE_PAGE_PROOF_VERSION,NATIVE_BOOK_VERSION]),workspace:z.string().min(1),sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
   sourceDigest:hash,reviewSha256:hash,layoutSha256:hash,ownerApproval:pin,inputs:z.array(pin).min(1).max(128)}).strict();
 export type NativePageProof=z.infer<typeof nativePageProofSchema>;
 export const nativePageProofOwnerApprovalSchema=z.object({version:z.literal('native-page-proof-owner-approval/v1'),owner:z.literal('Guy'),approvalId:hash,
   approvalReference:z.string().min(30).max(3000),capMicroUsd:z.literal(NATIVE_PAGE_PROOF_CAP_MICRO_USD),maxLowImages:z.literal(2),
   allReviewsAndFullUnknownReserves:z.literal(true),fullBook:z.literal(false),narration:z.literal(false),paidRetries:z.literal(false)}).strict();
+/** Corrections are the engine's attempts 2-3 of a held frame (never a retry of a failed call). */
+export const nativeBookOwnerApprovalSchema=z.object({version:z.literal('native-book-owner-approval/v1'),owner:z.literal('Guy'),approvalId:hash,
+  approvalReference:z.string().min(30).max(3000),capMicroUsd:z.literal(NATIVE_BOOK_CAP_MICRO_USD),
+  maxLowImages:z.literal(NATIVE_BOOK_FRAMES.length*NATIVE_BOOK_PAGE_ATTEMPTS),pageAttempts:z.literal(NATIVE_BOOK_PAGE_ATTEMPTS),
+  allReviewsAndFullUnknownReserves:z.literal(true),fullBook:z.literal(true),narration:z.literal(false),paidRetries:z.literal(false)}).strict();
+const ownerApprovalFor=(proof:NativePageProof)=>proof.version===NATIVE_BOOK_VERSION?nativeBookOwnerApprovalSchema:nativePageProofOwnerApprovalSchema;
+export const nativeProofAttempts=(proof:NativePageProof)=>proof.version===NATIVE_BOOK_VERSION?NATIVE_BOOK_PAGE_ATTEMPTS:1;
 const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
 const forbiddenInput=/(^|[\\/])(?:\.env(?:\.|$)|auth\.json$|credentials(?:\.|$)|[^\\/]*api[_-]?keys?[^\\/]*$)/i;
 const safeName=(file:string)=>path.isAbsolute(file)&&!forbiddenInput.test(file);
@@ -28,10 +40,14 @@ type GrantLike={scope:GrantScope;capMicroUsd:number;maxCalls:number;ledger:{prio
 /** Additive opt-in only. No grant can buy sheets, a remainder, retries or a larger/carry-reset allowance through this mode. */
 export function nativePageProofGrantValid(g:GrantLike):boolean{
   const s=g.scope,p=s.pages;if(!s.pageProof)return true;
-  return s.mode==='render'&&path.isAbsolute(s.pageProof.workspace)&&safeName(s.pageProof.ownerApproval.file)&&s.pageProof.inputs.every(p=>safeName(p.file))&&g.ledger.evidence.length===1&&!!p&&p.length>=1&&p.length<=2&&p.every((n,i)=>Number.isInteger(n)&&n>=1&&n<=8&&(i===0||n>p[i-1]))&&
-    canonicalJson(p)===canonicalJson(s.sample)&&s.pageAttempts===1&&!!s.reuseSheets&&path.isAbsolute(s.reuseSheets.sourceRun)&&
+  // A book is the whole fixed frame set, never a sample; a proof is 1-2 sampled pages with one attempt each.
+  const book=s.pageProof.version===NATIVE_BOOK_VERSION,attempts=book?NATIVE_BOOK_PAGE_ATTEMPTS:1;
+  const frames=book?!!p&&canonicalJson(p)===canonicalJson(NATIVE_BOOK_FRAMES)&&s.sample===undefined
+    :!!p&&p.length>=1&&p.length<=2&&p.every((n,i)=>Number.isInteger(n)&&n>=1&&n<=8&&(i===0||n>p[i-1]))&&canonicalJson(p)===canonicalJson(s.sample);
+  return s.mode==='render'&&path.isAbsolute(s.pageProof.workspace)&&safeName(s.pageProof.ownerApproval.file)&&s.pageProof.inputs.every(p=>safeName(p.file))&&g.ledger.evidence.length===1&&!!p&&frames&&
+    s.pageAttempts===attempts&&!!s.reuseSheets&&path.isAbsolute(s.reuseSheets.sourceRun)&&
     canonicalJson([...s.reuseSheets.roles].sort())===canonicalJson(['entities','locations'])&&s.recovery===undefined&&s.scaleLineup===undefined&&
-    g.capMicroUsd>0&&g.capMicroUsd<=NATIVE_PAGE_PROOF_CAP_MICRO_USD&&g.maxCalls===p.length*3&&g.ledger.priorKnownApiMicroUsd===0&&
+    g.capMicroUsd>0&&g.capMicroUsd<=(book?NATIVE_BOOK_CAP_MICRO_USD:NATIVE_PAGE_PROOF_CAP_MICRO_USD)&&g.maxCalls===p.length*attempts*3&&g.ledger.priorKnownApiMicroUsd===0&&
     g.ledger.carriedUnresolvedMicroUsd===undefined&&g.experiment===undefined&&
     g.ledger.evidence.some(e=>path.resolve(e.file)===path.resolve(s.pageProof!.ownerApproval.file)&&e.sha256===s.pageProof!.ownerApproval.sha256);
 }
@@ -40,7 +56,8 @@ export function snapshotNativePageProofArgs<T extends {bookDir:string;out:string
   if([args.bookDir,args.out,args.keyFile,args.grantFile].some(p=>typeof p!=='string'||!path.isAbsolute(p)))return fail('page_proof_scope');
   return {...args,...(args.layout!==undefined?{layout:structuredClone(args.layout)}:{}),proofReview:args.proofReview?{...args.proofReview}:undefined};
 }
-export const nativePageProofSteps=(pages:readonly number[])=>pages.flatMap(n=>['','_qa','_identity'].map(s=>'page_'+n+'_0'+s));
+export const nativePageProofSteps=(pages:readonly number[],attempts=1)=>
+  pages.flatMap(n=>Array.from({length:attempts},(_,k)=>k).flatMap(k=>['','_qa','_identity'].map(s=>'page_'+n+'_'+k+s)));
 function safeFile(file:string){
   if(!path.isAbsolute(file)||/(^|[\\/])(?:\.env(?:\.|$)|auth\.json$|credentials(?:\.|$)|[^\\/]*api[_-]?keys?[^\\/]*$)/i.test(file))fail('page_proof_input_path');
   const st=lstatSync(file);if(!st.isFile()||st.isSymbolicLink()||st.size>20_000_000||realpathSync.native(file).toLowerCase()!==path.resolve(file).toLowerCase())fail('page_proof_input_path');
@@ -51,7 +68,7 @@ export function verifyNativePageProofPins(proof:NativePageProof,required:readonl
   const wanted=[...new Set(required.map(f=>path.resolve(f)))].sort(),actual=proof.inputs.map(p=>path.resolve(p.file)).sort();
   if(actual.length!==new Set(actual).size||canonicalJson(actual)!==canonicalJson(wanted))fail('page_proof_input_set');
   for(const p of [...proof.inputs,proof.ownerApproval]){const b=safeFile(p.file);if(b.length!==p.bytes||previewSha(b)!==p.sha256)fail('page_proof_input_changed');}
-  nativePageProofOwnerApprovalSchema.parse(JSON.parse(safeFile(proof.ownerApproval.file).toString('utf8')));
+  ownerApprovalFor(proof).parse(JSON.parse(safeFile(proof.ownerApproval.file).toString('utf8')));
 }
 export function verifyNativePageProofCode(workspace:string,head:string){
   const git=(...a:string[])=>execFileSync('git',['-C',workspace,...a],{encoding:'utf8',maxBuffer:8_000_000}).trim();
@@ -85,7 +102,7 @@ export function nativePageProofAuthority(args:{workspace:string;out:string;prote
   const proof=args.grant.scope.pageProof??fail('page_proof_scope');if(!nativePageProofGrantValid(args.grant))fail('page_proof_scope');
   if(path.resolve(args.workspace).toLowerCase()!==path.resolve(proof.workspace).toLowerCase())fail('page_proof_workspace');
   const approvalBytes=safeFile(proof.ownerApproval.file);if(previewSha(approvalBytes)!==proof.ownerApproval.sha256)fail('page_proof_input_changed');
-  const approval=nativePageProofOwnerApprovalSchema.parse(JSON.parse(approvalBytes.toString('utf8')));
+  const approval=ownerApprovalFor(proof).parse(JSON.parse(approvalBytes.toString('utf8')));
   verifyNativePageProofOutput(args.out,args.protectedRoots);const output=path.resolve(args.out).toLowerCase();
   const root=NATIVE_PAGE_PROOF_AUTHORITY_ROOT,claim=path.join(root,'native-page-proof-'+approval.approvalId+'.claim.json');
   const checkAuthorityRoot=()=>{try{realDirectory(root);}catch{fail('page_proof_authority_root');}};

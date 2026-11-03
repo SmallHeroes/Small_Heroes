@@ -3319,18 +3319,23 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     await expect(runNativePageProofFrames({...input,judge:async(...a:Parameters<typeof judge>)=>{const r=await judge(...a);revoked=true;return r;},check:()=>{if(revoked)throw failure;}})).rejects.toBe(failure);
     expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(h.args.identity).not.toHaveBeenCalled();
   });
-  const realProofRun=async(lost=false)=>{
+  const realProofRun=async(lost=false,version='native-cde-page-proof/v1')=>{
     const {h,input}=await proofInput(),source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-simple-book-reviewed-audition.ts'),'utf8');
     const from=source.indexOf('  const frameScope=grant.scope;'),to=source.indexOf('  const images = new Map<string, string>();',from);
     expect(from).toBeGreaterThan(0);expect(to).toBeGreaterThan(from);
     const js=transformSync('async function executeFrames(){'+source.slice(from,to)+'return manifest;}globalThis.executeFrames=executeFrames;',{loader:'ts',format:'cjs'}).code;
     const legacy=vi.fn(async()=>{throw Error('LEGACY_FLOW_FORBIDDEN');}),failure=new ReviewedAuditionError('audition_unknown_cost'),judge=input.judge;
-    const c:any={proof:{version:'native-cde-page-proof/v1'},proofScope:{pages:input.pages},grant:{scope:{mode:'render',pages:input.pages}},loaded:{...input},
+    const c:any={proof:{version},proofScope:{pages:input.pages},grant:{scope:{mode:'render',pages:input.pages}},loaded:{...input},
       child:input.child,companion:input.companion,reused:{sheets:input.reuseSheets},io:{render:input.render,judge:async(...a:Parameters<typeof judge>)=>{if(lost&&a[0]==='page_1_0_qa')throw failure;return judge(...a);},identity:input.identity,check:input.check},
-      runNativePageProofFrames,illustrateReviewedAudition:legacy,trialDrawnFrames,args:{out:'VIRTUAL'},resume:undefined,existsSync:()=>false,path,
+      runNativePageProofFrames,runNativeBookFrames:vi.fn(async()=>{throw Error('BOOK_FLOW_FORBIDDEN');}),NATIVE_BOOK_VERSION:'native-cde-book/v1',
+      illustrateReviewedAudition:legacy,trialDrawnFrames,args:{out:'VIRTUAL'},resume:undefined,existsSync:()=>false,path,
       meter:{snapshot:()=>({unknownCost:lost?1:0,reservedUnsettledMicroUsd:lost?600000:0})},save:input.save};
     vm.createContext(c);vm.runInContext(js,c);return{h,c,legacy,failure};
   };
+  it('the actual paid runner routes a native-book grant to the whole-book boundary only',async()=>{
+    const {c,legacy}=await realProofRun(false,'native-cde-book/v1');await expect(c.executeFrames()).rejects.toThrow('BOOK_FLOW_FORBIDDEN');
+    expect(c.runNativeBookFrames).toHaveBeenCalledTimes(1);expect(legacy).not.toHaveBeenCalled();
+  });
   it('R5 actual paid runner dispatches the real page-only boundary even after its sample passes',async()=>{
     const {h,c,legacy}=await realProofRun(),m=await c.executeFrames();expect(m.pages).toHaveLength(2);expect(m.scope.complete).toBe(false);
     expect([...h.prompts.keys()]).toEqual(['page_1_0','page_2_0']);expect(legacy).not.toHaveBeenCalled();

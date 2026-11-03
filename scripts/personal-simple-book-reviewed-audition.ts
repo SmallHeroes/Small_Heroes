@@ -10,8 +10,8 @@ import path from 'node:path';
 import { EXISTING_CHILD_APPEARANCE_FILE, admitExistingChildAppearance } from '../lib/personal-wizard/existing-child-appearance';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync, realpathSync } from 'node:fs';
 import sharp from 'sharp';
-import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput } from '../lib/personal-wizard/native-page-proof';
-import { runNativePageProofFrames, preflightNativePageProofFrames } from '../lib/personal-wizard/native-page-proof-frames';
+import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput, nativeProofAttempts, NATIVE_BOOK_VERSION } from '../lib/personal-wizard/native-page-proof';
+import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames, preflightNativeBookFrames } from '../lib/personal-wizard/native-page-proof-frames';
 import { trialDrawnFrames } from '../lib/personal-wizard/native-page-render-evidence';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
@@ -1315,7 +1315,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if(!proof&&args.proofReview)fail('page_proof_scope');
   if(proof&&args.signal.aborted)fail('audition_cancelled');
   if(proof&&!args.proofReview)fail('page_proof_execution_review_required');
-  const proofContinuity=proof?nativeBookContinuityContracts({version:NATIVE_BOOK_CONTINUITY_VERSION,sample:proofScope!.pages}):undefined;
+  const proofContinuity=proof?nativeBookContinuityContracts(proof.version===NATIVE_BOOK_VERSION?{version:NATIVE_BOOK_CONTINUITY_VERSION,wholeBook:true}
+    :{version:NATIVE_BOOK_CONTINUITY_VERSION,sample:proofScope!.pages}):undefined;
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout, proofContinuity);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest,
@@ -1336,7 +1337,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out,
     derivedSheetContexts(loaded.book, loaded.texts, renderScope.reuseSheets.roles, scaleLineup)) : null;
   let proofAuthority:ReturnType<typeof nativePageProofAuthority>|null=null;
-  const proofSteps=proof?nativePageProofSteps(proofScope!.pages):undefined;
+  const proofSteps=proof?nativePageProofSteps(proofScope!.pages,nativeProofAttempts(proof)):undefined;
   if(proof){
     if(loaded.replan||'ownerAcceptance' in loaded||proof.sourceDigest!==loaded.book.sourceDigest||proof.reviewSha256!==previewSha(canonicalJson(loaded.rawReview))||
       proof.layoutSha256!==previewSha(canonicalJson(args.layout??LEGACY_BOOK_LAYOUT))||!reused)fail('page_proof_source_binding');
@@ -1346,7 +1347,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       grantFile:args.grantFile,grantSha256,grant,requiredInputs:required,review:args.proofReview});
     const proofPrecheck=()=>{if(args.signal.aborted)fail('audition_cancelled');proofAuthority!.beforeClaim();};
     proofPrecheck();
-    await preflightNativePageProofFrames({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
+    await (proof.version===NATIVE_BOOK_VERSION?preflightNativeBookFrames:preflightNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
       child:{imageName:'reference_child.png',imageSha:previewSha(loaded.childBytes)},companion:{imageName:'reference_companion.png',imageSha:previewSha(loaded.companionBytes)},
       companionDescription:loaded.companionDescription,pages:proofScope!.pages,reuseSheets:reused!.sheets,check:proofPrecheck});
     proofPrecheck();
@@ -1500,7 +1501,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     ? `${name}-${resume.stepPrefix.slice(0, -1)}` : name, value);};
 
   const runFrames=async()=>{
-    if(proof)return runNativePageProofFrames({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
+    if(proof)return (proof.version===NATIVE_BOOK_VERSION?runNativeBookFrames:runNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
       companionDescription:loaded.companionDescription,pages:proofScope!.pages,reuseSheets:reused!.sheets,
       render:io.render,judge:io.judge,identity:io.identity,check:io.check,save:engineSave});
     return illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
@@ -1548,7 +1549,9 @@ export async function dryNativePageProof(args:{bookDir:string;out:string;grantFi
   if(scope.mode!=='render'||!scope.pageProof)return fail('page_proof_scope');const proof=scope.pageProof;
   if(path.resolve(proof.workspace).toLowerCase()!==path.resolve(workspace).toLowerCase())fail('page_proof_workspace');
   verifyNativePageProofOutput(out,[bookDir,scope.reuseSheets!.sourceRun,workspace]);
-  const loaded=loadReviewedBook(bookDir,workspace,undefined,layout,nativeBookContinuityContracts({version:NATIVE_BOOK_CONTINUITY_VERSION,sample:scope.pages}));
+  const book=proof.version===NATIVE_BOOK_VERSION;
+  const loaded=loadReviewedBook(bookDir,workspace,undefined,layout,nativeBookContinuityContracts(book?{version:NATIVE_BOOK_CONTINUITY_VERSION,wholeBook:true}
+    :{version:NATIVE_BOOK_CONTINUITY_VERSION,sample:scope.pages}));
   const binding=readAuditionGrant(grantFile,{requestId:loaded.queued.requestId,storyboardDigest:loaded.book.storyboardDigest,
     ...(loaded.current.readerFraming?{readerFraming:loaded.current.readerFraming}:{})});
   if(binding.sha256!==previewSha(text)||loaded.replan||'ownerAcceptance' in loaded||proof.sourceDigest!==loaded.book.sourceDigest||
@@ -1559,10 +1562,10 @@ export async function dryNativePageProof(args:{bookDir:string;out:string;grantFi
   const required=nativePageProofInputFiles(bookDir,layout,reuse.sourceRun,(loaded.queued.request as {companion:{id:string}}).companion.id,proof.ownerApproval.file,workspace);
   const check=()=>{if(signal?.aborted)fail('audition_cancelled');verifyNativePageProofCode(workspace,proof.sourceHead);verifyNativePageProofPins(proof,required);
     if(previewSha(fencedText(grantFile,32000000))!==binding.sha256)fail('page_proof_grant_changed');};
-  check();await preflightNativePageProofFrames({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
+  check();await (book?preflightNativeBookFrames:preflightNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
     companionDescription:loaded.companionDescription,pages:scope.pages,reuseSheets:reused.sheets,check});check();
-  return{version:'native-page-proof-preflight/v1',requestId:loaded.queued.requestId,sourceDigest:loaded.book.sourceDigest,storyboardDigest:loaded.book.storyboardDigest,
-    sourceHead:proof.sourceHead,grantSha256:binding.sha256,pages:scope.pages,allowedSteps:nativePageProofSteps(scope.pages),capMicroUsd:parsed.capMicroUsd,
+  return{version:'native-page-proof-preflight/v1',mode:proof.version,requestId:loaded.queued.requestId,sourceDigest:loaded.book.sourceDigest,storyboardDigest:loaded.book.storyboardDigest,
+    sourceHead:proof.sourceHead,grantSha256:binding.sha256,pages:scope.pages,allowedSteps:nativePageProofSteps(scope.pages,nativeProofAttempts(proof)),capMicroUsd:parsed.capMicroUsd,
     maxCalls:parsed.maxCalls,imageQuality:'low',sourceAndReferencesAdmitted:true,executionReady:false,
     remainingGates:['complete independent execution review for exact grant','unused owner approval claim at execution'],providerCalls:0,sourceWrites:0};
 }
