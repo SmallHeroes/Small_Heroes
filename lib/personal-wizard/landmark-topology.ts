@@ -198,16 +198,21 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     if ([...observedKinds.values()].some(s => s.has('matches') && s.has('contradicted'))) bad();
   }
   const uncertain = topology.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? assessCoverage(topology, inventory, landmarks, root) : new Set<string>();
+  // Coverage contract only: a visibly attached part (or containing aggregate) whose own decisive feature contradicts the landmark - e.g. the
+  // block tail of a block-built sculpture - may be labelled different_object with its typed extent. It is never counted (a different object)
+  // and its exclusion still needs the same visible path to a positive whole below; without that path the landmark stays uncertain.
+  const partOfOtherKind = (extent: string, decisiveContradicted: boolean) => topology.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION &&
+    decisiveContradicted && (extent === 'component_only' || extent === 'containing_aggregate');
   const positive = new Set<string>(), owner = new Map<string, string>();
   for (const l of inventory.landmarks) for (const c of l.candidates) {
     const binding = bindings.get(key(l.landmarkId, c.objectId)) ?? bad();
     const features = catalogue.get(l.landmarkId) ?? bad(), kind = kinds.get(l.landmarkId) ?? bad();
     const matched = features.filter(f => f.decisive && c.featureChecks.some(x => x.featureId === f.id && x.observed === 'matches'));
     const kindObserved = c.featureChecks.find(x => x.featureId === kind.id)?.observed;
+    const decisiveContradicted = features.some(f => f.decisive && c.featureChecks.some(x => x.featureId === f.id && x.observed === 'contradicted'));
     if (binding.extent === 'not_instance') {
-      if (c.association !== 'different_object' || !features.some(f => f.decisive &&
-        c.featureChecks.some(x => x.featureId === f.id && x.observed === 'contradicted'))) bad();
-    } else if (c.association === 'different_object') bad();
+      if (c.association !== 'different_object' || !decisiveContradicted) bad();
+    } else if (c.association === 'different_object' && !partOfOtherKind(binding.extent, decisiveContradicted)) bad();
     const veto = c.featureChecks.some(x => x.observed === 'contradicted' &&
       (topology.version === LANDMARK_TOPOLOGY_VERSION || features.some(f => f.id === x.featureId && f.decisive)));
     const supported = kindObserved === 'matches' && !veto &&
@@ -227,7 +232,7 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
   for (const l of inventory.landmarks) for (const c of l.candidates) {
     const binding = bindings.get(key(l.landmarkId, c.objectId))!, physical = root(c.objectId);
     if (binding.extent === 'whole_instance' || binding.extent === 'not_instance' || binding.extent === 'uncertain') continue;
-    if (c.association !== 'possible_copy') bad();
+    if (c.association !== 'possible_copy' && c.association !== 'different_object') bad();
     const anchors = groups.filter(g => positive.has(key(l.landmarkId, g)) &&
       (binding.extent === 'component_only' ? ancestor(physical, g) : ancestor(g, physical)));
     // A containing aggregate may include multiple member instances; exclude ONLY the aggregate, never merge those members.

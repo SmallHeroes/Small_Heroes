@@ -48,6 +48,28 @@ describe('prospective whole-landmark candidate coverage, not incidental cue enum
     expect(assessAuditionReview(legacy, sha('a'), sha('b'), ['landmark_unique:s0', 'landmark_unique:s1'],
       s.landmarks, 'landmark-topology/v1').assessment.counts.continuity).toBe(1);
   });
+  // The attached facade (o2) of the s0 building is a part whose OWN kind contradicts "building" (the cover's block tail of a block cat).
+  const partOfOtherKind = (anchored = true, contradicted = true) => {
+    const s = fixture(), row = s.raw.landmarkInventory.landmarks[0].candidates[1];
+    row.association = 'different_object';
+    if (contradicted) row.featureChecks.find((f: any) => f.featureId === 'f1').observed = 'contradicted';
+    if (!anchored) s.topology.relations[0] = { from: 'o2', to: 'o1', relation: 'uncertain', basis: 'not_readable', evidence: 'attachment hidden behind the whole' };
+    return s;
+  };
+  it('v2: an attached part of another decisive kind may be different_object + component_only, and is excluded only through its anchor', () => {
+    const a = assess(partOfOtherKind());
+    expect(a.counts.continuity).toBe(0);
+    expect(a.landmarks?.[0].candidates[1]).toMatchObject({ association: 'different_object', counted: false,
+      topology: { extent: 'component_only', excludedAsNonWhole: true } });
+    expect(a.landmarks?.[0].topologyUncertain).toBe(false);
+  });
+  it('v2: the same part without a readable path to its whole stays uncertain (held), never silently excluded', () => {
+    const a = assess(partOfOtherKind(false));
+    expect(a.landmarks?.[0].topologyUncertain).toBe(true);expect(a.counts.continuity).toBeGreaterThan(0);
+  });
+  it('v2: different_object on a part with no contradicted decisive feature remains unusable', () => {
+    expect(() => assess(partOfOtherKind(true, false))).toThrow();
+  });
   it.each(['kind', 'colour'])('decisive %s contradiction cannot gain a supported whole anchor', aspect => {
     const s = fixture(), feature = s.landmarks[0].features.find(f => f.aspect === aspect)!;
     s.raw.landmarkInventory.landmarks[0].candidates[0].featureChecks.find((f: any) => f.featureId === feature.id).observed = 'contradicted';
