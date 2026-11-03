@@ -76,9 +76,13 @@ export function simpleReferenceDesigns(book: Pick<PersonalStoryboard, 'plan' | '
   const entityIds = selected('entities'), locationIds = selected('locations');
   // A recurring prop with no source entity must not disappear during partitioning.
   if (full.props.some(p => !entityIds.has(p.id) && !locationIds.has(p.id))) throw Error('simple_reference_ownership_prop');
-  return { entities: { ...full, entities: full.entities.filter(e => entityIds.has(e.id)),
+  // Each split sheet carries only the material/function entries of the entities it owns (as a page context carries only its visible ones):
+  // another role's entry would invite a tile that sheet does not own.
+  const material = (ids: Set<string>) => book.materialFunction
+    ? { materialFunction: { ...book.materialFunction, entities: book.materialFunction.entities.filter(e => ids.has(e.id)) } } : {};
+  return { entities: { ...full, ...material(entityIds), entities: full.entities.filter(e => entityIds.has(e.id)),
       props: full.props.filter(p => entityIds.has(p.id)), referenceState: state(entityIds), referenceOwnership: ownership },
-    locations: { ...locations, props: full.props.filter(p => locationIds.has(p.id)),
+    locations: { ...locations, ...material(locationIds), props: full.props.filter(p => locationIds.has(p.id)),
       referenceState: state(locationIds), referenceOwnership: ownership } };
 }
 

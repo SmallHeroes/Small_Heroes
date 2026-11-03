@@ -3081,9 +3081,11 @@ describe('entity-material-function/v1 at the actual render boundary (synthetic a
   it('binds source materials into actual sheet/page contexts and both first-render and correction prompts',async()=>{
     const h=harness({book:materialBook(),pages:[1],judge:step=>step==='page_1_0_qa'?{props:{verdict:'defect',issues:[issue('continuity','material:paper_boat')]}}:{}});
     await illustrateReviewedAudition({...h.args,pageAttempts:2});
-    for(const step of ['sheet_entities_0','sheet_locations_0','page_1_0','page_1_1']){
+    for(const step of ['sheet_entities_0','page_1_0','page_1_1']){
       expect(h.prompts.get(step)).toContain(quote);expect(h.prompts.get(step)).toContain('ENTITY MATERIAL/FUNCTION CONTRACT');
     }
+    // The locations sheet owns no paper_boat tile, so it must not carry that entry (it would invite an unowned tile).
+    expect(h.prompts.get('sheet_locations_0')).not.toContain(quote);expect(h.prompts.get('sheet_locations_0')).toContain('ENTITY MATERIAL/FUNCTION CONTRACT');
     const c=h.contexts.get('page_1_0_qa');expect(c.materialFunction.entities[0].id).toBe('paper_boat');
     expect(c.requirementIds).toContain('material:paper_boat');
   });
