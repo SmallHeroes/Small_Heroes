@@ -22,7 +22,7 @@ import {auditionSheetDesigns,auditionSheetContext,auditionSheetPrompt,assessAudi
 import type {AuditionImage} from '../lib/personal-wizard/simple-book-illustrations';
 import {preflightNativePageProofFrames} from '../lib/personal-wizard/native-page-proof-frames';
 import {exclusiveJson,exclusiveText,realDirectory} from './personal-causal-trial-journal';
-import {preparationGrantSchema,preparationPageChoiceSchema,preparationAuthority,preparationPin,preparationFile,verifyPreparationPins,
+import {preparationGrantSchema,preparationPageChoiceSchema,preparationAuthority,preparationPin,preparationFile,verifyPreparationPins,verifyApprovedWaiting,
   PREPARATION_STEPS,PREPARATION_SLOTS,SOURCE_PREPARATION,prepFail,type PreparationGrant} from '../lib/personal-wizard/source-preparation-policy';
 
 export const PREPARATION_CONTRACTS={actorOwnedAppearance:true,momentContract:true,landmarkKindContract:true,sceneLocationContract:true,compilerRulesContract:true,
@@ -143,11 +143,12 @@ function stop(out:string,error:unknown,meter?:AuditionMeter,failure?:DispatchFai
   try{exclusiveJson(at(out,'PREPARATION-STOP.json'),{version:SOURCE_PREPARATION,status:'HELD',code,
     ...(details?{failedStep:details.step}:{}),...(wrapperCode&&wrapperCode!==code?{wrapperCode}:{}),spend,paidRetryAllowed:false,at:new Date().toISOString()});}catch{/* Preserve original error. */}
 }
-function dispatcher(args:Execution,grant:PreparationGrant,meter:AuditionMeter,check:()=>void,failure:DispatchFailure){
+function dispatcher(args:Execution,grant:PreparationGrant,meter:AuditionMeter,check:()=>void,failure:DispatchFailure,offset=0){
   return async<T>(step:Step,wire:unknown,decode:(raw:any)=>T):Promise<T>=>{
     try{
+    // offset: the steps an adopted preparation did not run in this ledger (its storyboard and review); those steps can never dispatch here.
     check();const i=PREPARATION_STEPS.indexOf(step),state=meter.snapshot();
-    if(state.calls!==i||state.failed||state.unknownCost||state.unknownOutcome||existsSync(at(grant.out,'PREPARATION-STOP.json')))prepFail('stage_order');
+    if(i<offset||state.calls!==i-offset||state.failed||state.unknownCost||state.unknownOutcome||existsSync(at(grant.out,'PREPARATION-STOP.json')))prepFail('stage_order');
     const own=preparationMeterRules(step)!,maximum=own.reserve(wire);if(maximum===null)prepFail('wire_policy');
     let actual:number|null=null;
     const value=await meter.run(step,wire,maximum,async()=>{
@@ -172,11 +173,31 @@ function dispatcher(args:Execution,grant:PreparationGrant,meter:AuditionMeter,ch
   };
 }
 
-/** Only storyboard + semantic review, then durable zero-cost wait. No reference/page callback can run here. */
+/**
+ * An earlier preparation's sealed, review-supported board for the SAME original inputs: its WAITING bytes match the fixed host's seal, its
+ * pinned book files are unchanged, and the actual reader reloads it as supported for this request and target layout. Checked before any claim.
+ */
+function approvedPreparation(adopt:{out:string;approvalId:string},plan:ReturnType<typeof planSourcePreparation>,grant:PreparationGrant){
+  const out=path.resolve(adopt.out);if(out.toLowerCase()===path.resolve(grant.out).toLowerCase())prepFail('adopt_scope');
+  const waitingBytes=preparationFile(at(out,'WAITING-OWNER.json')),waiting=verifyApprovedWaiting(adopt,waitingBytes),bookDir=at(out,'book');
+  if(waiting.status!=='WAITING_FOR_OWNER_PAGE_SELECTION'||path.resolve(waiting.bookDir)!==path.resolve(bookDir))prepFail('adopt_binding');
+  const layout=reviewedBookLayoutSchema.parse(waiting.layout);if(canonicalJson(layout)!==canonicalJson(plan.targetLayout))prepFail('adopt_binding');
+  verifyPreparationPins(waiting.files,bookFiles(bookDir,layout));
+  const loaded=loadReviewedBook(bookDir,grant.workspace,undefined,layout,PREPARATION_ADMISSION);
+  if(!supported(loaded.result.status)||loaded.book.storyboardDigest!==waiting.storyboardDigest||loaded.book.sourceDigest!==waiting.sourceDigest||
+    loaded.queued.requestId!==plan.original.queued.requestId)prepFail('adopt_binding');
+  return{out,bookDir,approvalId:adopt.approvalId,waitingSha256:previewSha(waitingBytes),grantSha256:waiting.grantSha256 as string};
+}
+
+/**
+ * Storyboard + semantic review, then durable zero-cost wait. Under grant.adoptApproved the two text calls are replaced by the earlier sealed,
+ * supported board (byte-identical book files), and no provider call runs. No reference/page callback can run here.
+ */
 export async function startSourcePreparation(args:Execution){
   args=executionSnapshot(args);
   const e=openExecution(args),{grant,plan,authority,check}=e;
   if(existsSync(grant.out))prepFail('output_exists');
+  const adopted=grant.adoptApproved?approvedPreparation(grant.adoptApproved,plan,grant):null;
   // All input admission, exact wire size, price, code and execution review checks precede this one-use claim.
   authority.activate();let meter:AuditionMeter|undefined;const failure:DispatchFailure={};
   try{
@@ -189,6 +210,19 @@ export async function startSourcePreparation(args:Execution){
     exclusiveBinary(at(bookDir,plan.targetLayout.childDir,'illustrations',plan.targetLayout.childImage),plan.original.childBytes);
     exclusiveJson(at(bookDir,plan.targetLayout.childDir,EXISTING_CHILD_APPEARANCE_FILE),existingChildAppearanceData(plan.appearance));
     meter=new AuditionMeter(at(sourceRun,'paid-stages'),5000000,6,0,0,preparationMeterRules);
+    if(adopted){
+      for(const name of ['owned_storyboard_draft.json','visual_simple_book_result.json'])
+        exclusiveBinary(at(bookDir,plan.targetLayout.storyboardDir,name),preparationFile(at(adopted.bookDir,plan.targetLayout.storyboardDir,name)));
+      const mine=bookFiles(bookDir,plan.targetLayout),theirs=bookFiles(adopted.bookDir,plan.targetLayout);
+      mine.forEach((file,k)=>{if(previewSha(preparationFile(file))!==previewSha(preparationFile(theirs[k])))prepFail('adopt_bytes');});
+      const loaded=loadReviewedBook(bookDir,grant.workspace,undefined,plan.targetLayout,PREPARATION_ADMISSION);
+      if(!supported(loaded.result.status))prepFail('adopt_binding');
+      const waiting={version:SOURCE_PREPARATION,status:'WAITING_FOR_OWNER_PAGE_SELECTION',grantSha256:authority.grantSha256,sourceHead:grant.sourceHead,
+        storyboardDigest:loaded.book.storyboardDigest,sourceDigest:loaded.book.sourceDigest,bookDir,sourceRun,layout:plan.targetLayout,
+        files:mine.map(preparationPin),spend:meter.snapshot(),at:new Date().toISOString(),noPaidRetries:true,
+        adoptedFrom:{out:adopted.out,approvalId:adopted.approvalId,waitingSha256:adopted.waitingSha256,grantSha256:adopted.grantSha256}};
+      check();exclusiveJson(at(grant.out,'WAITING-OWNER.json'),waiting);authority.sealWaiting(preparationFile(at(grant.out,'WAITING-OWNER.json')));return waiting;
+    }
     const dispatch=dispatcher(args,grant,meter,check,failure);let rawDraft:unknown;
     const diagnostic=await runSimpleStoryboardDiagnostic({request:plan.original.queued.request,writerResult:plan.original.result.source,options:resolvePersonalWizardOptions(grant.workspace),
       ...PREPARATION_CONTRACTS,existingChildAppearance:plan.appearance,reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,signal:args.signal,
@@ -223,6 +257,10 @@ export async function continueSourcePreparation(args:Execution&{choiceFile:strin
   if(canonicalJson(layout)!==canonicalJson(e.plan.targetLayout))prepFail('waiting_binding');
   if(path.resolve(waiting.bookDir)!==path.resolve(bookDir)||path.resolve(waiting.sourceRun)!==path.resolve(sourceRun))prepFail('waiting_binding');
   verifyPreparationPins(waiting.files,bookFiles(bookDir,layout));
+  // An adopted board ran no text calls in this ledger: it must be bound to this grant's adoptApproved, and its ledger starts empty.
+  const adopted=grant.adoptApproved;
+  if(!!adopted!==!!waiting.adoptedFrom||(adopted&&(path.resolve(waiting.adoptedFrom.out)!==path.resolve(adopted.out)||waiting.adoptedFrom.approvalId!==adopted.approvalId)))prepFail('waiting_binding');
+  const priorCalls=adopted?0:2;
   const loaded=loadReviewedBook(bookDir,grant.workspace,undefined,layout,PREPARATION_ADMISSION);
   const choiceBytes=preparationFile(args.choiceFile),choice=preparationPageChoiceSchema.parse(JSON.parse(choiceBytes.toString('utf8')));
   const packets=loaded.result.storyboard.framePackets;
@@ -231,7 +269,7 @@ export async function continueSourcePreparation(args:Execution&{choiceFile:strin
     packets[choice.standingPage].packetDigest!==choice.standingPacketSha256||packets[choice.continuityPage].packetDigest!==choice.continuityPacketSha256)prepFail('page_choice_binding');
   const guard=()=>{check();if(previewSha(preparationFile(waitingFile))!==previewSha(waitingBytes)||previewSha(preparationFile(args.choiceFile))!==previewSha(choiceBytes))prepFail('waiting_changed');verifyPreparationPins(waiting.files,bookFiles(bookDir,layout));};
   const meter=new AuditionMeter(at(sourceRun,'paid-stages'),5000000,6,0,0,preparationMeterRules),before=meter.snapshot(),failure:DispatchFailure={};
-  if(before.calls!==2||before.failed||before.unknownCost||before.unknownOutcome||canonicalJson(before)!==canonicalJson(waiting.spend))prepFail('waiting_ledger');
+  if(before.calls!==priorCalls||before.failed||before.unknownCost||before.unknownOutcome||canonicalJson(before)!==canonicalJson(waiting.spend))prepFail('waiting_ledger');
   // Exclusive and permanent: even a crashed continuation cannot dispatch again under another process/output alias.
   guard();exclusiveJson(at(grant.out,'CONTINUATION-ENTERED.json'),{grantSha256:authority.grantSha256,waitingSha256:previewSha(waitingBytes),choiceSha256:previewSha(choiceBytes),pid:process.pid,parentPid:process.ppid,startedAt:new Date().toISOString()});
   try{
@@ -240,7 +278,7 @@ export async function continueSourcePreparation(args:Execution&{choiceFile:strin
     exclusiveBinary(at(sourceRun,'illustrations',child.imageName),loaded.childBytes);exclusiveBinary(at(sourceRun,'illustrations',companion.imageName),loaded.companionBytes);
     exclusiveJson(at(sourceRun,'admission.json'),{version:SOURCE_PREPARATION,requestId:loaded.queued.requestId,storyboardDigest:loaded.book.storyboardDigest,child,companion,
       sourceDigest:loaded.book.sourceDigest,grantSha256:authority.grantSha256});
-    const designs=auditionSheetDesigns(loaded.book,loaded.texts),dispatch=dispatcher(args,grant,meter,guard,failure),sheets={} as Record<'entities'|'locations',SavedSheet>;
+    const designs=auditionSheetDesigns(loaded.book,loaded.texts),dispatch=dispatcher(args,grant,meter,guard,failure,2-priorCalls),sheets={} as Record<'entities'|'locations',SavedSheet>;
     for(const role of ['entities','locations'] as const){
       guard();const context=auditionSheetContext(role,designs[role]),prompt=auditionSheetPrompt(role,designs[role]);
       const render=auditionRenderPlan(at(sourceRun,'illustrations'),prompt,[child,companion],'book_design',['child_design_authority','companion_design_authority']);

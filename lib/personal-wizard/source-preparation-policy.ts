@@ -20,7 +20,9 @@ export const preparationOwnerSchema=z.object({version:z.literal('source-preparat
   paidRetries:z.literal(false),pages:z.literal(false),narration:z.literal(false),allReviewsAndFullUnknownReserves:z.literal(true)}).strict();
 export const preparationGrantSchema=z.object({version:z.literal(SOURCE_PREPARATION),workspace:z.string().min(1),sourceHead:head,
   originalBookDir:z.string().min(1),out:z.string().min(1),originalSourceDigest:hash,originalStoryboardDigest:hash,layoutSha256:hash,firstWireSha256:hash,
-  ownerApproval:preparationPinSchema,operator:preparationPinSchema,executionMode:z.literal('synchronous-or-durable-detached/v1'),inputs:z.array(preparationPinSchema).min(1).max(128),capMicroUsd:z.literal(5000000),maxCalls:z.literal(6)}).strict();
+  ownerApproval:preparationPinSchema,operator:preparationPinSchema,executionMode:z.literal('synchronous-or-durable-detached/v1'),inputs:z.array(preparationPinSchema).min(1).max(128),capMicroUsd:z.literal(5000000),maxCalls:z.literal(6),
+  /** Optional: adopt the sealed, review-supported storyboard of an earlier preparation (its output and consent id) instead of new text calls. */
+  adoptApproved:z.object({out:z.string().min(1),approvalId:hash}).strict().optional()}).strict();
 export type PreparationGrant=z.infer<typeof preparationGrantSchema>;
 export const preparationPageChoiceSchema=z.object({version:z.literal('source-preparation-page-choice/v1'),owner:z.literal('Guy'),approvalId:hash,
   grantSha256:hash,storyboardDigest:hash,pages:z.array(z.number().int().min(1).max(8)).length(2),standingPage:z.number().int().min(1).max(8),
@@ -53,6 +55,13 @@ export function verifyPreparationReview(input:{file:string;sha256:string},grantS
   if(lines[0]!=='DISPOSITION: PASS')prepFail('review_binding');
   for(const line of lines){const field=/^([A-Z][A-Z0-9_]*):[ \t]*(.*)$/.exec(line);if(!field)break;if(header.has(field[1]))prepFail('review_binding');header.set(field[1],field[2]);}
   if(header.get('GRANT_SHA256')!==grantSha256||header.get('SOURCE_HEAD')!==sourceHead||header.get('SCOPE')!=='SOURCE_PREPARATION_EXECUTION')prepFail('review_binding');
+}
+/** An earlier preparation's WAITING bytes are authentic only if the fixed host holds its exact waiting seal (written only by an activated start). */
+export function verifyApprovedWaiting(adopt:{out:string;approvalId:string},waitingBytes:Buffer){
+  const waiting=JSON.parse(waitingBytes.toString('utf8')),seal=path.join(NATIVE_PAGE_PROOF_AUTHORITY_ROOT,'source-preparation-'+adopt.approvalId+'.waiting.json');
+  const expected={version:'source-preparation-waiting-seal/v1',grantSha256:waiting?.grantSha256,sourceHead:waiting?.sourceHead,out:path.resolve(adopt.out),waitingSha256:previewSha(waitingBytes)};
+  if(!existsSync(seal)||canonicalJson(JSON.parse(preparationFile(seal).toString('utf8')))!==canonicalJson(expected))prepFail('adopt_seal');
+  return waiting;
 }
 /** The fixed host and consent ID are independent of code copy, output and grant. No real claim is made by planning. */
 export function preparationAuthority(args:{grant:PreparationGrant;grantFile:string;review:{file:string;sha256:string};requiredInputs:readonly string[];continuation?:true}){

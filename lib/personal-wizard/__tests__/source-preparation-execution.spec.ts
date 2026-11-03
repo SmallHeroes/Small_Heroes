@@ -13,8 +13,36 @@ let shared:Awaited<ReturnType<typeof preparationFixtureWorkspace>>;
 beforeAll(async()=>{if(!process.env.SMALL_HEROES_R17_READONLY_BOOK)return;shared=await preparationFixtureWorkspace(sourceWorkspace);address.root=shared.host;},60000);
 afterEach(()=>{vi.restoreAllMocks();if(!shared)return;writeFileSync(path.join(shared.workspace,'code-marker.txt'),'SYNTHETIC Git guard address, not deployed implementation\n');});
 const fixture=()=>{const f=preparationExecutionFixture(shared);vi.spyOn(process,'cwd').mockReturnValue(shared.workspace);return f;};
+/** A second fixture whose grant adopts fixture A's sealed board; its grant, report and READY are rebound to the changed grant bytes. */
+const adopting=(a:ReturnType<typeof fixture>,approvalId=read(a.ownerFile).approvalId)=>{
+  const b=fixture();b.grant.adoptApproved={out:a.grant.out,approvalId};put(b.grantFile,b.grant);const grantSha256=preparationPin(b.grantFile).sha256;
+  writeFileSync(b.report,'DISPOSITION: PASS\nSCOPE: SOURCE_PREPARATION_EXECUTION\nSOURCE_HEAD: '+b.grant.sourceHead+'\nGRANT_SHA256: '+grantSha256+'\n\nSYNTHETIC TEST ONLY.\n');
+  put(b.ready,{complete:true,disposition:'PASS',scope:'SOURCE_PREPARATION_EXECUTION',sourceHead:b.grant.sourceHead,grantSha256,report:{file:b.report,sha256:preparationPin(b.report).sha256}});
+  b.args.review={file:b.ready,sha256:preparationPin(b.ready).sha256};
+  const choice=(waiting:any)=>{const packets=read(path.join(waiting.bookDir,'storyboard_cde_0','visual_simple_book_result.json')).storyboard.framePackets,file=path.join(b.dir,'adopt-choice.json');
+    put(file,{version:'source-preparation-page-choice/v1',owner:'Guy',approvalId:read(b.ownerFile).approvalId,grantSha256,storyboardDigest:waiting.storyboardDigest,pages:[1,7],
+      standingPage:1,continuityPage:7,standingPacketSha256:packets[1].packetDigest,continuityPacketSha256:packets[7].packetDigest,
+      naturalSamePlaneStandingConfirmed:true,canonicalContinuityConfirmed:true,noStoryboardEdits:true});return file;};
+  return{...b,grantSha256,choice};
+};
 
 describe.runIf(!!process.env.SMALL_HEROES_R17_READONLY_BOOK)('actual preparation caller, actual Git/fs/meter/reader, synthetic paid answers only',()=>{
+
+  it('adopts a sealed supported board with no text call, then runs exactly the four reference calls under the new claim',async()=>{
+    const a=fixture(),approved:any=await startSourcePreparation(a.args);expect(a.calls).toEqual(PREPARATION_STEPS.slice(0,2));
+    const b=adopting(a),waiting:any=await startSourcePreparation(b.args);
+    expect(b.calls).toEqual([]);expect(waiting.spend.calls).toBe(0);expect(waiting.adoptedFrom.out).toBe(path.resolve(a.grant.out));
+    expect(waiting.storyboardDigest).toBe(approved.storyboardDigest);expect(existsSync(path.join(b.grant.out,'sourceRun','paid-stages','prep_storyboard_0.claim.json'))).toBe(false);
+    const done=await continueSourcePreparation({...b.args,choiceFile:b.choice(waiting)});
+    expect(b.calls).toEqual(PREPARATION_STEPS.slice(2));expect(done.spend.calls).toBe(4);expect(done.status).toBe('REFERENCES_QUALIFIED_EXACT_PAGE_PROOF_DRY_PENDING');
+    await expect(startSourcePreparation(b.args)).rejects.toThrow('consumed');
+  },120000);
+  it.each(['tampered-waiting','wrong-approval'])('adoption with a %s refuses before any claim or output',async kind=>{
+    const a=fixture();await startSourcePreparation(a.args);
+    if(kind==='tampered-waiting'){const w=path.join(a.grant.out,'WAITING-OWNER.json');writeFileSync(w,readFileSync(w,'utf8')+' ');}
+    const b=kind==='wrong-approval'?adopting(a,'c'.repeat(64)):adopting(a);
+    await expect(startSourcePreparation(b.args)).rejects.toThrow('adopt_seal');expect(b.calls).toEqual([]);expect(existsSync(b.grant.out)).toBe(false);
+  },120000);
 
   it('R2 after-await refusal preserves known cost and reports original cause without changing thrown wrapper',async()=>{
     const f=fixture(),normal=f.args.transport;
