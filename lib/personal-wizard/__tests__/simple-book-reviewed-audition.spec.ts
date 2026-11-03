@@ -26,7 +26,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
 import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
 import { NATIVE_BOOK_CONTINUITY_VERSION } from '../engine-continuity-contracts';
 import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
-import { runNativePageProofFrames, preflightNativePageProofFrames } from '../native-page-proof-frames';
+import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames } from '../native-page-proof-frames';
 import { runTrialAudition, trialBookVisualQualification, trialDrawnFrames, writeTrialReader } from '../../../scripts/personal-book-e2e-trial';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
@@ -3318,6 +3318,23 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     const {h,input}=await proofInput(),failure=new ReviewedAuditionError('audition_cancelled'),judge=input.judge;let revoked=false;
     await expect(runNativePageProofFrames({...input,judge:async(...a:Parameters<typeof judge>)=>{const r=await judge(...a);revoked=true;return r;},check:()=>{if(revoked)throw failure;}})).rejects.toBe(failure);
     expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(h.args.identity).not.toHaveBeenCalled();
+  });
+  const BOOK=[0,1,2,3,4,5,6,7,8];
+  it('native book: a reviewed held frame gets the engine corrections (attempts 2-3, never a 4th) and every frame is drawn',async()=>{
+    const {input}=await proofInput(within,BOOK),judge=input.judge,calls:string[]=[];
+    const m=await runNativeBookFrames({...input,render:async(...a:Parameters<typeof input.render>)=>{calls.push(a[0]);return input.render(...a);},
+      judge:async(...a:Parameters<typeof judge>)=>{const reply:any=await judge(...a);
+        return a[0].startsWith('page_0_')?{...reply,checks:reply.checks.map((c:any)=>c.category==='environment'
+          ?{...c,verdict:'defect',observation:'Synthetic visible scene error',correction:'Fix the scene',issues:[issue('continuity','visual_language','Synthetic held scene')]}:c)}:reply;}});
+    expect(m.pages.map(p=>p.pageNumber)).toEqual(BOOK);expect(calls.slice(0,3)).toEqual(['page_0_0','page_0_1','page_0_2']);
+    expect(calls).toHaveLength(11);expect(m.scope.complete).toBe(true);expect(m.status).toBe('held_audition_with_findings');
+  });
+  it('native book: a failed render (even with known cost) is terminal with its original error, never re-bought by the next attempt',async()=>{
+    const {input}=await proofInput(within,BOOK),calls:string[]=[];
+    const failure=Object.assign(new ReviewedAuditionError('audition_image_provider_failed'),{receipt:{raw:{usage:{input_tokens:100,output_tokens:100}},estimatedMicroUsd:3800}});
+    await expect(runNativeBookFrames({...input,render:async(...a:Parameters<typeof input.render>)=>{calls.push(a[0]);if(a[0]==='page_3_0')throw failure;return input.render(...a);}}))
+      .rejects.toBe(failure);
+    expect(calls).toEqual(['page_0_0','page_1_0','page_2_0','page_3_0']);
   });
   const realProofRun=async(lost=false,version='native-cde-page-proof/v1')=>{
     const {h,input}=await proofInput(),source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-simple-book-reviewed-audition.ts'),'utf8');

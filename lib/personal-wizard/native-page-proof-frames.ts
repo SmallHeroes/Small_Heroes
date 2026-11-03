@@ -11,19 +11,23 @@ const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
 const keys=new Set(['book','rawReview','texts','current','child','companion','companionDescription','render','judge','identity','check','save','progress','reuseSheets','pages']);
 const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTANCE_DISTINCTION_VERSION&&args.book?.materialFunction?.version===ENTITY_MATERIAL_FUNCTION_VERSION&&
   args.book?.companionScale?.version===COMPANION_SCALE_VERSION&&!!args.reuseSheets?.entities&&!!args.reuseSheets?.locations;
-/** Every paid step is one of the allowlist, used once, of its own kind; the engine's own attempt loop decides which are reached. */
-function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE}){
+/** Every paid step is one of the allowlist, used once, of its own kind; the engine's own attempt loop decides which are reached.
+ *  `terminalRender`: a rejected render ends the run with its original error (the engine's attempt step rechecks `check` in its catch), so a
+ *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
+function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE},terminalRender=false){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts)),used=new Set<string>();
+  let renderFailed=false,renderFailure:unknown;
+  const check=()=>{if(renderFailed)throw renderFailure;args.check();};
   const begin=(step:string,kind:'render'|'review'|'identity')=>{
     if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-2]$/.test(step)||kind==='review'&&!step.endsWith('_qa')||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
-    args.check();used.add(step);
+    check();used.add(step);
   };
   const observed=trialPageRenderEvidence(args.render,args.save);
-  return illustrateReviewedAudition({...args,pages,...options,pageAttempts:attempts,
+  return illustrateReviewedAudition({...args,check,pages,...options,pageAttempts:attempts,
     structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,referenceQualification:REFERENCE_QUALIFICATION_VERSION,
-    render:async(...a)=>{begin(a[0],'render');const v=await observed(...a);args.check();return v;},
-    judge:async(...a)=>{if(a[6]!=='page')fail('page_proof_step');begin(a[0],'review');const v=await args.judge(...a);args.check();return v;},
-    identity:async(...a)=>{begin(a[0],'identity');const v=await args.identity(...a);args.check();return v;}});
+    render:async(...a)=>{begin(a[0],'render');let v;try{v=await observed(...a);}catch(error){if(terminalRender&&!renderFailed){renderFailed=true;renderFailure=error;}throw error;}check();return v;},
+    judge:async(...a)=>{if(a[6]!=='page')fail('page_proof_step');begin(a[0],'review');const v=await args.judge(...a);check();return v;},
+    identity:async(...a)=>{begin(a[0],'identity');const v=await args.identity(...a);check();return v;}});
 }
 /** Explicit page-only boundary. No full-native guard/default changes and no authority granted by this composable engine primitive. */
 export async function runNativePageProofFrames(args:Input){
@@ -34,7 +38,7 @@ export async function runNativePageProofFrames(args:Input){
 /** The whole native book: the fixed cover + 8 frames, no sample stop, the engine's bounded correction ceiling per frame. */
 export async function runNativeBookFrames(args:Input){
   if(!args||Object.keys(args).some(k=>!keys.has(k))||!Array.isArray(args.pages)||JSON.stringify(args.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(args))fail('page_proof_scope');
-  return fencedFrames(args,NATIVE_BOOK_PAGE_ATTEMPTS,{});
+  return fencedFrames(args,NATIVE_BOOK_PAGE_ATTEMPTS,{},true);
 }
 /** Real source/reference preflight: virtual saves only; every provider-shaped callback denied, sentinel at the first admitted page. */
 export async function preflightNativePageProofFrames(args:Omit<Input,'render'|'judge'|'identity'|'save'|'progress'>){
