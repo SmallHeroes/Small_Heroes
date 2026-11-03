@@ -15,7 +15,8 @@ export const NATIVE_BOOK_VERSION='native-cde-book/v1' as const;
 export const NATIVE_BOOK_CAP_MICRO_USD=7_000_000;
 export const NATIVE_BOOK_FRAMES=Object.freeze([0,1,2,3,4,5,6,7,8]);
 export const NATIVE_BOOK_PAGE_ATTEMPTS=3;
-/** At most this many unusable-answer re-asks (one per image, step <image>_qa2) in one book; the meter's call limit enforces the total. */
+/** At most this many unusable-answer re-asks (one per image, step <image>_qa2) in one book: counted book-wide by the frame fence before
+ *  dispatch (the call limit alone would let unused ordinary calls pay for more). */
 export const NATIVE_BOOK_REVIEW_REASKS=9;
 export const NATIVE_BOOK_MAX_CALLS=NATIVE_BOOK_FRAMES.length*NATIVE_BOOK_PAGE_ATTEMPTS*3+NATIVE_BOOK_REVIEW_REASKS;
 const hash=z.string().regex(/^[a-f0-9]{64}$/);

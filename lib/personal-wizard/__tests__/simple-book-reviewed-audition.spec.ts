@@ -3352,6 +3352,19 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
       render:async(...a:Parameters<typeof input.render>)=>{renders.push(a[0]);return input.render(...a);}})).rejects.toThrow('audition_review_unusable');
     expect(renders).toEqual(['page_0_0','page_1_0','page_2_0']);
   });
+  it('native book: the owner\'s nine re-asks are a book-wide limit; the tenth is refused before dispatch and nothing follows it',async()=>{
+    const {input}=await proofInput(within,BOOK),renders:string[]=[],reviews:string[]=[],identities:string[]=[],judge=input.judge,identity=input.identity;
+    // Every first answer is misbound; every re-ask is usable; the cover's first usable answer holds, so the cover draws a second image (10 images).
+    const run=runNativeBookFrames({...input,render:async(...a:Parameters<typeof input.render>)=>{renders.push(a[0]);return input.render(...a);},
+      identity:async(...a:Parameters<typeof identity>)=>{identities.push(a[0]);return identity(...a);},
+      judge:async(...a:any[])=>{reviews.push(a[0]);const reply:any=await (judge as any)(...a);
+        if(a[0].endsWith('_qa'))return {...reply,candidateSha:'0'.repeat(64)};
+        return a[0]==='page_0_0_qa2'?{...reply,checks:reply.checks.map((c:any)=>c.category==='environment'
+          ?{...c,verdict:'defect',observation:'Synthetic visible scene error',correction:'Fix the scene',issues:[issue('continuity','visual_language','Synthetic held scene')]}:c)}:reply;}});
+    await expect(run).rejects.toThrow('audition_call_limit');
+    expect(reviews.filter(s=>s.endsWith('_qa2'))).toHaveLength(9);expect(reviews).not.toContain('page_8_0_qa2');
+    expect(renders[renders.length-1]).toBe('page_8_0');expect(identities).not.toContain('page_8_0_identity');
+  });
   it('page proof keeps its old rule: an unusable answer ends the proof with no re-ask',async()=>{
     const {input}=await proofInput(),reviews:string[]=[],judge=misbound(input.judge,['page_1_0_qa']);
     await expect(runNativePageProofFrames({...input,judge:async(...a:any[])=>{reviews.push(a[0]);return judge(...a);}})).rejects.toThrow('audition_review_unusable');

@@ -4,7 +4,7 @@ import { COMPANION_SCALE_SAMPLE_GATE, COMPANION_SCALE_VERSION } from './companio
 import { INSTANCE_DISTINCTION_VERSION } from './storyboard-instance-distinction';
 import { ENTITY_MATERIAL_FUNCTION_VERSION } from './storyboard-material-function';
 import { trialPageRenderEvidence } from './native-page-render-evidence';
-import { nativePageProofSteps, NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS } from './native-page-proof';
+import { nativePageProofSteps, NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS, NATIVE_BOOK_REVIEW_REASKS } from './native-page-proof';
 type Input=Pick<Parameters<typeof illustrateReviewedAudition>[0],
   'book'|'rawReview'|'texts'|'current'|'child'|'companion'|'companionDescription'|'render'|'judge'|'identity'|'check'|'save'|'progress'|'reuseSheets'>&{pages:readonly number[]};
 const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
@@ -16,11 +16,14 @@ const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTA
  *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
 function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true},terminalRender=false){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
-  let renderFailed=false,renderFailure:unknown;
+  let renderFailed=false,renderFailure:unknown,reasks=0;
   const check=()=>{if(renderFailed)throw renderFailure;args.check();};
   const begin=(step:string,kind:'render'|'review'|'identity')=>{
     if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-2]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
-    check();used.add(step);
+    check();
+    // The owner's re-ask allowance is its own book-wide count, independent of the call and USD limits; past it the run ends (fatal code).
+    if(kind==='review'&&step.endsWith('_qa2')){if(reasks>=NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');reasks++;}
+    used.add(step);
   };
   const observed=trialPageRenderEvidence(args.render,args.save);
   return illustrateReviewedAudition({...args,check,pages,...options,pageAttempts:attempts,
