@@ -8,6 +8,10 @@ import {preparationPin,preparationGrantSchema,PREPARATION_STEPS} from '../source
 import {preparationFixtureWorkspace,preparationExecutionFixture,fixtureGit,put,h} from './source-preparation-fixture';
 const address=vi.hoisted(()=>({root:''}));
 vi.mock('../native-page-proof-authority-host',()=>({get NATIVE_PAGE_PROOF_AUTHORITY_ROOT(){if(!address.root)throw Error('SYNTHETIC_HOST_UNSET');return address.root;}}));
+// Delegating journal: a test may run ONE hook right after PROCESS-START is written (after the claim, before an adoption copies its board).
+const journal=vi.hoisted(()=>({afterProcessStart:null as null|(()=>void)}));
+vi.mock('../../../scripts/personal-causal-trial-journal',async importOriginal=>{const o:any=await importOriginal();
+  return{...o,exclusiveJson:(...a:any[])=>{const r=o.exclusiveJson(...a);if(String(a[0]).endsWith('PROCESS-START.json')&&journal.afterProcessStart){const hook=journal.afterProcessStart;journal.afterProcessStart=null;hook();}return r;}};});
 const sourceWorkspace=process.cwd(),read=(file:string)=>JSON.parse(readFileSync(file,'utf8'));
 let shared:Awaited<ReturnType<typeof preparationFixtureWorkspace>>;
 beforeAll(async()=>{if(!process.env.SMALL_HEROES_R17_READONLY_BOOK)return;shared=await preparationFixtureWorkspace(sourceWorkspace);address.root=shared.host;},60000);
@@ -15,7 +19,7 @@ afterEach(()=>{vi.restoreAllMocks();if(!shared)return;writeFileSync(path.join(sh
 const fixture=()=>{const f=preparationExecutionFixture(shared);vi.spyOn(process,'cwd').mockReturnValue(shared.workspace);return f;};
 /** A second fixture whose grant adopts fixture A's sealed board; its grant, report and READY are rebound to the changed grant bytes. */
 const adopting=(a:ReturnType<typeof fixture>,approvalId=read(a.ownerFile).approvalId)=>{
-  const b=fixture();b.grant.adoptApproved={out:a.grant.out,approvalId};put(b.grantFile,b.grant);const grantSha256=preparationPin(b.grantFile).sha256;
+  const b=fixture();(b.grant as any).adoptApproved={out:a.grant.out,approvalId};put(b.grantFile,b.grant);const grantSha256=preparationPin(b.grantFile).sha256;
   writeFileSync(b.report,'DISPOSITION: PASS\nSCOPE: SOURCE_PREPARATION_EXECUTION\nSOURCE_HEAD: '+b.grant.sourceHead+'\nGRANT_SHA256: '+grantSha256+'\n\nSYNTHETIC TEST ONLY.\n');
   put(b.ready,{complete:true,disposition:'PASS',scope:'SOURCE_PREPARATION_EXECUTION',sourceHead:b.grant.sourceHead,grantSha256,report:{file:b.report,sha256:preparationPin(b.report).sha256}});
   b.args.review={file:b.ready,sha256:preparationPin(b.ready).sha256};
@@ -36,6 +40,14 @@ describe.runIf(!!process.env.SMALL_HEROES_R17_READONLY_BOOK)('actual preparation
     const done=await continueSourcePreparation({...b.args,choiceFile:b.choice(waiting)});
     expect(b.calls).toEqual(PREPARATION_STEPS.slice(2));expect(done.spend.calls).toBe(4);expect(done.status).toBe('REFERENCES_QUALIFIED_EXACT_PAGE_PROOF_DRY_PENDING');
     await expect(startSourcePreparation(b.args)).rejects.toThrow('consumed');
+  },120000);
+  it('a storyboard file substituted AFTER adoption admission is refused against the sealed pins, before any WAITING or seal',async()=>{
+    const a=fixture();await startSourcePreparation(a.args);const b=adopting(a);
+    const draft=path.join(a.grant.out,'book','storyboard_cde_0','owned_storyboard_draft.json'),before=readFileSync(draft);
+    journal.afterProcessStart=()=>writeFileSync(draft,readFileSync(draft,'utf8').replace('"plan"','"plan" '));
+    await expect(startSourcePreparation(b.args)).rejects.toThrow('adopt_bytes');writeFileSync(draft,before);
+    expect(b.calls).toEqual([]);expect(existsSync(path.join(b.grant.out,'WAITING-OWNER.json'))).toBe(false);
+    expect(existsSync(path.join(shared.host,'source-preparation-'+read(b.ownerFile).approvalId+'.waiting.json'))).toBe(false);
   },120000);
   it.each(['tampered-waiting','wrong-approval'])('adoption with a %s refuses before any claim or output',async kind=>{
     const a=fixture();await startSourcePreparation(a.args);

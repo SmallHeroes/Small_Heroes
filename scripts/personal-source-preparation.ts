@@ -186,7 +186,15 @@ function approvedPreparation(adopt:{out:string;approvalId:string},plan:ReturnTyp
   const loaded=loadReviewedBook(bookDir,grant.workspace,undefined,layout,PREPARATION_ADMISSION);
   if(!supported(loaded.result.status)||loaded.book.storyboardDigest!==waiting.storyboardDigest||loaded.book.sourceDigest!==waiting.sourceDigest||
     loaded.queued.requestId!==plan.original.queued.requestId)prepFail('adopt_binding');
-  return{out,bookDir,approvalId:adopt.approvalId,waitingSha256:previewSha(waitingBytes),grantSha256:waiting.grantSha256 as string};
+  // The sealed pins, not the mutable approved files, are the authority for every later byte: keyed by the approved book's own file paths.
+  const pins=new Map((waiting.files as {file:string;bytes:number;sha256:string}[]).map(p=>[path.resolve(p.file).toLowerCase(),p]));
+  return{out,bookDir,approvalId:adopt.approvalId,waitingSha256:previewSha(waitingBytes),grantSha256:waiting.grantSha256 as string,pins,
+    storyboardDigest:waiting.storyboardDigest as string,sourceDigest:waiting.sourceDigest as string};
+}
+/** Every destination book file must equal the approved book's SEALED pin for the same file (by position in bookFiles). */
+function assertAdoptedBytes(adopted:NonNullable<ReturnType<typeof approvedPreparation>>,mine:readonly string[],theirs:readonly string[]){
+  mine.forEach((file,k)=>{const pin=adopted.pins.get(path.resolve(theirs[k]).toLowerCase()),b=preparationFile(file);
+    if(!pin||b.length!==pin.bytes||previewSha(b)!==pin.sha256)prepFail('adopt_bytes');});
 }
 
 /**
@@ -211,17 +219,20 @@ export async function startSourcePreparation(args:Execution){
     exclusiveJson(at(bookDir,plan.targetLayout.childDir,EXISTING_CHILD_APPEARANCE_FILE),existingChildAppearanceData(plan.appearance));
     meter=new AuditionMeter(at(sourceRun,'paid-stages'),5000000,6,0,0,preparationMeterRules);
     if(adopted){
-      for(const name of ['owned_storyboard_draft.json','visual_simple_book_result.json'])
-        exclusiveBinary(at(bookDir,plan.targetLayout.storyboardDir,name),preparationFile(at(adopted.bookDir,plan.targetLayout.storyboardDir,name)));
+      for(const name of ['owned_storyboard_draft.json','visual_simple_book_result.json']){
+        const source=at(adopted.bookDir,plan.targetLayout.storyboardDir,name),pin=adopted.pins.get(path.resolve(source).toLowerCase()),bytes=preparationFile(source);
+        if(!pin||bytes.length!==pin.bytes||previewSha(bytes)!==pin.sha256)prepFail('adopt_bytes');
+        exclusiveBinary(at(bookDir,plan.targetLayout.storyboardDir,name),bytes);
+      }
       const mine=bookFiles(bookDir,plan.targetLayout),theirs=bookFiles(adopted.bookDir,plan.targetLayout);
-      mine.forEach((file,k)=>{if(previewSha(preparationFile(file))!==previewSha(preparationFile(theirs[k])))prepFail('adopt_bytes');});
+      assertAdoptedBytes(adopted,mine,theirs);
       const loaded=loadReviewedBook(bookDir,grant.workspace,undefined,plan.targetLayout,PREPARATION_ADMISSION);
-      if(!supported(loaded.result.status))prepFail('adopt_binding');
+      if(!supported(loaded.result.status)||loaded.book.storyboardDigest!==adopted.storyboardDigest||loaded.book.sourceDigest!==adopted.sourceDigest)prepFail('adopt_binding');
       const waiting={version:SOURCE_PREPARATION,status:'WAITING_FOR_OWNER_PAGE_SELECTION',grantSha256:authority.grantSha256,sourceHead:grant.sourceHead,
         storyboardDigest:loaded.book.storyboardDigest,sourceDigest:loaded.book.sourceDigest,bookDir,sourceRun,layout:plan.targetLayout,
         files:mine.map(preparationPin),spend:meter.snapshot(),at:new Date().toISOString(),noPaidRetries:true,
         adoptedFrom:{out:adopted.out,approvalId:adopted.approvalId,waitingSha256:adopted.waitingSha256,grantSha256:adopted.grantSha256}};
-      check();exclusiveJson(at(grant.out,'WAITING-OWNER.json'),waiting);authority.sealWaiting(preparationFile(at(grant.out,'WAITING-OWNER.json')));return waiting;
+      check();assertAdoptedBytes(adopted,mine,theirs);exclusiveJson(at(grant.out,'WAITING-OWNER.json'),waiting);authority.sealWaiting(preparationFile(at(grant.out,'WAITING-OWNER.json')));return waiting;
     }
     const dispatch=dispatcher(args,grant,meter,check,failure);let rawDraft:unknown;
     const diagnostic=await runSimpleStoryboardDiagnostic({request:plan.original.queued.request,writerResult:plan.original.result.source,options:resolvePersonalWizardOptions(grant.workspace),
