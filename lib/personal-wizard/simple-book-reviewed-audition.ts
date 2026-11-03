@@ -646,7 +646,9 @@ export type AttemptStatus = 'unavailable' | 'review_unusable' | 'identity_unusab
 export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null; review: AuditionReview | null;
   assessment: AuditionAssessment | null; status: AttemptStatus; error?: string; identity?: PageChildResemblanceVisionResult | null;
   sceneRepair?: { version: typeof AUDITION_LOCAL_ANATOMY_REPAIR_VERSION | 'audition-local-material-scene/v1'; parentImageSha: string; parentContextSha: string; targetActorIds: string[];
-    clarity?: AnatomyClarityRequest & {requestSha:string} } };
+    clarity?: AnatomyClarityRequest & {requestSha:string} };
+  /** Opt-in review re-ask only: the first answer for this same image arrived but was unusable (its code); the review kept is the re-ask's. */
+  reviewReask?: { firstError: string } };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
 
 const critical = (a: AuditionAssessment) => a.counts.story + a.counts.identity + a.counts.continuity;
@@ -1052,24 +1054,33 @@ type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_
 export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page'; step: string; attempt: number; candidate: AuditionImage;
   context: unknown; contextSha: string; requirementIds: string[]; judgeRefs: AuditionImage[]; predecessor: AuditionImage | null;
   landmarks?: readonly AuditionLandmark[]; child: AuditionImage; judge: Judge; qualityOnly?: true;
-  identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>; check: () => void }): Promise<AuditionAttempt> {
+  identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>; check: () => void;
+  reaskUnusable?: true }): Promise<AuditionAttempt> {
   const { attempt, candidate } = a;
-  const raw = await attemptStep(a.check, () => a.judge(`${a.step}_qa`, candidate, a.context, a.contextSha, a.judgeRefs, a.predecessor, a.phase));
-  if ('error' in raw) return { attempt, candidate, review: null, assessment: null,
-    status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
-  let judged: ReturnType<typeof assessAuditionReview>;
-  try { judged = assessAuditionReview(raw.value, candidate.imageSha, a.contextSha, a.requirementIds, a.landmarks,
-    a.phase === 'page' ? auditionLandmarkTopology(a.context) : undefined, a.phase === 'page' ? auditionAnatomyCast(a.context) : undefined,
-    a.phase === 'page' ? auditionInstanceDistinction(a.context) : undefined, a.phase === 'page' ? companionScaleFromContext(a.context) : undefined); }
-  catch (error) { return { attempt, candidate, review: null, assessment: null, status: 'review_unusable', error: errorCode(error) }; }
-  const { review, assessment } = judged;
+  type Outcome = { judged: ReturnType<typeof assessAuditionReview> } | { error: string; unusable: boolean };
+  const ask = async (step: string): Promise<Outcome> => {
+    const raw = await attemptStep(a.check, () => a.judge(step, candidate, a.context, a.contextSha, a.judgeRefs, a.predecessor, a.phase));
+    if ('error' in raw) return { error: raw.error, unusable: UNUSABLE_REVIEW_CODES.has(raw.error) };
+    try { return { judged: assessAuditionReview(raw.value, candidate.imageSha, a.contextSha, a.requirementIds, a.landmarks,
+      a.phase === 'page' ? auditionLandmarkTopology(a.context) : undefined, a.phase === 'page' ? auditionAnatomyCast(a.context) : undefined,
+      a.phase === 'page' ? auditionInstanceDistinction(a.context) : undefined, a.phase === 'page' ? companionScaleFromContext(a.context) : undefined) }; }
+    catch (error) { return { error: errorCode(error), unusable: true }; }
+  };
+  let outcome = await ask(`${a.step}_qa`), reask: AuditionAttempt['reviewReask'];
+  // Opt-in: an answer that arrived but cannot be used gets ONE fresh, identical request for the SAME image (never a redraw, never a changed
+  // prompt). A second unusable answer ends the run exactly as before.
+  if (a.reaskUnusable && 'unusable' in outcome && outcome.unusable) { reask = { firstError: outcome.error }; outcome = await ask(`${a.step}_qa2`); }
+  if ('error' in outcome) return { attempt, candidate, review: null, assessment: null,
+    status: outcome.unusable ? 'review_unusable' : 'unavailable', error: outcome.error, ...(reask ? { reviewReask: reask } : {}) };
+  const { review, assessment } = outcome.judged;
+  const extra = reask ? { reviewReask: reask } : {};
   if (a.phase === 'sheet' || a.qualityOnly || assessment.safetyBlocked || assessment.invalidCitations)
-    return { attempt, candidate, review, assessment, status: attemptStatus(a.phase, { candidate, assessment }) };
+    return { attempt, candidate, review, assessment, status: attemptStatus(a.phase, { candidate, assessment }), ...extra };
   const measured = await attemptStep(a.check, () => a.identity(`${a.step}_identity`, a.child, candidate));
   const identity = 'error' in measured ? null : measured.value;
   if (!identityUsable(identity)) return { attempt, candidate, review, assessment, identity, status: 'identity_unusable',
-    error: 'error' in measured ? measured.error : `identity_${measured.value.status}_${measured.value.reasonCode}` };
-  return { attempt, candidate, review, assessment, identity, status: attemptStatus(a.phase, { candidate, assessment, identity }) };
+    error: 'error' in measured ? measured.error : `identity_${measured.value.status}_${measured.value.reasonCode}`, ...extra };
+  return { attempt, candidate, review, assessment, identity, status: attemptStatus(a.phase, { candidate, assessment, identity }), ...extra };
 }
 
 /** Explicit diagnostic/editorial feedback, never a substituted pixel verdict or an implicit extra attempt. Native spend authority must bind it. */
@@ -1258,6 +1269,8 @@ export async function illustrateReviewedAudition(args: {
   reuseSheets?: Partial<Record<'entities' | 'locations', SavedSheet>>;
   /** Diagnostic comparison only: at most this many attempts per page (1 to the policy's own number). Absent: the policy's number. */
   pageAttempts?: number;
+  /** Native whole book only: an unusable review answer gets one fresh identical request for the same image (step <image>_qa2). Absent: as before. */
+  reviewReask?: true;
   /**
    * Opt-in (spend grant only) stage-recovery/v1 for pages, inside the unchanged attempt ceiling: after two consecutive held attempts of a page
    * the next attempt carries the diagnosis of both (auditionRecoveryDiagnosis) instead of only the last one's findings, and the saved page
@@ -1418,7 +1431,8 @@ export async function illustrateReviewedAudition(args: {
   const judgeCandidate = async (phase: 'sheet' | 'page', name: string, attempt: number, candidate: AuditionImage, context: unknown, contextSha: string,
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     return judgeReviewedAuditionCandidate({ phase, step: `${prefix}${phase}_${name}_${attempt}`, attempt, candidate, context, contextSha,
-      requirementIds, judgeRefs, predecessor, landmarks, child: args.child, judge: args.judge, identity: args.identity, check: args.check });
+      requirementIds, judgeRefs, predecessor, landmarks, child: args.child, judge: args.judge, identity: args.identity, check: args.check,
+      ...(args.reviewReask === true ? { reaskUnusable: true as const } : {}) });
   };
   const pageAttempt = async (page: number, attempt: number, prior: AuditionAttempt | undefined, prompt: string, strategy: string,
     context: unknown, contextSha: string, checks: ReturnType<typeof auditionPageChecks>, canonical: AuditionImage[], predecessor: AuditionImage | null) => {

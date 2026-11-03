@@ -3336,6 +3336,27 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
       .rejects.toBe(failure);
     expect(calls).toEqual(['page_0_0','page_1_0','page_2_0','page_3_0']);
   });
+  const misbound=(judge:any,steps:string[])=>async(...a:any[])=>{const reply:any=await judge(...a);return steps.includes(a[0])?{...reply,candidateSha:'0'.repeat(64)}:reply;};
+  it('native book: one unusable answer is re-asked once, identically, for the SAME image and the book continues',async()=>{
+    const {h,input}=await proofInput(within,BOOK),renders:string[]=[],reviews:string[]=[],judge=misbound(input.judge,['page_2_0_qa']);
+    const m=await runNativeBookFrames({...input,render:async(...a:Parameters<typeof input.render>)=>{renders.push(a[0]);return input.render(...a);},
+      judge:async(...a:any[])=>{reviews.push(a[0]);return judge(...a);}});
+    expect(m.pages.map(p=>p.pageNumber)).toEqual(BOOK);expect(renders).toHaveLength(9);
+    expect(reviews.filter(s=>s.startsWith('page_2_'))).toEqual(['page_2_0_qa','page_2_0_qa2']);expect(reviews.filter(s=>s.endsWith('_qa2'))).toHaveLength(1);
+    const p2=h.saved.get('page_2') as any;expect(p2.attempts).toHaveLength(1);expect(p2.attempts[0].reviewReask.firstError).toMatch(/^audition_/);
+    expect(p2.attempts[0].review.candidateSha).toBe(p2.attempts[0].candidate.imageSha);
+  });
+  it('native book: a second unusable answer for the same image still ends the run, with nothing drawn after it',async()=>{
+    const {input}=await proofInput(within,BOOK),renders:string[]=[];
+    await expect(runNativeBookFrames({...input,judge:misbound(input.judge,['page_2_0_qa','page_2_0_qa2']),
+      render:async(...a:Parameters<typeof input.render>)=>{renders.push(a[0]);return input.render(...a);}})).rejects.toThrow('audition_review_unusable');
+    expect(renders).toEqual(['page_0_0','page_1_0','page_2_0']);
+  });
+  it('page proof keeps its old rule: an unusable answer ends the proof with no re-ask',async()=>{
+    const {input}=await proofInput(),reviews:string[]=[],judge=misbound(input.judge,['page_1_0_qa']);
+    await expect(runNativePageProofFrames({...input,judge:async(...a:any[])=>{reviews.push(a[0]);return judge(...a);}})).rejects.toThrow('audition_review_unusable');
+    expect(reviews).toEqual(['page_1_0_qa']);
+  });
   const realProofRun=async(lost=false,version='native-cde-page-proof/v1')=>{
     const {h,input}=await proofInput(),source=readFileSync(path.resolve(__dirname,'../../../scripts/personal-simple-book-reviewed-audition.ts'),'utf8');
     const from=source.indexOf('  const frameScope=grant.scope;'),to=source.indexOf('  const images = new Map<string, string>();',from);

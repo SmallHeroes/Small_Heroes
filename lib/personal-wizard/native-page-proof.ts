@@ -15,6 +15,9 @@ export const NATIVE_BOOK_VERSION='native-cde-book/v1' as const;
 export const NATIVE_BOOK_CAP_MICRO_USD=7_000_000;
 export const NATIVE_BOOK_FRAMES=Object.freeze([0,1,2,3,4,5,6,7,8]);
 export const NATIVE_BOOK_PAGE_ATTEMPTS=3;
+/** At most this many unusable-answer re-asks (one per image, step <image>_qa2) in one book; the meter's call limit enforces the total. */
+export const NATIVE_BOOK_REVIEW_REASKS=9;
+export const NATIVE_BOOK_MAX_CALLS=NATIVE_BOOK_FRAMES.length*NATIVE_BOOK_PAGE_ATTEMPTS*3+NATIVE_BOOK_REVIEW_REASKS;
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const pin=z.object({file:z.string().min(1),bytes:z.number().int().nonnegative().max(20_000_000),sha256:hash}).strict();
 export const nativePageProofSchema=z.object({version:z.enum([NATIVE_PAGE_PROOF_VERSION,NATIVE_BOOK_VERSION]),workspace:z.string().min(1),sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
@@ -27,6 +30,7 @@ export const nativePageProofOwnerApprovalSchema=z.object({version:z.literal('nat
 export const nativeBookOwnerApprovalSchema=z.object({version:z.literal('native-book-owner-approval/v1'),owner:z.literal('Guy'),approvalId:hash,
   approvalReference:z.string().min(30).max(3000),capMicroUsd:z.literal(NATIVE_BOOK_CAP_MICRO_USD),
   maxLowImages:z.literal(NATIVE_BOOK_FRAMES.length*NATIVE_BOOK_PAGE_ATTEMPTS),pageAttempts:z.literal(NATIVE_BOOK_PAGE_ATTEMPTS),
+  maxReviewReasks:z.literal(NATIVE_BOOK_REVIEW_REASKS),
   allReviewsAndFullUnknownReserves:z.literal(true),fullBook:z.literal(true),narration:z.literal(false),paidRetries:z.literal(false)}).strict();
 const ownerApprovalFor=(proof:NativePageProof)=>proof.version===NATIVE_BOOK_VERSION?nativeBookOwnerApprovalSchema:nativePageProofOwnerApprovalSchema;
 export const nativeProofAttempts=(proof:NativePageProof)=>proof.version===NATIVE_BOOK_VERSION?NATIVE_BOOK_PAGE_ATTEMPTS:1;
@@ -47,7 +51,7 @@ export function nativePageProofGrantValid(g:GrantLike):boolean{
   return s.mode==='render'&&path.isAbsolute(s.pageProof.workspace)&&safeName(s.pageProof.ownerApproval.file)&&s.pageProof.inputs.every(p=>safeName(p.file))&&g.ledger.evidence.length===1&&!!p&&frames&&
     s.pageAttempts===attempts&&!!s.reuseSheets&&path.isAbsolute(s.reuseSheets.sourceRun)&&
     canonicalJson([...s.reuseSheets.roles].sort())===canonicalJson(['entities','locations'])&&s.recovery===undefined&&s.scaleLineup===undefined&&
-    g.capMicroUsd>0&&g.capMicroUsd<=(book?NATIVE_BOOK_CAP_MICRO_USD:NATIVE_PAGE_PROOF_CAP_MICRO_USD)&&g.maxCalls===p.length*attempts*3&&g.ledger.priorKnownApiMicroUsd===0&&
+    g.capMicroUsd>0&&g.capMicroUsd<=(book?NATIVE_BOOK_CAP_MICRO_USD:NATIVE_PAGE_PROOF_CAP_MICRO_USD)&&g.maxCalls===(book?NATIVE_BOOK_MAX_CALLS:p.length*3)&&g.ledger.priorKnownApiMicroUsd===0&&
     g.ledger.carriedUnresolvedMicroUsd===undefined&&g.experiment===undefined&&
     g.ledger.evidence.some(e=>path.resolve(e.file)===path.resolve(s.pageProof!.ownerApproval.file)&&e.sha256===s.pageProof!.ownerApproval.sha256);
 }
@@ -56,8 +60,11 @@ export function snapshotNativePageProofArgs<T extends {bookDir:string;out:string
   if([args.bookDir,args.out,args.keyFile,args.grantFile].some(p=>typeof p!=='string'||!path.isAbsolute(p)))return fail('page_proof_scope');
   return {...args,...(args.layout!==undefined?{layout:structuredClone(args.layout)}:{}),proofReview:args.proofReview?{...args.proofReview}:undefined};
 }
-export const nativePageProofSteps=(pages:readonly number[],attempts=1)=>
-  pages.flatMap(n=>Array.from({length:attempts},(_,k)=>k).flatMap(k=>['','_qa','_identity'].map(s=>'page_'+n+'_'+k+s)));
+export const nativePageProofSteps=(pages:readonly number[],attempts=1,reask=false)=>
+  pages.flatMap(n=>Array.from({length:attempts},(_,k)=>k).flatMap(k=>['','_qa',...(reask?['_qa2']:[]),'_identity'].map(s=>'page_'+n+'_'+k+s)));
+/** The exact paid allowlist of a native grant's mode (a book adds each image's one unusable-answer re-ask). */
+export const nativeProofSteps=(proof:NativePageProof,pages:readonly number[])=>
+  proof.version===NATIVE_BOOK_VERSION?nativePageProofSteps(pages,NATIVE_BOOK_PAGE_ATTEMPTS,true):nativePageProofSteps(pages);
 function safeFile(file:string){
   if(!path.isAbsolute(file)||/(^|[\\/])(?:\.env(?:\.|$)|auth\.json$|credentials(?:\.|$)|[^\\/]*api[_-]?keys?[^\\/]*$)/i.test(file))fail('page_proof_input_path');
   const st=lstatSync(file);if(!st.isFile()||st.isSymbolicLink()||st.size>20_000_000||realpathSync.native(file).toLowerCase()!==path.resolve(file).toLowerCase())fail('page_proof_input_path');

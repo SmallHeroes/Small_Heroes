@@ -14,12 +14,12 @@ const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTA
 /** Every paid step is one of the allowlist, used once, of its own kind; the engine's own attempt loop decides which are reached.
  *  `terminalRender`: a rejected render ends the run with its original error (the engine's attempt step rechecks `check` in its catch), so a
  *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
-function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE},terminalRender=false){
-  const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts)),used=new Set<string>();
+function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true},terminalRender=false){
+  const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
   let renderFailed=false,renderFailure:unknown;
   const check=()=>{if(renderFailed)throw renderFailure;args.check();};
   const begin=(step:string,kind:'render'|'review'|'identity')=>{
-    if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-2]$/.test(step)||kind==='review'&&!step.endsWith('_qa')||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
+    if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-2]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
     check();used.add(step);
   };
   const observed=trialPageRenderEvidence(args.render,args.save);
@@ -35,10 +35,11 @@ export async function runNativePageProofFrames(args:Input){
     args.pages.some((n,i)=>!Number.isInteger(n)||n<1||n>8||i>0&&n<=args.pages[i-1])||!nativeSource(args))fail('page_proof_scope');
   return fencedFrames(args,1,{sample:[...args.pages],sampleScaleGate:COMPANION_SCALE_SAMPLE_GATE});
 }
-/** The whole native book: the fixed cover + 8 frames, no sample stop, the engine's bounded correction ceiling per frame. */
+/** The whole native book: the fixed cover + 8 frames, no sample stop, the engine's bounded correction ceiling per frame, and one
+ *  identical re-ask of an unusable review answer per image (a structural slip in one answer is not a reason to end a whole book). */
 export async function runNativeBookFrames(args:Input){
   if(!args||Object.keys(args).some(k=>!keys.has(k))||!Array.isArray(args.pages)||JSON.stringify(args.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(args))fail('page_proof_scope');
-  return fencedFrames(args,NATIVE_BOOK_PAGE_ATTEMPTS,{},true);
+  return fencedFrames(args,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true},true);
 }
 /** Real source/reference preflight: virtual saves only; every provider-shaped callback denied, sentinel at the first admitted page. */
 export async function preflightNativePageProofFrames(args:Omit<Input,'render'|'judge'|'identity'|'save'|'progress'>){

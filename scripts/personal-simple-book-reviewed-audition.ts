@@ -10,7 +10,7 @@ import path from 'node:path';
 import { EXISTING_CHILD_APPEARANCE_FILE, admitExistingChildAppearance } from '../lib/personal-wizard/existing-child-appearance';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync, realpathSync } from 'node:fs';
 import sharp from 'sharp';
-import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput, nativeProofAttempts, NATIVE_BOOK_VERSION } from '../lib/personal-wizard/native-page-proof';
+import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput, nativeProofSteps, NATIVE_BOOK_VERSION } from '../lib/personal-wizard/native-page-proof';
 import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames, preflightNativeBookFrames } from '../lib/personal-wizard/native-page-proof-frames';
 import { trialDrawnFrames } from '../lib/personal-wizard/native-page-render-evidence';
 import OpenAI from 'openai';
@@ -499,7 +499,7 @@ export function readAuditionGrant(file: string, book: { requestId: string; story
 // Meter: cumulative, fail-closed.
 // ---------------------------------------------------------------------------------------------------------------
 /** Logical stage of a paid step: image render, pixel review or child identity measurement. */
-export const auditionStage = (step: string) => /_qa$|^rejudge_/.test(step) ? 'review' : /_identity$/.test(step) ? 'identity' : 'render';
+export const auditionStage = (step: string) => /_qa2?$|^rejudge_/.test(step) ? 'review' : /_identity$/.test(step) ? 'identity' : 'render';
 
 /**
  * One paid call kind's live rule, for a meter that re-derives its OWN calls (opt-in): the claim maximum its bound request derives (null for a
@@ -863,8 +863,10 @@ export const auditionIdentityRule: MeterRule = {
  * measurement (`_identity`), each with its adapter's rule. Any other step (a rejudge included) has none, so an opted-in meter refuses it.
  */
 export const auditionMeterRules: MeterRules = step => {
-  const m = /^(?:r[0-9]{1,2}_)?(sheet_entities|sheet_locations|page_[0-9]{1,2})_[0-9]{1,2}(_qa|_identity)?$/.exec(step);
-  return !m ? undefined : m[2] === '_qa' ? auditionReviewRule : m[2] !== '_identity' ? auditionRenderRule : m[1].startsWith('page_') ? auditionIdentityRule : undefined;
+  // _qa2 is a page review's one opt-in re-ask of an unusable answer (native whole book only; its allowlist is the only way to reach it).
+  const m = /^(?:r[0-9]{1,2}_)?(sheet_entities|sheet_locations|page_[0-9]{1,2})_[0-9]{1,2}(_qa|_qa2|_identity)?$/.exec(step);
+  return !m ? undefined : m[2] === '_qa2' ? (m[1].startsWith('page_') ? auditionReviewRule : undefined) : m[2] === '_qa' ? auditionReviewRule
+    : m[2] !== '_identity' ? auditionRenderRule : m[1].startsWith('page_') ? auditionIdentityRule : undefined;
 };
 
 /**
@@ -1337,7 +1339,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     companion: { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) } }, args.out,
     derivedSheetContexts(loaded.book, loaded.texts, renderScope.reuseSheets.roles, scaleLineup)) : null;
   let proofAuthority:ReturnType<typeof nativePageProofAuthority>|null=null;
-  const proofSteps=proof?nativePageProofSteps(proofScope!.pages,nativeProofAttempts(proof)):undefined;
+  const proofSteps=proof?nativeProofSteps(proof,proofScope!.pages):undefined;
   if(proof){
     if(loaded.replan||'ownerAcceptance' in loaded||proof.sourceDigest!==loaded.book.sourceDigest||proof.reviewSha256!==previewSha(canonicalJson(loaded.rawReview))||
       proof.layoutSha256!==previewSha(canonicalJson(args.layout??LEGACY_BOOK_LAYOUT))||!reused)fail('page_proof_source_binding');
@@ -1565,7 +1567,7 @@ export async function dryNativePageProof(args:{bookDir:string;out:string;grantFi
   check();await (book?preflightNativeBookFrames:preflightNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
     companionDescription:loaded.companionDescription,pages:scope.pages,reuseSheets:reused.sheets,check});check();
   return{version:'native-page-proof-preflight/v1',mode:proof.version,requestId:loaded.queued.requestId,sourceDigest:loaded.book.sourceDigest,storyboardDigest:loaded.book.storyboardDigest,
-    sourceHead:proof.sourceHead,grantSha256:binding.sha256,pages:scope.pages,allowedSteps:nativePageProofSteps(scope.pages,nativeProofAttempts(proof)),capMicroUsd:parsed.capMicroUsd,
+    sourceHead:proof.sourceHead,grantSha256:binding.sha256,pages:scope.pages,allowedSteps:nativeProofSteps(proof,scope.pages),capMicroUsd:parsed.capMicroUsd,
     maxCalls:parsed.maxCalls,imageQuality:'low',sourceAndReferencesAdmitted:true,executionReady:false,
     remainingGates:['complete independent execution review for exact grant','unused owner approval claim at execution'],providerCalls:0,sourceWrites:0};
 }
