@@ -28,6 +28,7 @@ import {
 } from '@/lib/personal-wizard/intake-live-client';
 import type { RecordedClip } from '@/lib/personal-wizard/recorder';
 import { watchAvailability } from '@/lib/personal-wizard/availability-client';
+import { ENGINE_SITE_LAUNCH_OFFER, engineSitePriceIls } from '@/lib/engine-site/offer-definition';
 
 import { useDraftStore, useObjectUrl, usePlayback, useRecorder, useSoftKeyboardOpen } from './hooks';
 import styles from './personal-wizard.module.css';
@@ -61,9 +62,10 @@ type Props = {
   nativeBookPreview?: boolean;
   simpleBookPreview?: boolean;
   momentumBookPreview?: boolean;
+  launchOrder?: { optionsFingerprint: string; checkoutEnabled: boolean };
 };
 
-export function PersonalWizard({ options, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false }: Props) {
+export function PersonalWizard({ options, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false, launchOrder }: Props) {
   const { draft, update, read } = useDraftStore();
   // Optional, non-authoritative product-preview choices. Unknown/legacy direction hints are ignored.
   const prefilled = useRef(false);
@@ -76,23 +78,28 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
     update((current) => {
       let next = current;
       if (!next.companionId && companion && options.companions.some((item) => item.id === companion)) next = setCompanion(next, companion);
-      if (!next.bookOptions.lengthId && options.lengths.some((item) => item.id === length)) next = setLength(next, length);
+      if (launchOrder) next = setLength(next, 'short');
+      else if (!next.bookOptions.lengthId && options.lengths.some((item) => item.id === length)) next = setLength(next, length);
       return next;
     });
-  }, [options.companions, options.lengths, update]);
+  }, [options.companions, options.lengths, update, launchOrder]);
   const recorder = useRecorder();
   const playback = usePlayback();
   const [step, setStep] = useState<Step>(1);
   const [returnToSummary, setReturnToSummary] = useState(false);
   const [showErrors, setShowErrors] = useState({ tell: false, companion: false });
   const [manualOpen, setManualOpen] = useState(false);
-  const [tellMode, setTellMode] = useState<TellMode>('voice');
+  const [tellMode, setTellMode] = useState<TellMode>(launchOrder ? 'chips' : 'voice');
   const [cardOpened, setCardOpened] = useState(false);
   const [intakeNotice, setIntakeNotice] = useState<IntakeNotice | null>(null);
   const [lateIgnored, setLateIgnored] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const photoUrl = useObjectUrl(photoFile);
   const [submission, setSubmission] = useState<Submission>({ state: 'idle' });
+  const [appearanceDescription, setAppearanceDescription] = useState('');
+  const [orderState, setOrderState] = useState<{ busy: boolean; message: string; signIn?: boolean; orderId?: string }>({ busy: false, message: '' });
+  const orderInFlight = useRef(false);
+  const uploadedPhoto = useRef<{ file: File; draftId: string; assetId: string } | null>(null);
   const keyboardOpen = useSoftKeyboardOpen();
   const titleRef = useRef<HTMLHeadingElement | null>(null);
   const shownStep = useRef<Step>(1);
@@ -110,10 +117,13 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   // The answer only shapes the UI; the intake routes enforce authority on every request.
   const [liveIntake, setLiveIntake] = useState<boolean | 'audio'>(false);
   const [intakeSignInRequired, setIntakeSignInRequired] = useState(false);
-  useEffect(() => watchAvailability(window, fetchLiveIntakeAvailability, status => {
+  useEffect(() => {
+    if (launchOrder) return;
+    return watchAvailability(window, fetchLiveIntakeAvailability, status => {
     setLiveIntake(status.live ? status.audioOnly ? 'audio' : true : false);
     setIntakeSignInRequired(status.signInRequired);
-  }), []);
+    });
+  }, [launchOrder]);
   const pendingLive = useRef<{ jobId: string; controller: AbortController } | null>(null);
   const [sentClip, setSentClip] = useState<Blob | null>(null);
   useEffect(() => () => pendingLive.current?.controller.abort(), []);
@@ -324,6 +334,57 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   };
 
   const submit = async () => {
+    if (launchOrder) {
+      if (orderInFlight.current) return;
+      const built = buildReviewedRequest(read());
+      if (!built.ok || (!photoFile && normalizeText(appearanceDescription).length < 10)) {
+        setOrderState({ busy: false, message: 'יש להשלים את פרטי הספר ותיאור המראה לפני ההמשך.' }); return;
+      }
+      orderInFlight.current = true;
+      setOrderState({ busy: true, message: 'שומרים את פרטי הספר…' });
+      try {
+        let appearance: { kind: 'description'; description: string } | { kind: 'private_photo'; assetId: string } =
+          { kind: 'description', description: normalizeText(appearanceDescription) };
+        if (photoFile) {
+          if (uploadedPhoto.current?.file !== photoFile || uploadedPhoto.current.draftId !== built.request.draftId) {
+            const upload = await fetch('/api/engine-site/v1/photos', { method: 'POST', cache: 'no-store',
+              headers: { 'Content-Type': photoFile.type, 'X-Engine-Draft': built.request.draftId }, body: photoFile });
+            const photo = await upload.json().catch(() => null);
+            if (upload.status === 401) {
+              setOrderState({ busy: false, signIn: true, message: 'יש להתחבר לחשבון לפני שמירת התמונה.' }); return;
+            }
+            if (!upload.ok || typeof photo?.assetId !== 'string') throw Error('photo_upload_failed');
+            uploadedPhoto.current = { file: photoFile, draftId: built.request.draftId, assetId: photo.assetId };
+          }
+          appearance = { kind: 'private_photo', assetId: uploadedPhoto.current.assetId };
+        }
+        if (read().revision !== built.request.draftRevision) throw Error('details_changed');
+        const response = await fetch('/api/engine-site/v1/orders', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, cache: 'no-store', body: JSON.stringify({
+            version: 'engine-site-order-input/v1', optionsFingerprint: launchOrder.optionsFingerprint,
+            request: built.request, appearance,
+          }) });
+        const body = await response.json().catch(() => null);
+        if (!response.ok || body?.status !== 'personal_order_created' || typeof body.orderId !== 'string') {
+          setOrderState({ busy: false, signIn: response.status === 401,
+            message: response.status === 401 ? 'יש להתחבר לחשבון לפני שמירת ההזמנה.' : response.status === 409
+              ? 'פרטי ההזמנה כבר נשמרו. לשינוי ספר שנשמר יש להתחיל הזמנה חדשה.' : 'לא הצלחנו לשמור. הפרטים נשארו כאן ואפשר לנסות שוב.' });
+          return;
+        }
+        if (launchOrder.checkoutEnabled) {
+          const payment = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: body.orderId }) });
+          const checkout = await payment.json().catch(() => null);
+          const url = typeof checkout?.url === 'string' ? new URL(checkout.url, window.location.origin) : null;
+          if (!payment.ok || !url || url.protocol !== 'https:') throw Error('checkout_unavailable');
+          // Leaving for the payment provider is an explicit action from the final summary button.
+          window.location.assign(url.href);
+        }
+        setOrderState({ busy: false, orderId: body.orderId, message: 'פרטי הספר נשמרו. התשלום עדיין אינו פתוח.' });
+      } catch { setOrderState({ busy: false, message: 'לא הצלחנו להמשיך. הפרטים נשארו כאן ואפשר לנסות שוב.' }); }
+      finally { orderInFlight.current = false; }
+      return;
+    }
     if (submission.state === 'submitting') return;
     const built = buildReviewedRequest(read());
     if (!built.ok) return;
@@ -377,11 +438,13 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   };
 
   const onBack = () => {
+    if (orderInFlight.current) return;
     setReturnToSummary(false);
     goTo((step - 1) as Step);
   };
 
   const onEdit = (target: 1 | 2 | 3) => {
+    if (orderInFlight.current) return;
     setReturnToSummary(true);
     goTo(target);
   };
@@ -395,15 +458,15 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   const acceptedCurrent = submission.state === 'accepted' && submission.revision === draft.revision;
   let continueLabel = returnToSummary ? COMMON.backToSummary : COMMON.next;
   if (step === 1 && !returnToSummary) continueLabel = tellCopy(name, draft.child.address).continue;
-  if (step === 4) continueLabel = summaryCopy(name, draft.child.address).finish;
+  if (step === 4) continueLabel = launchOrder ? (launchOrder.checkoutEnabled ? `לתשלום · ₪${engineSitePriceIls()}` : 'שמירת פרטי הספר') : summaryCopy(name, draft.child.address).finish;
   const continueDisabled =
-    step === 4 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent);
+    step === 4 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent || orderState.busy || Boolean(orderState.orderId));
 
   return (
     <div className={styles.page} data-ready={ready || undefined}>
       <header className={styles.topbar}>
         <span className={styles.brand}>גיבורים קטנים</span>
-        <span className={styles.prototypeBadge}>{COMMON.prototypeBadge}</span>
+        {!launchOrder ? <span className={styles.prototypeBadge}>{COMMON.prototypeBadge}</span> : null}
       </header>
 
       {/* On the focused voice screens only the bar shows; the step name is still read out. */}
@@ -461,6 +524,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             manualOpen={manualOpen}
             onToggleManual={() => setManualOpen((open) => !open)}
             topics={options.topics}
+            customerMode={Boolean(launchOrder)}
           />
         ) : null}
         {step === 2 ? (
@@ -481,8 +545,15 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             photoUrl={photoUrl}
             onPhoto={onPhoto}
             playback={playback}
+            launchOrder={Boolean(launchOrder)}
           />
         ) : null}
+        {step === 3 && launchOrder ? <div className={styles.card}>
+          <label className={styles.sectionTitle} htmlFor="pw-appearance">איך נראה הגיבור או הגיבורה?</label>
+          <textarea id="pw-appearance" className={styles.textarea} value={appearanceDescription} maxLength={1200}
+            onChange={event => setAppearanceDescription(event.target.value)} aria-describedby="pw-appearance-note" />
+          <p id="pw-appearance-note" className={styles.hint}>תיאור שיער, עיניים ומראה. ללא תמונה, נדרש תיאור והאיורים יתבססו עליו.</p>
+        </div> : null}
         {step === 4 ? (
           <StepSummary
             draft={draft}
@@ -494,8 +565,15 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             nativeBookPreview={nativeBookPreview}
             simpleBookPreview={simpleBookPreview}
             momentumBookPreview={momentumBookPreview}
+            customerMode={Boolean(launchOrder)}
           />
         ) : null}
+        {step === 4 && launchOrder ? <div className={styles.card}>
+          <p className={styles.summaryText}>כריכה + {ENGINE_SITE_LAUNCH_OFFER.narrativePages} עמודי סיפור, קריינות ו־PDF · ₪{engineSitePriceIls()}</p>
+          <p>{photoFile ? 'התמונה תישמר באופן פרטי ותשמש להכנת הספר.' : appearanceDescription}</p>
+          <p role="status" aria-live="polite">{orderState.message}</p>
+          {orderState.signIn ? <a href="/login?returnTo=/wizard/personal" target="_blank" rel="noreferrer">כניסה לחשבון בחלון נוסף</a> : null}
+        </div> : null}
       </main>
 
       <nav

@@ -301,6 +301,19 @@ describe('POST /api/orders — durable Visual Package authority', () => {
     H.requireExpectedBinding.mockImplementation(({ expected }) => expected);
   });
 
+  it('refuses the private engine session namespace before the legacy session upsert', async () => {
+    const body = await request().json();
+    for (const sessionId of ['engine-site-asset/v1/synthetic', 'engine-site-order/v1/synthetic']) {
+      const req = new NextRequest('https://synthetic.invalid/api/orders', { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, sessionId }) });
+      const response = await POST(req);
+      expect(response.status).toBe(422);
+    }
+    expect(H.wizardSessionFindUnique).not.toHaveBeenCalled();
+    expect(H.customerUpsert).not.toHaveBeenCalled();
+    expect(H.wizardSessionUpsert).not.toHaveBeenCalled();
+  });
+
   it('persists the exact resolver-selected immutable authority through release/v1', async () => {
     const response = await handleOrderPost(releaseRequest(), {
       routeProtocol: 'release/v1',

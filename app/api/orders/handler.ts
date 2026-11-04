@@ -256,6 +256,10 @@ export async function handleOrderPost(
     if (releaseV1) assertReleaseV1OperationalAdmission();
     const sessionUser = await resolveUserFromRequest(req);
     const { wizardData, sessionId } = body;
+    // Engine-owned immutable snapshots/assets may never be reached by the legacy unowned upsert.
+    if (typeof sessionId === 'string' && sessionId.startsWith('engine-site-')) {
+      return NextResponse.json({ error: 'engine_site_session_requires_personal_route' }, { status: 422 });
+    }
     const expectedBinding = releaseV1
       ? parseWizardProductBindingV1(body.wizardProductBinding)
       : null;

@@ -8,6 +8,8 @@ import { setLength, setVoice } from '@/lib/personal-wizard/draft';
 
 import type { WizardOptionsView } from './PersonalWizard';
 import styles from './personal-wizard.module.css';
+import { ENGINE_SITE_LAUNCH_OFFER } from '@/lib/engine-site/offer-definition';
+import { ENGINE_PHOTO_MAX_BYTES } from '@/lib/engine-site/photo-policy';
 
 const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_MAX_BYTES = 15 * 1024 * 1024;
@@ -20,9 +22,10 @@ type Props = {
   photoUrl: string | null;
   onPhoto: (file: File | null) => void;
   playback: { playingId: string | null; play: (id: string, url: string) => void; stop: () => void };
+  launchOrder?: boolean;
 };
 
-export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, playback }: Props) {
+export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, playback, launchOrder = false }: Props) {
   const name = normalizeText(draft.child.name);
   const copy = bookCopy(name);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -65,8 +68,8 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
                   setPhotoError(copy.photoTypeError);
                   return;
                 }
-                if (file.size > PHOTO_MAX_BYTES) {
-                  setPhotoError(copy.photoSizeError);
+                if (file.size > (launchOrder ? ENGINE_PHOTO_MAX_BYTES : PHOTO_MAX_BYTES)) {
+                  setPhotoError(launchOrder ? 'יש לבחור תמונה עד 3MB.' : copy.photoSizeError);
                   return;
                 }
                 setPhotoError(null);
@@ -85,7 +88,7 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
         </div>
         {photoError ? <p className={styles.error}>{photoError}</p> : null}
         <p id="pw-photo-note" className={styles.hint}>
-          {photoUrl ? copy.photoLocalNote : `${copy.photoNoPhoto} ${copy.photoLocalNote}`}
+          {launchOrder ? 'התמונה תועלה באופן פרטי רק בשמירת ההזמנה. אפשר להמשיך עם תיאור מראה במקום תמונה.' : photoUrl ? copy.photoLocalNote : `${copy.photoNoPhoto} ${copy.photoLocalNote}`}
         </p>
       </div>
 
@@ -138,7 +141,7 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
         </fieldset>
       </div>
 
-      <div className={styles.card}>
+      {launchOrder ? <p>כריכה + {ENGINE_SITE_LAUNCH_OFFER.narrativePages} עמודי סיפור, כולל קריינות ו־PDF.</p> : <div className={styles.card}>
         <fieldset className={styles.fieldset}>
           <legend className={styles.sectionTitle}>{copy.lengthTitle}</legend>
           <div className={styles.optionGrid}>
@@ -168,7 +171,7 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
             </button>
           ) : null}
         </fieldset>
-      </div>
+      </div>}
     </section>
   );
 }
