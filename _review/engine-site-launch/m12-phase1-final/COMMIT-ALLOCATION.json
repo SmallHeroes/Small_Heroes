@@ -1,0 +1,1308 @@
+{
+  "baseHead": "348c85dc213f85597eb484d05e68e9048edb5603",
+  "branch": "codex/engine-site-launch-20261104",
+  "semantics": "final bytes; last changed milestone owns overlap; intermediate commits require complete pinned worktree",
+  "fullContract": "one shared npm run check against unchanged final source, report only; per-commit tsc and focused tests",
+  "groups": [
+    {
+      "milestone": "M07",
+      "paths": [
+        "_review/engine-site-launch/m07-personal-orders/DECISION-GATE.md",
+        "_review/engine-site-launch/m07-personal-orders/REPORT.md",
+        "app/api/checkout/handler.ts",
+        "app/dev/personal-wizard/StepSummary.tsx",
+        "app/dev/personal-wizard/StepTell.tsx",
+        "app/wizard/personal/page.tsx",
+        "lib/engine-site/order-http.ts",
+        "lib/engine-site/order-input.ts"
+      ],
+      "tests": [
+        "lib/engine-site/__tests__/personal-orders.spec.ts",
+        "lib/engine-site/__tests__/checkout-boundary.spec.ts",
+        "lib/engine-site/__tests__/offer.spec.ts"
+      ],
+      "commitMessage": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M07.txt"
+    },
+    {
+      "milestone": "M08",
+      "paths": [
+        "_review/engine-site-launch/m08-private-assets/DECISION-GATE.md",
+        "_review/engine-site-launch/m08-private-assets/PRIVATE-STORAGE-SETUP.sql",
+        "_review/engine-site-launch/m08-private-assets/REPORT.md",
+        "app/api/engine-site/v1/orders/route.ts",
+        "app/api/engine-site/v1/photos/[assetId]/route.ts",
+        "app/api/engine-site/v1/photos/route.ts",
+        "app/api/orders/handler.ts",
+        "app/dev/personal-wizard/PersonalWizard.tsx",
+        "app/dev/personal-wizard/StepBook.tsx",
+        "lib/__tests__/order-visual-package-authority-route.spec.ts",
+        "lib/engine-site/__tests__/personal-orders.spec.ts",
+        "lib/engine-site/__tests__/private-assets.spec.ts",
+        "lib/engine-site/personal-orders.ts",
+        "lib/engine-site/photo-policy.ts",
+        "lib/engine-site/private-assets.ts",
+        "lib/engine-site/private-http.ts"
+      ],
+      "tests": [
+        "lib/engine-site/__tests__/private-assets.spec.ts",
+        "lib/engine-site/__tests__/personal-orders.spec.ts"
+      ],
+      "commitMessage": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M08.txt"
+    },
+    {
+      "milestone": "M09",
+      "paths": [
+        "_review/engine-site-launch/COST-AND-RUNTIME.md",
+        "_review/engine-site-launch/m09-personal-worker/DECISION-GATE.md",
+        "_review/engine-site-launch/m09-personal-worker/REPORT.md",
+        "_review/engine-site-launch/recovery_package.py",
+        "lib/engine-site/__tests__/cost-model.spec.ts",
+        "lib/engine-site/__tests__/durable-worker.spec.ts",
+        "lib/engine-site/__tests__/order-meter.spec.ts",
+        "lib/engine-site/__tests__/worker-entry.spec.ts",
+        "lib/engine-site/cost-model.ts",
+        "lib/engine-site/order-meter.ts",
+        "lib/engine-site/personal-jobs.ts",
+        "lib/engine-site/platform-policy.ts",
+        "lib/engine-site/story-api-source.ts",
+        "lib/generate-image.ts",
+        "lib/generation-chunked/start.ts",
+        "lib/generation-pipeline/page-child-resemblance-vision.ts",
+        "lib/personal-wizard/__tests__/simple-book-reviewed-audition.spec.ts",
+        "lib/personal-wizard/audition-provider-payload.ts",
+        "lib/personal-wizard/audition-review-capacity.ts",
+        "lib/personal-wizard/native-page-proof-frames.ts",
+        "lib/personal-wizard/simple-book-reviewed-audition.ts",
+        "lib/personal-wizard/simple-story-source.ts",
+        "lib/personal-wizard/source-preparation-contracts.ts",
+        "scripts/personal-simple-book-reviewed-audition.ts",
+        "scripts/personal-source-preparation.ts",
+        "tsconfig.json"
+      ],
+      "tests": [
+        "lib/engine-site/__tests__/durable-worker.spec.ts",
+        "lib/engine-site/__tests__/provider-plans.spec.ts",
+        "lib/engine-site/__tests__/worker-entry.spec.ts",
+        "lib/personal-wizard/__tests__/simple-story-source.spec.ts",
+        "lib/personal-wizard/__tests__/story-momentum-roles.spec.ts",
+        "lib/personal-wizard/__tests__/simple-book-reviewed-audition.spec.ts"
+      ],
+      "commitMessage": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M09.txt"
+    },
+    {
+      "milestone": "M10",
+      "paths": [
+        "CURRENT.md",
+        "_review/engine-site-launch/m10-reader-materialization/DECISION-GATE.md",
+        "_review/engine-site-launch/m10-reader-materialization/REPORT.md",
+        "app/api/engine-site/v1/books/[orderId]/assets/[assetId]/route.ts",
+        "app/api/engine-site/v1/books/[orderId]/route.ts",
+        "app/api/engine-site/v1/orders/[orderId]/route.ts",
+        "app/api/orders/[orderId]/route.ts",
+        "app/api/payme/return/route.ts",
+        "app/book/[id]/read-v2/reader-v2.tsx",
+        "app/personal/book/[orderId]/page.tsx",
+        "app/personal/orders/[orderId]/page.tsx",
+        "lib/engine-site/reader-http.ts",
+        "lib/engine-site/reader-production.ts",
+        "lib/generation-chunked/process-worker.ts",
+        "lib/reader-book-source.ts"
+      ],
+      "tests": [
+        "lib/engine-site/__tests__/materialization.spec.ts",
+        "lib/engine-site/__tests__/reader-bindings.spec.ts",
+        "lib/__tests__/reader-narration-src.spec.ts",
+        "lib/__tests__/reader-artwork-fit.spec.ts"
+      ],
+      "commitMessage": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M10.txt"
+    },
+    {
+      "milestone": "M11",
+      "paths": [
+        "ROADMAP.md",
+        "_review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md",
+        "_review/engine-site-launch/m11-acceptance-delivery/CLAUDE-QA.md",
+        "_review/engine-site-launch/m11-acceptance-delivery/DECISION-GATE.md",
+        "_review/engine-site-launch/m11-acceptance-delivery/FIRST-PAID-TEST.md",
+        "_review/engine-site-launch/m11-acceptance-delivery/REPORT.md",
+        "_review/engine-site-launch/m12-phase1-final/COMMIT-ALLOCATION.json",
+        "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M07.txt",
+        "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M08.txt",
+        "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M09.txt",
+        "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M10.txt",
+        "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M11.txt",
+        "_review/engine-site-launch/m12-phase1-final/DECISION-GATE.md",
+        "_review/engine-site-launch/m12-phase1-final/REPORT.md",
+        "_review/engine-site-launch/m12-phase1-final/build_final_package.py",
+        "app/api/engine-site/v1/cron/reconcile/route.ts",
+        "app/api/engine-site/v1/review-policy/route.ts",
+        "app/api/engine-site/v1/review/[orderId]/route.ts",
+        "app/api/generate/cron/outbox/route.ts",
+        "app/api/my-books/route.ts",
+        "app/my-books/my-books-client.tsx",
+        "app/page.tsx",
+        "app/personal/launch-home.tsx",
+        "app/personal/orders/[orderId]/status.tsx",
+        "app/personal/review/[orderId]/page.tsx",
+        "app/personal/review/[orderId]/review.tsx",
+        "lib/__tests__/cron-outbox-route.spec.ts",
+        "lib/__tests__/delivery-input-writer-coverage.spec.ts",
+        "lib/engine-site/__tests__/checkout-boundary.spec.ts",
+        "lib/engine-site/__tests__/engine-test-db.ts",
+        "lib/engine-site/__tests__/entry.spec.ts",
+        "lib/engine-site/__tests__/fulfillment.spec.ts",
+        "lib/engine-site/__tests__/launch-home.spec.ts",
+        "lib/engine-site/__tests__/materialization.spec.ts",
+        "lib/engine-site/__tests__/offer.spec.ts",
+        "lib/engine-site/__tests__/provider-plans.spec.ts",
+        "lib/engine-site/__tests__/reader-bindings.spec.ts",
+        "lib/engine-site/__tests__/synthetic-book.ts",
+        "lib/engine-site/__tests__/synthetic-order.ts",
+        "lib/engine-site/book-pdf.ts",
+        "lib/engine-site/durable-worker.ts",
+        "lib/engine-site/fulfillment.ts",
+        "lib/engine-site/image-data-url.ts",
+        "lib/engine-site/launch-policy.ts",
+        "lib/engine-site/lifecycle-config.ts",
+        "lib/engine-site/materialize.ts",
+        "lib/engine-site/narration.ts",
+        "lib/engine-site/native-recipe.ts",
+        "lib/engine-site/offer.ts",
+        "lib/engine-site/operator-http.ts",
+        "lib/engine-site/operator-review-store.ts",
+        "lib/engine-site/private-storage.ts",
+        "lib/engine-site/production-worker.ts",
+        "lib/engine-site/provider-plans.ts",
+        "lib/engine-site/reader.ts",
+        "lib/engine-site/readmission.ts",
+        "lib/generation-chunked/exception-processor.ts",
+        "lib/generation-chunked/sweeper.ts",
+        "lib/generation-pipeline/__tests__/pipeline-cache-store.pg.spec.ts",
+        "lib/generation-pipeline/pipeline-cache-store.ts",
+        "lib/generation-pipeline/readiness-manifest.ts",
+        "lib/payment-refunds.ts",
+        "middleware.ts",
+        "next.config.js",
+        "public/JS/login.js",
+        "scripts/engine-site-long-worker.ts",
+        "vercel.json"
+      ],
+      "tests": [
+        "lib/engine-site/__tests__",
+        "lib/personal-wizard/__tests__/simple-story-source.spec.ts",
+        "lib/personal-wizard/__tests__/story-momentum-roles.spec.ts",
+        "lib/personal-wizard/__tests__/native-book-continuity.spec.ts",
+        "lib/personal-wizard/__tests__/simple-book-reviewed-audition.spec.ts",
+        "lib/generation-pipeline/__tests__/page-child-resemblance-vision.spec.ts",
+        "lib/__tests__/order-visual-package-authority-route.spec.ts",
+        "lib/__tests__/money-truth.spec.ts",
+        "lib/__tests__/fake-payment-gating.spec.ts",
+        "lib/__tests__/reader-narration-src.spec.ts",
+        "lib/__tests__/reader-artwork-fit.spec.ts",
+        "lib/__tests__/reader-desktop-full-page.spec.ts",
+        "lib/__tests__/reader-nav.spec.ts",
+        "lib/__tests__/reader-page-turn.spec.ts",
+        "lib/__tests__/reader-storytime-dwell.spec.ts",
+        "lib/__tests__/payment-generation-trigger-isolation.spec.ts",
+        "lib/generation-pipeline/__tests__/pipeline-cache-store.spec.ts",
+        "lib/generation-pipeline/__tests__/pipeline-cache-store.pg.spec.ts",
+        "lib/__tests__/delivery-input-writer-coverage.spec.ts",
+        "lib/__tests__/exception-case-producer-lock-source.spec.ts",
+        "lib/__tests__/cron-outbox-route.spec.ts",
+        "lib/__tests__/cron-exceptions-route.spec.ts",
+        "lib/__tests__/exception-processor.spec.ts",
+        "lib/__tests__/payment-refunds.spec.ts",
+        "lib/__tests__/delivery-outbox.spec.ts"
+      ],
+      "commitMessage": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M11.txt"
+    }
+  ],
+  "ownership": [
+    {
+      "path": "CURRENT.md",
+      "owner": "M10",
+      "changedIn": [
+        "M07",
+        "M08",
+        "M09",
+        "M10"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "ROADMAP.md",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/COST-AND-RUNTIME.md",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "_review/engine-site-launch/m07-personal-orders/DECISION-GATE.md",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m07-personal-orders/REPORT.md",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m08-private-assets/DECISION-GATE.md",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m08-private-assets/PRIVATE-STORAGE-SETUP.sql",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m08-private-assets/REPORT.md",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m09-personal-worker/DECISION-GATE.md",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m09-personal-worker/REPORT.md",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m10-reader-materialization/DECISION-GATE.md",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m10-reader-materialization/REPORT.md",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m11-acceptance-delivery/CLAUDE-QA.md",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m11-acceptance-delivery/DECISION-GATE.md",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m11-acceptance-delivery/FIRST-PAID-TEST.md",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m11-acceptance-delivery/REPORT.md",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/COMMIT-ALLOCATION.json",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M07.txt",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M08.txt",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M09.txt",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M10.txt",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/COMMIT-MESSAGE-M11.txt",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/DECISION-GATE.md",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/REPORT.md",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/m12-phase1-final/build_final_package.py",
+      "owner": "M11",
+      "changedIn": [
+        "M12_final_handoff_to_M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "_review/engine-site-launch/recovery_package.py",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/checkout/handler.ts",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/books/[orderId]/assets/[assetId]/route.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/books/[orderId]/route.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/cron/reconcile/route.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/orders/[orderId]/route.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/orders/route.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M07",
+        "M08"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "app/api/engine-site/v1/photos/[assetId]/route.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/photos/route.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/review-policy/route.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/engine-site/v1/review/[orderId]/route.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/generate/cron/outbox/route.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/my-books/route.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/orders/[orderId]/route.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/orders/handler.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/api/payme/return/route.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/book/[id]/read-v2/reader-v2.tsx",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/dev/personal-wizard/PersonalWizard.tsx",
+      "owner": "M08",
+      "changedIn": [
+        "M07",
+        "M08"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "app/dev/personal-wizard/StepBook.tsx",
+      "owner": "M08",
+      "changedIn": [
+        "M07",
+        "M08"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "app/dev/personal-wizard/StepSummary.tsx",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/dev/personal-wizard/StepTell.tsx",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/my-books/my-books-client.tsx",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/page.tsx",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/personal/book/[orderId]/page.tsx",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/personal/launch-home.tsx",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/personal/orders/[orderId]/page.tsx",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/personal/orders/[orderId]/status.tsx",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "app/personal/review/[orderId]/page.tsx",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/personal/review/[orderId]/review.tsx",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "app/wizard/personal/page.tsx",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/__tests__/cron-outbox-route.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/__tests__/delivery-input-writer-coverage.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/__tests__/order-visual-package-authority-route.spec.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/checkout-boundary.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M07",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/__tests__/cost-model.spec.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/durable-worker.spec.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/engine-test-db.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/__tests__/entry.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/fulfillment.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/launch-home.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/materialization.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/__tests__/offer.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/order-meter.spec.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/personal-orders.spec.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M07",
+        "M08"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/__tests__/private-assets.spec.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/provider-plans.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/__tests__/reader-bindings.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/synthetic-book.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/__tests__/synthetic-order.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M07",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/__tests__/worker-entry.spec.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/book-pdf.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/cost-model.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/durable-worker.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/fulfillment.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/image-data-url.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/launch-policy.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/lifecycle-config.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/materialize.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/narration.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/native-recipe.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/offer.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/operator-http.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/operator-review-store.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/order-http.ts",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/order-input.ts",
+      "owner": "M07",
+      "changedIn": [
+        "M07"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/order-meter.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/personal-jobs.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/personal-orders.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M07",
+        "M08"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/photo-policy.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/platform-policy.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/private-assets.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/private-http.ts",
+      "owner": "M08",
+      "changedIn": [
+        "M08"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/private-storage.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M08",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/production-worker.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/provider-plans.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/reader-http.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/reader-production.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/reader.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/engine-site/readmission.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/engine-site/story-api-source.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generate-image.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generation-chunked/exception-processor.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generation-chunked/process-worker.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M09",
+        "M10"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/generation-chunked/start.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generation-chunked/sweeper.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "lib/generation-pipeline/__tests__/pipeline-cache-store.pg.spec.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generation-pipeline/page-child-resemblance-vision.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generation-pipeline/pipeline-cache-store.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/generation-pipeline/readiness-manifest.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/payment-refunds.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/__tests__/simple-book-reviewed-audition.spec.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/audition-provider-payload.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/audition-review-capacity.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/native-page-proof-frames.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/simple-book-reviewed-audition.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/simple-story-source.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/personal-wizard/source-preparation-contracts.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "lib/reader-book-source.ts",
+      "owner": "M10",
+      "changedIn": [
+        "M10"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "middleware.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "next.config.js",
+      "owner": "M11",
+      "changedIn": [
+        "M10",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "public/JS/login.js",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "scripts/engine-site-long-worker.ts",
+      "owner": "M11",
+      "changedIn": [
+        "M09",
+        "M11"
+      ],
+      "overlapAssignedLater": true
+    },
+    {
+      "path": "scripts/personal-simple-book-reviewed-audition.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "scripts/personal-source-preparation.ts",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "tsconfig.json",
+      "owner": "M09",
+      "changedIn": [
+        "M09"
+      ],
+      "overlapAssignedLater": false
+    },
+    {
+      "path": "vercel.json",
+      "owner": "M11",
+      "changedIn": [
+        "M11"
+      ],
+      "overlapAssignedLater": false
+    }
+  ]
+}

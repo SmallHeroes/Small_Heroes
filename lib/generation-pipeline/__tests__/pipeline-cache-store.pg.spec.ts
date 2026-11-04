@@ -175,6 +175,7 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
       CREATE TABLE "Order" (
         "id" text PRIMARY KEY,
         "visualContractHash" text,
+        "frozenProductVersion" text,
         "status" "OrderStatus" DEFAULT 'generating',
         "packageStatus" "GenerationStatus" DEFAULT 'pending',
         "deliveryHoldReason" text,
@@ -191,6 +192,17 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
   });
   beforeEach(async () => {
     await pg.exec('DELETE FROM "GenerationJob"; DELETE FROM "Order";');
+  });
+
+  it('refuses every ordinary cache write to a personal protocol, preserving the complete private checkpoint', async () => {
+    const original = { engineSite: { version: 'synthetic', outputs: { materialized_book: 'synthetic-pointer' } } };
+    await seedJob('personal', original);
+    for (const protocol of ['engine-site/v1', 'engine-site/future']) {
+      await pg.query('UPDATE "Order" SET "frozenProductVersion"=$1 WHERE id=$2', [protocol, 'personal']);
+      expect(await persistOrdinaryPipelineCache(storeDb as never, 'personal', { engineSite: { forged: true }, textFinalized: true } as never)).toBe(0);
+      const rows = await pg.query<{ pipelineCache: unknown }>('SELECT "pipelineCache" FROM "GenerationJob" WHERE "orderId"=$1', ['personal']);
+      expect(rows.rows[0].pipelineCache).toEqual(original);
+    }
   });
 
   it('the REAL approved a9c253d9… template survives an ordinary write byte-for-byte (the strip_nulls regression)', async () => {

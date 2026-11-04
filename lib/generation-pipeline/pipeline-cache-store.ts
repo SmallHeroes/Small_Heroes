@@ -82,6 +82,7 @@ export async function persistOrdinaryPipelineCache(
       SELECT "id", "status"::text AS status
         FROM "Order"
        WHERE "id" = ${orderId}
+         AND ("frozenProductVersion" IS NULL OR "frozenProductVersion" NOT LIKE 'engine-site/%')
        FOR UPDATE
     )
     UPDATE "GenerationJob"
@@ -121,5 +122,7 @@ export function withoutBarrierOwnedPipelineCacheKeys(
   for (const key of BARRIER_OWNED_PIPELINE_CACHE_KEYS) {
     delete snapshot[key];
   }
+  // Personal checkpoints belong exclusively to their Order/lease/publication authority, never a legacy cache seed.
+  delete snapshot.engineSite;
   return snapshot as Prisma.InputJsonValue;
 }

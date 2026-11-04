@@ -1651,6 +1651,7 @@ export async function casClaimSendSlot(
          -- merely incidental to the enqueue+ready flip sharing a transaction.
          SELECT 1 FROM "Order" ord
           WHERE ord."id" = o."orderId" AND ord."status" = 'ready'
+             AND (ord."frozenProductVersion" IS NULL OR ord."frozenProductVersion" NOT LIKE 'engine-site/%')
             AND ord."inputVersion" = o."inputVersion"
             AND ord."deliveryFenceVersion" = o."deliveryFenceVersion"
        )

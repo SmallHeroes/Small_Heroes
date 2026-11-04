@@ -1,5 +1,8 @@
 (function () {
   const ROUTES = globalThis.SH_ROUTES || { myBooks: '/my-books' };
+  // Only a local personal order path can override the historical account destination.
+  const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '';
+  const destination = /^\/personal\/orders\/[A-Za-z0-9_-]{1,120}$/.test(returnTo) ? returnTo : (ROUTES.myBooks || '/my-books');
 
   // ── Elements ────────────────────────────────
   const stepEmail   = document.getElementById('stepEmail');
@@ -28,7 +31,7 @@
   // ── Already logged in? ──────────────────────
   fetch('/api/auth/me', { credentials: 'include' })
     .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d?.user) window.location.replace(ROUTES.myBooks || '/my-books'); })
+    .then(d => { if (d?.user) window.location.replace(destination); })
     .catch(() => {});
 
   // ── Step 1: Send code ───────────────────────
@@ -90,7 +93,7 @@
       return;
     }
 
-    window.location.replace(ROUTES.myBooks || '/my-books');
+    window.location.replace(destination);
   });
 
   // ── Resend ──────────────────────────────────

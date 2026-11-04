@@ -1,0 +1,5 @@
+feat(launch): introduce personal order boundaries and evidence (M07)
+
+Final-path allocation from base348c85dc. Later shared-path edits are committed with the later milestone.
+Gates use the complete unchanged pinned worktree, not an isolated intermediate commit tree.
+USD0 synthetic implementation evidence only. LOW/59ILS/0.70 fixed; no activation, provider, service, push, merge or deployment approval.

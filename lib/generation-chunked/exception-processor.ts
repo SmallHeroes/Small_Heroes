@@ -42,6 +42,7 @@ import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { createLogger } from '@/lib/logger';
 import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
+import { ENGINE_BOOK_SCOPE } from '@/lib/engine-site/lifecycle-config';
 
 const log = createLogger({ subsystem: 'exception-processor' });
 const RECONCILIATION_MAX_AGE_MS = 48 * 60 * 60 * 1000;
@@ -72,6 +73,7 @@ function resolutionOf(value: Prisma.JsonValue | null): Resolution {
 }
 
 export interface ExceptionProcessorDeps {
+  personalDeliveryAllowed?: (prisma: PrismaClient, orderId: string) => Promise<boolean>;
   now: () => Date;
   replayEmail: (
     payload: BookReadyPayload,
@@ -115,6 +117,14 @@ export interface ExceptionProcessorDeps {
 
 function defaultDeps(): ExceptionProcessorDeps {
   return {
+    personalDeliveryAllowed: async (prisma, orderId) => {
+      try {
+        const { productionEnginePrivateStorage } = await import('@/lib/engine-site/private-storage');
+        const { loadEngineReaderBook } = await import('@/lib/engine-site/reader');
+        const { readEngineFamilyReady } = await import('@/lib/engine-site/fulfillment');
+        return readEngineFamilyReady(prisma, await loadEngineReaderBook(prisma, productionEnginePrivateStorage(), orderId));
+      } catch { return false; }
+    },
     now: () => new Date(),
     replayEmail: (payload, idempotencyKey) =>
       sendBookReadyEmail({ ...payload, idempotencyKey }),
@@ -328,6 +338,8 @@ async function handleSendAmbiguous(
   const firstAttemptAt = row.firstSendAttemptAt;
   const ageMs = firstAttemptAt ? now.getTime() - firstAttemptAt.getTime() : Number.POSITIVE_INFINITY;
   if (!providerMessageId) {
+    if (row.scope === ENGINE_BOOK_SCOPE && !await deps.personalDeliveryAllowed?.(prisma, exceptionCase.orderId))
+      return retryLater(prisma, exceptionCase, 'engine_delivery_gate_held_no_replay', now);
     if (ageMs >= idempotencyWindowMs() || hashPayload(row.payload) !== row.payloadHash) {
       return moveToRefund(prisma, exceptionCase, 'send_ambiguous_not_replay_safe', now);
     }
@@ -372,6 +384,7 @@ async function handleSendAmbiguous(
       return resolved ? 'resolved' : 'lost_lease';
     }
     if (state.state === 'failed') {
+      if (row.scope === ENGINE_BOOK_SCOPE) return moveToRefund(prisma, exceptionCase, 'engine_email_provider_confirmed_failed', now);
       // (#6-FIX-2) Durable order:scope reissue budget + GLOBAL 48h window (from the first send attempt), checked
       // BEFORE the reissue. A per-case bound does not compose — each reissue spawns a new case + fulfillmentVersion
       // + clock — so a budget exhausted here, or a window expired, routes to refund instead of another reissue.
@@ -430,6 +443,7 @@ async function handleRefund(
     select: {
       id: true,
       paymentProvider: true,
+      frozenProductVersion: true,
       paymentId: true,
       paymeTransactionId: true,
       stripePaymentId: true,
@@ -623,7 +637,7 @@ async function handleRecoveryRetry(
     const [order, readiness, pending] = await Promise.all([
       prisma.order.findUnique({
         where: { id: exceptionCase.orderId },
-        select: { status: true, generationJob: { select: { status: true } } },
+        select: { status: true, frozenProductVersion: true, generationJob: { select: { status: true } } },
       }),
       prisma.bookReadiness.findUnique({
         where: {
@@ -633,6 +647,7 @@ async function handleRecoveryRetry(
       }),
       deps.loadRegenPending(prisma, exceptionCase.orderId),
     ]);
+    if (order?.frozenProductVersion?.startsWith('engine-site/')) return moveToRefund(prisma, exceptionCase, 'engine_personal_legacy_recovery_refused', now);
 
     const effectiveReason =
       readiness?.status === 'blocked' && readiness.reason
@@ -775,6 +790,7 @@ export async function processExceptionCase(
     case 'send_ambiguous':
       return handleSendAmbiguous(prisma, exceptionCase, deps, now);
     case 'invalid_payload': {
+      if (exceptionCase.scope === ENGINE_BOOK_SCOPE) return moveToRefund(prisma, exceptionCase, 'engine_email_invalid_payload', now);
       if (!exceptionCase.sourceRef) {
         return moveToRefund(prisma, exceptionCase, 'invalid_payload_missing_outbox', now);
       }

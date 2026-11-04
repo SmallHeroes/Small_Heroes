@@ -1,3 +1,5 @@
+> 2026-11-04 engine/site branch update (base348c85dc): the M07-M11 personal launch integration is implemented offline under the final59ILS/LOW/cover+8/narration+PDF decisions, with audited launch eye review above automatic delivery. Default-off; not deployed/paid/product-approved. See _review/engine-site-launch/m11-acceptance-delivery/REPORT.md and the final M12 recovery. Nov4 Guy authority supersedes main0524162e's personal-compiler deferral. Independent QA, protected infrastructure/runtime/browser qualification, bounded paid LOW GO and launch/legal acceptance remain. Do not infer production readiness or bank reuse from older roadmap entries below.
+
 # SmallHeroes — Roadmap
 
 ## Engine-to-site launch ? final scope (2026-11-04)

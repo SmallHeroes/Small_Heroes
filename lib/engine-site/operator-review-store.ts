@@ -41,6 +41,7 @@ async function readHistory(tx: Prisma.TransactionClient, authority: EngineOrderA
   }).sort((left, right) => left.sequence - right.sequence);
   return validateDecisionHistory(authority.orderId, authorityDigest(authority), history);
 }
+export { readHistory as readEngineOperatorHistoryInTx };
 
 export async function readEngineOperatorHistory(db: PrismaClient, input: EngineOrderAuthority) {
   const authority = engineOrderAuthoritySchema.parse(input);
@@ -59,7 +60,9 @@ export async function recordEngineOperatorDecision(db: PrismaClient, input: {
   authority: EngineOrderAuthority; manifest: unknown; policy: LaunchGatePolicy;
   expectedBookSha256: string; expectedPreviousDecisionSha256: string | null;
   idempotencyKey: string; actorId: string; decision: 'approve' | 'reject'; reason: string;
-}, options: { now?: () => Date; atomic?: AtomicOperationDeps } = {}) {
+}, options: { now?: () => Date; atomic?: AtomicOperationDeps;
+  beforeOrderLock?: (tx: Prisma.TransactionClient) => Promise<void>;
+  onFreshDecision?: (tx: Prisma.TransactionClient, decision: ReturnType<typeof nextOperatorDecision>) => Promise<void> } = {}) {
   const authority = engineOrderAuthoritySchema.parse(input.authority), policy = launchGatePolicySchema.parse(input.policy);
   const book = boundBookManifest(authority, input.manifest);
   if (bookDigest(book) !== digestSchema.parse(input.expectedBookSha256)) engineSiteFail('operator_book_changed');
@@ -71,6 +74,7 @@ export async function recordEngineOperatorDecision(db: PrismaClient, input: {
   const stored = await runAtomicOperation(db, {
     operationKey: key, orderId: authority.orderId, kind: KIND, payloadHash: hashOperationPayload(command),
     beforeReceipt: async tx => {
+      await options.beforeOrderLock?.(tx);
       await lockEngineOrder(tx, authority.orderId); await requireRegisteredEngineAuthority(tx, authority);
     },
     run: async tx => {
@@ -78,6 +82,7 @@ export async function recordEngineOperatorDecision(db: PrismaClient, input: {
       if ((latest ? operatorDecisionDigest(latest) : null) !== command.previousDecisionSha256) engineSiteFail('operator_review_conflict');
       const decision = nextOperatorDecision({ authority, manifest: book, policy, history,
         actorId: command.actorId, now: (options.now ?? (() => new Date()))(), decision: command.decision, reason: command.reason });
+      await options.onFreshDecision?.(tx, decision);
       return storedSchema.parse({ command, decision });
     },
     validateReplay: async (_tx, value) => { storedSchema.parse(value); },

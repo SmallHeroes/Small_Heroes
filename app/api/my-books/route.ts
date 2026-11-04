@@ -6,6 +6,7 @@ import { getWizardMeta } from '@/lib/orderMeta';
 import { prisma } from '@/lib/prisma';
 import { resolveUserFromRequest } from '@/lib/auth-session';
 import { ROUTES } from '@/lib/routes';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 
 /** Category-card art paths (see app/category-challenge-card.tsx). */
 const CATEGORY_CARD_IMAGE: Record<string, string> = {
@@ -46,12 +47,14 @@ export async function GET(req: NextRequest) {
   const orders = await prisma.order.findMany({
     where: {
       userId: resolved.user.id,
-      status: { in: ['ready', 'partial', 'generating', 'paid'] },
+      OR: [{ status: { in: ['ready', 'partial', 'generating', 'paid'] } },
+        { frozenProductVersion: 'engine-site/v1', status: { in: ['needs_human_qa', 'failed'] } }],
     },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       status: true,
+      frozenProductVersion: true,
       childName: true,
       createdAt: true,
       paymentId: true,
@@ -70,6 +73,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     user: resolved.user,
     books: orders.map((order) => {
+      if (isEngineSiteOrder(order)) return { orderId: order.id, status: order.status, childName: order.childName,
+        title: null, coverImageUrl: null, readyUrl: `/personal/orders/${encodeURIComponent(order.id)}`, accessKey: null,
+        personal: true, createdAt: order.createdAt, companionName: null, companionImage: null };
       const accessKey = order.paymentId || order.paymeTransactionId || order.stripeSessionId || null;
       const readyUrl = `${ROUTES.ready}?orderId=${encodeURIComponent(order.id)}${accessKey ? `&accessKey=${encodeURIComponent(accessKey)}` : ''}`;
       const { companionName, companionImage } = resolveCompanionForOrder(order.characterAnchors);

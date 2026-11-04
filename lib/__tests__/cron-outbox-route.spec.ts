@@ -82,6 +82,19 @@ describe('cron/outbox route — worker wiring (P1-f CAS)', () => {
     expect(t.drainOutbox).not.toHaveBeenCalled();
     expect((await res.json()).skipped).toBeDefined();
   });
+  it('routes the personal scope to its gate-aware CAS even when legacy readiness is off', async () => {
+    process.env.CRON_SECRET = 'secret';
+    const personalCas = vi.fn(async () => 'ok');
+    vi.doMock('@/lib/engine-site/lifecycle-config', () => ({ ENGINE_BOOK_SCOPE: 'engine_site_book', engineFulfillmentEnabled: () => true }));
+    vi.doMock('@/lib/engine-site/fulfillment', () => ({ casEngineClaimSendSlot: personalCas, engineSiteOrigin: () => 'https://app.example.invalid' }));
+    vi.doMock('@/lib/engine-site/private-storage', () => ({ productionEnginePrivateStorage: () => ({ synthetic: true }) }));
+    const t = await loadRoute({ isReadinessManifestEnabled: () => false }); await t.GET(req('Bearer secret'));
+    const row = { id: 'personal', orderId: 'synthetic_order', scope: 'engine_site_book' }, at = new Date();
+    expect(await t.getDeps()!.cas(row,1,at,at)).toBe('ok'); expect(personalCas).toHaveBeenCalledWith(expect.anything(),row,1,at,at,
+      { storage: { synthetic: true }, origin: 'https://app.example.invalid' });
+    expect(t.casClaimSendSlot).not.toHaveBeenCalled();
+    vi.doUnmock('@/lib/engine-site/lifecycle-config'); vi.doUnmock('@/lib/engine-site/fulfillment'); vi.doUnmock('@/lib/engine-site/private-storage');
+  });
 
   it('401 on bad auth, 503 without CRON_SECRET — never drains', async () => {
     process.env.CRON_SECRET = 'secret';

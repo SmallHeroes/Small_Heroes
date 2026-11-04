@@ -2,6 +2,7 @@ import 'server-only';
 
 import { ENGINE_SITE_PROTOCOL, engineSiteFail } from './contract';
 import { ENGINE_SITE_LAUNCH_OFFER, engineSitePriceIls } from './offer-definition';
+import { configuredEngineSpendPolicy } from './platform-policy';
 export { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 
 export const isEngineSiteOrder = (value: { frozenProductVersion?: string | null }) =>
@@ -29,5 +30,8 @@ export function engineSiteCheckoutPricing(order: CheckoutOrder) {
 
 /** No currently enabled customer route: all integration/paid/runtime gates must precede activation. */
 export function engineSiteCheckoutEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
-  return env.ENGINE_SITE_CHECKOUT_ENABLED === 'true';
+  if (env.VERCEL_ENV?.toLowerCase() === 'production' && env.ENABLE_PROD_GENERATION !== 'true') return false;
+  if (['ENGINE_SITE_CHECKOUT_ENABLED', 'ENGINE_SITE_ORDER_INTAKE_ENABLED', 'ENGINE_SITE_WORKER_ENABLED', 'ENGINE_SITE_PROVIDERS_ENABLED',
+    'ENGINE_SITE_LONG_WORKER_ENABLED', 'ENGINE_SITE_READER_ENABLED', 'ENGINE_SITE_FULFILLMENT_ENABLED'].some(name => env[name] !== 'true')) return false;
+  try { configuredEngineSpendPolicy(env); return true; } catch { return false; }
 }

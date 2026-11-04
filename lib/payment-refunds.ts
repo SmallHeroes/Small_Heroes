@@ -10,6 +10,7 @@ export type RefundResult =
   | { state: 'pending'; provider: string; providerActionId: string | null };
 
 export interface RefundableOrder {
+  frozenProductVersion?: string | null;
   id: string;
   paymentProvider: string | null;
   paymentId: string | null;
@@ -96,6 +97,9 @@ export async function refundOrderPayment(
   previousProviderActionId?: string | null,
   overrides: RefundProviderDeps = {},
 ): Promise<RefundResult> {
+  // A personal order may enter different operator/recovery scopes, but it has exactly one full-payment refund.
+  // Historical orders retain their existing case-scoped provider fence and idempotency behavior.
+  if (order.frozenProductVersion === 'engine-site/v1') refundKey = `refund/personal-order/${order.id}`;
   const provider = (order.paymentProvider || order.payment?.provider || '').trim().toLowerCase();
 
   if (provider === 'stripe') {

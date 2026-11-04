@@ -313,6 +313,30 @@ function isOrderCreationException(site: WriterSite): boolean {
   );
 }
 
+/** Personal books have a different, explicit Order/lease/publication authority. These exact write shapes
+ * cannot enter the legacy barrier or overwrite a bank book. SQL falsification lives in engine-site specs.
+ * Pin both shape and the actual guards: this is not a directory-wide writer exception. */
+const ENGINE_AUTHORITY_WRITERS: Record<string, { signatures: readonly string[]; guards: readonly string[] }> = {
+  'lib/engine-site/personal-orders.ts': { signatures: [
+    'order.create[addonsPrice,audioEnabled,avoidItems,basePrice,bundleEnabled,challengeItems,childAge,childGender,childImageUrl,childName,childTraits,customerEmail,customerName,expectedPageCount,frozenProductVersion,helperItems,illustrationStyle,outcomeItems,pdfEnabled,selectedVoice,selectionFilename,status,storyDirection,storyLength,storySourceHash,topic,totalPrice,userId,videoEnabled,wizardSessionId]',
+  ], guards: ['assertEnginePrivateDatabase(tx)', 'FOR UPDATE', 'frozenProductVersion: ENGINE_SITE_PROTOCOL', 'storySourceHash: inputSha256', 'wizardSessionId: session.id'] },
+  'lib/engine-site/personal-jobs.ts': { signatures: [
+    'generationJob.create[currentStage,generationVersion,model,orderId,pipelineCache,provider,quality,status]',
+  ], guards: ['await registerEngineOrderAuthority(db, authority)', 'FOR UPDATE', 'frozenProductVersion !== ENGINE_SITE_PROTOCOL', 'generationJob.findUnique', 'pipelineCache: { engineSite: checkpoint }'] },
+  'lib/engine-site/durable-worker.ts': { signatures: [
+    'generationJob.update[currentStage,pipelineCache]',
+    'generationJob.update[currentStage,failedAt,lastError,pipelineCache,retryable,status]',
+  ], guards: ['async function engineLeaseWrite', 'jobs[0].lockedBy !== workerId', "['paid', 'generating'].includes(orders[0].status)", 'FOR UPDATE', 'engineLeaseWrite(db, orderId, workerId'] },
+  'lib/engine-site/fulfillment.ts': { signatures: [
+    'generationJob.update[audioDone,completedAt,currentStage,imagesDone,packaged,pipelineCache,status,textDone]',
+  ], guards: ['await currentBinding(tx, c)', 'readEngineLaunchPolicy(tx, true)', 'deliveryFenceVersion: fence', 'evidenceSchema.parse',
+    'checkpoint.outputs.materialized_book !== c.checkpoint.outputs.materialized_book', 'await lockEngineOrder(tx, c.order.id)', 'await requireRegisteredEngineAuthority'] },
+};
+function isEngineAuthorityWriter(site: WriterSite, text: string | undefined): boolean {
+  const rule = ENGINE_AUTHORITY_WRITERS[site.relative];
+  return !!rule && !!text && rule.signatures.includes(siteSignature(site)) && rule.guards.every(guard => text.includes(guard));
+}
+
 /**
  * (Codex round-5 finding 6) The post-completion child-photo privacy scrub — the runtime deletion
  * policy (lib/child-photo-deletion.ts) and its operational audit twin (scripts/audit-child-photos.ts).
@@ -501,6 +525,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !site.protectedByBarrier &&
         !isDisplayOnlyException(site) &&
         !isOrderCreationException(site) &&
+        !isEngineAuthorityWriter(site, sourceByRelative.get(site.relative)) &&
         !isJobCreationSeedException(site, sourceByRelative.get(site.relative)) &&
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
@@ -511,7 +536,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !hasFlagOnDevWriteGuard(site.relative, sourceByRelative.get(site.relative)),
     );
     expect(
-      unsafe.map((site) => `${site.relative}:${site.line} ${site.model}.${site.method}`),
+      unsafe.map((site) => `${site.relative}:${site.line} ${siteSignature(site)}`),
     ).toEqual([]);
 
     const devSites = sites.filter(
@@ -789,6 +814,21 @@ describe('P1-f #5 delivery-input writer coverage', () => {
       'imageAsset.upsert',
       'order.update',
     ]);
+  });
+
+  it('pins the personal authority writers and rejects missing guards, new fields and legacy checkpoint overwrite', () => {
+    for (const [relative, rule] of Object.entries(ENGINE_AUTHORITY_WRITERS)) {
+      const text = source(relative), sites = writerSitesFromSource(relative, text).filter(site => isDeliveryInputWriter(site, text));
+      expect(sites.map(siteSignature).sort()).toEqual([...rule.signatures].sort());
+      for (const site of sites) {
+        expect(isEngineAuthorityWriter(site, text)).toBe(true);
+        for (const guard of rule.guards) expect(isEngineAuthorityWriter(site, text.split(guard).join('REMOVED_GUARD'))).toBe(false);
+        expect(isEngineAuthorityWriter({ ...site, dataFields: [...site.dataFields!, 'unreviewedField'] }, text)).toBe(false);
+      }
+    }
+    const store = source('lib/generation-pipeline/pipeline-cache-store.ts');
+    expect(store).toContain("NOT LIKE 'engine-site/%'");
+    expect(store).toContain('delete snapshot.engineSite');
   });
 
   it('covers Order-table frozen delivery inputs, including immutable Visual Package authority — set + classifier, regression-proof', () => {

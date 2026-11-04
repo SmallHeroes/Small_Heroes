@@ -15,7 +15,7 @@
       "maxDuration": 60
     },
     "app/api/generate/cron/outbox/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "app/api/generate/cron/exceptions/route.ts": {
       "maxDuration": 60
@@ -25,9 +25,16 @@
     },
     "app/api/generate/cron/human-qa-reconcile/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/engine-site/v1/cron/reconcile/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
+    {
+      "path": "/api/engine-site/v1/cron/reconcile",
+      "schedule": "*/2 * * * *"
+    },
     {
       "path": "/api/generate/cron/sweep",
       "schedule": "*/3 * * * *"

@@ -6,6 +6,7 @@ import { ROUTES } from '@/lib/routes';
 import styles from './my-books.module.css';
 
 type BookEntry = {
+  personal?: boolean;
   orderId?: string;
   title?: string | null;
   childName?: string;
@@ -39,11 +40,12 @@ function BookCard({ book }: { book: BookEntry }) {
 
   const content = (
     <>
+      {book.personal ? <div className={styles.cover} aria-hidden="true" style={{ display: 'grid', placeItems: 'center' }}>הספר האישי</div> :
       <img
         className={styles.cover}
         src={book.coverImageUrl || '/Images/ExamplePage.png'}
         alt={title}
-      />
+      />}
       <div className={styles.body}>
         <h3 className={styles.title}>{title}</h3>
         {book.companionName && companionLine ? (
@@ -61,7 +63,7 @@ function BookCard({ book }: { book: BookEntry }) {
     </>
   );
 
-  if (isReady) {
+  if (isReady || book.personal) {
     return (
       <Link
         href={book.readyUrl}

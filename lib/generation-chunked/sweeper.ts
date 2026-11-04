@@ -51,7 +51,7 @@ export async function sweepStaleGenerationJobs(
     where: {
       ...(options?.orderId ? { orderId: options.orderId } : {}),
       status: { in: ['pending', 'running'] },
-      currentStage: { notIn: ['done', 'failed'] },
+      currentStage: { notIn: ['done', 'failed', 'engine_site_long', 'engine_site_review'] },
       OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: now } }],
     },
     orderBy: { updatedAt: 'asc' },
@@ -70,6 +70,7 @@ export async function sweepStaleGenerationJobs(
       order: {
         select: {
           ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
+          frozenProductVersion: true,
           status: true,
           deliveryHoldReason: true,
           manualReviewRequired: true,
@@ -144,7 +145,11 @@ export async function sweepStaleGenerationJobs(
         continue;
       }
     }
-    const fingerprint = progressFingerprint(job.currentStage, job.completedPageNumbers);
+    const personal = job.order?.frozenProductVersion === 'engine-site/v1'
+      ? cache?.engineSite as { calls?: Record<string, { settled?: boolean; polls?: number }> } | undefined : undefined;
+    const fingerprint = personal?.calls ? `${job.currentStage}:${Object.values(personal.calls).reduce((n, call) =>
+      n + (call.settled ? 1 : 0) + (Number.isSafeInteger(call.polls) ? call.polls! : 0), 0)}`
+      : progressFingerprint(job.currentStage, job.completedPageNumbers);
     const madeProgress = fingerprint !== job.lastReclaimStage;
     const nextCount = madeProgress ? 1 : (job.staleReclaimCount ?? 0) + 1;
     const releaseObservedStaleJobWhere = {

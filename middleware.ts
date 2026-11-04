@@ -19,6 +19,12 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Read process.env DIRECTLY here — middleware is edge and must not import the server-only env module.
  */
 export function middleware(req: NextRequest): NextResponse {
+  // One cutover point for existing landing/start links. A partial/invalid personal activation must
+  // reach the personal route's closed gates, never silently return the parent to bank checkout.
+  if (['/wizard', '/start'].includes(req.nextUrl.pathname) && process.env.ENGINE_SITE_CHECKOUT_ENABLED === 'true') {
+    const target = req.nextUrl.clone(); target.pathname = '/wizard/personal';
+    return NextResponse.rewrite(target);
+  }
   if (process.env.NODE_ENV !== 'production') return NextResponse.next();
 
   const { pathname } = req.nextUrl;
@@ -77,6 +83,8 @@ export function middleware(req: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
+    '/wizard',
+    '/start',
     '/dev/:path*',
     '/api/debug/:path*',
     '/api/dev/:path*',

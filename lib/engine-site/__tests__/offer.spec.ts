@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { engineSiteCheckoutEnabled, engineSiteCheckoutPricing, ENGINE_SITE_LAUNCH_OFFER, isEngineSiteOrder } from '../offer';
+import { syntheticEngineActivationEnv } from './synthetic-order';
 
 const order = () => ({ frozenProductVersion: 'engine-site/v1', expectedPageCount: 8, selectionFilename: null,
   visualPackageAuthority: null, storyLength: 'short', audioEnabled: true, pdfEnabled: true,
@@ -22,7 +23,11 @@ describe('59 ILS all-inclusive personal launch offer', () => {
 
   it('defaults checkout off and recognizes unknown personal versions for bank refusal', () => {
     for (const value of [undefined, 'false', '1', 'TRUE', '']) expect(engineSiteCheckoutEnabled({ ENGINE_SITE_CHECKOUT_ENABLED: value })).toBe(false);
-    expect(engineSiteCheckoutEnabled({ ENGINE_SITE_CHECKOUT_ENABLED: 'true' })).toBe(true);
+    expect(engineSiteCheckoutEnabled({ ENGINE_SITE_CHECKOUT_ENABLED: 'true' })).toBe(false);
+    const admitted = syntheticEngineActivationEnv(); expect(engineSiteCheckoutEnabled(admitted)).toBe(true);
+    expect(engineSiteCheckoutEnabled({ ...admitted, VERCEL_ENV: 'production' })).toBe(false);
+    expect(engineSiteCheckoutEnabled({ ...admitted, VERCEL_ENV: 'production', ENABLE_PROD_GENERATION: 'true' })).toBe(true);
+    for (const key of Object.keys(admitted)) expect(engineSiteCheckoutEnabled({ ...admitted, [key]: undefined })).toBe(false);
     expect(isEngineSiteOrder({ frozenProductVersion: 'engine-site/future' })).toBe(true);
     expect(isEngineSiteOrder({})).toBe(false);
   });

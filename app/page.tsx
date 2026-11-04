@@ -5,6 +5,7 @@ import LandingPage from './landing/landing-page';
 import { getLandingContent } from '@/content/landing';
 import { ROUTES } from '@/lib/routes';
 import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
+import { EngineLaunchHome } from '@/app/personal/launch-home';
 /**
  * Landing styles — copied from public/CSS/{main,landing}.css (App Router cannot
  * import from public/). Legacy HTML shells still link public/CSS/* directly;
@@ -43,6 +44,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   // A logo/exit in the explicit local personal test must not return to the retired public flow.
   if (isLocalUiOnlyBootstrap()) redirect('/dev/personal-product');
+  if (process.env.ENGINE_SITE_CHECKOUT_ENABLED === 'true') return <EngineLaunchHome />;
   const matrix = buildMvpMatrixResponse();
   const content = getLandingContent(matrix.categories);
   return (
