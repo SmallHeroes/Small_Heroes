@@ -20,6 +20,7 @@ import {
 } from '@/lib/generation-pipeline/release-v1-continuity';
 import { requireOrderVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 
 
 
@@ -57,6 +58,7 @@ export async function runGenerationWorkerInvocation(
       where: { id: orderId },
       select: {
         ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
+        frozenProductVersion: true,
         status: true,
         deliveryHoldReason: true,
         manualReviewRequired: true,
@@ -65,6 +67,14 @@ export async function runGenerationWorkerInvocation(
     });
     if (!order) {
       throw new ReleaseV1ContinuityError(['Order is missing']);
+    }
+    if (isEngineSiteOrder(order)) {
+      if (routeProtocol !== 'legacy-route' || order.frozenProductVersion !== 'engine-site/v1') throw Error('engine_personal_worker_protocol_required');
+      const { runProductionPersonalWorker } = await import('@/lib/engine-site/production-worker');
+      const result = await runProductionPersonalWorker(prisma, orderId);
+      if (result.kind === 'progress' && result.phase !== 'done' && result.phase !== 'accept' &&
+          process.env.GENERATION_DISABLE_SELF_CHAIN !== 'true') chainGenerationWorker(orderId);
+      return { ok: result.kind !== 'held' && result.kind !== 'busy', stage: 'phase' in result ? result.phase : 'engine_site_long' };
     }
     if (routeProtocol === 'legacy-route') {
       if (requireOrderVisualPackageAuthority(order)) {

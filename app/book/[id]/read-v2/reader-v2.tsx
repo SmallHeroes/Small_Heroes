@@ -258,7 +258,9 @@ export default function ReaderV2({
         if (source.kind === 'qa_fixture') {
           data = source.payload;
         } else {
-          const url = `/api/orders/${encodeURIComponent(bookId)}?accessKey=${encodeURIComponent(resolvedAccessKey)}`;
+          const url = source.kind === 'engine_order'
+            ? `/api/engine-site/v1/books/${encodeURIComponent(bookId)}${source.preview ? '?preview=1' : ''}`
+            : `/api/orders/${encodeURIComponent(bookId)}?accessKey=${encodeURIComponent(resolvedAccessKey)}`;
           const res = await fetch(url, { cache: 'no-store' });
           if (!res.ok) {
             setErrorMessage(

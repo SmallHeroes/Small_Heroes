@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## M09 personal durable worker (2026-11-04)
+
+- Base348c85dc; same sole-writer branch/worktree, recovery package cumulative with M07/M08 until Guy commits. USD0; all provider calls simulated, no keys/.env/service access or production writes.
+- Current producer verified: momentum/child-first-v4, Opus author + Sol editor/readers. New source version carries real API receipt provenance, never forged CLI sessions. This corrects the earlier causal-planner mapping in the plan; no separate planner is selected. Current author28000 tokens needs1180s+45s; the generic780/380/860s envelopes also fit the25min long host. Responses steps poll a persisted id with store=false.
+- One existing GenerationJob owns source checkpoints, stable per-call claims, meter and leases across chunk/long hosts.270s chunks stay under300s; long leases/heartbeat are fenced. UNKNOWN never redispatches; late known costs settle even after hold. Native completed-page checkpoints are awaited and revalidated, with contiguous resume and order-wide nine re-asks. LOW remains the single explicit order/image-plan quality; identity0.70 and all engine ceilings/gates remain intact.
+- Worker/provider/spend/long-host activation is absent/off; no default cap or implicit approval. Proposed10USD/121 calls requires separate approval. Current worst-case reservation envelope82.263104USD cannot fit that cap; jobs stop before exceeding their next allowance, never downgrade/skip gates. Supplied expected anchor6.857428?8.357428USD excludes unmeasured fresh-order overhead; see corrected COST-AND-RUNTIME.md.
+- M09 focused SQL/provider/source/native tests and TypeScript logs/package are under _review/engine-site-launch/m09-personal-worker/. Workspace-contained synthetic TEMP solves inherited realpath restrictions without weakening tests; generated temp code alone is excluded from tsc. npm check remains informational. No full provider/browser/product/deployment proof or independent PASS. Continue immediately to M10 reader/narration/PDF, then M11 acceptance/operator/readiness/delivery/refunds; checkout remains default-off.
+
+## M08 private assets integration (2026-11-04)
+
+- Base348c85dc; M08 package is cumulative with M07 while HEAD is unchanged. Same sole-writer worktree, no other-worktree changes.
+- Private photo upload/read/order binding is wired. Exact canonical bytes/hash/owner/draft are verified; no public URL or bank photo fallback. New generated-asset store supports later reference/page/audio/PDF/receipt materialization.
+- Runtime refuses public/missing buckets, absent restrictive Storage policy and exposed WizardSession metadata. Legacy order upsert rejects reserved engine-site namespaces. Review-only infrastructure SQL is included but NOT applied; actual infrastructure/privacy proof remains a release requirement.
+- Direct-Node tsc/focused specs and logs are in _review/engine-site-launch/m08-private-assets/. M07 broad npm check finished exit1 (baseline failures); M08 broad run is report-only. Synthetic Sharp/SDK/HTTP/PGlite proofs do not establish deployed privacy or product readiness.
+- Checkout/intake remain default-off; USD0/no keys or .env/no live services. Continue immediately to personal durable worker and long-step executor, then reader/narration/PDF and acceptance/operator readiness/delivery/refunds.
+
+## M07 personal order integration (2026-11-04)
+
+- Base HEAD 348c85dc213f85597eb484d05e68e9048edb5603, codex/engine-site-launch-20261104, sole writer in sh-engine-site-launch; other worktrees untouched. M06 was recovered/committed by Guy.
+- Added default-off /wizard/personal and authenticated /api/engine-site/v1/orders. Reuses the reviewed wizard, admitted options and immutable owner/draft snapshot. Server fixes the inclusive price/LOW/eight-page offer; rejects fixture data, unknown fields, unsent photos and changed bindings. Identical retries reuse one Order.
+- New checkout additionally checks the authenticated owner; legacy/bank price logic is unchanged. Description mode is connected; private photo upload follows immediately in M08. No generation job or spend authority is created by intake.
+- Local direct-Node TypeScript exit0; 199/199 focused tests in12 files exit0, including PGlite row fencing and actual checkout/HTTP handlers. PostgreSQL pooler concurrency, browser visual approval and deployed behavior remain unverified. npm run check is informational and has pre-existing EPERM/path failures; see m07-personal-orders/npm-check.log.
+- Recovery package/report: _review/engine-site-launch/m07-personal-orders/. Owner verifies/commits; checkout and intake remain default-off. Next: private uploads, then personal durable worker/long steps, reader/narration/PDF, acceptance/operator gate/readiness/delivery/refunds. USD0; no keys/.env, providers, production writes or push/merge/deploy.
+
 ## Engine-to-site launch ? final product policy and ordered integration (2026-11-04)
 
 - Guy's FINAL round-3 launch decisions supersede the earlier price/quality instructions: 59 ILS (5900 agorot), one inclusive SKU for cover + eight story pages + narration + PDF, no add-ons/coupons. New customer books use gpt-image-2 LOW. HIGH is excluded; the paid MEDIUM measurement is cancelled. MEDIUM is only a typed future value and is not selected.

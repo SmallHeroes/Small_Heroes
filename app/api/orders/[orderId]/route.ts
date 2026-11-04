@@ -9,6 +9,7 @@ import { deriveLayout, countHebrewWords } from '../../../../backend/providers/im
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { resolvePowerCardRenderInputForOrder } from '@/lib/power-cards/resolve-from-order';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 
 const logger = createLogger({ subsystem: 'orders', route: '/api/orders/[orderId]' });
 const DEV_FIXTURE_ORDER_ID = 'dev-completed-book';
@@ -118,6 +119,7 @@ export async function GET(
         imageStatus: true,
         audioStatus: true,
         packageStatus: true,
+        frozenProductVersion: true,
         paymentId: true,
         paymeTransactionId: true,
         stripeSessionId: true,
@@ -158,7 +160,7 @@ export async function GET(
       },
     });
 
-    if (!order) {
+    if (!order || isEngineSiteOrder(order)) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     const expectedAccessKey = order.paymentId || order.paymeTransactionId || order.stripeSessionId;

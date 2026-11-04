@@ -41,6 +41,7 @@ export type ReaderBookPayload = {
 };
 
 export type ReaderBookSource =
+  | { kind: 'engine_order'; bookId: string; preview: boolean }
   | {
       kind: 'order';
       bookId: string;
@@ -54,11 +55,12 @@ export type ReaderBookSource =
     };
 
 export function readerSourceBookId(source: ReaderBookSource): string {
-  return source.kind === 'order' ? source.bookId : source.payload.id;
+  return source.kind === 'qa_fixture' ? source.payload.id : source.bookId;
 }
 
 export function readerSourceExitHref(source: ReaderBookSource, resolvedAccessKey: string): string {
   if (source.kind === 'qa_fixture') return source.exitHref;
+  if (source.kind === 'engine_order') return `/personal/orders/${encodeURIComponent(source.bookId)}${source.preview ? '?preview=1' : ''}`;
   const keyPart = resolvedAccessKey ? `&accessKey=${encodeURIComponent(resolvedAccessKey)}` : '';
   return `/ready?orderId=${encodeURIComponent(source.bookId)}${keyPart}`;
 }
@@ -67,6 +69,6 @@ export function readerSourceAccessKey(
   source: ReaderBookSource,
   browserAccessKey: string | null
 ): string {
-  if (source.kind === 'qa_fixture') return '';
+  if (source.kind !== 'order') return '';
   return source.accessKey || browserAccessKey || '';
 }

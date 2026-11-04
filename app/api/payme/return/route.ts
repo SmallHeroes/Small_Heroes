@@ -8,6 +8,7 @@ import { verifyPaymePayment } from '@/lib/payme';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
@@ -21,6 +22,8 @@ export async function GET(req: NextRequest) {
   const statusRaw = (req.nextUrl.searchParams.get('status') || req.nextUrl.searchParams.get('paymentStatus') || '').trim().toLowerCase();
   const isProduction = process.env.NODE_ENV === 'production';
   const allowUnsafeRedirectTrust = env.PAYME_REDIRECT_TRUST_MODE && !isProduction;
+  let personal = false;
+  const target = () => personal ? `/personal/orders/${encodeURIComponent(orderId)}` : `${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}`;
 
   if (!orderId || env.PAYMENT_PROVIDER !== 'payme') {
     return NextResponse.redirect(new URL(ROUTES.wizard, req.nextUrl.origin));
@@ -29,12 +32,13 @@ export async function GET(req: NextRequest) {
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true, paymentProvider: true, paymentId: true, totalPrice: true },
+      select: { id: true, status: true, paymentProvider: true, paymentId: true, totalPrice: true, frozenProductVersion: true },
     });
+    personal = !!order && isEngineSiteOrder(order);
     if (!order || (order.paymentProvider && order.paymentProvider !== 'payme')) {
-      const redirectUrl = new URL(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}`, req.nextUrl.origin);
+      const redirectUrl = new URL(target(), req.nextUrl.origin);
       const accessKey = paymentIdFromQuery || transactionIdFromQuery;
-      if (accessKey) redirectUrl.searchParams.set('accessKey', accessKey);
+      if (accessKey && !personal) redirectUrl.searchParams.set('accessKey', accessKey);
       redirectUrl.searchParams.set('payment', 'checking');
       return NextResponse.redirect(redirectUrl);
     }
@@ -49,9 +53,9 @@ export async function GET(req: NextRequest) {
           logger.error('Generation trigger failed for paid order on redirect', error, { orderId: order.id });
         }
       }
-      const redirectUrl = new URL(`${ROUTES.generating}?orderId=${encodeURIComponent(order.id)}`, req.nextUrl.origin);
+      const redirectUrl = new URL(target(), req.nextUrl.origin);
       const accessKey = order.paymentId || paymentIdFromQuery || transactionIdFromQuery;
-      if (accessKey) redirectUrl.searchParams.set('accessKey', accessKey);
+      if (accessKey && !personal) redirectUrl.searchParams.set('accessKey', accessKey);
       return NextResponse.redirect(redirectUrl);
     }
 
@@ -71,7 +75,7 @@ export async function GET(req: NextRequest) {
     }
 
     const allowUnsafePaidMark =
-      allowUnsafeRedirectTrust &&
+      allowUnsafeRedirectTrust && !personal &&
       !verification.verified &&
       ['paid', 'success', 'succeeded', 'completed', 'approved'].includes(statusRaw);
 
@@ -184,9 +188,9 @@ export async function GET(req: NextRequest) {
     logger.error('PayMe redirect processing failed', error, { orderId });
   }
 
-  const redirectUrl = new URL(`${ROUTES.generating}?orderId=${encodeURIComponent(orderId)}`, req.nextUrl.origin);
+  const redirectUrl = new URL(target(), req.nextUrl.origin);
   const accessKey = paymentIdFromQuery || transactionIdFromQuery;
-  if (accessKey) redirectUrl.searchParams.set('accessKey', accessKey);
+  if (accessKey && !personal) redirectUrl.searchParams.set('accessKey', accessKey);
   redirectUrl.searchParams.set('payment', 'checking');
   return NextResponse.redirect(redirectUrl);
 }
