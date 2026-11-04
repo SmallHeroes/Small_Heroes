@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkoutProductName, checkoutProductDescription, CHECKOUT_ADDONS } from '@/content';
 import { computePricing } from '../../../backend/config/wizard';
+import { engineSiteCheckoutEnabled, engineSiteCheckoutPricing } from '@/lib/engine-site/offer';
 import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-security';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
@@ -241,6 +242,16 @@ export async function handleCheckoutPost(
       logger.warn('Checkout request order not found', { orderId });
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
+    const engineSitePricing = engineSiteCheckoutPricing(order);
+    if (engineSitePricing && (!engineSiteCheckoutEnabled() || releaseV1)) {
+      return NextResponse.json({ error: 'engine_site_checkout_unavailable' }, { status: 503 });
+    }
+    if (engineSitePricing && env.PAYMENT_PROVIDER !== 'payme') {
+      return NextResponse.json({ error: 'engine_site_requires_payme' }, { status: 503 });
+    }
+    if (engineSitePricing && typeof bodyCouponCode === 'string' && bodyCouponCode.trim()) {
+      return NextResponse.json({ error: 'engine_site_launch_has_no_discounts_or_addons' }, { status: 422 });
+    }
     if (!releaseV1) {
       try {
         if (
@@ -306,7 +317,7 @@ export async function handleCheckoutPost(
     }
     if (releaseV1) claimedReleaseOrderId = order.id;
 
-    const pricing = computePricing({
+    const pricing = engineSitePricing ?? computePricing({
       length: order.storyLength,
       direction: order.storyDirection ?? undefined,
       audioEnabled: order.audioEnabled,
@@ -361,7 +372,10 @@ export async function handleCheckoutPost(
     if (!order.bundleEnabled && order.audioEnabled) addonLabels.push(CHECKOUT_ADDONS.audio);
     if (!order.bundleEnabled && order.pdfEnabled) addonLabels.push(CHECKOUT_ADDONS.pdf);
     if (!order.bundleEnabled && order.videoEnabled) addonLabels.push(CHECKOUT_ADDONS.video);
-    const descriptionParts = [
+    const descriptionParts = engineSitePricing ? [
+      checkoutProductName(order.childName),
+      'כריכה ו־8 עמודי סיפור, קריינות ו־PDF כלולים',
+    ] : [
       checkoutProductName(order.childName),
       checkoutProductDescription(order.storyLength, order.storyDirection),
       addonLabels.length > 0 ? `תוספות: ${addonLabels.join(', ')}` : null,
@@ -373,7 +387,7 @@ export async function handleCheckoutPost(
       logger.info('Checkout for no-photo order (generic-child path)', { orderId });
     }
 
-    if (order.childImageUrl) {
+    if (order.childImageUrl && !engineSitePricing) {
       const photoGuidance = await evaluatePhotoGate(order.childImageUrl);
       if (photoGuidance.warnings.length > 0) {
         logger.info('PhotoGuidance advisory at checkout (quality never blocks payment)', {
@@ -429,7 +443,7 @@ export async function handleCheckoutPost(
         },
       });
     } catch (error) {
-      if (canUseFakePayments()) {
+      if (!engineSitePricing && canUseFakePayments()) {
         logger.warn('PayMe checkout failed; falling back to fake checkout in local/dev', {
           orderId: order.id,
           paymentProvider: env.PAYMENT_PROVIDER,

@@ -18,6 +18,7 @@ import {
 } from '@/lib/generation-pipeline/release-v1-continuity';
 import { requireOrderVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
 
@@ -77,6 +78,8 @@ export async function startChunkedGeneration(
   if (!order) {
     return { started: false, orderId, message: 'Order not found' };
   }
+  // Personal authority can never be interpreted as a bank order while the new worker is being connected.
+  if (isEngineSiteOrder(order)) return { started: false, orderId, message: 'engine_site_requires_personal_worker' };
   if (releaseContinuity) {
     requireReleaseV1OrderPackage(order);
     if (

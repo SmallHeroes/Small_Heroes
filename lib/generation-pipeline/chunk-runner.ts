@@ -5,6 +5,7 @@ import { Prisma, type Order } from '@prisma/client';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 import {
   assertOrderStyleSellable,
   assertShippedBookStyleEngineActive,
@@ -2602,6 +2603,9 @@ export async function processGenerationChunk(
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return { stage: 'failed', done: true, stopChunk: true, error: 'Order not found' };
+  if (isEngineSiteOrder(order)) return {
+    stage: 'failed', done: true, stopChunk: true, error: 'engine_site_requires_personal_worker',
+  };
 
   // Gap 2 (bunny forensics): Style 02 orders are blocked server-side until the
   // Style 02 gate chain opens — never render an ungated style for a customer.
