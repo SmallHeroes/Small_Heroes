@@ -59,13 +59,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    const hasIdentifiers = Boolean(paymentIdFromQuery || transactionIdFromQuery || order.paymentId);
+    // Terminal orders never become paid again from a late browser return.
+    if (order.status === 'failed') return NextResponse.redirect(new URL(target(), req.nextUrl.origin));
+    const hasIdentifiers = Boolean(order.paymentId);
     let verification: Awaited<ReturnType<typeof verifyPaymePayment>> = { verified: false, status: 'unknown', raw: null };
     if (hasIdentifiers) {
       verification = await verifyPaymePayment({
         orderId: order.id,
-        paymentId: paymentIdFromQuery || order.paymentId || undefined,
-        transactionId: transactionIdFromQuery || undefined,
+        paymentId: order.paymentId || undefined,
+        amountAgorot: order.totalPrice,
+        currency: 'ILS',
       });
       logger.info('PayMe redirect verification attempted', {
         orderId: order.id,
@@ -80,12 +83,12 @@ export async function GET(req: NextRequest) {
       ['paid', 'success', 'succeeded', 'completed', 'approved'].includes(statusRaw);
 
     if (verification.verified && verification.status === 'paid') {
-      const resolvedPaymentId = transactionIdFromQuery || paymentIdFromQuery || order.paymentId || `payme_verified_${order.id}`;
+      const resolvedPaymentId = order.paymentId!;
       const claimed = await prisma.$transaction(async (tx) => {
         // Paid transition — CONDITIONAL so an overlapping success path (e.g. the webhook) that has
         // already advanced or FENCED (needs_human_qa) this order is NEVER demoted back to 'paid'.
         const paidTransition = await tx.order.updateMany({
-          where: { id: order.id, status: { in: ['draft', 'pending_payment', 'failed'] } },
+          where: { id: order.id, paymentId: resolvedPaymentId, status: { in: ['draft', 'pending_payment'] } },
           data: {
             status: 'paid',
             paymentProvider: 'payme',

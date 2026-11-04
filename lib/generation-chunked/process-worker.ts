@@ -74,6 +74,8 @@ export async function runGenerationWorkerInvocation(
       const result = await runProductionPersonalWorker(prisma, orderId);
       if (result.kind === 'progress' && result.phase !== 'done' && result.phase !== 'accept' &&
           process.env.GENERATION_DISABLE_SELF_CHAIN !== 'true') chainGenerationWorker(orderId);
+      if (result.kind === 'pending' && process.env.GENERATION_DISABLE_SELF_CHAIN !== 'true')
+        chainGenerationWorker(orderId, undefined, { delayMs: 15_000 });
       return { ok: result.kind !== 'held' && result.kind !== 'busy', stage: 'phase' in result ? result.phase : 'engine_site_long' };
     }
     if (routeProtocol === 'legacy-route') {

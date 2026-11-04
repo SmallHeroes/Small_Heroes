@@ -28,6 +28,7 @@ import {
 } from '@/lib/personal-wizard/intake-live-client';
 import type { RecordedClip } from '@/lib/personal-wizard/recorder';
 import { watchAvailability } from '@/lib/personal-wizard/availability-client';
+import { prepareEnginePhotoUpload } from '@/lib/engine-site/photo-upload-client';
 import { ENGINE_SITE_LAUNCH_OFFER, engineSitePriceIls } from '@/lib/engine-site/offer-definition';
 
 import { useDraftStore, useObjectUrl, usePlayback, useRecorder, useSoftKeyboardOpen } from './hooks';
@@ -347,8 +348,9 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
           { kind: 'description', description: normalizeText(appearanceDescription) };
         if (photoFile) {
           if (uploadedPhoto.current?.file !== photoFile || uploadedPhoto.current.draftId !== built.request.draftId) {
+            const photoBytes = await prepareEnginePhotoUpload(photoFile);
             const upload = await fetch('/api/engine-site/v1/photos', { method: 'POST', cache: 'no-store',
-              headers: { 'Content-Type': photoFile.type, 'X-Engine-Draft': built.request.draftId }, body: photoFile });
+              headers: { 'Content-Type': photoBytes.type, 'X-Engine-Draft': built.request.draftId }, body: photoBytes });
             const photo = await upload.json().catch(() => null);
             if (upload.status === 401) {
               setOrderState({ busy: false, signIn: true, message: 'יש להתחבר לחשבון לפני שמירת התמונה.' }); return;

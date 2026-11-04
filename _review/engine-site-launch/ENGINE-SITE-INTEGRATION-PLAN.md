@@ -1,3 +1,5 @@
+> M13 update, base3185919b (2026-11-04): independent R1 HOLD corrections are documented in m13-qa-r1-fixes/REPORT.md and FINDING-MATRIX.md. Infrastructure ambiguity now retries boundedly then parks; only a deterministic/fenced terminal failure authorizes the refund path. Completed delivery survives later launch-policy changes; unsent jobs re-evaluate the same gate. Incompatible in-flight revisions fail through the engine fence, and abandoned generation has a four-hour execution backstop. Private metadata checks cover all three child-bearing tables and bind the Storage project. These are authorized technical corrections, not new product/spend approval. The minimal production Q1 PayMe patch is prepared separately and not applied.
+
 STATUS: PHASE-0 DONE
 HEAD: 348c85dc213f85597eb484d05e68e9048edb5603
 Summary 1/5: FINAL launch offer is 59 ILS inclusive: cover + eight story pages + narration + PDF, no add-ons/coupons.

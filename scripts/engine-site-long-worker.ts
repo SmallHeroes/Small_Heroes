@@ -19,12 +19,24 @@ export async function engineLongWorkerMain(once = false) {
   const { prisma } = await import('../lib/prisma');
   const { runProductionPersonalWorker } = await import('../lib/engine-site/production-worker');
   const { chainGenerationWorker } = await import('../lib/generation-chunked/chain-worker');
+  const { reconcileEngineGeneration } = await import('../lib/engine-site/generation-backstop');
+  const { engineRecoveryDue, recordEngineInfrastructureFault, clearEngineInfrastructureFault } = await import('../lib/engine-site/failure-policy');
   do {
     const jobs = await prisma.generationJob.findMany({ where: { currentStage: 'engine_site_long', status: { in: ['pending', 'running'] },
-      OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: new Date() } }] }, orderBy: { updatedAt: 'asc' }, take: 1, select: { orderId: true } });
-    if (jobs[0]) {
-      const result = await runProductionPersonalWorker(prisma, jobs[0].orderId, 'long');
-      if (result.kind === 'progress' && !['done', 'accept'].includes(result.phase)) chainGenerationWorker(jobs[0].orderId);
+      OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: new Date() } }] }, orderBy: { updatedAt: 'asc' }, take: 5, select: { orderId: true } });
+    for (const job of jobs) {
+      try {
+        if (!await engineRecoveryDue(prisma, job.orderId, 'long')) continue;
+        const backstop = await reconcileEngineGeneration(prisma, job.orderId);
+        if (backstop.status !== 'long') continue;
+        const result = await runProductionPersonalWorker(prisma, job.orderId, 'long');
+        if (result.kind === 'progress' || result.kind === 'pending') await clearEngineInfrastructureFault(prisma, job.orderId, 'long');
+        if (result.kind === 'pending') chainGenerationWorker(job.orderId, undefined, { delayMs: 15_000 });
+        else if (result.kind === 'progress' && !['done', 'accept'].includes(result.phase)) chainGenerationWorker(job.orderId);
+        break; // At most one paid invocation per scan; free failures cannot block the rest of the queue.
+      } catch (error) {
+        await recordEngineInfrastructureFault(prisma, job.orderId, 'long', error).catch(() => {});
+      }
     }
     if (!once) await new Promise(resolve => setTimeout(resolve, 10_000));
   } while (!once);

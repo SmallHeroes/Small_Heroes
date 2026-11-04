@@ -9,11 +9,11 @@ import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audit
 import { canonicalHash } from '@/lib/canonical-json';
 import { claimDueDeliveries, processDelivery } from '@/lib/generation-chunked/delivery-outbox';
 import { claimDueExceptionCases, fencedOutboxTerminalWithException } from '@/lib/generation-chunked/exception-case';
-import { processExceptionCase } from '@/lib/generation-chunked/exception-processor';
+import { processExceptionCase, syncTerminalExceptionCases } from '@/lib/generation-chunked/exception-processor';
 import { refundOrderPayment, prismaRefundFence } from '@/lib/payment-refunds';
 import { syntheticMaterializedEngineBook } from './synthetic-book';
 import { loadEngineReaderBook } from '../reader';
-import { handleEngineBookRead } from '../reader-http';
+import { handleEngineBookRead, handleEngineBookStatus } from '../reader-http';
 import { loadEnginePrivateAsset } from '../private-assets';
 import { ensureEngineLaunchPolicy, readEngineLaunchPolicy, changeEngineLaunchPolicy } from '../launch-policy';
 import { policyDigest } from '../delivery-gate';
@@ -25,7 +25,9 @@ import { parseEngineCheckpoint, runEngineDurableInvocation } from '../durable-wo
 import { engineTestDb } from './engine-test-db';
 import { startEnginePersonalJob } from '../personal-jobs';
 import { engineRecipeSteps, type EngineSpendPolicy } from '../platform-policy';
-vi.mock('@/lib/prisma', () => ({ prisma: new Proxy({}, { get() { throw Error('production_db_forbidden'); } }) }));
+const entry = vi.hoisted(() => ({ db: null as any, storage: null as any }));
+vi.mock('@/lib/prisma', () => ({ prisma: new Proxy({}, { get(_t,k) { if (entry.db) return entry.db[k]; throw Error('production_db_forbidden'); } }) }));
+vi.mock('@/lib/engine-site/private-storage', async original => ({ ...await original<any>(), productionEnginePrivateStorage: () => entry.storage }));
 vi.mock('@/lib/env', () => ({ env: {}, isFakePaymentEnabled: () => false, canUseFakePayments: () => false }));
 vi.mock('@/backend/lib/email', () => ({ sendBookReadyEmail: () => { throw Error('production_email_forbidden'); },
   getBookReadyEmailDeliveryState: () => { throw Error('production_email_forbidden'); }, sendRefundNoticeEmail: () => { throw Error('production_email_forbidden'); } }));
@@ -55,6 +57,103 @@ async function setup() {
   return { ...s, c, ports, command, reconcile, context, claim, send, deliver };
 }
 describe('personal automatic path + audited launch gate + existing readiness/outbox/refund (synthetic only)', () => {
+  it('P3 an expired ambiguous email behind a closed gate parks for an operator and leaves the automatic claim queue',async()=>{
+    const s=await setup(),p=await readEngineLaunchPolicy(s.db);
+    const off=await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(p),idempotencyKey:'p3_off',mode:'off',reason:'Synthetic'},'synthetic_guy');
+    await s.reconcile();const row=await s.claim(),now=new Date();
+    await fencedOutboxTerminalWithException(s.db,{row,token:row.attempts,kind:'send_ambiguous',reason:'synthetic_unknown',now,
+      outboxData:{status:'failed',failureClass:'send_ambiguous',sendAttempted:true,firstSendAttemptAt:new Date(now.getTime()-72*60*60_000),leaseExpiresAt:null}});
+    await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(off),idempotencyKey:'p3_required',mode:'required',reason:'Synthetic'},'synthetic_guy');
+    const c=(await claimDueExceptionCases(s.db,new Date(Date.now()+1000),1))[0], replay=vi.fn();
+    expect(await processExceptionCase(s.db,c,{replayEmail:replay,personalDeliveryAllowed:async()=>false})).toBe('operator_required');
+    expect(await claimDueExceptionCases(s.db,new Date(Date.now()+7*24*60*60_000),1)).toHaveLength(0);
+    expect((await s.db.exceptionCase.findFirst())!.resolution).toMatchObject({operatorRequired:true});expect(replay).not.toHaveBeenCalled();
+  },120_000);
+  it('Q6 the actual reconcile cron revisits ready-but-unsent done jobs after a policy flip', async () => {
+    const s = await setup(), p = await readEngineLaunchPolicy(s.db);
+    const off = await changeEngineLaunchPolicy(s.db, { expectedPolicySha256: policyDigest(p), idempotencyKey: 'q6_off_cron', mode: 'off', reason: 'Synthetic' }, 'synthetic_guy');
+    await s.reconcile(); expect((await s.db.generationJob.findUnique({ where: { orderId: 'synthetic_order' } }))!.status).toBe('done');
+    await changeEngineLaunchPolicy(s.db, { expectedPolicySha256: policyDigest(off), idempotencyKey: 'q6_required_cron', mode: 'required', reason: 'Synthetic' }, 'synthetic_guy');
+    entry.db = s.db; entry.storage = s.storage;
+    vi.stubEnv('CRON_SECRET', 'SYNTHETIC_CRON'); vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://app.example.invalid');
+    const { GET } = await import('@/app/api/engine-site/v1/cron/reconcile/route');
+    const response = await GET(new NextRequest('https://app.example.invalid/cron', { headers: { authorization: 'Bearer SYNTHETIC_CRON' } }));
+    expect(response.status).toBe(200);
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))!.status).toBe('needs_human_qa');
+    entry.db = null; entry.storage = null;
+  },120_000);
+  it('Q9 legacy terminal synchronization does not open a second base_book case for an engine failure', async () => {
+    const s = await setup(); await failEngineOrder(s.db, 'synthetic_order', 'engine_native_book_held');
+    const job = (await s.db.generationJob.findUnique({ where: { orderId: 'synthetic_order' } }))!;
+    vi.spyOn(s.db.generationJob, 'findMany').mockResolvedValue([{ ...job, updatedAt: new Date(), order: {
+      frozenProductVersion: 'engine-site/v1', selectionFilename: null, visualPackageAuthority: null } }] as any);
+    await syncTerminalExceptionCases(s.db, new Date());
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(1);
+  }, 120_000);
+  it('Q2 transient storage and admission failures retry without a refund; an admitted book is not re-decoded each review tick', async () => {
+    const s = await setup(), read = s.storage.read;
+    s.storage.read = vi.fn().mockRejectedValueOnce(Error('ECONNRESET')).mockImplementation(read);
+    expect(await s.reconcile()).toMatchObject({ status: 'retry_scheduled' });
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
+    s.storage.read = read;
+    const later = Date.now() + 180_000; vi.spyOn(Date, 'now').mockReturnValue(later);
+    const admit = vi.fn(s.ports.admit); s.ports.admit = admit;
+    await s.reconcile(); await s.reconcile(); expect(admit).toHaveBeenCalledTimes(1);
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))!.status).toBe('needs_human_qa');
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
+  }, 120_000);
+  it('Q2 send-time infrastructure failure preserves the unsent book and creates no refund', async () => {
+    const s = await setup(), p = await readEngineLaunchPolicy(s.db);
+    await changeEngineLaunchPolicy(s.db, { expectedPolicySha256: policyDigest(p), idempotencyKey: 'q2_off', mode: 'off', reason: 'Synthetic' }, 'synthetic_guy');
+    await s.reconcile(); const row = await s.claim(), original = s.storage.read;
+    s.storage.read = async () => { throw Error('ECONNRESET'); };
+    expect(await processDelivery(s.db, row, { send: s.send, cas: (r,t,e,n) => casEngineClaimSendSlot(s.db,r,t,e,n,s.ports) })).toBe('delivery_blocked');
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))!.status).toBe('ready');
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0); s.storage.read = original;
+    await s.reconcile(); expect(await s.deliver()).toBe('sent');
+  }, 120_000);
+  it('Q2 lost job creation after a transient database/infra error does not authorize a refund', async () => {
+    const s=await engineTestDb();stores.push(s);
+    expect(await recoverEnginePaidJob(s.db,'synthetic_order',async()=>{throw Error('ECONNRESET');},vi.fn())).toMatchObject({status:'retry_scheduled'});
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
+  });
+  it('Q2 repeated infrastructure failures respect backoff and park for an operator without a refund',async()=>{
+    const s=await engineTestDb();stores.push(s);const start=vi.fn(async()=>{throw Error('ECONNRESET');}),kick=vi.fn(),base=Date.now();
+    const time=vi.spyOn(Date,'now').mockReturnValue(base);
+    expect(await recoverEnginePaidJob(s.db,'synthetic_order',start,kick)).toMatchObject({status:'retry_scheduled'});
+    time.mockReturnValue(base+60_000);
+    expect(await recoverEnginePaidJob(s.db,'synthetic_order',start,kick)).toMatchObject({status:'retry_scheduled'});
+    time.mockReturnValue(base+240_000);
+    expect(await recoverEnginePaidJob(s.db,'synthetic_order',start,kick)).toMatchObject({status:'operator_reconciliation_required'});
+    expect((await s.db.order.findUnique({where:{id:'synthetic_order'}}))!.deliveryHoldReason).toBe('engine_site_hold:infrastructure');
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);expect(kick).not.toHaveBeenCalled();
+  });
+  it('Q6 a delivered book remains readable after a global review policy flip, including PDF and status', async () => {
+    const s = await setup(); await s.reconcile();
+    await decideEngineBook(s.db, 'synthetic_order', await s.command('approve'), 'synthetic_guy', s.ports);
+    expect(await s.deliver()).toBe('sent');
+    const p = await readEngineLaunchPolicy(s.db);
+    await changeEngineLaunchPolicy(s.db, { expectedPolicySha256: policyDigest(p), idempotencyKey: 'q6_off', mode: 'off', reason: 'Synthetic' }, 'synthetic_guy');
+    expect(await readEngineFamilyReady(s.db, await s.context())).toBe(true);
+    const response = await handleEngineBookRead(new NextRequest('https://app.example.invalid/book'), 'synthetic_order', {
+      ...s.ports, db: s.db, storage: () => s.storage, enabled: true, parent: async () => ({ id: s.parent.id }) });
+    expect(response.status).toBe(200);
+    const readerPorts={...s.ports,db:s.db,storage:()=>s.storage,enabled:true,proxyBytes:true,parent:async()=>({id:s.parent.id})};
+    const status=await handleEngineBookStatus(new NextRequest('https://app.example.invalid/status'),'synthetic_order',readerPorts);
+    expect(await status.json()).toMatchObject({status:'ready'});
+    const pdf=await handleEngineBookRead(new NextRequest('https://app.example.invalid/pdf'),'synthetic_order',readerPorts,s.c.book.pdf.assetId);
+    expect(pdf.status).toBe(200);expect(pdf.headers.get('content-type')).toBe('application/pdf');
+    await failEngineOrder(s.db, 'synthetic_order', 'engine_explicit_revocation');
+    expect(await readEngineFamilyReady(s.db, await s.context())).toBe(false);
+  }, 120_000);
+  it('P3 external hold is not permanently cached as the terminal-failure receipt', async () => {
+    const s = await setup();
+    await s.db.order.update({ where: { id: 'synthetic_order' }, data: { deliveryHoldReason: 'external_hold' } });
+    expect(await failEngineOrder(s.db, 'synthetic_order', 'engine_native_book_held')).toMatchObject({ status: 'external_hold' });
+    await s.db.order.update({ where: { id: 'synthetic_order' }, data: { deliveryHoldReason: null } });
+    expect(await failEngineOrder(s.db, 'synthetic_order', 'engine_native_book_held')).toMatchObject({ status: 'failed' });
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(1);
+  }, 120_000);
   it('reconciles paid-to-job loss, probes an ambiguous job commit and creates a refund liability when no job exists', async () => {
     const s = await engineTestDb(); stores.push(s); const kick = vi.fn();
     const policy: EngineSpendPolicy = { version: 'engine-site-spend-policy/v1', sourceRevision: 'a'.repeat(40), maximumMicroUsd: 10_000_000,
@@ -63,8 +162,8 @@ describe('personal automatic path + audited launch gate + existing readiness/out
     expect(await recoverEnginePaidJob(s.db, 'synthetic_order', start, kick)).toMatchObject({ status: 'job_recovered' });
     expect(start).toHaveBeenCalledTimes(1); expect(kick).toHaveBeenCalledTimes(1); expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
     const missing = await engineTestDb(); stores.push(missing);
-    expect(await recoverEnginePaidJob(missing.db, 'synthetic_order', async () => { throw Error('synthetic_no_job'); }, kick)).toMatchObject({ status: 'failed' });
-    expect((await missing.db.exceptionCase.findFirst())!.status).toBe('refund_pending'); expect(kick).toHaveBeenCalledTimes(1);
+    expect(await recoverEnginePaidJob(missing.db, 'synthetic_order', async () => { throw Error('synthetic_no_job'); }, kick)).toMatchObject({ status: 'retry_scheduled' });
+    expect(await missing.db.exceptionCase.findMany()).toHaveLength(0); expect(kick).toHaveBeenCalledTimes(1);
   }, 120_000);
   it('holds the automatic pass, authenticates eye approval, publishes and sends exactly once through the actual outbox', async () => {
     const s = await setup(); expect(await s.reconcile()).toMatchObject({ status: 'operator_review' });
@@ -137,7 +236,7 @@ describe('personal automatic path + audited launch gate + existing readiness/out
     const claimed = (await claimDueExceptionCases(s.db, new Date(Date.now() + 1000), 1))[0]; expect(claimed.status).toBe('refund_pending'); expect(claimed.scope).toBe(ENGINE_BOOK_SCOPE);
     let saleState: 'paid' | 'refunded' = 'paid';
     const query = vi.fn(async () => ({ state: saleState, rawStatus: saleState })), physicalRefund = vi.fn(async () => ({ state: 'pending' as const, providerActionId: 'synthetic_refund' }));
-    const notice = vi.fn(async () => ({ providerMessageId: 'synthetic_notice' }));
+    const notice = vi.fn(async (_input: { idempotencyKey: string }) => ({ providerMessageId: 'synthetic_notice' }));
     const refund = vi.fn((...[order, key, prior, extra]: Parameters<typeof refundOrderPayment>) => refundOrderPayment(order, key, prior, { ...extra, queryPaymeSale: query, refundPaymeSale: physicalRefund }));
     expect(await processExceptionCase(s.db, claimed, { refund, refundNotice: notice })).toBe('refund_pending');
     expect(physicalRefund).toHaveBeenCalledTimes(1); expect(notice).not.toHaveBeenCalled();
@@ -147,6 +246,7 @@ describe('personal automatic path + audited launch gate + existing readiness/out
     saleState = 'refunded'; const confirmed = (await claimDueExceptionCases(s.db, new Date(Date.now() + 600_000), 1))[0];
     expect(await processExceptionCase(s.db, confirmed, { refund, refundNotice: notice })).toBe('resolved');
     expect(physicalRefund).toHaveBeenCalledTimes(1); expect(notice).toHaveBeenCalledTimes(1);
+    expect(notice.mock.calls[0][0].idempotencyKey).toMatch(/^refund-notice\/personal-sale\/synthetic_order\//);
     expect((await s.db.refundAttempt.findFirst())!.status).toBe('confirmed');
     const order = await s.db.order.findUnique({ where: { id: 'synthetic_order' } });
     await refundOrderPayment({ ...order!, payment: null }, 'refund/another_scope_case', null,

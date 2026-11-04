@@ -7,6 +7,7 @@ import { authorityDigest, engineOrderAuthoritySchema, engineSiteFail, type Engin
 import { inspectEngineOrderMeter, readEngineCallResult, reserveEngineCall, settleEngineCall, type EngineCall } from './order-meter';
 import { loadEnginePrivateAsset, persistEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
 import type { EnginePrivateStorage } from './private-storage';
+import { ENGINE_INFRA_MAX_FAILURES, ENGINE_INFRA_BACKOFF_MS, engineDeterministicFailure, engineErrorCode, engineOwnershipLost } from './failure-policy';
 
 export const ENGINE_CHUNK_BUDGET_MS = 270_000;
 export const ENGINE_LONG_BUDGET_MS = 25 * 60_000;
@@ -14,7 +15,8 @@ const MARGIN_MS = 45_000;
 const checkpointSchema = z.object({
   version: z.literal('engine-site-job/v1'), authority: engineOrderAuthoritySchema,
   ownerId: z.string().min(1), draftId: z.string().min(1), snapshotSha256: z.string().length(64),
-  phase: z.enum(['story', 'native', 'materialize', 'accept', 'held', 'done']),
+  phase: z.enum(['story', 'native', 'materialize', 'accept', 'held', 'operator', 'done']),
+  recovery: z.object({ failures: z.number().int().nonnegative(), nextAt: z.number().int().nonnegative() }).strict().optional(),
   calls: z.record(z.object({ wireSha256: z.string().length(64), requestAssetId: z.string().uuid(),
     pendingId: z.string().optional(), deadlineAt: z.number().int().positive(), polls: z.number().int().nonnegative(),
     resultAssetId: z.string().uuid().optional(), settled: z.boolean() }).strict()),
@@ -71,12 +73,20 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
   if (!initial) engineSiteFail('engine_worker_job_missing');
   const checkpoint = parseCache(initial.pipelineCache), authority = checkpoint.authority;
   if (authority.orderId !== orderId) engineSiteFail('engine_worker_authority_mismatch');
-  await options.assertAdmission(authority);
   if (options.executor === 'chunk' && checkpoint.waiting && checkpoint.waiting.requiredMs > ENGINE_CHUNK_BUDGET_MS)
     return { kind: 'long_step_required' as const, step: checkpoint.waiting.step };
-  const claimed = await db.generationJob.updateMany({ where: { orderId, status: { in: ['pending', 'running'] },
-    currentStage: { notIn: ['done', 'failed'] }, OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: new Date(start) } }] },
-    data: { lockedBy: workerId, leaseExpiresAt: expiry, status: 'running', startedAt: new Date(start) } });
+  // Order first, then job: review/publication and terminal actions share this same fence.
+  const claimed = await db.$transaction(async tx => {
+    const orders = await tx.$queryRaw<Array<{ status: string; deliveryHoldReason: string | null; manualReviewRequired: boolean }>>`
+      SELECT status::text AS status, "deliveryHoldReason", "manualReviewRequired" FROM "Order" WHERE id=${orderId} FOR UPDATE`;
+    if (orders.length !== 1 || !['paid', 'generating'].includes(orders[0].status) || orders[0].deliveryHoldReason !== null || orders[0].manualReviewRequired)
+      return { count: 0 };
+    if (checkpoint.recovery && checkpoint.recovery.nextAt > start) return { count: 0 };
+    return tx.generationJob.updateMany({ where: { orderId, status: { in: ['pending', 'running'] },
+      currentStage: { notIn: ['done', 'failed', 'engine_site_accept', 'engine_site_review', 'engine_site_operator', 'engine_site_terminal'] },
+      OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: new Date(start) } }] },
+      data: { lockedBy: workerId, leaseExpiresAt: expiry, status: 'running', startedAt: new Date(start) } });
+  });
   if (claimed.count !== 1) return { kind: 'busy' as const };
   try {
     const freshJob = await db.generationJob.findUnique({ where: { orderId } });
@@ -152,7 +162,8 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
         await settleEngineCall(db, { authority, step, wireSha256, completed: saved.completed,
           estimatedMicroUsd: saved.result.estimatedMicroUsd, receiptSha256: valueHash(saved), privateResultAssetId: prior.resultAssetId });
         if (!prior.settled) { prior.settled = true; await persist(); }
-        if (!saved.completed || saved.result.estimatedMicroUsd === null) engineSiteFail('engine_worker_saved_result_unusable');
+        if (saved.result.estimatedMicroUsd === null) engineSiteFail('engine_worker_provider_cost_unknown');
+        if (!saved.completed) engineSiteFail('engine_worker_saved_result_unusable');
         await plan.admitSaved?.(saved.result);
         return saved.result as EngineProviderResult;
       }
@@ -204,6 +215,7 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
       await fence();
       checkpoint.calls[step].resultAssetId = privateResultAssetId;
       checkpoint.calls[step].settled = true; await persist();
+      if (answer.result.estimatedMicroUsd === null) engineSiteFail('engine_worker_provider_cost_unknown');
       if (!completed) engineSiteFail('engine_worker_provider_result_unusable');
       const meter = await inspectEngineOrderMeter(db, authority);
       if (meter.blocked) engineSiteFail('engine_worker_meter_blocked');
@@ -215,20 +227,33 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
     const current = await db.generationJob.findUnique({ where: { orderId } });
     if (!current || valueHash(parseCache(current.pipelineCache)) !== valueHash(checkpoint)) engineSiteFail('engine_worker_checkpoint_changed');
     await options.recipe(runtime); check();
+    if (checkpoint.recovery) { delete checkpoint.recovery; await persist(); }
     return { kind: 'progress' as const, phase: checkpoint.phase };
   } catch (error) {
     if (pause) return { kind: pause === 'long' ? 'long_step_required' as const : pause === 'pending' ? 'pending' as const : 'progress' as const,
       phase: checkpoint.phase, step: checkpoint.waiting?.step };
-    // UNKNOWN/full reserves remain intact. Final failure/refund/operator reconciliation is connected in M11.
+    const code = engineErrorCode(error);
+    if (engineOwnershipLost(error) || heartbeatFailure) return { kind: 'held' as const, code, terminalWritten: false };
+    const terminal = engineDeterministicFailure(error);
+    let terminalWritten = false;
     await engineLeaseWrite(db, orderId, workerId, async tx => {
-      await tx.order.update({ where: { id: orderId }, data: { status: 'needs_human_qa', manualReviewRequired: true,
-        deliveryHoldReason: 'engine_site_hold:worker_failed', lastError: 'engine_site_worker_held' } });
-      checkpoint.phase = 'held';
-      await tx.generationJob.update({ where: { orderId }, data: { status: 'failed', currentStage: 'failed',
-        failedAt: new Date(now()), retryable: false, lastError: 'engine_site_worker_held',
+      // An ambiguous paid call cannot be retried. Retain its reserve and park for an operator.
+      const unknownCall = Object.values(checkpoint.calls).some(c => !c.settled && !c.pendingId) || code === 'engine_worker_pending_deadline';
+      const failures = (checkpoint.recovery?.failures ?? 0) + 1;
+      const operator = !terminal && (unknownCall || failures >= ENGINE_INFRA_MAX_FAILURES);
+      checkpoint.recovery = { failures, nextAt: now() + ENGINE_INFRA_BACKOFF_MS[Math.min(failures, ENGINE_INFRA_MAX_FAILURES) - 1] };
+      if (terminal || operator) {
+        await tx.order.update({ where: { id: orderId }, data: { status: 'needs_human_qa', manualReviewRequired: true,
+          deliveryHoldReason: terminal ? 'engine_site_hold:worker_failed' : 'engine_site_hold:infrastructure', lastError: code } });
+        checkpoint.phase = terminal ? 'held' : 'operator';
+      }
+      await tx.generationJob.update({ where: { orderId }, data: { status: terminal ? 'failed' : 'running',
+        currentStage: terminal ? 'failed' : operator ? 'engine_site_operator' : checkpoint.waiting ? 'engine_site_long' : `engine_site_${checkpoint.phase}`,
+        failedAt: terminal ? new Date(now()) : null, retryable: !terminal && !operator, lastError: code,
         pipelineCache: { engineSite: checkpoint } as unknown as Prisma.InputJsonValue } });
+      terminalWritten = terminal;
     }, new Date(now())).catch(() => {});
-    return { kind: 'held' as const, code: error instanceof Error && /^engine_[a-z_]+$/.test(error.message) ? error.message : 'engine_worker_held' };
+    return { kind: 'held' as const, code, terminalWritten };
   } finally {
     clearInterval(heartbeat); controller.abort();
     await db.generationJob.updateMany({ where: { orderId, lockedBy: workerId },

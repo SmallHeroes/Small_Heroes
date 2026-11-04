@@ -1,0 +1,284 @@
+{
+  "head": "3185919b42c493b0f56c4d67867aef1fa1798a89",
+  "branch": "codex/engine-site-launch-20261104",
+  "status": "IMPLEMENTER_M13_DONE_AWAITING_OWNER_COMMIT_AND_INDEPENDENT_REGATE",
+  "costUsd": 0,
+  "providers": "synthetic_only",
+  "realIndexWrites": 0,
+  "realCommits": 0,
+  "serviceWrites": 0,
+  "typescript": {
+    "exitCode": 0,
+    "log": "typescript-final.log"
+  },
+  "focused": {
+    "exitCode": 0,
+    "filesPassed": 56,
+    "testsPassed": 1096,
+    "durationSeconds": 142.78,
+    "log": "focused-final.log",
+    "argumentsFile": "FOCUSED-TESTS.json"
+  },
+  "priorFocused": {
+    "exitCode": 0,
+    "filesPassed": 55,
+    "testsPassed": 1088,
+    "log": "focused.log"
+  },
+  "fullCheck": {
+    "exitCode": 1,
+    "reportOnly": true,
+    "log": "npm-check.log",
+    "performedBeforeFinalOneLineMockCorrection": true,
+    "ordinary": {
+      "filesFailed": 26,
+      "filesPassed": 474,
+      "filesSkipped": 21,
+      "testsFailed": 446,
+      "testsPassed": 8987,
+      "testsSkipped": 195
+    },
+    "resourceIntensive": {
+      "filesFailed": 4,
+      "filesPassed": 16,
+      "testsFailed": 8,
+      "testsPassed": 628
+    },
+    "diagnosticClasses": [
+      "test_timeout",
+      "on_task_update_rpc_timeout",
+      "signal_or_exit_failure"
+    ],
+    "newlyListedFailingSpecsComparedWithM12": [
+      "lib/__tests__/recovery-providers.spec.ts",
+      "lib/personal-wizard/__tests__/child-anchor-inspection.spec.ts"
+    ],
+    "engineSiteFailingSpecs": [],
+    "allFailingSpecs": [
+      "lib/__tests__/anthropic-model-authority.spec.ts",
+      "lib/__tests__/child-lexicon-ages-5-8.spec.ts",
+      "lib/__tests__/generate-image-cancellation.spec.ts",
+      "lib/__tests__/momentum-gate-koko.spec.ts",
+      "lib/__tests__/order-authority-guard.spec.ts",
+      "lib/__tests__/page-entity-qa.spec.ts",
+      "lib/__tests__/personal-plan-comparison.spec.ts",
+      "lib/__tests__/recovery-providers.spec.ts",
+      "lib/__tests__/story-read-back-validation.spec.ts",
+      "lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts",
+      "lib/__tests__/vitest-workload-classifier.spec.ts",
+      "lib/personal-wizard/__tests__/book-companion-trial.spec.ts",
+      "lib/personal-wizard/__tests__/child-anchor-inspection.spec.ts",
+      "lib/personal-wizard/__tests__/child-anchor-style.spec.ts",
+      "lib/personal-wizard/__tests__/fresh-book-driver.spec.ts",
+      "lib/personal-wizard/__tests__/fresh-book-recovery.spec.ts",
+      "lib/personal-wizard/__tests__/intake-live-client.spec.ts",
+      "lib/personal-wizard/__tests__/likeness-probe.spec.ts",
+      "lib/personal-wizard/__tests__/new-book-experiment.spec.ts",
+      "lib/personal-wizard/__tests__/prototype-boundary.spec.ts",
+      "lib/personal-wizard/__tests__/scale-probe.spec.ts",
+      "lib/personal-wizard/__tests__/simple-book-flow.spec.ts",
+      "lib/personal-wizard/__tests__/story-planning-trial.spec.ts",
+      "lib/personal-wizard/__tests__/storyboard-replan.spec.ts",
+      "lib/personal-wizard/__tests__/wizard-dad-book.spec.ts",
+      "lib/set-identity-board/__tests__/reserved-page-placement-authority.spec.ts",
+      "lib/visual-package/__tests__/canonical-pre-live-readiness.spec.ts",
+      "lib/visual-package/__tests__/live-execution-request-materialization.spec.ts",
+      "lib/visual-package/__tests__/live-request-verification.spec.ts",
+      "lib/visual-package/__tests__/openai-responses-blueprint-authoring-adapter.spec.ts"
+    ],
+    "newFailureDisposition": {
+      "lib/__tests__/recovery-providers.spec.ts": "Old synthetic query response lacked sale identity. One-line fixture correction retains strict verification; included in final focused green run.",
+      "lib/personal-wizard/__tests__/child-anchor-inspection.spec.ts": "Unchanged source; isolated run still 1 timeout and 33 passes. Unresolved broad-suite report-only limitation; no timeout increase or baseline-proof claim."
+    }
+  },
+  "isolatedBroadDiagnostic": {
+    "exitCode": 1,
+    "filesFailed": 1,
+    "testsFailed": 1,
+    "testsPassed": 33,
+    "reason": "5000ms timeout",
+    "log": "child-anchor-isolated.log"
+  },
+  "recovery": {
+    "simulationCasesPassed": 8,
+    "simulation": "RECOVERY-SIMULATION.json",
+    "actualInspectionRecord": "package-inspection.json",
+    "realStagedWhitespaceCheck": "NOT_RUN_BY_CODEX_EMPTY_REAL_INDEX; owner RECOVER gates after explicit stage"
+  },
+  "productionHotfix": {
+    "prepareOnly": true,
+    "applied": false,
+    "productionHead": "ed1da86cc114a767dc1086b71a30a4ef4595c097",
+    "syntheticCasesPassed": 9,
+    "readOnlyCopiedBaselineApplyCheck": true,
+    "artifact": "PROD-PAYME-HOTFIX.patch",
+    "patchSha256": "f8b341b6518a14112e9f238d53f1d863ee2e35458d509034c887bc160c59b698"
+  },
+  "proofLimits": [
+    "No live merchant query, exploit or actual project privilege observation.",
+    "No full positive production recipe/readmission composition; lifecycle fixtures inject admitted frames.",
+    "No Linux build/NFT trace/bundle-size or deployed desktop/mobile/infrastructure proof.",
+    "No real provider/model/voice access, product/visual acceptance, measured new-order book cost/runtime or independent PASS."
+  ],
+  "remainingP3": [
+    "Guy/lawyer retention/deletion policy then engineering implementation/proof.",
+    "Opaque hash path visible in signed redirect; persisted-key migration deferred.",
+    "Offline native-image-plan foundation remains unused by production; removal deferred."
+  ],
+  "qaR1ReportSha256": "9e1cf0de465934d84c2232783ab74aacf5d57ef5292d7db84ea0e17ff6a52e51",
+  "topologyRecord": {
+    "file": "topology-final.json",
+    "sha256": "2974914d5db8f7c55f710575b386b53427b8da3df12e8c05d532325f8725cf9e"
+  },
+  "invariants": "INVARIANTS.json",
+  "logHashes": {
+    "child-anchor-isolated.log": {
+      "bytes": 15480,
+      "sha256": "066c0366f096d9f9fc3de96b1b11c35bdbe7125f5ab9bf72daac9ad4b6289680"
+    },
+    "focused-candidate-2.log": {
+      "bytes": 72332,
+      "sha256": "c43247965222ba1a65cb4dc2eb87cc2dadd5c189b4daa5bcbd1c326c3a752df8"
+    },
+    "focused-candidate-3.log": {
+      "bytes": 80907,
+      "sha256": "34bb9b4ccbe484571c19cb8df4210e58e2e5b75ab3542ff7ce08783aa9b4b7a2"
+    },
+    "focused-development-full.log": {
+      "bytes": 72900,
+      "sha256": "7a9330f4062fa91b1ce1ab3cf7c1ce1b5e2dd97dfb60eb347e98fa123d05a586"
+    },
+    "focused-final.log": {
+      "bytes": 142646,
+      "sha256": "bf3fe583ea100f7416a9a6d83ad5c95211623367829f7fcd2cd023b2144def15"
+    },
+    "focused.log": {
+      "bytes": 71913,
+      "sha256": "a0527c703aa1e389dfeeec1a6ebc19861e70a278cc275fc55fb3ef7bb6d82d30"
+    },
+    "green-lifecycle-development.log": {
+      "bytes": 22764,
+      "sha256": "32ff68bbb94c2477cafc884d4154a7cb26ba57cbc5f0429e630cecdc9cfb857f"
+    },
+    "green-payment-initial.log": {
+      "bytes": 742,
+      "sha256": "5618cd9b5e8cec74f88edb1ff8e909725e8f8898fae2aba7fb9c4fdf583c5746"
+    },
+    "green-qa-development.log": {
+      "bytes": 6614,
+      "sha256": "8f816569cb92c3cbaf310c35f6b9f68051c36e8adb62cf637bd5b3abff830b46"
+    },
+    "npm-check.log": {
+      "bytes": 2146154,
+      "sha256": "f776c4e0863d8a0d162c8e71cac890a7f5e1ddd73f6b8b5687bd936d63ab666b"
+    },
+    "red-ambiguous-email-operator.log": {
+      "bytes": 12168,
+      "sha256": "b55db4efb932dae40c4375b0044cd537616831e312d69e1a6ace851f2f6d5d56"
+    },
+    "red-checkout-url.log": {
+      "bytes": 6176,
+      "sha256": "bafa46e13c99b3ccc64d0bf4db3001dd675a71fe2383fa3081bcfb149545eb9c"
+    },
+    "red-infrastructure-recovery.log": {
+      "bytes": 12996,
+      "sha256": "36cd1f51655a77d17446c24a034c12aa87edb6aa9501d86c0e84d4055f41b9fa"
+    },
+    "red-lifecycle.log": {
+      "bytes": 36414,
+      "sha256": "d32c3973014cb9ea576b6c06836124772d30fb784edc663c2a36f86ff96453ef"
+    },
+    "red-payment-capture.log": {
+      "bytes": 5808,
+      "sha256": "4cc60f9de2c961f93cdc08963f11bf4613c18b43146b0a42e090f2fdbd4cffe0"
+    },
+    "red-payment-races.log": {
+      "bytes": 15210,
+      "sha256": "e8d96cbd08b4443797fc355ac3285495e404c97774c959e1110eb8fa038d7ba1"
+    },
+    "red-payment.log": {
+      "bytes": 28304,
+      "sha256": "39d1e4182431e76cf18751876dd6b9baed19ac64a40eb95e189c53d753822a47"
+    },
+    "red-pdf-filename.log": {
+      "bytes": 4854,
+      "sha256": "7ab138d21fb0af09c3e8c55df93b640eaede9d442045905eff848e0a743b6869"
+    },
+    "red-photo-reader-real-path.log": {
+      "bytes": 15738,
+      "sha256": "69e713389876183fc9300adcaeb0df559336d0d961f3fc0ef4c5b47ef0decc27"
+    },
+    "red-photo-reader.log": {
+      "bytes": 11176,
+      "sha256": "0f2b3f6923e147adadc315f0545e3855831241edea5c3378b7744cff71785191"
+    },
+    "red-policy-cron-baseline-real-sql.log": {
+      "bytes": 4849,
+      "sha256": "3e9ad3cc6646250af18e5f7fc7fb180d0d123db0f50eddd3d0d33aea54d9a177"
+    },
+    "red-policy-cron-real-sql.log": {
+      "bytes": 9840,
+      "sha256": "3ef18b789f44476052e4cf831f99a54b56cc80ee9de0f82d937ebc9298b44127"
+    },
+    "red-policy-cron.log": {
+      "bytes": 9480,
+      "sha256": "139e52daa68984763c2fe76ba67e173e56011c291227c4bf931ec3be85c4c1db"
+    },
+    "red-private.log": {
+      "bytes": 9326,
+      "sha256": "14d2bb8a74ba5e387f66f8e765a6191d2419325676c115ec6adc0705daf249eb"
+    },
+    "red-raw-and-refunds.log": {
+      "bytes": 26632,
+      "sha256": "40bde18730bd6e3d094efcbc4f7155264be619b6ed1e76389fe18c2f9f63488f"
+    },
+    "red-raw-baseline-real-schema.log": {
+      "bytes": 4305,
+      "sha256": "47eb33d4b041eb607653e27b2bbd717b9976476609276eab3fcc42569d98351e"
+    },
+    "red-refund-fence-compat-real-path.log": {
+      "bytes": 7344,
+      "sha256": "85f55a780f751ddc12607391e3a47d8eee4f33d9d31584bd9f13ee11892518f9"
+    },
+    "red-refund-fence-compat.log": {
+      "bytes": 7452,
+      "sha256": "ac8e52198476c7319f0ec22d0e61cd1a1ed6200e57af2030466fb58073ae9ff8"
+    },
+    "red-runtime-excludes.log": {
+      "bytes": 3998,
+      "sha256": "13449bbbf9028924b37aaa3dfcb082025a4e96f43a3399b6612bf1e064175cc1"
+    },
+    "red-worker-backstop.log": {
+      "bytes": 7808,
+      "sha256": "3f881cc595253fe66646d23bc09bd776e59437c52ad68b61240faffd2a2298f4"
+    },
+    "red-worker-races.log": {
+      "bytes": 9146,
+      "sha256": "946bde5120779da3aa363103674074b36c34845e552229cedaa72d37c8ff77d2"
+    },
+    "typescript-candidate-2.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "typescript-candidate.log": {
+      "bytes": 408,
+      "sha256": "e73f4680d9f31be5c205910d89ccf4d66be4a70c161f97d48df6afc69f95a2be"
+    },
+    "typescript-development-2.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "typescript-development.log": {
+      "bytes": 7202,
+      "sha256": "c9b9a8eed1038c280b0ade3d3412b048f295059a740ae509f31409ef40cd7307"
+    },
+    "typescript-final.log": {
+      "bytes": 20,
+      "sha256": "66a726d35a926f4db04121e777c574999a62024e184076b69c5e4a3b7ba9d699"
+    },
+    "typescript.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

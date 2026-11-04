@@ -35,8 +35,8 @@ export function MobileBookPage({ page, isCurrent, immersive = false }: Props) {
           <div className={styles.mobileImmersiveText}>
             <div key={page.sceneId} className={styles.mobileOverlayProse} dir="rtl" data-reader-prose
               role="region" aria-label="טקסט הסיפור" tabIndex={isCurrent ? 0 : -1}>
-              {splitTextByRhythm(page.text).map((paragraph, i) => (
-                <p key={i} className={styles.sentence}>{paragraph}</p>
+              {(page.preserveStoredText ? [page.text] : splitTextByRhythm(page.text)).map((paragraph, i) => (
+                <p key={i} className={styles.sentence} style={page.preserveStoredText ? { whiteSpace: 'pre-wrap' } : undefined}>{paragraph}</p>
               ))}
             </div>
           </div>
@@ -61,8 +61,8 @@ export function MobileBookPage({ page, isCurrent, immersive = false }: Props) {
       />
       {page.showText && page.textPresentation === 'overlay' ? (
         <div className={styles.mobileTextOverlay}>
-          {splitIntoSentences(page.text).map((sentence, i) => (
-            <p key={i} className={styles.sentence}>
+          {(page.preserveStoredText ? [page.text] : splitIntoSentences(page.text)).map((sentence, i) => (
+            <p key={i} className={styles.sentence} style={page.preserveStoredText ? { whiteSpace: 'pre-wrap' } : undefined}>
               {sentence}
             </p>
           ))}
@@ -73,8 +73,8 @@ export function MobileBookPage({ page, isCurrent, immersive = false }: Props) {
         <div key={page.sceneId} className={styles.mobilePaperPanel} dir="rtl" data-reader-prose
           role="region" aria-label="טקסט הסיפור" tabIndex={isCurrent ? 0 : -1}>
           <div className={styles.mobilePaperProse}>
-            {splitIntoSentences(page.text).map((sentence, i) => (
-              <p key={i} className={styles.sentence}>
+            {(page.preserveStoredText ? [page.text] : splitIntoSentences(page.text)).map((sentence, i) => (
+              <p key={i} className={styles.sentence} style={page.preserveStoredText ? { whiteSpace: 'pre-wrap' } : undefined}>
                 {sentence}
               </p>
             ))}

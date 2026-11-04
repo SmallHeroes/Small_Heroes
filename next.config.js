@@ -61,10 +61,12 @@ const nextConfig = {
       '/api/generate/worker': ['./backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*', './story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/wizard/personal': [...STYLE01_COMPANION_SHEETS],
       '/': [...STYLE01_COMPANION_SHEETS],
-      '/api/engine-site/v1/**': [...STYLE01_COMPANION_SHEETS],
+      '/api/engine-site/v1/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
+      '/api/generate/cron/outbox': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
+      '/api/generate/cron/exceptions': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
       '/api/release/v1/generate/worker': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/release/v1/generate/resume': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES],
-      '/api/generate/cron/sweep': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/generate/cron/sweep': ['./backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*', './story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/generation/resume': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/runtime-authority-preflight': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/wizard-preorder-attestation': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
@@ -167,7 +169,7 @@ const nextConfig = {
     // companion source refs (CDN-served) + media/headless + Style02.
     for (const r of GENERATION_ROUTES) {
       excludes[r] = [
-        ...(r === '/api/generate/worker' ? [] : MEDIA),
+        ...(['/api/generate/worker','/api/generate/cron/sweep'].includes(r) ? [] : MEDIA),
         ...HEADLESS,
         ...COMPANIONS_SOURCE_JPGS,
         ...STYLE02,

@@ -37,7 +37,7 @@ function adapter(tx: Transaction) {
 const db = { $transaction: (work: (tx: ReturnType<typeof adapter>) => Promise<unknown>) => pg.transaction(tx => work(adapter(tx))) } as unknown as PrismaClient;
 beforeAll(async () => {
   vi.stubGlobal('fetch', () => { throw Error('network_forbidden'); });
-  pg = new PGlite(); await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE TABLE "WizardSession" (id text PRIMARY KEY,"sessionId" text UNIQUE,data jsonb); ALTER TABLE "WizardSession" ENABLE ROW LEVEL SECURITY; CREATE TABLE "Order" (id text PRIMARY KEY,"wizardSessionId" text UNIQUE REFERENCES "WizardSession"(id),data jsonb); CREATE SCHEMA storage; CREATE TABLE storage.objects (bucket_id text); ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY');
+  pg = new PGlite(); await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE TABLE "WizardSession" (id text PRIMARY KEY,"sessionId" text UNIQUE,data jsonb); ALTER TABLE "WizardSession" ENABLE ROW LEVEL SECURITY; CREATE TABLE "Order" (id text PRIMARY KEY,"wizardSessionId" text UNIQUE REFERENCES "WizardSession"(id),data jsonb); ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY; CREATE TABLE "GenerationJob"(id text PRIMARY KEY); ALTER TABLE "GenerationJob" ENABLE ROW LEVEL SECURITY; CREATE SCHEMA storage; CREATE TABLE storage.objects (bucket_id text); ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY');
 });
 beforeEach(async () => { await pg.exec('TRUNCATE "Order", "WizardSession"'); });
 afterAll(async () => { await pg.close(); vi.unstubAllGlobals(); });

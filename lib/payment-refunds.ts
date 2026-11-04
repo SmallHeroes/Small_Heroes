@@ -1,6 +1,7 @@
 import 'server-only';
 
 import Stripe from 'stripe';
+import { createHash } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
 import { queryPaymeSale, refundPaymeSale } from '@/lib/payme';
 import { isVercelProductionRuntime } from '@/lib/runtime-env';
@@ -29,6 +30,7 @@ export interface RefundableOrder {
 //   - 'confirmed'  — terminal success.
 export type RefundFenceStatus = 'requested' | 'dispatched' | 'pending' | 'confirmed';
 export interface RefundFenceRecord {
+  providerSaleId?: string;
   status: RefundFenceStatus;
   providerActionId: string | null;
 }
@@ -43,11 +45,11 @@ export interface RefundFence {
 
 /** Prisma-backed RefundFence (production). */
 export function prismaRefundFence(prisma: PrismaClient): RefundFence {
-  const toRecord = (r: { status: string; providerActionId: string | null } | null): RefundFenceRecord | null =>
-    r ? { status: r.status as RefundFenceStatus, providerActionId: r.providerActionId } : null;
+  const toRecord = (r: { status: string; providerActionId: string | null; providerSaleId: string } | null): RefundFenceRecord | null =>
+    r ? { status: r.status as RefundFenceStatus, providerActionId: r.providerActionId, providerSaleId: r.providerSaleId } : null;
   return {
     async lookup(refundKey) {
-      return toRecord(await prisma.refundAttempt.findUnique({ where: { refundKey }, select: { status: true, providerActionId: true } }));
+      return toRecord(await prisma.refundAttempt.findUnique({ where: { refundKey }, select: { status: true, providerActionId: true, providerSaleId: true } }));
     },
     async begin({ refundKey, provider, providerSaleId }) {
       try {
@@ -56,7 +58,7 @@ export function prismaRefundFence(prisma: PrismaClient): RefundFence {
       } catch (e) {
         // Unique violation → a concurrent attempt created it first. Never double-issue: report the prior record.
         if ((e as { code?: string }).code === 'P2002') {
-          return { heldFresh: false, record: toRecord(await prisma.refundAttempt.findUnique({ where: { refundKey }, select: { status: true, providerActionId: true } })) };
+          return { heldFresh: false, record: toRecord(await prisma.refundAttempt.findUnique({ where: { refundKey }, select: { status: true, providerActionId: true, providerSaleId: true } })) };
         }
         throw e;
       }
@@ -91,15 +93,19 @@ function stripe(): Stripe {
   return stripeClient;
 }
 
+export function personalSaleRefundKey(order: Pick<RefundableOrder, 'id' | 'paymeTransactionId' | 'paymentId'>) {
+  const sale = (order.paymeTransactionId || order.paymentId)?.trim();
+  if (!sale) throw Error('personal_refund_sale_required');
+  return `refund/personal-sale/${order.id}/${createHash('sha256').update(sale).digest('hex')}`;
+}
 export async function refundOrderPayment(
   order: RefundableOrder,
   refundKey: string,
   previousProviderActionId?: string | null,
   overrides: RefundProviderDeps = {},
 ): Promise<RefundResult> {
-  // A personal order may enter different operator/recovery scopes, but it has exactly one full-payment refund.
-  // Historical orders retain their existing case-scoped provider fence and idempotency behavior.
-  if (order.frozenProductVersion === 'engine-site/v1') refundKey = `refund/personal-order/${order.id}`;
+  // One fence per captured personal SALE, shared across all case scopes. Unexpected additional captures have their own liability.
+  if (order.frozenProductVersion === 'engine-site/v1') refundKey = personalSaleRefundKey(order);
   const provider = (order.paymentProvider || order.payment?.provider || '').trim().toLowerCase();
 
   if (provider === 'stripe') {
@@ -144,6 +150,14 @@ export async function refundOrderPayment(
     if (!fence) throw new Error('payme_refund_fence_required');
     const saleId = (order.paymeTransactionId || order.paymentId || '').trim();
     if (!saleId) throw new Error('PayMe sale id missing for refund');
+    // Preserve a prior order-wide M11 dispatch only when its durable sale id proves the same payment.
+    if (order.frozenProductVersion === 'engine-site/v1') {
+      const legacyKey = `refund/personal-order/${order.id}`, legacy = await fence.lookup(legacyKey);
+      if (legacy) {
+        if (!legacy.providerSaleId) throw Error('personal_legacy_refund_binding_unknown');
+        if (legacy.providerSaleId === saleId) refundKey = legacyKey;
+      }
+    }
 
     const confirmed = (actionId: string | null): RefundResult => ({ state: 'confirmed', provider, providerActionId: actionId ?? saleId });
     const pending = (actionId: string | null): RefundResult => ({ state: 'pending', provider, providerActionId: actionId ?? saleId });

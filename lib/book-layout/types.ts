@@ -47,6 +47,8 @@ export type StoryScene = {
   sceneId: string;
   kind: SceneKind;
   text: string;
+  /** Exact personal manuscript bytes, including niqqud and line breaks. */
+  preserveStoredText?: boolean;
   illustration: StorySceneIllustration;
   direction: StoryDirection;
   layout: SceneLayout;
@@ -77,6 +79,8 @@ export type DesktopSpread = {
   /** Right page (RTL): HTML text */
   textHtml: string;
   text: string;
+  /** Exact personal manuscript bytes, including niqqud and line breaks. */
+  preserveStoredText?: boolean;
   showText: boolean;
   textTreatment: TextTreatment;
   /** Left page: illustration */
@@ -97,6 +101,8 @@ export type MobilePage = {
   templateVersion: `${StoryDirection}-v1`;
   bookTitle: string;
   text: string;
+  /** Exact personal manuscript bytes, including niqqud and line breaks. */
+  preserveStoredText?: boolean;
   showText: boolean;
   textTreatment: TextTreatment;
   textPresentation: MobileTextPresentation;

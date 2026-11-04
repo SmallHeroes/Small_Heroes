@@ -324,6 +324,8 @@ export async function verifyPaymePayment(params: {
   paymentId?: string;
   transactionId?: string;
   orderId: string;
+  amountAgorot: number;
+  currency: string;
 }): Promise<{
   verified: boolean;
   status: 'paid' | 'failed' | 'pending' | 'unknown';
@@ -333,8 +335,9 @@ export async function verifyPaymePayment(params: {
   if (!cfg.apiBaseUrl || !cfg.apiKey) {
     return { verified: false, status: 'unknown', raw: null };
   }
-  const identifier = params.transactionId || params.paymentId;
-  if (!identifier) {
+  // Only the server-stored sale is authoritative. Never select proof from a browser transaction id.
+  const identifier = params.paymentId;
+  if (!identifier || !Number.isSafeInteger(params.amountAgorot) || params.amountAgorot <= 0 || params.currency !== 'ILS') {
     return { verified: false, status: 'unknown', raw: null };
   }
 
@@ -348,7 +351,7 @@ export async function verifyPaymePayment(params: {
       },
       body: JSON.stringify({
         seller_payme_id: cfg.apiKey,
-        payme_sale_id: identifier,
+        sale_payme_id: identifier,
       }),
     });
 
@@ -359,7 +362,13 @@ export async function verifyPaymePayment(params: {
 
     const root = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
     const items = Array.isArray(root.items) ? root.items : [];
-    const sale = (items.length > 0 && typeof items[0] === 'object') ? (items[0] as Record<string, unknown>) : root;
+    // An exact query must return exactly one independently bound item; no root/first-item fallback.
+    if (Number(root.status_code ?? 0) !== 0 || items.length !== 1 || !items[0] || typeof items[0] !== 'object')
+      return { verified: false, status: 'unknown', raw };
+    const sale = items[0] as Record<string, unknown>;
+    if (sale.sale_payme_id !== identifier || sale.transaction_id !== params.orderId ||
+        sale.sale_price !== params.amountAgorot || sale.sale_currency !== params.currency)
+      return { verified: false, status: 'unknown', raw };
     const rawStatus = (
       typeof sale.sale_status === 'string' ? sale.sale_status :
       typeof sale.status === 'string' ? sale.status : ''
@@ -412,9 +421,9 @@ export async function queryPaymeSale(
     throw new Error(`PayMe get-sales provider error:${String(raw?.status_error_code ?? 'unknown')}`);
   }
   const items = Array.isArray(raw.items) ? raw.items : [];
-  const sale = (items[0] && typeof items[0] === 'object')
-    ? items[0] as Record<string, unknown>
-    : raw;
+  if (items.length !== 1 || !items[0] || typeof items[0] !== 'object' || (items[0] as Record<string, unknown>).sale_payme_id !== paymeSaleId.trim())
+    throw Error('PayMe get-sales sale binding mismatch');
+  const sale = items[0] as Record<string, unknown>;
   const rawStatus = pickString(sale.sale_status)?.toLowerCase() ?? null;
   if (rawStatus === 'refunded') return { state: 'refunded', rawStatus };
   if (rawStatus === 'partial-refund') return { state: 'partial_refund', rawStatus };

@@ -45,6 +45,7 @@ export type LegacyBookPayload = {
 };
 
 export type AdaptBookInput = {
+  preserveStoredText?: boolean;
   book: LegacyBookPayload;
   storyDirection?: string | null;
   storyLength?: string | null;
@@ -76,7 +77,8 @@ function inferKind(page: LegacyBookPage): SceneKind {
 function legacyPageToScene(
   page: LegacyBookPage,
   sceneIndex: number,
-  direction: StoryDirection
+  direction: StoryDirection,
+  preserveStoredText = false
 ): StoryScene {
   const kind = inferKind(page);
   const layout: SceneLayout = page.layout ?? 'standard';
@@ -88,7 +90,8 @@ function legacyPageToScene(
     sceneIndex,
     sceneId: page.sceneId ?? `scene-${page.pageNumber}`,
     kind,
-    text: compactStoryText(formatHebrewForDisplay(page.text ?? '')),
+    text: preserveStoredText ? (page.text ?? '') : compactStoryText(formatHebrewForDisplay(page.text ?? '')),
+    ...(preserveStoredText ? { preserveStoredText: true } : {}),
     illustration: {
       imageUrl,
       aspect: illustrationAspect,
@@ -143,7 +146,7 @@ export function adaptLegacyBookToStoryScenes(input: AdaptBookInput): StoryScene[
 
   const direction = normalizeDirection(input.storyDirection, input.storyLength);
   const sorted = [...input.book.pages].sort((a, b) => a.pageNumber - b.pageNumber);
-  return sorted.map((page, i) => legacyPageToScene(page, i, direction));
+  return sorted.map((page, i) => legacyPageToScene(page, i, direction, input.preserveStoredText));
 }
 
 export function buildRenderedBookMeta(scenes: StoryScene[]): {

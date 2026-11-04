@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
 import { drainExceptionCases } from '@/lib/generation-chunked/exception-processor';
+import { engineFulfillmentEnabled } from '@/lib/engine-site/lifecycle-config';
 import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 
 export const runtime = 'nodejs';
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (!isReadinessManifestEnabled()) {
+  if (!isReadinessManifestEnabled() && !engineFulfillmentEnabled()) {
     return NextResponse.json({ skipped: 'readiness_manifest_disabled' });
   }
 

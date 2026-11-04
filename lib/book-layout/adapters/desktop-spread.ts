@@ -22,6 +22,7 @@ export function storySceneToDesktopSpread(
     templateVersion: `${scene.direction}-v1`,
     bookTitle,
     text: scene.text,
+    ...(scene.preserveStoredText ? { preserveStoredText: true } : {}),
     textHtml: scene.text,
     showText,
     textTreatment: scene.effectiveTextTreatment,

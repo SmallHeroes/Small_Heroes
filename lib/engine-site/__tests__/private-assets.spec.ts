@@ -89,6 +89,8 @@ describe('real Supabase SDK boundary, synthetic injected client', () => {
     expect(from).toHaveBeenCalledWith(ENGINE_PRIVATE_BUCKET);
     expect(upload).toHaveBeenCalledWith(key, expect.any(Buffer), { contentType: 'image/jpeg', upsert: false, cacheControl: '0' });
     expect(await privateStore.sign(key)).toContain('/object/sign/'); expect(sign).toHaveBeenCalledWith(key, 60);
+    await (privateStore.sign as any)(key, 'small-heroes-book.pdf');
+    expect(sign).toHaveBeenLastCalledWith(key,60,{download:'small-heroes-book.pdf'});
     await expect(privateStore.put('../escape', Buffer.from('x'), 'image/jpeg')).rejects.toThrow('key_invalid');
   });
 });

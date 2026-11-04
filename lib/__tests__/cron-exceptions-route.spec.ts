@@ -61,6 +61,14 @@ describe('cron/exceptions route', () => {
     expect(route.drainExceptionCases).not.toHaveBeenCalled();
   });
 
+  it('Q7 drains engine refund liabilities while only the engine fulfillment flag is on', async () => {
+    process.env.CRON_SECRET = 'secret'; vi.stubEnv('ENGINE_SITE_FULFILLMENT_ENABLED', 'true');
+    try {
+      const route = await load(false), res = await route.GET(req('Bearer secret'));
+      expect(res.status).toBe(200); expect(route.drainExceptionCases).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it('fails closed on missing or incorrect cron authentication', async () => {
     process.env.CRON_SECRET = 'secret';
     const route = await load();

@@ -30,6 +30,11 @@ export function runAfterResponse(work: () => Promise<void>): void {
 }
 
 async function failGenerationChain(orderId: string, message: string): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { frozenProductVersion: true } });
+  if (order?.frozenProductVersion === 'engine-site/v1') {
+    const { recordEngineInfrastructureFault } = await import('@/lib/engine-site/failure-policy');
+    await recordEngineInfrastructureFault(prisma, orderId, 'dispatch', Error('engine_dispatch_configuration_unavailable')); return;
+  }
   console.error(`[chunked-gen] ${message}`, { orderId });
   await prisma.generationJob
     .update({
@@ -83,7 +88,10 @@ export function resolveInternalWorkerBaseUrl(): InternalWorkerTarget | null {
 export function chainGenerationWorker(
   orderId: string,
   releaseContinuity?: GenerationReleaseContinuityV1,
+  options?: { delayMs: number },
 ): void {
+  const delayMs = options?.delayMs ?? 0;
+  if (!Number.isSafeInteger(delayMs) || delayMs < 0 || delayMs > 20_000) throw Error('engine_poll_delay_invalid');
   // Env-separation guard (0089 P0): refuse to fan out if a non-production runtime is pointed at a
   // production resource (prod domain / prod Supabase). Throws loudly — staging must never drive prod.
   assertEnvSeparation();
@@ -144,6 +152,7 @@ export function chainGenerationWorker(
   // extended (post-response) window via runAfterResponse — so the kick actually fires in serverless
   // instead of being dropped when the route returns (the dispatch-stranding root cause).
   runAfterResponse(async () => {
+    if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
     // Stamp the kick attempt (so a hung/failed chain is visible) — awaited, inside the durable window.
     await recordChainDiagnostic(orderId, { lastWorkerKickAt: new Date(), lastChainError: null });
     try {

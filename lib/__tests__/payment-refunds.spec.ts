@@ -48,6 +48,21 @@ function stripeRefund(
 }
 
 describe('refundOrderPayment', () => {
+  it('Q10 preserves an existing M11 personal-order refund dispatch when moving to sale-specific fences',async()=>{
+    const f=fakeFence({'refund/personal-order/order_1':{status:'pending',providerActionId:'old_action',providerSaleId:'primary_sale'} as any});
+    const refund=vi.fn(async()=>({state:'refunded' as const,providerActionId:'unexpected_second_refund'}));
+    const result=await refundOrderPayment(order({frozenProductVersion:'engine-site/v1',paymentProvider:'payme',paymeTransactionId:'primary_sale'}),'case/new',null,{
+      refundFence:f.fence,queryPaymeSale:async()=>({state:'paid',rawStatus:'paid'}),refundPaymeSale:refund});
+    expect(result.state).toBe('pending');expect(refund).not.toHaveBeenCalled();
+  });
+  it('Q10 refunds two distinct captured personal sales independently while deduping each sale across cases', async () => {
+    const f = fakeFence(), refund = vi.fn(async (_sale: string) => ({ state: 'refunded' as const, providerActionId: 'synthetic_refund' }));
+    const deps = { refundFence: f.fence, queryPaymeSale: vi.fn(async () => ({ state: 'paid' as const, rawStatus: 'paid' })), refundPaymeSale: refund };
+    for (const sale of ['primary_sale', 'extra_sale', 'extra_sale']) await refundOrderPayment(order({ frozenProductVersion: 'engine-site/v1',
+      paymentProvider: 'payme', paymeTransactionId: sale, stripePaymentId: null }), `case/${sale}`, null, deps);
+    expect(refund).toHaveBeenCalledTimes(2);
+    expect(refund.mock.calls.map(c => c[0])).toEqual(['primary_sale', 'extra_sale']);
+  });
   it('reuses an existing tagged Stripe refund instead of creating another', async () => {
     const existing = stripeRefund({
       metadata: { orderId: 'order_1', recovery: 'exception_case' },

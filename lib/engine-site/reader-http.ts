@@ -34,7 +34,7 @@ export async function handleEngineBookRead(req: NextRequest, orderId: string, po
     const bytes = await verifyEngineBookAsset(ports.db, storage, context, match.ref, match.kind);
     if (!ports.proxyBytes) {
       const asset = await loadEnginePrivateAsset(ports.db, match.ref.assetId);
-      return new NextResponse(null, { status: 307, headers: { ...headers, Location: await storage.sign(asset.key) } });
+      return new NextResponse(null, { status: 307, headers: { ...headers, Location: await storage.sign(asset.key, match.kind === 'pdf' ? 'small-heroes-book.pdf' : undefined) } });
     }
     const range = localReaderByteRange(req.headers.get('range'), bytes.length);
     if (range === 'unsatisfiable') return new NextResponse(null, { status: 416, headers: { ...headers, 'Content-Range': `bytes */${bytes.length}` } });

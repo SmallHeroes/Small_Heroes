@@ -1,3 +1,4 @@
+import { engineFulfillmentEnabled } from '@/lib/engine-site/lifecycle-config';
 import { prisma } from '@/lib/prisma';
 import { chainGenerationWorker } from './chain-worker';
 import { getMaxStaleReclaims } from './constants';
@@ -51,7 +52,7 @@ export async function sweepStaleGenerationJobs(
     where: {
       ...(options?.orderId ? { orderId: options.orderId } : {}),
       status: { in: ['pending', 'running'] },
-      currentStage: { notIn: ['done', 'failed', 'engine_site_long', 'engine_site_review'] },
+      currentStage: { notIn: ['done', 'failed', 'engine_site_review', 'engine_site_accept', 'engine_site_operator', 'engine_site_terminal'] },
       OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: now } }],
     },
     orderBy: { updatedAt: 'asc' },
@@ -93,6 +94,13 @@ export async function sweepStaleGenerationJobs(
       !Array.isArray(job.pipelineCache)
         ? (job.pipelineCache as Record<string, unknown>)
         : null;
+    if (job.order?.frozenProductVersion?.startsWith('engine-site/')) {
+      if (job.order.frozenProductVersion !== 'engine-site/v1' || options?.releaseProtocol || !engineFulfillmentEnabled()) continue;
+      const { reconcileEngineGeneration } = await import('@/lib/engine-site/generation-backstop');
+      const result = await reconcileEngineGeneration(prisma, job.orderId, now);
+      if (result.status === 'dispatch') { chainGenerationWorker(job.orderId); processed += 1; }
+      continue; // NEVER the legacy reclaim counter, photo deletion or terminal writer.
+    }
     let releaseContinuity: GenerationReleaseContinuityV1 | undefined;
     if (options?.releaseProtocol === RELEASE_V1_PROTOCOL) {
       if (!orderSnapshot) {

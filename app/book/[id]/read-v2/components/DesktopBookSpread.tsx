@@ -31,7 +31,7 @@ type Props = {
 export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props) {
   const template = getDirectionTemplate(spread.direction);
   const cssVars = { ...tokensToCssVars(), ...templateCssVars(template), ...openBookLayoutCssVars() };
-  const lines = splitTextByRhythm(spread.text);
+  const lines = spread.preserveStoredText ? [spread.text] : splitTextByRhythm(spread.text);
   const isWide = spread.isWide;
 
   if (isWide) {
@@ -61,7 +61,7 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
           {spread.showText && spread.textTreatment === 'overlay' ? (
             <div className={styles.wideTextOverlay}>
               {lines.map((line, i) => (
-                <p key={i} className={styles.proseLine}>
+                <p key={i} className={styles.proseLine} style={spread.preserveStoredText ? { whiteSpace: 'pre-wrap' } : undefined}>
                   {line}
                 </p>
               ))}

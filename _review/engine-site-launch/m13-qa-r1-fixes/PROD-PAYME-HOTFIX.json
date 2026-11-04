@@ -1,0 +1,22 @@
+{
+  "productionRef": "origin/main",
+  "productionHead": "ed1da86cc114a767dc1086b71a30a4ef4595c097",
+  "branchHead": "3185919b42c493b0f56c4d67867aef1fa1798a89",
+  "prepareOnly": true,
+  "liveApplication": false,
+  "files": [
+    "lib/payme.ts",
+    "app/api/payme/return/route.ts"
+  ],
+  "patchSha256": "f8b341b6518a14112e9f238d53f1d863ee2e35458d509034c887bc160c59b698",
+  "baselineBlobs": {
+    "lib/payme.ts": "bdbced3a85081a744a7d830917679cd2bb8c477716dd27d04f6b841485708f17",
+    "app/api/payme/return/route.ts": "0e5e1bc3a62212780b1a680a407bfbf9a1bd8c5a7e27f45a509a38e94122ad03"
+  },
+  "plannedBlobs": {
+    "lib/payme.ts": "bfdfe4500f208d3ca4b0b06c515ed0ffd0fec7f42af414befbf7c0f60ae34c7d",
+    "app/api/payme/return/route.ts": "fe55552dae73cea213288e1eb1356fea4e790b616d485b782cf9950a6d0c51a8"
+  },
+  "verifierSha256": "aea5988eefe31763b1f1bdb181b4abd4d92ba05358cee5cb83db209f60fab12d",
+  "copiedBaselineDryRunExit": 0
+}

@@ -32,7 +32,7 @@ export async function runProductionPersonalWorker(db: PrismaClient, orderId: str
     } });
   // The paid worker lease is released before free acceptance/publication takes its Order/policy locks.
   if (engineFulfillmentEnabled()) {
-    if (result.kind === 'held') await failEngineOrder(db, orderId, result.code);
+    if (result.kind === 'held' && result.terminalWritten) await failEngineOrder(db, orderId, result.code);
     else if (result.kind === 'progress' && result.phase === 'accept') await reconcileEngineBook(db, orderId, { storage, origin: engineSiteOrigin() });
   }
   return result;

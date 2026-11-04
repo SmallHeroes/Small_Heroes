@@ -21,6 +21,12 @@ const schema = z.object({ answer: z.string() }).strict();
 const body = { model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' },
   instructions: 'Synthetic only', input: 'Synthetic data', max_output_tokens: 12000, text: { format: { type: 'json_object' } } };
 describe('new production provider seams, no live provider or environment credential', () => {
+  it.each([429, 503, 200])('Q2 preserves the original background id on a transient poll HTTP%s / bad JSON', async status => {
+    const fetch = vi.fn(async () => new Response('temporary-unparseable', { status }));
+    const plan = prepareEngineResponse(allowed(), 'page_0_0_qa', body, x => x, ports(fetch));
+    expect(await plan.execute('resp_synthetic', new AbortController().signal, fence)).toMatchObject({ kind: 'pending', id: 'resp_synthetic' });
+    expect(fetch.mock.calls).toHaveLength(1);
+  });
   it('labels a canonical private JPEG photo correctly and never changes its bytes for a vision request', async () => {
     const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#123456' } }).jpeg().toBuffer();
     expect(engineImageDataUrl(photo)).toBe(`data:image/jpeg;base64,${photo.toString('base64')}`);

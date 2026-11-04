@@ -286,6 +286,7 @@ export default function ReaderV2({
               title: data.book?.title,
               storyScenes: data.book?.storyScenes,
             },
+            preserveStoredText: source.kind === 'engine_order',
             storyDirection: data.storyDirection,
             storyLength: data.storyLength,
           }),
@@ -781,8 +782,8 @@ export default function ReaderV2({
       return (
         <article className={`${styles.pageCanvas} ${styles.tplTextOnly}`}>
           <div className={styles.textOnlyPaper}>
-            {splitIntoSentences(scene.text).map((sentence, i) => (
-              <p key={i} className={`${styles.paperPageText} ${styles.sentence}`}>
+            {(scene.preserveStoredText ? [scene.text] : splitIntoSentences(scene.text)).map((sentence, i) => (
+              <p key={i} className={`${styles.paperPageText} ${styles.sentence}`} style={scene.preserveStoredText ? { whiteSpace: 'pre-wrap' } : undefined}>
                 {sentence}
               </p>
             ))}

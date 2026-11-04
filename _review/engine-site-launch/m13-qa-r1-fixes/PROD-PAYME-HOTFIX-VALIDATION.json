@@ -1,0 +1,43 @@
+{
+  "mode": "synthetic VM transports and copied-baseline dry-run only",
+  "productionHead": "ed1da86cc114a767dc1086b71a30a4ef4595c097",
+  "passed": 9,
+  "results": [
+    {
+      "name": "exact",
+      "passed": true
+    },
+    {
+      "name": "foreign_sale",
+      "passed": true
+    },
+    {
+      "name": "foreign_order",
+      "passed": true
+    },
+    {
+      "name": "amount",
+      "passed": true
+    },
+    {
+      "name": "currency",
+      "passed": true
+    },
+    {
+      "name": "root_fallback",
+      "passed": true
+    },
+    {
+      "name": "duplicates",
+      "passed": true
+    },
+    {
+      "name": "production_return_ignores_query",
+      "passed": true
+    },
+    {
+      "name": "production_return_refuses_foreign_proof",
+      "passed": true
+    }
+  ]
+}

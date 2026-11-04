@@ -42,6 +42,8 @@ import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { createLogger } from '@/lib/logger';
 import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
+import { engineExceptionRefundSale } from '@/lib/engine-site/extra-payment';
+import { personalSaleRefundKey } from '@/lib/payment-refunds';
 import { ENGINE_BOOK_SCOPE } from '@/lib/engine-site/lifecycle-config';
 
 const log = createLogger({ subsystem: 'exception-processor' });
@@ -338,8 +340,15 @@ async function handleSendAmbiguous(
   const firstAttemptAt = row.firstSendAttemptAt;
   const ageMs = firstAttemptAt ? now.getTime() - firstAttemptAt.getTime() : Number.POSITIVE_INFINITY;
   if (!providerMessageId) {
-    if (row.scope === ENGINE_BOOK_SCOPE && !await deps.personalDeliveryAllowed?.(prisma, exceptionCase.orderId))
+    if (row.scope === ENGINE_BOOK_SCOPE && !await deps.personalDeliveryAllowed?.(prisma, exceptionCase.orderId)) {
+      if (ageMs >= idempotencyWindowMs()) {
+        const moved = await transitionExceptionCase(prisma, { caseId: exceptionCase.id, claimVersion: exceptionCase.claimVersion,
+          fromStatus: exceptionCase.status, toStatus: 'open', nextActionAt: null, reason: 'engine_email_ambiguous_operator_required',
+          resolution: { ...resolutionOf(exceptionCase.resolution), operatorRequired: true, reason: 'expired_dedup_window_gate_closed' }, now });
+        return moved ? 'operator_required' : 'lost_lease';
+      }
       return retryLater(prisma, exceptionCase, 'engine_delivery_gate_held_no_replay', now);
+    }
     if (ageMs >= idempotencyWindowMs() || hashPayload(row.payload) !== row.payloadHash) {
       return moveToRefund(prisma, exceptionCase, 'send_ambiguous_not_replay_safe', now);
     }
@@ -457,6 +466,9 @@ async function handleRefund(
     return retryLater(prisma, exceptionCase, 'refund_order_missing', now, 'order_missing');
   }
 
+  // Extra capture liabilities retain the original Order payment binding and refund only their proven sale.
+  const provenSale = order.frozenProductVersion === 'engine-site/v1' ? await engineExceptionRefundSale(prisma, exceptionCase) : null;
+  if (provenSale) { order.paymeTransactionId = provenSale; order.paymentId = provenSale; }
   const prior = resolutionOf(exceptionCase.resolution);
   let providerActionId = exceptionCase.providerActionId;
   let refundConfirmed = prior.refundConfirmed === true;
@@ -546,7 +558,8 @@ async function handleRefund(
           to: order.customerEmail,
           customerName: order.customerName || order.childName,
           childName: order.childName,
-          idempotencyKey: `refund-notice/${exceptionCase.id}`,
+          idempotencyKey: order.frozenProductVersion === 'engine-site/v1'
+            ? personalSaleRefundKey(order).replace(/^refund\//, 'refund-notice/') : `refund-notice/${exceptionCase.id}`,
         });
     return resolveCase(
       prisma,
@@ -760,6 +773,7 @@ async function handleRecoveryRetry(
 }
 
 export type ExceptionProcessOutcome =
+  | 'operator_required'
   | 'resolved'
   | 'retry_scheduled'
   | 'refund_pending'
@@ -780,6 +794,8 @@ export async function processExceptionCase(
     attempts: exceptionCase.attempts,
   });
 
+  if (exceptionCase.scope === ENGINE_BOOK_SCOPE && exceptionCase.kind === 'send_ambiguous' && resolutionOf(exceptionCase.resolution).operatorRequired === true)
+    return 'operator_required';
   if (exceptionCase.status === 'refund_pending') {
     return handleRefund(prisma, exceptionCase, deps, now);
   }
@@ -846,6 +862,7 @@ export async function syncTerminalExceptionCases(
         order: {
           status: 'failed',
           visualPackageAuthority: { equals: Prisma.DbNull },
+          OR: [{ frozenProductVersion: null }, { frozenProductVersion: { not: { startsWith: 'engine-site/' } } }],
         },
       },
       select: {
@@ -856,6 +873,7 @@ export async function syncTerminalExceptionCases(
         updatedAt: true,
         order: {
           select: {
+            frozenProductVersion: true,
             selectionFilename: true,
             visualPackageAuthority: true,
           },
@@ -866,6 +884,7 @@ export async function syncTerminalExceptionCases(
     }),
   ]);
   const legacyFailedJobs = failedJobs.filter((job) => {
+    if (job.order?.frozenProductVersion?.startsWith('engine-site/')) return false;
     try {
       return !orderRequiresVisualPackageAuthority(job.order);
     } catch {
@@ -933,6 +952,7 @@ export type ExceptionDrainSummary = {
   claimed: number;
   resolved: number;
   retry_scheduled: number;
+  operator_required: number;
   refund_pending: number;
   lost_lease: number;
 };
@@ -951,6 +971,7 @@ export async function drainExceptionCases(
     claimed: rows.length,
     resolved: 0,
     retry_scheduled: 0,
+    operator_required: 0,
     refund_pending: 0,
     lost_lease: 0,
   };

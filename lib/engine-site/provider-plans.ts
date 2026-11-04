@@ -106,10 +106,17 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
     async execute(pendingId, signal, assertDispatch) {
       if (pendingId && !/^resp_[A-Za-z0-9_-]+$/.test(pendingId)) engineSiteFail('engine_response_id_invalid');
       await assertDispatch();
-      const response = await ports.fetch(pendingId ? `${wire.endpoint}/${encodeURIComponent(pendingId)}` : wire.endpoint, {
+      let response: Response, raw: any;
+      try {
+      response = await ports.fetch(pendingId ? `${wire.endpoint}/${encodeURIComponent(pendingId)}` : wire.endpoint, {
         method: pendingId ? 'GET' : 'POST', redirect: 'error', headers: { Authorization: `Bearer ${ports.openAIKey()}`, 'content-type': 'application/json' },
         ...(pendingId ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]) });
-      const raw = await jsonResponse(response);
+      if (pendingId && (response.status === 429 || response.status >= 500)) return { kind: 'pending', id: pendingId, raw: { transientPoll: true, status: response.status } };
+      raw = await jsonResponse(response);
+      } catch (error) {
+        if (pendingId && !signal.aborted) return { kind: 'pending', id: pendingId, raw: { transientPoll: true } };
+        throw error;
+      }
       if (response.ok && /^resp_[A-Za-z0-9_-]+$/.test(raw.id) && (!pendingId || raw.id === pendingId) && ['queued', 'in_progress'].includes(raw.status))
         return { kind: 'pending', id: raw.id, raw };
       const cost = raw.model === body.model && raw.service_tier === 'default'

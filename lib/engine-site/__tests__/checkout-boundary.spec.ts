@@ -35,6 +35,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('actual checkout handler — new SKU cannot inherit bank pricing/add-ons/fake fallback', () => {
+  it('Q10 persists the canonical checkout URL so retries work even when the provider raw URL is relative or absent',async()=>{
+    expect((await handleCheckoutPost(request(),{routeProtocol:'legacy-route'})).status).toBe(200);
+    const stored=mocks.updateMany.mock.calls.find(([arg])=>arg.data.status==='pending_payment')![0].data;
+    mocks.findUnique.mockResolvedValueOnce({...order(),...stored,checkoutAttemptToken:'previous_attempt'});
+    const again=await handleCheckoutPost(request(),{routeProtocol:'legacy-route'});
+    expect(again.status).toBe(200);expect(await again.json()).toMatchObject({url:'https://payme.example.invalid/pay',paymentId:'synthetic_sale'});
+    expect(mocks.payme).toHaveBeenCalledTimes(1);
+  });
+  it('Q10 never demotes a webhook-paid order while generate-sale was in flight', async () => {
+    mocks.updateMany.mockResolvedValueOnce({count:1}).mockResolvedValueOnce({count:0});
+    mocks.findUnique.mockResolvedValueOnce(order()).mockResolvedValueOnce({...order(),status:'paid',paymentId:'synthetic_sale'});
+    const response=await handleCheckoutPost(request(),{routeProtocol:'legacy-route'});
+    expect(mocks.update).not.toHaveBeenCalled();expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({url:'https://app.example.invalid/personal/orders/synthetic_order'});
+  });
+  it('Q10 reuses an existing personal sale after the checkout lease expires, without a second generate-sale', async () => {
+    mocks.findUnique.mockResolvedValueOnce({ ...order(), status: 'pending_payment', paymentProvider: 'payme', paymentId: 'sale_existing',
+      checkoutAttemptAt: new Date(Date.now() - 180_000), paymeMetadata: { sale_url: 'https://payme.example.invalid/existing' } });
+    const response = await handleCheckoutPost(request(), { routeProtocol: 'legacy-route' });
+    expect(await response.json()).toMatchObject({ paymentId: 'sale_existing', url: 'https://payme.example.invalid/existing' });
+    expect(mocks.payme).not.toHaveBeenCalled();
+  });
   it('requires the authenticated owner before taking a checkout lease', async () => {
     for (const parent of [null, { user: { id: 'foreign_parent' } }]) {
       mocks.parent.mockResolvedValueOnce(parent);
@@ -48,7 +70,7 @@ describe('actual checkout handler — new SKU cannot inherit bank pricing/add-on
     expect(mocks.payme).toHaveBeenCalledWith(expect.objectContaining({ amountAgorot: 5900, currency: 'ILS' }));
     const description = mocks.payme.mock.calls[0][0].description as string;
     expect(description).toContain('8'); expect(description).toContain('כלולים'); expect(description).not.toContain('תוספות:');
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ totalPrice: 5900, addonsPrice: 0 }) }));
+    expect(mocks.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ totalPrice: 5900, addonsPrice: 0 }) }));
     expect(mocks.reserveCoupon).not.toHaveBeenCalled();
   });
 

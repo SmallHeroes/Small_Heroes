@@ -9,7 +9,10 @@ import {
   parsePaymeWebhookPayload,
   resolvePaymeConfig,
   verifyPaymeSignature,
+  verifyPaymePayment,
 } from '@/lib/payme';
+import { isEngineSiteOrder } from '@/lib/engine-site/offer';
+import { recordEngineUnexpectedCapture } from '@/lib/engine-site/extra-payment';
 import { env } from '@/lib/env';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
@@ -131,7 +134,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const observed = await prisma.order.findUnique({ where: { id: parsed.orderId! }, select: { id: true, totalPrice: true, frozenProductVersion: true } });
+    if (observed && isEngineSiteOrder(observed)) {
+      const verified = await verifyPaymePayment({ orderId: observed.id, paymentId: parsed.transactionId!, amountAgorot: observed.totalPrice, currency: 'ILS' });
+      if (!verified.verified || verified.status !== 'paid') return NextResponse.json({ received: false, reason: 'payment_proof_unavailable' }, { status: 503 });
+    }
     const shouldTriggerGeneration = await prisma.$transaction(async (tx) => {
+      // The same Order lock serializes primary adoption, extra captures and checkout persistence.
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${parsed.orderId!} FOR UPDATE`;
       await tx.paymeWebhookEvent.create({
         data: {
           paymeTransactionId: parsed.transactionId as string,
@@ -148,6 +158,7 @@ export async function POST(req: NextRequest) {
           paymeTransactionId: true,
           paymentId: true,
           totalPrice: true,
+          frozenProductVersion: true,
         },
       });
       if (!order) {
@@ -158,6 +169,17 @@ export async function POST(req: NextRequest) {
         return false;
       }
 
+      if (isEngineSiteOrder(order)) {
+        // Recheck the frozen amount/version after the outside HTTP proof and under the Order lock.
+        if (!observed || order.totalPrice !== observed.totalPrice || order.frozenProductVersion !== observed.frozenProductVersion)
+          throw Error('engine_payment_order_changed');
+        const primary = order.paymeTransactionId || order.paymentId;
+        if (order.status === 'failed' || primary && primary !== parsed.transactionId) {
+          await recordEngineUnexpectedCapture(tx, order, parsed.transactionId!, order.status === 'failed' && primary === parsed.transactionId);
+          return false;
+        }
+      }
+      if (order.status === 'failed') return false;
       if (order.status === 'generating' || order.status === 'ready' || order.status === 'partial' || order.status === 'needs_human_qa') {
         return false;
       }
@@ -167,7 +189,7 @@ export async function POST(req: NextRequest) {
       // back to 'paid'. The WHERE is re-checked atomically at write time (Postgres READ COMMITTED
       // re-evaluates it after a concurrent commit), so only a pre-paid order transitions.
       const paidTransition = await tx.order.updateMany({
-        where: { id: order.id, status: { in: ['draft', 'pending_payment', 'failed'] } },
+        where: { id: order.id, status: { in: ['draft', 'pending_payment'] } },
         data: {
           status: 'paid',
           paymentProvider: 'payme',

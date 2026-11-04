@@ -24,10 +24,13 @@ type AssetDb = Pick<Prisma.TransactionClient, 'wizardSession' | '$queryRaw'>;
 /** Session JSON contains child data. Public Data API roles must have no table privileges before any new write/read. */
 export async function assertEnginePrivateDatabase(db: Pick<Prisma.TransactionClient, '$queryRaw'>) {
   const rows = await db.$queryRaw<Array<{ safe: boolean }>>`
-    SELECT c.relrowsecurity AND NOT (
-      has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE') OR
-      has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE')) AS safe
-    FROM pg_class c WHERE c.oid = '"WizardSession"'::regclass`;
+    SELECT count(*) = 3 AND bool_and(c.relrowsecurity AND NOT (
+      has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR
+      has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR
+      has_any_column_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,REFERENCES') OR
+      has_any_column_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))) AS safe
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname IN ('WizardSession', 'Order', 'GenerationJob')`;
   if (rows.length !== 1 || rows[0].safe !== true) engineSiteFail('engine_private_database_required');
 }
 /** A restrictive policy remains effective even if a pre-existing permissive policy covers every bucket. */

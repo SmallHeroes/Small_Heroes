@@ -327,6 +327,10 @@ const ENGINE_AUTHORITY_WRITERS: Record<string, { signatures: readonly string[]; 
     'generationJob.update[currentStage,pipelineCache]',
     'generationJob.update[currentStage,failedAt,lastError,pipelineCache,retryable,status]',
   ], guards: ['async function engineLeaseWrite', 'jobs[0].lockedBy !== workerId', "['paid', 'generating'].includes(orders[0].status)", 'FOR UPDATE', 'engineLeaseWrite(db, orderId, workerId'] },
+  'lib/engine-site/generation-backstop.ts': { signatures: [
+    'generationJob.update[currentStage,failedAt,lastError,leaseExpiresAt,lockedBy,pipelineCache,retryable,status]',
+  ], guards: ['await lockEngineOrder(tx, orderId)', 'FOR UPDATE', 'job.lockedBy && job.leaseExpiresAt',
+    'assertEnginePolicyCurrent(checkpoint.authority)', "checkpoint.phase = 'held'", 'await failEngineOrder(db, orderId, outcome.reason)'] },
   'lib/engine-site/fulfillment.ts': { signatures: [
     'generationJob.update[audioDone,completedAt,currentStage,imagesDone,packaged,pipelineCache,status,textDone]',
   ], guards: ['await currentBinding(tx, c)', 'readEngineLaunchPolicy(tx, true)', 'deliveryFenceVersion: fence', 'evidenceSchema.parse',

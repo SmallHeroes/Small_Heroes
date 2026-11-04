@@ -715,6 +715,7 @@ export async function claimDueExceptionCases(
        SELECT "id"
          FROM "ExceptionCase"
          WHERE "status" IN ('open', 'retry_scheduled', 'customer_action', 'refund_pending')
+            AND NOT ("scope"='engine_site_book' AND "kind"='send_ambiguous' AND COALESCE("resolution"->>'operatorRequired','false')='true')
            AND ("nextActionAt" IS NULL OR "nextActionAt" <= ${now})
            AND ("leaseExpiresAt" IS NULL OR "leaseExpiresAt" < ${now})
            AND NOT EXISTS (

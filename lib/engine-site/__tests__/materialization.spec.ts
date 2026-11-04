@@ -84,7 +84,8 @@ describe('private nine-scene book/narration/PDF materialization (synthetic provi
     const published = { ...s.ports, familyReady: async () => true };
     const response = await handleEngineBookRead(req(), 'synthetic_order', published), payload = await response.json();
     expect(payload.book.pages).toHaveLength(9); expect(payload.book.pages[0].audioUrl).toContain('/assets/');
-    expect(JSON.stringify(payload)).not.toMatch(/b64|request-id|candidate|receipt|bucket|synthetic-tts/);
+    // A random opaque UUID may contain the hex substring b64. Check forbidden fields, not arbitrary id fragments.
+    expect(JSON.stringify(payload)).not.toMatch(/"(?:b64|candidate|receipt|bucket)"\s*:|request-id|synthetic-tts/);
     const partial = await handleEngineBookRead(req('', { range: 'bytes=10-29' }), 'synthetic_order', published, c.book.pages[0].audio.assetId);
     expect(partial.status).toBe(206); expect(Buffer.from(await partial.arrayBuffer())).toEqual(audio.subarray(10, 30));
     expect((await handleEngineBookRead(req('', { range: 'bytes=99999999-' }), 'synthetic_order', published, c.book.pages[0].audio.assetId)).status).toBe(416);

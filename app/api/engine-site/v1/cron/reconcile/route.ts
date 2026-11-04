@@ -20,9 +20,14 @@ export async function GET(req: NextRequest) {
         id => startChunkedGeneration(id, 'engine_paid_job_reconcile', { skipWorkerChain: true }), chainGenerationWorker)] });
     } catch { return NextResponse.json({ processed: 0, results: [{ status: 'operator_reconciliation_required' }] }); }
   }
-  const jobs = await prisma.generationJob.findMany({ where: { currentStage: { in: ['engine_site_accept', 'engine_site_review', 'failed'] },
-    order: { frozenProductVersion: 'engine-site/v1', status: { in: ['generating', 'needs_human_qa', 'failed'] } },
-    OR: [{ lockedBy: null }, { leaseExpiresAt: { lt: new Date() } }] }, orderBy: { updatedAt: 'asc' }, take: 1, select: { orderId: true } });
+  // Unsent done jobs must be revisited after a policy change; successful deliveries never re-enter the launch gate.
+  const jobs = await prisma.$queryRaw<Array<{ orderId: string }>>`
+    SELECT j."orderId" FROM "GenerationJob" j JOIN "Order" o ON o.id=j."orderId"
+    WHERE o."frozenProductVersion"='engine-site/v1' AND o.status::text IN ('generating','needs_human_qa','failed','ready')
+      AND j."currentStage" IN ('engine_site_accept','engine_site_review','failed','done')
+      AND (j."lockedBy" IS NULL OR j."leaseExpiresAt" < now())
+      AND NOT EXISTS (SELECT 1 FROM "DeliveryOutbox" d WHERE d."orderId"=o.id AND d.scope='engine_site_book' AND d.status='sent')
+    ORDER BY j."updatedAt" ASC LIMIT 1`;
   const results = [];
   for (const job of jobs) {
     try { results.push(await reconcileEngineBook(prisma, job.orderId, { storage: productionEnginePrivateStorage(), origin: engineSiteOrigin() })); }

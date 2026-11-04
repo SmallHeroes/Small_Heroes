@@ -58,7 +58,7 @@ describe('recovery provider contracts', () => {
     vi.stubEnv('PAYME_API_KEY', 'seller_1');
     const fetchImpl = vi.fn(async () => response({
       status_code: 0,
-      items: [{ sale_status: 'refunded' }],
+      items: [{ sale_payme_id: 'sale_1', sale_status: 'refunded' }],
     }));
 
     await expect(queryPaymeSale('sale_1', fetchImpl))

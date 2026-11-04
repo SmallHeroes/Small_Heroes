@@ -293,6 +293,19 @@ export async function handleCheckoutPost(
       return NextResponse.json({ error: 'Order already has payment' }, { status: 409 });
     }
 
+    // One personal Order has one sale for its lifetime. A retry reuses its provider page;
+    // a lost generate-sale answer remains operator-reconcilable instead of minting another charge.
+    if (engineSitePricing && order.paymentId) {
+      const metadata = order.paymeMetadata as { sale_url?: unknown; checkoutUrl?: unknown } | null;
+      const storedUrl = metadata?.checkoutUrl ?? metadata?.sale_url;
+      let url: URL | null = null; try { if (typeof storedUrl === 'string') url = new URL(storedUrl); } catch { /* Hold, never mint another sale. */ }
+      if (order.paymentProvider !== 'payme' || !url || url.protocol !== 'https:' || url.origin === new URL(appUrl).origin)
+        return NextResponse.json({ error: 'engine_checkout_sale_reconciliation_required' }, { status: 409 });
+      return NextResponse.json({ url: url.href, paymentProvider: 'payme', paymentId: order.paymentId, checkoutId: order.paymentId, provider: 'payme' });
+    }
+    if (engineSitePricing && order.checkoutAttemptToken)
+      return NextResponse.json({ error: 'engine_checkout_sale_reconciliation_required' }, { status: 409 });
+
     // ── (LB#1b) CHECKOUT-ATTEMPT CAS — the atomic owner claim ────────────────────────────────────────
     // The status read above is a point-in-time snapshot: two concurrent checkouts on ONE order both saw
     // draft/pending_payment and both proceeded — the second REUSING the first's order-keyed coupon hold —
@@ -310,6 +323,7 @@ export async function handleCheckoutPost(
         id: order.id,
         status: { in: ['draft', 'pending_payment'] },
         ...(releaseV1 ? releaseV1AuthorityCasWhere(order) : {}),
+        ...(engineSitePricing ? { paymentId: null, checkoutAttemptToken: null } : {}),
         OR: [
           { checkoutAttemptToken: null },
           { checkoutAttemptAt: null },
@@ -506,10 +520,29 @@ export async function handleCheckoutPost(
       throw e;
     }
 
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: 'pending_payment',
+    if (engineSitePricing) {
+      if (!paymeCheckout.checkoutId) throw Error('engine_checkout_sale_reconciliation_required');
+      const stored = await prisma.order.updateMany({ where: { id: orderId, checkoutAttemptToken: attemptToken,
+        status: { in: ['draft','pending_payment'] }, OR: [{ paymentId: null }, { paymentId: paymeCheckout.checkoutId }] }, data: {
+        status: 'pending_payment' as const,
+        paymentProvider: 'payme',
+        paymentId: paymeCheckout.checkoutId ?? null,
+        paymeMetadata: { version: 'engine-site-payme-checkout/v1', saleId: paymeCheckout.checkoutId, checkoutUrl },
+        basePrice: basePriceAgorot,
+        addonsPrice: addonsPriceAgorot,
+        totalPrice: totalPriceAgorot,
+        couponCode: couponApplied?.code ?? null,
+        couponDiscountPercent: couponApplied?.discountPercent ?? null,
+        couponDiscountAgorot: couponApplied?.discountAgorot ?? null,
+      } });
+      if (stored.count !== 1) {
+        const current = await prisma.order.findUnique({ where: { id: orderId } });
+        if (current?.paymentId === paymeCheckout.checkoutId && ['paid','generating','ready','needs_human_qa'].includes(current.status))
+          return NextResponse.json({ url: `${appUrl}/personal/orders/${encodeURIComponent(orderId)}`, paymentProvider: 'payme', paymentId: current.paymentId });
+        return NextResponse.json({ error: 'engine_checkout_sale_reconciliation_required' }, { status: 409 });
+      }
+    } else await prisma.order.update({ where: { id: orderId }, data: {
+        status: 'pending_payment' as const,
         paymentProvider: 'payme',
         paymentId: paymeCheckout.checkoutId ?? null,
         paymeMetadata: paymeCheckout.raw as object,
@@ -519,8 +552,7 @@ export async function handleCheckoutPost(
         couponCode: couponApplied?.code ?? null,
         couponDiscountPercent: couponApplied?.discountPercent ?? null,
         couponDiscountAgorot: couponApplied?.discountAgorot ?? null,
-      },
-    });
+      } });
     logger.info('PayMe checkout created', {
       orderId,
       checkoutId: paymeCheckout.checkoutId ?? null,

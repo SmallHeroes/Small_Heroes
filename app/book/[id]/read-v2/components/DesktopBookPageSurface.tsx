@@ -87,8 +87,8 @@ export function DesktopBookPageSideSurface({
           role={textureOnly ? undefined : 'region'} aria-label="טקסט הסיפור"
           tabIndex={isCurrent && !textureOnly ? 0 : -1}>
           <div className={`${styles.proseBody} ${styles.storyText}`}>
-            {splitIntoSentences(spread.text).map((sentence, index) => (
-              <p key={index} className={styles.sentence}>
+            {(spread.preserveStoredText ? [spread.text] : splitIntoSentences(spread.text)).map((sentence, index) => (
+              <p key={index} className={styles.sentence} style={spread.preserveStoredText ? { whiteSpace: 'pre-wrap' } : undefined}>
                 {sentence}
               </p>
             ))}

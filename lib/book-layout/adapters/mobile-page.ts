@@ -38,6 +38,7 @@ export function storySceneToMobilePage(scene: StoryScene, bookTitle: string): Mo
     templateVersion: `${scene.direction}-v1`,
     bookTitle,
     text: scene.text,
+    ...(scene.preserveStoredText ? { preserveStoredText: true } : {}),
     showText,
     textTreatment: scene.effectiveTextTreatment,
     textPresentation,

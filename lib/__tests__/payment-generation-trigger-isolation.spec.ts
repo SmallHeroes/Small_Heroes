@@ -19,7 +19,7 @@ const { triggerGeneration, $transaction } = vi.hoisted(() => ({
 // triggerGeneration is imported by the webhook via the relative '../../generate/trigger'; vitest resolves
 // that and the '@/' alias to the same module id, so this mock intercepts the real call site.
 vi.mock('@/app/api/generate/trigger', () => ({ triggerGeneration }));
-vi.mock('@/lib/prisma', () => ({ prisma: { $transaction }, Prisma: {} }));
+vi.mock('@/lib/prisma', () => ({ prisma: { $transaction, order: { findUnique: vi.fn(async () => ({ id: 'order_1', frozenProductVersion: null, totalPrice: 5900, status: 'draft' })) } }, Prisma: {} }));
 vi.mock('@/lib/env', () => ({ env: { PAYMENT_PROVIDER: 'payme' } }));
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),

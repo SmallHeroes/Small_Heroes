@@ -1,6 +1,7 @@
 import 'server-only';
 import type { PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
+import { auditionPageReviewSchemaForContext } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { engineSiteFail } from './contract';
 import { createEngineNativeRecipe } from './native-recipe';
@@ -80,11 +81,29 @@ export async function admitEngineBookEvidence(db: PrismaClient, storage: EngineP
       if (!image.usable || image.model !== 'gpt-image-2' || typeof rawImage.data?.[0]?.b64_json !== 'string' ||
           rawImage.data[0].b64_json !== output.b64 || assetBytesSha256(Buffer.from(output.b64, 'base64')) !== attempt.candidate.imageSha ||
           auditionUsageCost(rawImage.usage, 'image') !== image.estimatedMicroUsd) engineSiteFail('engine_readmission_image_changed');
-      const qa = await result(`${step}_${attempt.reviewReask ? 'qa2' : 'qa'}`), rawQa = qa.raw as any;
+      const qaStep = `${step}_${attempt.reviewReask ? 'qa2' : 'qa'}`;
+      const qa = await result(qaStep), rawQa = qa.raw as any;
+      const claim = checkpoint.calls[qaStep], request = await readJson(claim.requestAssetId);
+      if (request.authoritySha256 !== canonicalHash(checkpoint.authority) || request.call?.step !== qaStep ||
+          canonicalHash(request.wire) !== claim.wireSha256 || request.call.wireSha256 !== claim.wireSha256)
+        engineSiteFail('engine_readmission_review_wire_changed');
+      const content = request.wire?.body?.input?.[0]?.content;
+      let judged: any;
+      try { judged = JSON.parse(content.find((part: any) => part.type === 'input_text').text); }
+      catch { engineSiteFail('engine_readmission_review_wire_changed'); }
+      if (judged.contextSha !== page.contextSha || judged.candidateSha !== attempt.candidate.imageSha)
+        engineSiteFail('engine_readmission_review_wire_changed');
+      const reviewSchema = auditionPageReviewSchemaForContext(judged.context);
+      let parsedRaw: unknown, parsedOutput: unknown;
+      try { parsedRaw = reviewSchema.parse(JSON.parse(engineResponseText(rawQa))); parsedOutput = reviewSchema.parse(qa.output); }
+      catch { engineSiteFail('engine_readmission_review_changed'); }
       if (!qa.usable || rawQa.model !== 'gpt-6.1-sol' || rawQa.service_tier !== 'default' || rawQa.status !== 'completed' ||
-          canonicalHash(JSON.parse(engineResponseText(rawQa))) !== canonicalHash(attempt.review) ||
-          canonicalHash(qa.output) !== canonicalHash(attempt.review) || auditionUsageCost(rawQa.usage, 'sol') !== qa.estimatedMicroUsd)
+          canonicalHash(parsedRaw) !== canonicalHash(attempt.review) ||
+          canonicalHash(parsedOutput) !== canonicalHash(attempt.review) || auditionUsageCost(rawQa.usage, 'sol') !== qa.estimatedMicroUsd)
         engineSiteFail('engine_readmission_review_changed');
+      // The real producer reconstruction above re-derived this assessment through the unchanged engine resume rule.
+      if (attempt.status === 'identity_unusable') engineSiteFail('engine_readmission_identity_changed');
+      if (attempt.assessment?.safetyBlocked || attempt.assessment?.invalidCitations) continue;
       const measured = await result(`${step}_identity`), raw = measured.raw as any;
       const candidateUrl = `data:image/png;base64,${output.b64}`;
       const body = planPageChildResemblanceVisionRequest(childUrl, candidateUrl, 'gpt-4o');
