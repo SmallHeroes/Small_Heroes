@@ -10,6 +10,8 @@ export const ANTHROPIC_MODEL_AUTHORITY_VERSION =
   'small-heroes-anthropic-model-authority/2026-08-22' as const;
 
 export const ANTHROPIC_STORY_MODEL_DEFAULT = 'claude-opus-4-5' as const;
+/** Guy approved the current personal engine's Opus author design through Anthropic API, 2026-11-04. */
+export const ANTHROPIC_PERSONAL_AUTHOR_MODEL = 'claude-opus-5-5' as const;
 export const ANTHROPIC_SUPPORT_MODEL_DEFAULT = 'claude-sonnet-4-6' as const;
 export const ANTHROPIC_VISION_MODEL_DEFAULT = 'claude-sonnet-4-6' as const;
 export const ANTHROPIC_PATCH_MODEL_DEFAULT = 'claude-haiku-4-5-20251001' as const;
@@ -17,6 +19,7 @@ export const ANTHROPIC_PATCH_MODEL_DEFAULT = 'claude-haiku-4-5-20251001' as cons
 /** Active IDs/aliases intentionally used by checked-in runtime or tooling defaults. */
 export const ANTHROPIC_AUTHORIZED_HARDCODED_MODEL_IDS = [
   ANTHROPIC_STORY_MODEL_DEFAULT,
+  ANTHROPIC_PERSONAL_AUTHOR_MODEL,
   ANTHROPIC_SUPPORT_MODEL_DEFAULT,
   ANTHROPIC_VISION_MODEL_DEFAULT,
   ANTHROPIC_PATCH_MODEL_DEFAULT,
