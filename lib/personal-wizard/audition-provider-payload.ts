@@ -38,4 +38,3 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
         : auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
 }
-
