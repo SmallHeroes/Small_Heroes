@@ -1,15 +1,16 @@
 # SmallHeroes — Quality Gates
 
-## Launch-specific owner decisions (2026-11-04)
+## FINAL launch-specific owner decisions (2026-11-04, round 3)
 
-For the engine-site launch, Guy supersedes older bank/HIGH wording below: newly written personal stories, cover + eight story pages, MEDIUM customer images, LOW tests, no HIGH. Resemblance stays 0.70. Only detail findings are nonblocking; missing/malformed/misbound evidence and material/safety findings do not pass.
+The launch SKU is 59 ILS including cover + eight story pages, narration and PDF, no add-ons/coupons. NEW live-written personal stories only; bank stories are retired for new orders. Customer illustrations use gpt-image-2 LOW from explicit order authority and request planning/revalidation. This supersedes the prior LOW-tests/MEDIUM-customer policy. HIGH is excluded; paid MEDIUM measurement is cancelled, and no launch path selects MEDIUM.
 
-There is one automatic acceptance/delivery path. Initially an explicit launch operator gate requires approve/reject bound to authenticated actor, server UTC time and exact ordered book-content digest. Gate-off removes only that extra review requirement; automated acceptance, payment/readiness/revocation fences and explicit rejection still apply. Changed content invalidates prior approval. Gate changes must be bound at readiness/send time. See _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md for the Decision Gate and required runtime proofs.
+Identity remains0.70. Attempt ceilings, review/identity gates and detail-nonblocking semantics are unchanged. Budget exhaustion/UNKNOWN stops and routes through existing operator/refund handling; it never lowers quality, omits deliverables or skips gates. Private photos/assets are required before launch.
 
-The launch SKU is 49 ILS including narration and PDF. No image-only fallback may satisfy that entitlement. Anthropic API/current Opus design is approved; actual paid calls, measured MEDIUM budget adequacy and live activation remain separate gates. Current text deadlines may not be shortened to fit a serverless invocation.
+One automatic acceptance/readiness/delivery path has an initially required switchable operator gate. Approve/reject records authenticated actor, server UTC time, policy and exact ordered content digest. Off never bypasses automated HOLD or explicit rejection. Changed bytes invalidate approval; final send rechecks/binds policy/audit to the delivery fence.
 
-Independent technical PASS remains Claude Code's role; product/visual/launch GO remains Guy's. USD0 synthetic evidence does not authorize or prove live provider, payment, database, email or production behavior. No change to existing historical acceptance/accounting evidence is authorized.
+User's per-commit gates are node node_modules/typescript/bin/tsc --noEmit plus relevant focused node node_modules/vitest/vitest.mjs run. npm run check must be logged/reported, but known pre-existing failures are not a hard gate. npx must not be used through this junction. Recovery scripts use explicit paths, temporarily set ErrorActionPreference=Continue around native calls and inspect LASTEXITCODE. Guy verifies/commits each frozen package; lack of sandbox index access does not block implementation.
 
+Independent technical PASS remains Claude Code's role, on Guy's request. Product/visual/release acceptance remains Guy's. No paid calls, real keys/.env reads, production/Supabase writes, push/merge/deploy or other-worktree edit are authorized. Checkout stays default-off until the entire personal order/private asset/worker/reader/PDF/acceptance/delivery/refund integration exists.
 
 **Effective:** 2026-07-22
 **Technical owner:** Codex

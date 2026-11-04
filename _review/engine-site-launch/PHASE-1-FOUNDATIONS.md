@@ -1,16 +1,18 @@
 STATUS: PHASE-1-FOUNDATIONS BLOCKED
 HEAD: 6a223a287913d0d5acb5693cf2ff280dd576e34f
-Summary 1/5: Five local implementation slices are present: authority/gate, durable meter/audit, checkout/bank refusal, MEDIUM wire, and Anthropic/cost/runtime seams.
+Summary 1/5: Five local implementation slices are present: authority/gate, durable meter/audit, checkout/bank refusal, LOW wire, and Anthropic/cost/runtime seams.
 Summary 2/5: Final TypeScript exits 0; final focused suite passes 232/232 in 14 files, including 128 new tests and actual local SQL/HTTP-adapter seams.
 Summary 3/5: Full repository stability is HOLD; it failed before the final checkout/API changes and has environment, fixture, Git-history and reporter limitations.
 Summary 4/5: Git staging is blocked by linked .git permissions; nothing is staged/committed/pushed, so an immutable independent commit review is still unavailable.
 Summary 5/5: Customer checkout remains OFF; wizard-to-personal-order, full durable worker, private production assets, reader/PDF and fulfillment are not yet connected.
 
-Decisions Guy must make: separately approved measurement/spend and per-order/global caps, any cost changes needed at 49 ILS, delivery/refund promise, legal/company/mailbox items, later gate-disable and release GO. Already closed: eight story pages, 49 ILS including narration/PDF, Anthropic API/current Opus author design, existing job scheduler with justified long-step executor. No key or paid GO requested/used here.
+Current policy (Guy round 3): 59 ILS inclusive, customer LOW, no HIGH; paid MEDIUM measurement cancelled. This historical foundation report predates M06. The original foundation evidence is preserved in Git at 8bc0c92d; use m06-launch-policy/REPORT.md for the new policy implementation and later milestone reports for integration state. Full npm check is reported/nonblocking under Guy's round-3 instructions; Node-direct TypeScript and focused Vitest are the per-commit gates.
+
+Decisions Guy must make: separately approved measurement/spend and per-order/global caps, any cost changes needed at 59 ILS, delivery/refund promise, legal/company/mailbox items, later gate-disable and release GO. Already closed: eight story pages, 59 ILS including narration/PDF, Anthropic API/current Opus author design, existing job scheduler with justified long-step executor. No key or paid GO requested/used here.
 
 ## M1 — order contract and launch review gate
 
-Implemented `lib/engine-site/contract.ts` and `delivery-gate.ts` with strict server-owned order/policy/offer/budget fields, customer MEDIUM/test LOW separation, exact ordered nine-frame digest, and promised audio/PDF requirements. HIGH, unknown fields and other lengths/engines are rejected. No caller-supplied bank filename or unversioned visual approval is accepted by these contracts.
+Implemented `lib/engine-site/contract.ts` and `delivery-gate.ts` with strict server-owned order/policy/offer/budget fields, customer LOW/test LOW separation, exact ordered nine-frame digest, and promised audio/PDF requirements. HIGH, unknown fields and other lengths/engines are rejected. No caller-supplied bank filename or unversioned visual approval is accepted by these contracts.
 
 Acceptance is a projection of the **existing** native `attemptStatus`, including identity 0.70 and detail nonblocking. It assumes the server caller has already admitted raw review, exact bytes, references and scale through the engine. It is not a new pixel judge or a raw-evidence attestation. The future producer must supply prerequisite holds; empty caller-supplied prerequisites are not public authority. Diagnostic auditions are not promoted to production by this module.
 
@@ -26,17 +28,17 @@ The claim nonce is stable within the existing receipt helper's transaction retry
 
 PGlite executes the actual tagged SQL and existing receipt helper, including rollback, JSONB/unique keys, simultaneous queued calls and simulated P2028 after commit. This is local in-memory PostgreSQL semantics, **not** independent connections, Supavisor or production concurrency proof.
 
-## M3 — 49 ILS checkout bridge and retired-bank fallback refusal
+## M3 — 59 ILS checkout bridge and retired-bank fallback refusal
 
-`offer.ts` defines one inclusive SKU (4900 agorot, eight story pages, audio and PDF, no video/add-ons/discounts). The **actual** checkout handler selects this immutable personal protocol before legacy price computation, refuses mismatch/missing entitlement/unknown version and has a default-off `ENGINE_SITE_CHECKOUT_ENABLED` guard. It sends/stores 4900, labels audio/PDF included, blocks coupon/fake authority and does not fall back to fake payment on PayMe failure. Existing historical checkout pricing remains unchanged and its focused money/fake/release tests pass.
+`offer.ts` defines one inclusive SKU (5900 agorot, eight story pages, audio and PDF, no video/add-ons/discounts). The **actual** checkout handler selects this immutable personal protocol before legacy price computation, refuses mismatch/missing entitlement/unknown version and has a default-off `ENGINE_SITE_CHECKOUT_ENABLED` guard. It sends/stores 5900, labels audio/PDF included, blocks coupon/fake authority and does not fall back to fake payment on PayMe failure. Existing historical checkout pricing remains unchanged and its focused money/fake/release tests pass.
 
 `startChunkedGeneration` and `processGenerationChunk` refuse the personal namespace before bank job creation or bank content generation. This is deliberate safe incompleteness until the personal worker is connected. **Do not enable the checkout flag yet.** An enabled checkout bridge is not evidence that a book can be fulfilled. No personal order route or wizard CTA was enabled in this milestone.
 
-## M4 — exact MEDIUM request boundary
+## M4 — exact LOW request boundary
 
-`native-image-plan.ts` builds through the actual common `planGPTImageRequest` with explicit gpt-image-2/MEDIUM, fixed retry-zero behavior and ordered exact reference bytes. It accepts only native-v1 page slots and current reference modes/roles; no v2 upgrade, model/quality override, reference truncation or injected key is accepted. It binds the assembled body and reference hashes into the meter call. Revalidation immediately before future dispatch reconstructs a fresh byte copy and rejects prompt/body/reference/model/quality/reserve/source/key drift.
+`native-image-plan.ts` builds through the actual common `planGPTImageRequest` with explicit gpt-image-2/LOW, fixed retry-zero behavior and ordered exact reference bytes. It accepts only native-v1 page slots and current reference modes/roles; no v2 upgrade, model/quality override, reference truncation or injected key is accepted. It binds the assembled body and reference hashes into the meter call. Revalidation immediately before future dispatch reconstructs a fresh byte copy and rejects prompt/body/reference/model/quality/reserve/source/key drift.
 
-This is a provider-free planner, not an active native MEDIUM render transport or qualified MEDIUM reserve model. Historical LOW planner, receipts, manifests, policy and paid evidence were not changed. The step's amount comes from a separately admitted policy; no default paid cap is minted.
+This is a provider-free planner, not an active native LOW render transport or qualified LOW reserve model. Historical LOW planner, receipts, manifests, policy and paid evidence were not changed. The step's amount comes from a separately admitted policy; no default paid cap is minted.
 
 ## M5 — approved Anthropic author API and cost/runtime analysis
 
@@ -69,4 +71,4 @@ The scene-preservation branch independently advanced from 6a223a28 to `ddc08c52b
 
 Git refused `Small_Heroes/.git/worktrees/sh-engine-site-launch/index.lock` at **staging**, so the requested staged fallback is also unavailable. There is no new commit and no immutable base-to-new-head range yet. `SOURCE-AND-EVIDENCE.json`, `FOUNDATIONS.patch`, commit-message files and `RECOVER-LOCAL-COMMITS.ps1` make the exact local work reviewable/recoverable without broad staging. The script requires a green full gate before code commits and never pushes. It is supplied for a commit-capable environment; it was not executed here.
 
-Next implementation milestone after the source freeze/review boundary: personal wizard/order intake with one inclusive SKU and private uploads; per-stage durable executor/checkpoints and long-step lease; native MEDIUM transport/receipt validation; production reader/audio/PDF materialization; same acceptance/audit token in readiness/outbox/send-time CAS; failure/refund integration. Then separately approved actual LOW/MEDIUM evidence, independent re-gate, approved staging and launch decisions. This foundation milestone does not complete that end-to-end objective.
+Next implementation milestone after the source freeze/review boundary: personal wizard/order intake with one inclusive SKU and private uploads; per-stage durable executor/checkpoints and long-step lease; native LOW transport/receipt validation; production reader/audio/PDF materialization; same acceptance/audit token in readiness/outbox/send-time CAS; failure/refund integration. Then separately approved actual LOW/LOW evidence, independent re-gate, approved staging and launch decisions. This foundation milestone does not complete that end-to-end objective.

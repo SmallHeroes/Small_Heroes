@@ -1,14 +1,12 @@
 # SmallHeroes — Roadmap
 
-## Engine-to-site launch plan supersedes bank rollout for new orders (2026-11-04)
+## Engine-to-site launch ? final scope (2026-11-04)
 
-- Guy sets launch at 2026-11-30, with story + separately approved LOW sample target November 11-13. Launch book: cover + eight story pages; longer lengths after November 30. NEW live-written personal story only; 18 bank stories retired for new orders.
-- Customer quality MEDIUM (never HIGH); LOW test-only; identity 0.70 unchanged; detail findings nonblocking. Automated delivery is the target; initially enabled, switchable and audited operator review sits above the same automatic acceptance/delivery path.
-- Active dedicated branch/worktree: codex/engine-site-launch-20261104 at C:/GNart/Work/sh-engine-site-launch, base 6a223a28. Full Decision Gate, runtime map, risks and dated schedule: _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md.
-- Local foundations now cover contracts, acceptance/review audit, receipt meter, MEDIUM wire, default-off 49 ILS checkout and metered Anthropic API. Guy approved the inclusive 49 ILS SKU and current Opus design through Anthropic API. Focused 232/232 and TypeScript pass; full check/commit/independent gates remain HOLD.
-- Next: immutable foundation commit/review -> personal-order/private-upload intake and durable long-step worker -> production reader/PDF/readiness/outbox/refunds -> separately approved LOW/MEDIUM measurements -> approved staging/independent QA -> Guy launch GO. Current text deadlines exceed 300s; MEDIUM margin at 49 ILS is unproven. No paid/production activation or merge/push/deploy authorized now.
-- Historical bank-based milestones/deferrals below do not override this owner's November 4 decision. Existing paid books, grants and receipts are preserved.
-
+- FINAL owner policy: 59 ILS inclusive, cover + eight story pages + narration + PDF; no add-ons/coupons. Customer gpt-image-2 LOW, no HIGH; paid MEDIUM measurement cancelled. Identity0.70 and existing attempts/review gates unchanged. New live-written engine only; bank retired for new orders. Launch2026-11-30.
+- Foundation commits recovered through8bc0c92d. M06 reconciles final offer/quality and LOW costs, then Phase1 continues in order: wizard/personal orders -> private uploads -> personal durable worker/long steps -> reader/narration/PDF -> acceptance/operator gate/readiness/delivery/refunds. Checkout remains default-off throughout incomplete integration.
+- Keep existing durable jobs/leases/meter. Long steps retain plan780s/author380s/editor860s; do not shrink story caps. Authenticated launch operator review is initially enabled on the automatic path and can be disabled with audit.
+- Node-direct TypeScript + focused Vitest gate each recovery package. Full npm check is recorded/nonblocking under Guy's explicit instructions. Guy verifies/commits; Codex does not need index access to continue. No provider/key/env/prod write, push/merge/deploy or other-worktree edit.
+- Plan, economics and per-milestone evidence are under _review/engine-site-launch/. The owner-supplied book-r15e LOW observation is the new cost anchor; USD10 total-order cap is proposed, not paid permission.
 
 ## R2 independent PASS received; exact operator/envelope review next, spend still blocked (2026-11-02)
 

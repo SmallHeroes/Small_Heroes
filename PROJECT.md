@@ -1,13 +1,12 @@
 # SmallHeroes — Project
 
-## Binding launch direction (Guy, 2026-11-04)
+## Binding FINAL launch direction (Guy, 2026-11-04, round 3)
 
-For NEW orders, the product is the live-written personal story engine, not the 18 pre-authored bank stories (retired by Guy). Launch offer: 49 ILS including book, narration and PDF, no add-ons. Production author/editor uses Anthropic API with the same Opus design and existing durable jobs; long-step execution must honor current timeouts. Initial format: cover + eight story pages, customer illustrations at MEDIUM only, LOW for tests, never HIGH for customers. Child resemblance remains 0.70. Fine-detail findings are recorded and nonblocking.
+NEW orders use the live-written personal engine, not the retired 18-story bank. Launch offer: 59 ILS (5900 agorot) including cover + eight story pages, narration and PDF, no add-ons/coupons. Longer books follow after November30. One client-safe offer definition owns price and launch quality; customer image quality is explicit LOW on each order/image plan. MEDIUM may remain a future typed value but is not selected; its paid measurement is cancelled. HIGH stays excluded. Identity0.70 and existing attempts/review/identity gates are unchanged; detail remains nonblocking.
 
-The delivery target is automatic acceptance and fulfillment. An explicit switchable launch review gate initially requires Guy/operator approve/reject, recording actor, server time and exact book-byte manifest digest. It sits on the automatic path; disabling it preserves automatic quality/payment/delivery fences. Longer books follow after 2026-11-30. Launch plan: _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md.
+Production author/editor uses Anthropic API/current Opus design and existing durable jobs/leases/meter. Only steps that exceed the invocation limit use a long-step executor. Target delivery is automatic with an initially required, audited, switchable operator review of exact book bytes, on the same readiness/delivery/refund path. Photos/assets must be private before launch. The integration plan records unfinished work and does not claim release readiness.
 
-The bank golden-path architecture and HIGH production descriptions below record the older runtime, not the current product mandate. Production still needs the integration; this decision does not declare it connected or release-ready. Historical books/readers remain supported. This thread has USD0 local implementation authority and no provider, credential-read, merge, push, deploy or production-write authority.
-
+Historical bank architecture below describes existing orders/runtime, not the new product mandate. No bank pricing or paid historical artifacts are changed. This track is USD0, synthetic providers only, with no key/.env reads or service/production writes, push, merge or deploy. Recovery packages replace unavailable sandbox Git index writes. Per-commit Node-direct TypeScript/focused Vitest are required; full check is reported/nonblocking while known baseline failures stand.
 
 **Owner:** Guy
 **Technical owner:** Codex

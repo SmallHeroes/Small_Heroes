@@ -18,7 +18,7 @@ import { handleCheckoutPost } from '@/app/api/checkout/handler';
 const order = () => ({ id: 'synthetic_order', status: 'draft', frozenProductVersion: 'engine-site/v1', expectedPageCount: 8,
   storyLength: 'short', storyDirection: null, selectionFilename: null, visualPackageAuthority: null,
   audioEnabled: true, pdfEnabled: true, videoEnabled: false, bundleEnabled: false,
-  basePrice: 4900, addonsPrice: 0, totalPrice: 4900, couponCode: null, couponDiscountAgorot: null,
+  basePrice: 5900, addonsPrice: 0, totalPrice: 5900, couponCode: null, couponDiscountAgorot: null,
   childImageUrl: null, childName: 'Synthetic', customerEmail: 'synthetic@example.invalid', customerName: 'Synthetic' });
 const request = (body: Record<string, unknown> = {}) => new NextRequest('https://app.example.invalid/api/checkout', {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ orderId: 'synthetic_order', ...body }),
@@ -31,13 +31,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('actual checkout handler — new SKU cannot inherit bank pricing/add-ons/fake fallback', () => {
-  it('sends and stores exactly 4900 agorot with all promised launch deliverables', async () => {
+  it('sends and stores exactly 5900 agorot with all promised launch deliverables', async () => {
     const response = await handleCheckoutPost(request({ totalPrice: 1, audioEnabled: false, pdfEnabled: false }), { routeProtocol: 'legacy-route' });
     expect(response.status).toBe(200);
-    expect(mocks.payme).toHaveBeenCalledWith(expect.objectContaining({ amountAgorot: 4900, currency: 'ILS' }));
+    expect(mocks.payme).toHaveBeenCalledWith(expect.objectContaining({ amountAgorot: 5900, currency: 'ILS' }));
     const description = mocks.payme.mock.calls[0][0].description as string;
     expect(description).toContain('8'); expect(description).toContain('כלולים'); expect(description).not.toContain('תוספות:');
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ totalPrice: 4900, addonsPrice: 0 }) }));
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ totalPrice: 5900, addonsPrice: 0 }) }));
     expect(mocks.reserveCoupon).not.toHaveBeenCalled();
   });
 

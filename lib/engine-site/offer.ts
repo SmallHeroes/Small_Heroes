@@ -1,14 +1,8 @@
 import 'server-only';
 
 import { ENGINE_SITE_PROTOCOL, engineSiteFail } from './contract';
-
-/** Guy's November 4 launch decision. Never derive this price from a retired bank tier. */
-export const ENGINE_SITE_LAUNCH_OFFER = Object.freeze({
-  id: 'personal-book-8-inclusive-v1', currency: 'ILS' as const,
-  priceAgorot: 4900, narrativePages: 8, cover: true,
-  narration: true, pdf: true, addonsPriceAgorot: 0,
-  imageQuality: 'medium' as const,
-});
+import { ENGINE_SITE_LAUNCH_OFFER, engineSitePriceIls } from './offer-definition';
+export { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 
 export const isEngineSiteOrder = (value: { frozenProductVersion?: string | null }) =>
   typeof value.frozenProductVersion === 'string' && value.frozenProductVersion.startsWith('engine-site/');
@@ -30,7 +24,7 @@ export function engineSiteCheckoutPricing(order: CheckoutOrder) {
       order.audioEnabled !== true || order.pdfEnabled !== true || order.videoEnabled !== false || order.bundleEnabled !== false ||
       order.basePrice !== offer.priceAgorot || order.addonsPrice !== 0 || order.totalPrice !== offer.priceAgorot ||
       order.couponCode != null || order.couponDiscountAgorot != null) engineSiteFail('engine_site_offer_mismatch');
-  return { basePrice: 49, addonsPrice: 0, totalPrice: 49 };
+  return { basePrice: engineSitePriceIls(), addonsPrice: offer.addonsPriceAgorot / 100, totalPrice: engineSitePriceIls() };
 }
 
 /** No currently enabled customer route: all integration/paid/runtime gates must precede activation. */

@@ -1,4 +1,5 @@
 import type { AdmittedFrame, LaunchGatePolicy } from '../delivery-gate';
+import { ENGINE_SITE_LAUNCH_OFFER } from '../offer-definition';
 import { authorityDigest, type EngineBookManifest, type EngineOrderAuthority } from '../contract';
 
 /** Entirely synthetic. These are domain fixtures, never provider or independent QA evidence. */
@@ -8,7 +9,7 @@ export function authority(orderId = 'synthetic_order'): EngineOrderAuthority {
   return {
     version: 'engine-site/v1', orderId, requestSha256: hash(), optionsSha256: hash('b'),
     offer: { id: 'synthetic_offer', revisionSha256: hash('c') }, engine: 'native-cde-book/v1',
-    sourceRevision: 'a'.repeat(40), policySha256: hash('d'), purpose: 'customer', imageQuality: 'medium',
+    sourceRevision: 'a'.repeat(40), policySha256: hash('d'), purpose: 'customer', imageQuality: ENGINE_SITE_LAUNCH_OFFER.imageQuality,
     narrativePages: 8, entitlements: { narration: true, pdf: false },
     budget: { maximumMicroUsd: 100, maximumCalls: 3, approvalReference: 'SYNTHETIC_ONLY',
       approvedBy: 'synthetic_owner', approvedAt: NOW.toISOString(),

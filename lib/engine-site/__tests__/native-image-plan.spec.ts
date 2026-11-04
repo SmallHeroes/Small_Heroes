@@ -7,14 +7,14 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 const input = (): NativeOrderImageInput => ({ step: 'page_0_0', prompt: 'SYNTHETIC native page prompt', size: '1024x1536',
   referenceMode: 'book_identity', references: [Buffer.from('synthetic child'), Buffer.from('synthetic companion')] });
 
-describe('native-v1 customer MEDIUM request boundary (no provider)', () => {
-  it('uses the actual shared planner with explicit MEDIUM/gpt-image-2 even when ambient quality says HIGH', () => {
+describe('native-v1 customer LOW request boundary (no provider)', () => {
+  it('uses the actual shared planner with explicit LOW/gpt-image-2 even when ambient quality says HIGH', () => {
     vi.stubGlobal('fetch', () => { throw Error('network_forbidden'); });
     vi.stubEnv('GPT_IMAGE_QUALITY', 'high'); vi.stubEnv('GPT_IMAGE_MODEL', 'wrong-model');
     const result = planNativeOrderImage(authority(), input());
     const actual = planGPTImageRequest(result.input, { defaultQuality: 'high', defaultModel: 'wrong-model', maxReferences: 4 });
     expect(actual.bodyWithoutBinaryImage).toEqual(result.wire.body);
-    expect(result.wire).toMatchObject({ body: { model: 'gpt-image-2', quality: 'medium', size: '1024x1536', n: 1 },
+    expect(result.wire).toMatchObject({ body: { model: 'gpt-image-2', quality: 'low', size: '1024x1536', n: 1 },
       mode: 'images.edit', maxRetries: 0 });
     expect(result.call).toMatchObject({ step: 'page_0_0', maximumMicroUsd: 40 });
     expect(result.input.exactReferenceBytes).toHaveLength(2);
@@ -39,7 +39,7 @@ describe('native-v1 customer MEDIUM request boundary (no provider)', () => {
     });
 
   it('does not turn a test grant or unplanned page slot into customer authority', () => {
-    expect(() => planNativeOrderImage({ ...authority(), purpose: 'test', imageQuality: 'low' }, input())).toThrow('customer_medium_required');
+    expect(() => planNativeOrderImage({ ...authority(), purpose: 'test', imageQuality: 'low' }, input())).toThrow('customer_authority_required');
     expect(() => planNativeOrderImage(authority(), { ...input(), step: 'page_1_0' })).toThrow('engine_step_not_authorized');
   });
 

@@ -22,10 +22,10 @@ function setup() {
 }
 
 describe('new-engine launch authority and the single delivery gate', () => {
-  it('permits MEDIUM customer / LOW test policies, never HIGH or another engine/length/bank field', () => {
-    expect(engineOrderAuthoritySchema.parse(authority()).imageQuality).toBe('medium');
+  it('permits LOW customer / LOW test policies, never HIGH or another engine/length/bank field', () => {
+    expect(engineOrderAuthoritySchema.parse(authority()).imageQuality).toBe('low');
     expect(engineOrderAuthoritySchema.safeParse({ ...authority(), purpose: 'test', imageQuality: 'low' }).success).toBe(true);
-    for (const patch of [{ imageQuality: 'high' }, { imageQuality: 'auto' }, { imageQuality: 'low' },
+    for (const patch of [{ imageQuality: 'high' }, { imageQuality: 'auto' }, { imageQuality: 'medium' },
       { narrativePages: 15 }, { engine: 'native-cde-book/v2' }, { selectionFilename: 'retired-bank' }, { budget: undefined }]) {
       expect(engineOrderAuthoritySchema.safeParse({ ...authority(), ...patch }).success).toBe(false);
     }
@@ -117,12 +117,12 @@ describe('new-engine launch authority and the single delivery gate', () => {
     expect(() => boundBookManifest(s.auth, { ...s.book, orderId: 'other_order' })).toThrow('book_authority_mismatch');
   });
 
-  it('does not silently lose promised narration/PDF or accept LOW assets for customer authority', () => {
+  it('does not silently lose promised narration/PDF or accept wrong-quality assets for customer authority', () => {
     const s = setup(); s.book.pages[5].audioSha256 = null;
     expect(() => s.deliver()).toThrow('book_narration_incomplete');
     const pdfAuthority = { ...s.auth, entitlements: { narration: true, pdf: true } };
     expect(() => boundBookManifest(pdfAuthority, manifest(pdfAuthority))).toThrow('book_pdf_incomplete');
-    expect(() => boundBookManifest(s.auth, { ...manifest(s.auth), imageQuality: 'low' })).toThrow('book_authority_mismatch');
+    expect(() => boundBookManifest(s.auth, { ...manifest(s.auth), imageQuality: 'medium' })).toThrow('book_authority_mismatch');
   });
 
   it('appends audited reject/approve decisions and refuses reordered/truncated/cross-order history', () => {
