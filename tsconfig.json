@@ -50,6 +50,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "outputs"
+    "outputs",
+    "_review/**/synthetic-tmp"
   ]
 }

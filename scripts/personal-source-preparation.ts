@@ -25,10 +25,8 @@ import {exclusiveJson,exclusiveText,realDirectory} from './personal-causal-trial
 import {preparationGrantSchema,preparationPageChoiceSchema,preparationAuthority,preparationPin,preparationFile,verifyPreparationPins,verifyApprovedWaiting,
   PREPARATION_STEPS,PREPARATION_SLOTS,SOURCE_PREPARATION,prepFail,type PreparationGrant} from '../lib/personal-wizard/source-preparation-policy';
 
-export const PREPARATION_CONTRACTS={actorOwnedAppearance:true,momentContract:true,landmarkKindContract:true,sceneLocationContract:true,compilerRulesContract:true,
-  drawnInstantContract:true,visibleMomentContract:true,selfCheckContract:true,reviewImpactPolicy:true,selfCheckNames:true,selfCheckSourceSpans:true,
-  claimBasisContract:true,stagingFields:true,calibrationContract:true,presenceContract:true,stateParityContract:true,instanceDistinctionContract:true,
-  engineContinuity:{materialFunction:true,companionScale:true}} as const;
+export { PREPARATION_CONTRACTS } from '../lib/personal-wizard/source-preparation-contracts';
+import { PREPARATION_CONTRACTS } from '../lib/personal-wizard/source-preparation-contracts';
 export const PREPARATION_ADMISSION={instanceDistinctionContract:true,engineContinuity:PREPARATION_CONTRACTS.engineContinuity} as const;
 type Step=typeof PREPARATION_STEPS[number];
 const read=(f:string)=>JSON.parse(preparationFile(f).toString('utf8'));

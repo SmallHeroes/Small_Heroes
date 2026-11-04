@@ -787,39 +787,11 @@ export const digestImages = (value: unknown): unknown => JSON.parse(JSON.stringi
  * references and an optional same-scene predecessor, each at high detail with its role, plus today's instruction and strict schema.
  * Shared by the paid judge and by saved-evidence admission, which rebuilds it from the actual bytes and requires exact equality.
  */
-export const AUDITION_REVIEW_CAPACITY_VERSION = 'audition-review-capacity/v1' as const;
-export function auditionReviewOutputCap(version?: typeof AUDITION_REVIEW_CAPACITY_VERSION) {
-  if (version !== undefined && version !== AUDITION_REVIEW_CAPACITY_VERSION) fail('audition_review_capacity');
-  return version === AUDITION_REVIEW_CAPACITY_VERSION ? 24000 : 12000;
-}
-export async function auditionJudgePayload(args: { candidate: AuditionImage; candidateBytes: Buffer; context: unknown; contextSha: string;
-  refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page'; reviewCapacity?: typeof AUDITION_REVIEW_CAPACITY_VERSION }) {
-  const outputCap = auditionReviewOutputCap(args.reviewCapacity);
-  const buffer = args.candidateBytes, meta = await sharp(buffer).metadata();
-  const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
-  const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
-    dataUrl(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer())));
-  const imageURLs = [dataUrl(buffer), ...crops, ...args.refs.map(dataUrl), ...(args.predecessor ? [dataUrl(args.predecessor)] : [])];
-  // v2 (scene-preservation/v1): the context declares each reference's judge role next to its image hash; positions are never assumed.
-  const declared = sceneJudgeReferenceRoles(args.context);
-  if (declared && (declared.length !== args.refs.length || declared.some((d, i) => previewSha(args.refs[i]) !== d.imageSha))) fail('scene_judge_reference_binding');
-  const refRoles = declared ? declared.map(d => d.role) : ['canonical_child', 'canonical_companion', 'canonical_entities', 'canonical_locations'].slice(0, args.refs.length);
-  const text = JSON.stringify({ candidateSha: args.candidate.imageSha, contextSha: args.contextSha, context: args.context,
-    imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
-      ...refRoles, ...(args.predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
-  // Chosen from the judged context: an entities design carrying the opt-in lineup gets its checks; anything else the existing instruction.
-  const instructions = auditionJudgeInstruction(args.kind, args.context);
-  if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
-  return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
-    input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
-      ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-    ...(args.reviewCapacity ? { metadata: { review_capacity_version: args.reviewCapacity } } : {}),
-    max_output_tokens: outputCap, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
-      auditionAnatomyCast(args.context) ? 'personal_audition_pixels_anatomy_v2'
-        : auditionLandmarkTopology(args.context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'personal_audition_pixels_topology_v2'
-        : auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
-      : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
-}
+export { AUDITION_REVIEW_CAPACITY_VERSION, auditionReviewOutputCap } from '../lib/personal-wizard/audition-review-capacity';
+import { AUDITION_REVIEW_CAPACITY_VERSION, auditionReviewOutputCap } from '../lib/personal-wizard/audition-review-capacity';
+
+export { auditionJudgePayload } from '../lib/personal-wizard/audition-provider-payload';
+import { auditionJudgePayload } from '../lib/personal-wizard/audition-provider-payload';
 
 // The paid adapters' own terms, shared by each live call and its meter rule (a re-derivation is the live call's own rule, never a second table).
 /** A render: its pricing label and claim maximum (every prompt byte and reference at the image input rate, plus its output reservation). */

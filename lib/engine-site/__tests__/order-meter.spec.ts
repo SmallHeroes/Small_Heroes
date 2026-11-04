@@ -67,6 +67,17 @@ const settle = (estimatedMicroUsd: number | null = 30, completed = true, step = 
 const meter = () => inspectEngineOrderMeter(db, authority());
 
 describe('order-scoped native engine meter through the existing receipt fence', () => {
+  it('keeps the nine native review re-asks order-wide across durable page checkpoints', async () => {
+    const a = authority(), names = Array.from({ length: 9 }, (_, n) => `page_${n}_0_qa2`).concat('page_0_1_qa2');
+    a.budget = { ...a.budget, maximumMicroUsd: 100, maximumCalls: 20, steps: names.map(id => ({ id, maximumMicroUsd: 1 })) };
+    await registerEngineOrderAuthority(db, a);
+    for (const step of names.slice(0,9)) {
+      await reserveEngineCall(db, { authority: a, call: { step, maximumMicroUsd: 1, wireSha256: hash() } });
+      await settleEngineCall(db, { authority: a, step, wireSha256: hash(), completed: true, estimatedMicroUsd: 0, receiptSha256: hash('b') });
+    }
+    await expect(reserveEngineCall(db, { authority: a, call: { step: names[9], maximumMicroUsd: 1, wireSha256: hash() } })).rejects.toThrow('native_review_reask_limit');
+    expect(await inspectEngineOrderMeter(db, a)).toMatchObject({ logicalCalls: 9, pendingCalls: 0 });
+  });
   it('registers once, grants a claim once, and frees only known settled usage', async () => {
     await registerEngineOrderAuthority(db, authority());
     await registerEngineOrderAuthority(db, authority());

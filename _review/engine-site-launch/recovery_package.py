@@ -40,7 +40,7 @@ def freeze(directory, paths, tests, message):
         records.append({'path': name, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()})
         tracked = subprocess.run(['git', 'cat-file', '-e', head + ':' + name], cwd=ROOT, capture_output=True).returncode == 0
         if tracked:
-            patch += git('diff', '--binary', '--', name)
+            patch += git('--literal-pathspecs', 'diff', '--binary', '--', name)
         else:
             # Git stores text with LF here; keep raw-working-byte hashes separately.
             normalized = data.replace(b'\r\n', b'\n')
@@ -91,10 +91,18 @@ finally {{ $taskHash.Dispose() }}
 if ($taskActual -ne $taskPins.patchSha256) {{ throw 'Patch changed.' }}
 Invoke-NativeChecked 'git' @('diff', '--check')
 Invoke-NativeChecked 'node' @('node_modules/typescript/bin/tsc', '--noEmit')
-Invoke-NativeChecked 'node' @('node_modules/vitest/vitest.mjs', 'run', {quoted_tests})
-Invoke-NativeChecked 'npm.cmd' @('run', 'check') -ReportOnly -Log "$taskPackage/owner-npm-check.log"
+$taskTestTemp = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path "$taskPackage/synthetic-tmp"))
+if (-not $taskTestTemp.StartsWith((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {{ throw 'Unsafe synthetic test directory.' }}
+[System.IO.Directory]::CreateDirectory($taskTestTemp) > $null
+[System.IO.File]::WriteAllText((Join-Path $taskTestTemp '.gitignore'), "*`n")
+$taskPreviousTemp = $env:TEMP; $taskPreviousTmp = $env:TMP
+try {{
+  $env:TEMP = $taskTestTemp; $env:TMP = $taskTestTemp
+  Invoke-NativeChecked 'node' @('node_modules/vitest/vitest.mjs', 'run', {quoted_tests})
+  Invoke-NativeChecked 'npm.cmd' @('run', 'check') -ReportOnly -Log "$taskPackage/owner-npm-check.log"
+}} finally {{ $env:TEMP = $taskPreviousTemp; $env:TMP = $taskPreviousTmp }}
 $taskPaths = @({quoted_paths})
-Invoke-NativeChecked 'git' (@('add', '--') + $taskPaths)
+Invoke-NativeChecked 'git' (@('--literal-pathspecs', 'add', '--') + $taskPaths)
 Invoke-NativeChecked 'git' @('diff', '--cached', '--check')
 Invoke-NativeChecked 'git' @('commit', '--file', "$taskPackage/COMMIT-MESSAGE.txt")
 Invoke-NativeChecked 'git' @('status', '--short', '--branch')

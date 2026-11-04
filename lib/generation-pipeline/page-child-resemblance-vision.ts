@@ -254,6 +254,24 @@ export async function evaluateStoredPageChildResemblanceVision(args: {
   };
 }
 
+/** Pure request builder shared with the order-scoped meter. No key, env, transport or retry. */
+export function planPageChildResemblanceVisionRequest(referenceImageUrl: string, candidateImageUrl: string, model = 'gpt-4o') {
+  return {
+          model,
+          max_tokens: 180,
+          temperature: 0,
+          response_format: { type: 'json_object' },
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: referenceImageUrl, detail: 'high' } },
+              { type: 'image_url', image_url: { url: candidateImageUrl, detail: 'high' } },
+              { type: 'text', text: PROMPT },
+            ],
+          }],
+        };
+}
+
 export async function evaluatePageChildResemblanceVision(args: {
   referenceImageUrl: string;
   candidateImageUrl: string;
@@ -316,20 +334,7 @@ export async function evaluatePageChildResemblanceVision(args: {
           'Content-Type': 'application/json',
         },
         signal: AbortSignal.timeout(resolvePageChildResemblanceTimeoutMs()),
-        body: JSON.stringify({
-          model,
-          max_tokens: 180,
-          temperature: 0,
-          response_format: { type: 'json_object' },
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image_url', image_url: { url: args.referenceImageUrl, detail: 'high' } },
-              { type: 'image_url', image_url: { url: args.candidateImageUrl, detail: 'high' } },
-              { type: 'text', text: PROMPT },
-            ],
-          }],
-        }),
+        body: JSON.stringify(planPageChildResemblanceVisionRequest(args.referenceImageUrl, args.candidateImageUrl, model)),
       });
       if (!response.ok) {
         lastReason = 'transport_error';

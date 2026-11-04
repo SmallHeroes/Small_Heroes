@@ -1345,6 +1345,8 @@ export async function illustrateReviewedAudition(args: {
    * `interrupted` (RSM-1): the closed paid attempts of an image that has no saved record; its next attempt continues after them.
    */
   resume?: { designs: unknown; sheets: Partial<Record<'entities' | 'locations', SavedSheet>>; pages: Partial<Record<number, SavedPage>>; stepPrefix: string;
+    /** Service checkpoint mode, not spend authority. Same stable paid slots; the order host owns claims/leases and raw byte proofs. */
+    durable?: { version: 'native-order-checkpoint/v1'; requestId: string; storyboardDigest: string };
     interrupted?: { sheets?: Partial<Record<'entities' | 'locations', AuditionAttempt[]>>; pages?: Partial<Record<number, AuditionAttempt[]>> };
     /**
      * Re-reviews (AUDITION_REREVIEW_VERSION) of saved pages: `saved` re-binds an earlier one; without it, the page's named attempt is judged
@@ -1517,7 +1519,12 @@ export async function illustrateReviewedAudition(args: {
     try { return [role, resumed('sheet', saved, derived.contextSha, derived.requirementIds)!]; } catch { return fail('audition_reuse_binding'); }
   }));
   if (args.resume) {
-    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration || args.anatomyRecovery || diagnostic ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
+    const durable = args.resume.durable;
+    const sameClaims = durable?.version === 'native-order-checkpoint/v1' && durable.requestId === args.book.requestId &&
+      durable.storyboardDigest === args.book.storyboardDigest && prefix === '' && !args.sample && !calibration && !diagnostic &&
+      !args.anatomyRecovery && !args.resume.interrupted && !args.resume.rereview;
+    if (durable && !sameClaims) fail('audition_resume_binding');
+    if (!(sameClaims || /^r[0-9]{1,2}_$/.test(prefix)) || canonicalJson(args.resume.designs) !== canonicalJson({ policy: calibration || args.anatomyRecovery || diagnostic ? reviewedAuditionPolicy(args.scaleLineup) : policy, designs }) ||
       Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
     // A re-review names a saved page of this scope and one of its attempts (the attempt itself is checked where the page is re-bound).
     if (Object.entries(args.resume.rereview?.pages ?? {}).some(([n, re]) => !re || !Number.isInteger(re.attempt) || !args.resume!.pages[Number(n)]))
@@ -1907,7 +1914,8 @@ export async function illustrateReviewedAudition(args: {
     const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${pageNumber}_unavailable`);
     pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen),
       ...(diagnoses.length ? { recovery: { version: STAGE_RECOVERY_VERSION, diagnoses } } : {}) });
-    args.save(`page_${pageNumber}`, pages[pages.length - 1]);
+    // A service host can persist this completed page before any later operation. Local synchronous saves remain unchanged.
+    await args.save(`page_${pageNumber}`, pages[pages.length - 1]);
   }
   args.check();
   if (!diagnostic && sample && pages.length === sample.length &&

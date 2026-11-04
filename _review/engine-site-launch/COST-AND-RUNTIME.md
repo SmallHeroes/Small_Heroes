@@ -1,10 +1,10 @@
 STATUS: LOW-COST-AND-RUNTIME DONE
-HEAD: 8bc0c92de0cb719e8951984cdb0596be3318265e
+HEAD: 348c85dc213f85597eb484d05e68e9048edb5603
 Summary 1/5: FINAL launch is59ILS inclusive, customer LOW; paid MEDIUM measurement is cancelled and HIGH remains excluded.
 Summary 2/5: Owner-supplied book-r15e anchor is81 native calls andUSD5.457428 for cover/eight pages, plus aboutUSD1?2.5 story/preparation.
-Summary 3/5: With4000 narration characters, modeled generation isUSD6.857428?8.357428, midpointUSD7.607428.
+Summary 3/5: Supplied anchor estimate with4000 TTS characters is6.857428?8.357428USD; fresh-order overhead remains unmeasured.
 Summary 4/5: Same FX/VAT/fee assumptions leaveUSD14.629094 for generation/contribution; propose a fail-closed USD10 total-order cap, not a grant.
-Summary 5/5: All-slot declared reserve scenario remainsUSD55.569808; cap/UNKNOWN stops and routes to operator/refund, without downgrade or skipped gates.
+Summary 5/5: Corrected current momentum/Sol/child runtime reserve envelope is82.263104USD; proposed10USD stops before an unaffordable next slot.
 
 Product decisions required: none. LOW/59ILS are final. The cap is a financial-control proposal, not paid authority or a promise about invoices/completion. No live provider/key/account/receipt access occurred.
 
@@ -67,3 +67,33 @@ Current causal deadlines are plan/replan780s, author380s, editor860s, plus45s pe
 Use existing durable GenerationJob/lease/meter/checkpoints. A fenced long-step executor executes the long call under the same order authority; it is not a second whole-book queue. Heartbeat/lease handling must cover the chosen deadline, since the old seven-minute lease alone cannot cover780/860s. Short workers defer before claim/key access. No hosted worker/service is provisioned or run in this USD0 work.
 
 Per-milestone validation uses Node-direct TypeScript/focused Vitest. Full `npm run check` is logged/reported and nonblocking while its known baseline failures stand. Any actual paid book still requires separate explicit scope/GO; there is no pending MEDIUM measurement.
+
+
+## M09 current selected recipe and corrected worst-case envelope
+
+The M06 four-Opus/three-Astra reserve illustration above is historical and is not the selected production recipe. Source inspection selected the existing momentum Opus author + Sol editor/readers. Generic780/380/860s classification remains supported, but the current author has28000 output tokens:1180s +45s persistence =1225s and uses the same job's long executor. The Sol editor is28000 tokens with its existing600s provider route, handled via a durable background id. Storyboard/review calls also use background polling; synchronous images180s fit the270s chunk envelope with45s persistence and45s restoration allowance. The25min long host is not an additional order queue.
+
+Same assumptions remain FX3.157 ILS/USD, assumed VAT18%, fee2.9% of gross +1ILS and infrastructure0.35USD. Gross59ILS is18.688628USD; net revenue15.837821USD; fee0.858727USD; generation room14.629094USD. Owner's81-call native anchor5.457428USD plus the supplied1?2.5USD story/preparation range and4000-character narration0.4USD gives the anchor-based expectation6.857428?8.357428USD, contribution6.271666?7.771666USD. This is NOT a measurement of the complete fresh-order route: fresh child adoption, initial storyboard, photo description and the exact API source route remain unmeasured and may increase it. No paid measurement is performed or authorized here.
+
+Current declared conservative worst-case reservations, from the actual engine-site policy table and existing tariff rules:
+
+| Component | USD reserve | Boundary |
+| --- | ---: | --- |
+| Native27 renders |34.449408|96k UTF8 prompt ceiling, four refs,8192 output reservation, LOW|
+| Native reviews including at most9 re-asks |21.600000|36 Sol reviews at0.60 slot each|
+| Native identity |1.350000|27 calls at0.05|
+| Opus API author |1.073600|104k wire ceiling,28000 output,4/20 tariff plus10%|
+| Sol editor |0.600000|Existing0.60 minimum, same28000 cap|
+| Two Sol readings and at most two citation corrections |2.400000|Four0.60 slots; correction is bounded by the existing engine helper|
+| Initial storyboard and review |2.200000|Current preparation stage allowances|
+| Final source preparation and two qualified sheets |5.000000|Existing six preparation slots|
+| Child anchor: up to two render/style/design attempts + one photo identity |3.990096|Existing one correction, no retry of unusable answer|
+| Photo appearance, if supplied |0.600000|One Sol slot, exact private photo binding|
+| Narration at the runtime ceiling |9.000000|Nine5000-character slots,100microUSD/character, x2 reserve; typical4000 total has0.8reserve|
+| Entire declared envelope |82.263104|An upper reservation envelope, NOT an expected invoice or authorization|
+
+The earlier16k-prompt/4000-character scenario with the corrected current story/child stages is56.783104USD. The actual policy uses the larger96k render and per-frame narration ceilings shown here. The121 reachable logical-call ceiling includes all permitted correction/re-ask/identity/TTS slots; not every slot is reached together, and the engine still owns eligibility. The server does not require reserving82USD before the first call: it reserves each complete next slot while keeping the cumulative cap.
+
+The proposed per-order cap remains10USD and proposed maximumCalls121, both requiring Guy's paid activation before use. A completed order at10USD has4.629094USD contribution under these assumptions; the cap does not guarantee profit for failed/refunded orders or include a salary for Guy's launch review. It leaves1.642572USD above the supplied upper anchor-based estimate; unmeasured fresh-order costs may consume that headroom. If any full next reservation does not fit, or an outcome/price is unknown, the job stops for the existing operator/refund path. No quality downgrade, omitted narration/PDF, lowered0.70 threshold, extra attempt or skipped review is available. A provider usage estimate above reserve is retained and held; a local meter is not a provider invoice or contractual billing cap.
+
+No price/quality/spend decision is reopened. Future tuning may reduce prompt/reference token overhead or improve failure rate without weakening gates; any changed attempt/review tier, spend cap or product promise returns to Guy. The cancelled MEDIUM measurement remains cancelled. Current SDK protocol documentation: [OpenAI background](https://developers.openai.com/api/docs/guides/background) supports GET polling of the same id and store=false temporary retrieval; [Anthropic API overview](https://platform.claude.com/docs/en/api/overview) confirms Bearer API-key authentication and2026-10-21 version. Our current source retains those fields; no account/model availability probe was made.

@@ -297,6 +297,8 @@ export interface GenerateGPTImageInput {
   apiKey?: string;
   /** Durable accounting observer, invoked before decoding image bytes. No credentials in the response. */
   observeProviderResponse?: (response: unknown) => void;
+  /** Order host rechecks its lease and exact planned bytes after async multipart assembly, immediately before paid dispatch. */
+  assertBeforeProviderDispatch?: () => void | Promise<void>;
   /** Audited exact reference bytes; optional, defaults still use the legacy normalization/cache. */
   exactReferenceBytes?: Buffer[];
   finalPrompt: string;
@@ -834,6 +836,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         ? toFile(input.exactReferenceBytes[i], `reference-${i}.png`, { type: 'image/png' })
         : referenceToOpenAIFile(u, i)));
       const imageArg = files.length === 1 ? files[0] : files;
+      await input.assertBeforeProviderDispatch?.();
       const response = await openai.images.edit(
         {
           image: imageArg,
@@ -858,6 +861,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         };
       }
     } else {
+      await input.assertBeforeProviderDispatch?.();
       const response = await openai.images.generate(
         {
           ...plan.bodyWithoutBinaryImage,

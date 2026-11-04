@@ -3328,6 +3328,23 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect([...h.prompts.keys()]).toEqual(['page_1_0']);expect(h.args.identity).not.toHaveBeenCalled();
   });
   const BOOK=[0,1,2,3,4,5,6,7,8];
+  it('native durable checkpoint: awaits page persistence, revalidates saved pages and keeps stable call ids',async()=>{
+    const {h,input}=await proofInput(within,BOOK);let persisted=false;
+    await runNativeBookFrames({...input,save:async(name,value)=>{
+      if(name==='page_0'){await new Promise(resolve=>setTimeout(resolve,0));persisted=true;}
+      input.save(name,value);
+    },render:async(...a:Parameters<typeof input.render>)=>{
+      if(a[0]==='page_1_0')expect(persisted).toBe(true);return input.render(...a);
+    }});
+    const resumePages=Object.fromEntries(BOOK.slice(0,4).map(n=>[n,h.saved.get(`page_${n}`)])) as Record<number,SavedPage>;
+    const renders:string[]=[];
+    await runNativeBookFrames({...input,resumePages,render:async(...a:Parameters<typeof input.render>)=>{renders.push(a[0]);return input.render(...a);}});
+    expect(renders).toEqual(BOOK.slice(4).map(n=>`page_${n}_0`));
+    const forged=structuredClone(resumePages);forged[0].contextSha='f'.repeat(64);
+    renders.length=0;
+    await expect(runNativeBookFrames({...input,resumePages:forged,render:async(...a:Parameters<typeof input.render>)=>{renders.push(a[0]);return input.render(...a);}})).rejects.toThrow('audition_resume_binding');
+    expect(renders).toEqual([]);
+  });
   it('native book: a reviewed held frame gets the engine corrections (attempts 2-3, never a 4th) and every frame is drawn',async()=>{
     const {input}=await proofInput(within,BOOK),judge=input.judge,calls:string[]=[];
     const m=await runNativeBookFrames({...input,render:async(...a:Parameters<typeof input.render>)=>{calls.push(a[0]);return input.render(...a);},

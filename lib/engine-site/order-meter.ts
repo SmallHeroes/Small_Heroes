@@ -3,6 +3,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { NATIVE_BOOK_REVIEW_REASKS } from '@/lib/personal-wizard/native-page-proof';
 import {
   hashOperationPayload, runAtomicOperation, type AtomicOperationDeps,
 } from '@/lib/generation-pipeline/atomic-operation';
@@ -32,6 +33,7 @@ const claimSchema = callSchema.extend({
 const resultSchema = z.object({
   step: identifierSchema, wireSha256: digestSchema, authoritySha256: digestSchema,
   completed: z.boolean(), estimatedMicroUsd: microUsdSchema.nullable(), receiptSha256: digestSchema,
+  privateResultAssetId: z.string().uuid().optional(),
 }).strict();
 export type EngineCallResult = z.infer<typeof resultSchema>;
 const unwrap = <T extends z.ZodTypeAny>(schema: T, input: unknown): z.infer<T> => z.object({ value: schema }).strict().parse(input).value;
@@ -145,13 +147,15 @@ async function snapshot(tx: Tx, authority: EngineOrderAuthority, excludeClaimKey
   const blocked = pendingCalls > 0 || unknownCalls > 0 || failedCalls > 0 || overReservedCalls > 0 ||
     accountedMicroUsd > authority.budget.maximumMicroUsd || claims.size > authority.budget.maximumCalls;
   return { accountedMicroUsd, knownEstimateMicroUsd, pendingCalls, unknownCalls, failedCalls, overReservedCalls,
+    nativeReviewReasks: [...claims.keys()].filter(step => /^page_[0-8]_[0-2]_qa2$/.test(step)).length,
     logicalCalls: claims.size, blocked, kind: 'estimate_not_invoice' as const };
 }
 
 /** All inspection remains order-scoped and under the same lock as reservations. */
 export async function inspectEngineOrderMeter(db: PrismaClient, input: EngineOrderAuthority) {
   const authority = engineOrderAuthoritySchema.parse(input);
-  return db.$transaction(async tx => { await lockOrder(tx, authority.orderId); return snapshot(tx, authority); });
+  return db.$transaction(async tx => { await lockOrder(tx, authority.orderId);
+    const { nativeReviewReasks: _count, ...visible } = await snapshot(tx, authority); return visible; });
 }
 
 /**
@@ -175,6 +179,8 @@ export async function reserveEngineCall(db: PrismaClient, input: {
     run: async tx => {
       const state = await snapshot(tx, authority, key);
       if (state.blocked) engineSiteFail('engine_previous_call_unresolved_or_failed');
+      if (/^page_[0-8]_[0-2]_qa2$/.test(call.step) && state.nativeReviewReasks >= NATIVE_BOOK_REVIEW_REASKS)
+        engineSiteFail('engine_native_review_reask_limit');
       if (state.logicalCalls >= authority.budget.maximumCalls ||
           add(state.accountedMicroUsd, call.maximumMicroUsd) > authority.budget.maximumMicroUsd) engineSiteFail('engine_budget_exhausted');
       return claimSchema.parse({ ...call, authoritySha256: digest, invocationId });
@@ -192,11 +198,13 @@ export async function reserveEngineCall(db: PrismaClient, input: {
 export async function settleEngineCall(db: PrismaClient, input: {
   authority: EngineOrderAuthority;
   step: string; wireSha256: string; receiptSha256: string; completed: boolean; estimatedMicroUsd: number | null;
+  privateResultAssetId?: string;
 }, deps?: AtomicOperationDeps) {
   const authority = engineOrderAuthoritySchema.parse(input.authority);
   const result = resultSchema.parse({ step: input.step, wireSha256: input.wireSha256,
     authoritySha256: authorityDigest(authority), receiptSha256: input.receiptSha256,
-    completed: input.completed, estimatedMicroUsd: input.estimatedMicroUsd });
+    completed: input.completed, estimatedMicroUsd: input.estimatedMicroUsd,
+    ...(input.privateResultAssetId ? { privateResultAssetId: input.privateResultAssetId } : {}) });
   return runAtomicOperation(db, {
     operationKey: callKey(authority.orderId, result.step, 'result'), orderId: authority.orderId, kind: KINDS.result,
     payloadHash: hashOperationPayload(result),
@@ -213,4 +221,13 @@ export async function settleEngineCall(db: PrismaClient, input: {
     },
     validateReplay: async (_tx, recorded) => { resultSchema.parse(recorded); },
   }, deps);
+}
+
+/** Recover the same settled bytes after a crash between settlement and the job checkpoint write. */
+export async function readEngineCallResult(db: PrismaClient, authority: EngineOrderAuthority, step: string) {
+  return db.$transaction(async tx => {
+    await lockOrder(tx, authority.orderId); await requireAuthority(tx, authority);
+    const row = await tx.atomicOperationReceipt.findUnique({ where: { operationKey: callKey(authority.orderId, step, 'result') } });
+    return row ? unwrap(resultSchema, row.result) : null;
+  });
 }

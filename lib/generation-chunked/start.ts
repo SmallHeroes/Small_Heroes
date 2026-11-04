@@ -79,7 +79,14 @@ export async function startChunkedGeneration(
     return { started: false, orderId, message: 'Order not found' };
   }
   // Personal authority can never be interpreted as a bank order while the new worker is being connected.
-  if (isEngineSiteOrder(order)) return { started: false, orderId, message: 'engine_site_requires_personal_worker' };
+  if (isEngineSiteOrder(order)) {
+    if (order.frozenProductVersion !== 'engine-site/v1' || process.env.ENGINE_SITE_WORKER_ENABLED !== 'true')
+      return { started: false, orderId, message: 'engine_site_requires_personal_worker' };
+    const { startProductionPersonalJob } = await import('@/lib/engine-site/production-worker');
+    const personal = await startProductionPersonalJob(prisma, orderId);
+    if (personal.created && !options?.skipWorkerChain) chainGenerationWorker(orderId);
+    return { started: personal.started, orderId, message: personal.created ? 'engine_site_personal_job_created' : 'engine_site_personal_job_already_exists' };
+  }
   if (releaseContinuity) {
     requireReleaseV1OrderPackage(order);
     if (

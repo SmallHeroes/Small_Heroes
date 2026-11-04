@@ -26,12 +26,14 @@ export const SOL_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/sol-v1' a
 export const SOL_REPAIRED_SOURCE_VERSION = 'personal-simple-story-source/sol-v1-repair' as const;
 /** Opus CLI author + Sol Responses editor, each with its own receipt. Prospective; no repair version exists for it. */
 export const ROLES_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/roles-v1' as const;
+/** Explicit hosted API provenance. Historical CLI/Responses receipts never pass under this version. */
+export const ANTHROPIC_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/anthropic-api-roles-v1' as const;
 export type SimpleWritingModel = typeof CAUSAL_MODELS.opus | typeof SOL_WRITING.model | typeof SIMPLE_WRITING_ROLES.label;
 const MODEL = CAUSAL_MODELS.opus; // Existing approved diagnostic authority, not a production default.
 if (SIMPLE_WRITING_ROLES.author !== MODEL || SIMPLE_WRITING_ROLES.editor !== SOL_WRITING.model) throw Error('simple_story_source_roles');
 /** Which model each role must have, by the source's own immutable version, never by the caller's preference. */
 function writingRoute(version: string) {
-  if (version === ROLES_SIMPLE_SOURCE_VERSION) return { author: MODEL, editor: SOL_WRITING.model, label: SIMPLE_WRITING_ROLES.label, split: true } as const;
+  if (version === ROLES_SIMPLE_SOURCE_VERSION || version === ANTHROPIC_SIMPLE_SOURCE_VERSION) return { author: MODEL, editor: SOL_WRITING.model, label: SIMPLE_WRITING_ROLES.label, split: true } as const;
   const model = version === SOL_SIMPLE_SOURCE_VERSION || version === SOL_REPAIRED_SOURCE_VERSION ? SOL_WRITING.model : MODEL;
   return { author: model, editor: model, label: model, split: false } as const;
 }
@@ -47,7 +49,11 @@ const cliReceipt = z.object({ version: z.literal('simple-cli-receipt-projection/
 const solReceipt = cliReceipt.extend({ version: z.literal('simple-responses-receipt-projection/v1'),
   sessionId: z.string().min(5).max(200), model: z.literal(SOL_WRITING.model),
   costKind: z.literal('provider_reported_usage_estimate_not_invoice') }).strict();
-const receipt = z.union([cliReceipt, solReceipt]);
+const anthropicReceipt = cliReceipt.extend({ version: z.literal('simple-anthropic-api-receipt-projection/v1'),
+  // Common historical field name; for this discriminant it is a message id, never a CLI process/session attestation.
+  sessionId: z.string().regex(/^msg_[A-Za-z0-9_-]+$/),
+  costKind: z.literal('anthropic_api_usage_estimate_not_invoice'), wireSha256: hash, rawSha256: hash }).strict();
+const receipt = z.union([cliReceipt, solReceipt, anthropicReceipt]);
 const evidenceSchema = (pages: number, experience?: SimpleStoryExperience) => z.object({ source: binding, shape: z.string(), seed: z.string(), appearance: z.unknown(),
   draft: simpleStoryDraftSchema(pages, experience), draftCheck: z.unknown(), findings: z.array(z.string()), edited: simpleStoryDraftSchema(pages, experience),
   editorChanges: z.array(z.string().min(1).max(400)).max(12), finalCheck: z.unknown(),
@@ -55,7 +61,7 @@ const evidenceSchema = (pages: number, experience?: SimpleStoryExperience) => z.
 
 // Separate from the old v3 editing receipt. Archive schemas remain readable, not current permission.
 const originalSimpleStoryResultSchema = personalStoryResultObjectSchema.extend({ simpleSource: z.object({
-  version: z.enum([CURRENT_SIMPLE_SOURCE_VERSION, SOL_SIMPLE_SOURCE_VERSION, ROLES_SIMPLE_SOURCE_VERSION]), evidence: z.unknown(), author: receipt, editor: receipt,
+  version: z.enum([CURRENT_SIMPLE_SOURCE_VERSION, SOL_SIMPLE_SOURCE_VERSION, ROLES_SIMPLE_SOURCE_VERSION, ANTHROPIC_SIMPLE_SOURCE_VERSION]), evidence: z.unknown(), author: receipt, editor: receipt,
 }).strict() }).strict();
 export const currentSimpleStoryResultSchema = z.union([originalSimpleStoryResultSchema,
   personalSimpleRepairResultObjectSchema.extend({ simpleSource: z.object({ version: z.enum([REPAIRED_SIMPLE_SOURCE_VERSION, SOL_REPAIRED_SOURCE_VERSION]), evidence: z.unknown(), author: receipt, editor: receipt,
@@ -110,7 +116,7 @@ export function prepareSimpleStoryRepair(request: unknown, priorRaw: unknown, re
   try {
     // The literal old envelope prohibits repair chains before recursive admission can begin.
     // A role-split source has no repair contract yet: its editor route and lineage were never defined for repair.
-    if (originalSimpleStoryResultSchema.parse(priorRaw).simpleSource.version === ROLES_SIMPLE_SOURCE_VERSION) return fail('repair_route');
+    if ([ROLES_SIMPLE_SOURCE_VERSION, ANTHROPIC_SIMPLE_SOURCE_VERSION].includes(originalSimpleStoryResultSchema.parse(priorRaw).simpleSource.version as typeof ROLES_SIMPLE_SOURCE_VERSION)) return fail('repair_route');
     const prior = admitCurrentSimpleStorySource(request, priorRaw, options);
     if (readingsRaw.length !== 2) return fail('repair_reading_binding');
     const packets = simpleStoryReadingPackets(request, prior, options);
@@ -198,6 +204,10 @@ export function admitCurrentSimpleStorySource(request: unknown, raw: unknown, op
     if (canonicalJson(raw) !== canonicalJson(result)) return fail('noncanonical');
     const { simpleSource, ...common } = result;
     const route = writingRoute(simpleSource.version);
+    const apiSource = simpleSource.version === ANTHROPIC_SIMPLE_SOURCE_VERSION;
+    if ((simpleSource.author.version === 'simple-anthropic-api-receipt-projection/v1') !== apiSource ||
+        simpleSource.editor.version === 'simple-anthropic-api-receipt-projection/v1' ||
+        apiSource && simpleSource.editor.version !== 'simple-responses-receipt-projection/v1') return fail('receipt_route');
     if (simpleSource.author.model !== route.author || simpleSource.editor.model !== route.editor) return fail('receipt_route');
     (simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION || simpleSource.version === SOL_REPAIRED_SOURCE_VERSION ? personalSimpleRepairResultSchema : personalStoryResultSchema).parse(common);
     const prepared = prepareFromEvidence(request, options, simpleSource.evidence);

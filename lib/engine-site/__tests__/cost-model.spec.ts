@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { authorStepRuntime, engineSiteCostScenario, type CostAssumptions } from '../cost-model';
+import { authorStepRuntime, launchStoryRuntime, engineSiteCostScenario, type CostAssumptions } from '../cost-model';
 
 export const costAssumptions: CostAssumptions = {
   storyAndPreparationUsd: 1.75, narrationCharacters: 4000, finalPromptUtf8Bytes: 16000, referencesPerRender: 4,
-  storyWireByteCeiling: 104000, childReferenceCeilingUsd: 1, ilsPerUsd: 3.157, vatRate: 0.18,
+  storyWireByteCeiling: 104000, ilsPerUsd: 3.157, vatRate: 0.18,
   paymentFeeRate: 0.029, paymentFixedIls: 1, infrastructureUsd: 0.35 };
 
 describe('LOW launch economics at 59 ILS, explicit assumptions and declared reserves', () => {
@@ -35,6 +35,9 @@ describe('LOW launch economics at 59 ILS, explicit assumptions and declared rese
   });
 
   it('requires a long-step executor at the current 300s limit without reducing the author design caps', () => {
+    expect(launchStoryRuntime()).toMatchObject({ separatePlannerSelected: false,
+      author: { outputTokens: 28000, providerDeadlineMs: 1180000, requiredMs: 1225000, executor: 'durable_long_step_executor' },
+      editor: { model: 'gpt-6.1-sol', outputTokens: 28000, executor: 'background_responses_existing_chunk_worker' } });
     expect(authorStepRuntime('plan')).toMatchObject({ outputTokens: 18000, providerDeadlineMs: 780000, fitsInvocation: false });
     expect(authorStepRuntime('author')).toMatchObject({ outputTokens: 8000, providerDeadlineMs: 380000, fitsInvocation: false });
     expect(authorStepRuntime('editor')).toMatchObject({ outputTokens: 20000, providerDeadlineMs: 860000, fitsInvocation: false });
