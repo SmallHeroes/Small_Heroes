@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Engine-to-site launch plan supersedes bank rollout for new orders (2026-11-04)
+
+- Guy sets launch at 2026-11-30, with story + separately approved LOW sample target November 11-13. Launch book: cover + eight story pages; longer lengths after November 30. NEW live-written personal story only; 18 bank stories retired for new orders.
+- Customer quality MEDIUM (never HIGH); LOW test-only; identity 0.70 unchanged; detail findings nonblocking. Automated delivery is the target; initially enabled, switchable and audited operator review sits above the same automatic acceptance/delivery path.
+- Active dedicated branch/worktree: codex/engine-site-launch-20261104 at C:/GNart/Work/sh-engine-site-launch, base 6a223a28. Full Decision Gate, runtime map, risks and dated schedule: _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md.
+- Local foundations now cover contracts, acceptance/review audit, receipt meter, MEDIUM wire, default-off 49 ILS checkout and metered Anthropic API. Guy approved the inclusive 49 ILS SKU and current Opus design through Anthropic API. Focused 232/232 and TypeScript pass; full check/commit/independent gates remain HOLD.
+- Next: immutable foundation commit/review -> personal-order/private-upload intake and durable long-step worker -> production reader/PDF/readiness/outbox/refunds -> separately approved LOW/MEDIUM measurements -> approved staging/independent QA -> Guy launch GO. Current text deadlines exceed 300s; MEDIUM margin at 49 ILS is unproven. No paid/production activation or merge/push/deploy authorized now.
+- Historical bank-based milestones/deferrals below do not override this owner's November 4 decision. Existing paid books, grants and receipts are preserved.
+
+
 ## R2 independent PASS received; exact operator/envelope review next, spend still blocked (2026-11-02)
 
 - Independent engine PASS at0c0bd78f is verified; R2-F1 is nonblocking P3 backlog. Engine implementation remains unchanged.

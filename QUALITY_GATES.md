@@ -1,5 +1,16 @@
 # SmallHeroes — Quality Gates
 
+## Launch-specific owner decisions (2026-11-04)
+
+For the engine-site launch, Guy supersedes older bank/HIGH wording below: newly written personal stories, cover + eight story pages, MEDIUM customer images, LOW tests, no HIGH. Resemblance stays 0.70. Only detail findings are nonblocking; missing/malformed/misbound evidence and material/safety findings do not pass.
+
+There is one automatic acceptance/delivery path. Initially an explicit launch operator gate requires approve/reject bound to authenticated actor, server UTC time and exact ordered book-content digest. Gate-off removes only that extra review requirement; automated acceptance, payment/readiness/revocation fences and explicit rejection still apply. Changed content invalidates prior approval. Gate changes must be bound at readiness/send time. See _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md for the Decision Gate and required runtime proofs.
+
+The launch SKU is 49 ILS including narration and PDF. No image-only fallback may satisfy that entitlement. Anthropic API/current Opus design is approved; actual paid calls, measured MEDIUM budget adequacy and live activation remain separate gates. Current text deadlines may not be shortened to fit a serverless invocation.
+
+Independent technical PASS remains Claude Code's role; product/visual/launch GO remains Guy's. USD0 synthetic evidence does not authorize or prove live provider, payment, database, email or production behavior. No change to existing historical acceptance/accounting evidence is authorized.
+
+
 **Effective:** 2026-07-22
 **Technical owner:** Codex
 **Independent technical QA:** Claude Code

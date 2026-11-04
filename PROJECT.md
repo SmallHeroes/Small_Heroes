@@ -1,5 +1,14 @@
 # SmallHeroes — Project
 
+## Binding launch direction (Guy, 2026-11-04)
+
+For NEW orders, the product is the live-written personal story engine, not the 18 pre-authored bank stories (retired by Guy). Launch offer: 49 ILS including book, narration and PDF, no add-ons. Production author/editor uses Anthropic API with the same Opus design and existing durable jobs; long-step execution must honor current timeouts. Initial format: cover + eight story pages, customer illustrations at MEDIUM only, LOW for tests, never HIGH for customers. Child resemblance remains 0.70. Fine-detail findings are recorded and nonblocking.
+
+The delivery target is automatic acceptance and fulfillment. An explicit switchable launch review gate initially requires Guy/operator approve/reject, recording actor, server time and exact book-byte manifest digest. It sits on the automatic path; disabling it preserves automatic quality/payment/delivery fences. Longer books follow after 2026-11-30. Launch plan: _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md.
+
+The bank golden-path architecture and HIGH production descriptions below record the older runtime, not the current product mandate. Production still needs the integration; this decision does not declare it connected or release-ready. Historical books/readers remain supported. This thread has USD0 local implementation authority and no provider, credential-read, merge, push, deploy or production-write authority.
+
+
 **Owner:** Guy
 **Technical owner:** Codex
 **Status:** Pre-launch

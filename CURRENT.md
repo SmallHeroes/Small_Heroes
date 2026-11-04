@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Engine-to-site launch track opened (2026-11-04)
+
+- Guy's binding November 4 decision: the NEW live-written personal engine is the launch product; the 18 bank stories are retired for new orders. Launch by 2026-11-30; interim story + explicitly approved LOW short-book sample target November 11-13.
+- Launch format is cover + eight story pages. Customer illustration quality is MEDIUM, never HIGH. LOW is tests only. Resemblance remains 0.70; detail findings do not block acceptance.
+- Target is one automatic delivery path with an explicit switchable operator-review gate, initially required for every book. Review records actor, UTC time, decision and exact book-content digest. Off does not bypass automatic quality/payment/delivery fences or an explicit rejection.
+- This dedicated thread is sole writer in C:/GNart/Work/sh-engine-site-launch on codex/engine-site-launch-20261104, based on 6a223a287913d0d5acb5693cf2ff280dd576e34f. The scene-preservation thread/worktree is not edited. Shared node_modules junction is preserved.
+- Phase 0 completed at USD0: _review/engine-site-launch/ENGINE-SITE-INTEGRATION-PLAN.md. Production order/chunk runner are still bank-bound; native authority/queues and author executable are local; native wire/meter hard-check LOW. The site is NOT connected end to end yet.
+- User authorizes local provider-free Phase 1 foundations, not paid calls/key reads, other-worktree edits, bank connection, merge/push/deploy or production/Supabase writes. Main 0524162e's personal-compiler deferral and older HIGH/bank statements below are superseded for this new launch track.
+- Local foundations implemented: lib/engine-site/ contracts, existing-rule acceptance projection, switchable gate and append-only review audit, receipt-backed meter, exact MEDIUM image plan, 49 ILS checkout bridge, bank-worker refusal and injected Anthropic author API. Checkout defaults OFF. No personal-order creator/complete worker/reader-delivery integration is claimed.
+- Final npx tsc --noEmit: exit 0; final focused suite 232/232 in 14 files (128 new tests); earlier engine/reader regression set 557/557. Full npm run check is HOLD: ordinary 24 failed files/445 failed tests; resource phase 1 failed file/1 failed test plus reporter errors. Environment/fixture/Git-object portability and baseline failures are documented; no full stability or independent PASS.
+- Git staging failed at the linked index.lock outside this writable worktree. Nothing is staged or committed. Exact patch/source hashes, commit messages, guarded PowerShell recovery and manual QA brief are under _review/engine-site-launch/. No push/merge/deploy occurred.
+- Guy subsequently approved one 49 ILS SKU including book, narration and PDF, no add-ons, and Anthropic API for the same Opus author/editor design. Key is supplied only by Guy in deployment environment; none read here. Keep existing durable jobs; current plan/author/editor timeouts exceed 300s and need a fenced long-step executor, not smaller story caps.
+- Cost sensitivity is a launch risk: nominal MEDIUM generation USD13.15 vs modeled net revenue USD13.15 before fees; declared full-attempt scenario USD55.57, not a qualified MEDIUM invoice upper bound. Proposed total-order cap USD8.50 is UNAPPROVED and completion feasibility is unproven. See COST-AND-RUNTIME.md.
+- Pending Guy items: measured LOW/MEDIUM paid GO, total/global caps and any cost-policy changes, customer delivery/refund promise, company/address/mailbox/cancellation/lawyer, later gate-disable and release GO. Next engineering milestone: freeze/commit and independently review these foundations, then connect personal order intake/private assets, durable stage executor, reader/PDF/readiness/outbox/refunds. Scene branch advanced independently to ddc08c52; no merge/import/edit was performed.
+
+Earlier entries below describe the engine's prior isolated milestones and preserve their original authority/evidence; they are not launch activation.
+
+
 ## R2 independent code PASS received; isolated execution envelope locally green, manual execution QA next (2026-11-02)
 
 - Guy manually returned Claude's COMPLETE SOURCE_PREPARATION_CORRECTIONS_R2 PASS at0c0bd78f, report75c3bf9e, READYa407ab86,
