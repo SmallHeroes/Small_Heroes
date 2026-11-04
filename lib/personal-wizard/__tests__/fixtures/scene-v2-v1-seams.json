@@ -1,0 +1,26 @@
+{
+  "capturedAt": "2ae3b641b6980a90d0a32c23bbb92a0717d06280",
+  "seams": {
+    "planner": {
+      "book_identity": "12011227e1b7df7e814a6a1452ff535db54c09f318a8189c5f9368bc4682bd66",
+      "book_scene_edit": "ff3decc9e4dcaa9c250a330b46001e27a93cbe67280e69742ca7a35138cf193b",
+      "book_design": "382565b3e88abf0f87d516cadd60fc7c03733c140e67fbbe8da3d43ed9776ec2",
+      "identity": "64c9a5c6019f706ea61697a646246ba238f1b77a8d838c2331f373beb267ef96"
+    },
+    "renderPlan": {
+      "book_identity": "063a89d2018b1fc8b6db74ed729b9dfd64c5acedc9b2ee6b8036d248305a9891",
+      "book_identity_framed": "063a89d2018b1fc8b6db74ed729b9dfd64c5acedc9b2ee6b8036d248305a9891",
+      "book_scene_edit": "a4bf21a0de35bb45fce6cc7f06c3b5f0b0ce5f1bfcf6ecb51e22c065f939f8b9"
+    },
+    "judgePayload": "62ccd5a7afce8ee75eadc34b781f8a80256fddd195c9f1dbaca00e82ce5683fe",
+    "text": {
+      "pageSuffix": "5a0b65b61a0ad75e9161864f30d424c8d9989ad1bdd14a516a6c2f94a652c380",
+      "lineupSuffix": "cb5266ce54e4c4f0c29863d95b2b5f2213c9a69257100d9806e803f11eb6bae0",
+      "judgeInstructions": "22af73a4ffaff769cfd5eb1d5deef5566dd05b26d1ede0bb4861a52fb37c87ac"
+    },
+    "steps": {
+      "proof": "52806afdefa902a5ee4ea3ea3d90af4106a308b7bd14ae067acad5b5caf9967b",
+      "book": "aad1c1bf9b9200c44b24945bc5dc9d11babbbede2dfd2bb379d9f8f20d5084cb"
+    }
+  }
+}

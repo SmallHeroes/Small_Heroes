@@ -21,7 +21,9 @@ export const NATIVE_BOOK_REVIEW_REASKS=9;
 export const NATIVE_BOOK_MAX_CALLS=NATIVE_BOOK_FRAMES.length*NATIVE_BOOK_PAGE_ATTEMPTS*3+NATIVE_BOOK_REVIEW_REASKS;
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const pin=z.object({file:z.string().min(1),bytes:z.number().int().nonnegative().max(20_000_000),sha256:hash}).strict();
-export const nativePageProofSchema=z.object({version:z.enum([NATIVE_PAGE_PROOF_VERSION,NATIVE_BOOK_VERSION]),workspace:z.string().min(1),sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
+/** The whole book with scene preservation (scene-preservation/v1): same frames, attempts, re-asks, caps and fences as v1. */
+export const NATIVE_BOOK_V2_VERSION='native-cde-book/v2' as const;
+export const nativePageProofSchema=z.object({version:z.enum([NATIVE_PAGE_PROOF_VERSION,NATIVE_BOOK_VERSION,NATIVE_BOOK_V2_VERSION]),workspace:z.string().min(1),sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
   sourceDigest:hash,reviewSha256:hash,layoutSha256:hash,ownerApproval:pin,inputs:z.array(pin).min(1).max(128)}).strict();
 export type NativePageProof=z.infer<typeof nativePageProofSchema>;
 export const nativePageProofOwnerApprovalSchema=z.object({version:z.literal('native-page-proof-owner-approval/v1'),owner:z.literal('Guy'),approvalId:hash,
@@ -33,8 +35,15 @@ export const nativeBookOwnerApprovalSchema=z.object({version:z.literal('native-b
   maxLowImages:z.literal(NATIVE_BOOK_FRAMES.length*NATIVE_BOOK_PAGE_ATTEMPTS),pageAttempts:z.literal(NATIVE_BOOK_PAGE_ATTEMPTS),
   maxReviewReasks:z.literal(NATIVE_BOOK_REVIEW_REASKS),
   allReviewsAndFullUnknownReserves:z.literal(true),fullBook:z.literal(true),narration:z.literal(false),paidRetries:z.literal(false)}).strict();
-const ownerApprovalFor=(proof:NativePageProof)=>proof.version===NATIVE_BOOK_VERSION?nativeBookOwnerApprovalSchema:nativePageProofOwnerApprovalSchema;
-export const nativeProofAttempts=(proof:NativePageProof)=>proof.version===NATIVE_BOOK_VERSION?NATIVE_BOOK_PAGE_ATTEMPTS:1;
+/** The ONE classifier of a native grant's mode: grant/owner validation, preflight, dry plan and execution all route by it, never by a version literal. */
+export function nativeBookPolicy(version:NativePageProof['version']){
+  if(version===NATIVE_PAGE_PROOF_VERSION)return{kind:'page_proof' as const,scenePreservation:false,attempts:1,reask:false};
+  if(version===NATIVE_BOOK_VERSION)return{kind:'book' as const,scenePreservation:false,attempts:NATIVE_BOOK_PAGE_ATTEMPTS,reask:true};
+  if(version===NATIVE_BOOK_V2_VERSION)return{kind:'book' as const,scenePreservation:true,attempts:NATIVE_BOOK_PAGE_ATTEMPTS,reask:true};
+  return fail('page_proof_scope');
+}
+const ownerApprovalFor=(proof:NativePageProof)=>nativeBookPolicy(proof.version).kind==='book'?nativeBookOwnerApprovalSchema:nativePageProofOwnerApprovalSchema;
+export const nativeProofAttempts=(proof:NativePageProof)=>nativeBookPolicy(proof.version).attempts;
 const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
 const forbiddenInput=/(^|[\\/])(?:\.env(?:\.|$)|auth\.json$|credentials(?:\.|$)|[^\\/]*api[_-]?keys?[^\\/]*$)/i;
 const safeName=(file:string)=>path.isAbsolute(file)&&!forbiddenInput.test(file);
@@ -46,7 +55,7 @@ type GrantLike={scope:GrantScope;capMicroUsd:number;maxCalls:number;ledger:{prio
 export function nativePageProofGrantValid(g:GrantLike):boolean{
   const s=g.scope,p=s.pages;if(!s.pageProof)return true;
   // A book is the whole fixed frame set, never a sample; a proof is 1-2 sampled pages with one attempt each.
-  const book=s.pageProof.version===NATIVE_BOOK_VERSION,attempts=book?NATIVE_BOOK_PAGE_ATTEMPTS:1;
+  const policy=nativeBookPolicy(s.pageProof.version),book=policy.kind==='book',attempts=policy.attempts;
   const frames=book?!!p&&canonicalJson(p)===canonicalJson(NATIVE_BOOK_FRAMES)&&s.sample===undefined
     :!!p&&p.length>=1&&p.length<=2&&p.every((n,i)=>Number.isInteger(n)&&n>=1&&n<=8&&(i===0||n>p[i-1]))&&canonicalJson(p)===canonicalJson(s.sample);
   return s.mode==='render'&&path.isAbsolute(s.pageProof.workspace)&&safeName(s.pageProof.ownerApproval.file)&&s.pageProof.inputs.every(p=>safeName(p.file))&&g.ledger.evidence.length===1&&!!p&&frames&&
@@ -65,7 +74,7 @@ export const nativePageProofSteps=(pages:readonly number[],attempts=1,reask=fals
   pages.flatMap(n=>Array.from({length:attempts},(_,k)=>k).flatMap(k=>['','_qa',...(reask?['_qa2']:[]),'_identity'].map(s=>'page_'+n+'_'+k+s)));
 /** The exact paid allowlist of a native grant's mode (a book adds each image's one unusable-answer re-ask). */
 export const nativeProofSteps=(proof:NativePageProof,pages:readonly number[])=>
-  proof.version===NATIVE_BOOK_VERSION?nativePageProofSteps(pages,NATIVE_BOOK_PAGE_ATTEMPTS,true):nativePageProofSteps(pages);
+  nativePageProofSteps(pages,nativeBookPolicy(proof.version).attempts,nativeBookPolicy(proof.version).reask);
 function safeFile(file:string){
   if(!path.isAbsolute(file)||/(^|[\\/])(?:\.env(?:\.|$)|auth\.json$|credentials(?:\.|$)|[^\\/]*api[_-]?keys?[^\\/]*$)/i.test(file))fail('page_proof_input_path');
   const st=lstatSync(file);if(!st.isFile()||st.isSymbolicLink()||st.size>20_000_000||realpathSync.native(file).toLowerCase()!==path.resolve(file).toLowerCase())fail('page_proof_input_path');

@@ -105,6 +105,8 @@ export function validatePreviewPlan(value: unknown, pageCount: number): PreviewP
   return plan;
 }
 
+/** The positional reference line of the v1 page prompt (exact bytes); native-cde-book/v2 replaces it with role names. */
+export const PREVIEW_REFERENCE_ROLES_LINE = 'Reference roles: image 1 = exact child identity and watercolor technique ONLY; image 2 = exact companion design ONLY; image 3, when attached = recurring PROP design board ONLY. Never copy their pose, expression, composition or blank backdrop. No panels, collage, captions, words or typography.';
 export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: string, childAge: number, gender: string, companionDescription: string,
   readerFraming?: ReaderSafeFramingVersion) {
   const p = plan.pages[pageNumber];
@@ -114,7 +116,7 @@ export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: s
     buildStyle01ChildAnatomicalLock({ childAge, allowDistinctSupportingChildren: true }), buildStyle01AnatomyIntegrityLock(),
     readerFraming === undefined ? (p.shot === 'close' ? STYLE_01_FRAMING_RULE_CLOSE_UP : STYLE_01_FRAMING_RULE)
       : readerSafeSceneFramingPrompt(readerSafeSceneFraming(readerFraming, p.shot, plan.continuity?.pages[pageNumber].childHeightFraction)),
-    'Reference roles: image 1 = exact child identity and watercolor technique ONLY; image 2 = exact companion design ONLY; image 3, when attached = recurring PROP design board ONLY. Never copy their pose, expression, composition or blank backdrop. No panels, collage, captions, words or typography.',
+    PREVIEW_REFERENCE_ROLES_LINE,
     `CHILD: ${childAge}-year-old ${gender}; same face/hair/skin identity. ${plan.actorAppearance ? 'CHILD-OWNED CLOTHING ONLY' : 'BOOK WARDROBE LOCK'}: ${plan.wardrobe}`,
     `COMPANION: ${companionDescription}`,
     ...(plan.actorAppearance ? ['Actor-owned appearance: child clothing belongs ONLY to the child. The companion keeps ONLY its registered design/accessories and companion reference. Never transfer clothing, colours, anatomy or accessories between these roles.'] : []),

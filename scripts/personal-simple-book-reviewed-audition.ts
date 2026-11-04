@@ -10,14 +10,15 @@ import path from 'node:path';
 import { EXISTING_CHILD_APPEARANCE_FILE, admitExistingChildAppearance } from '../lib/personal-wizard/existing-child-appearance';
 import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync, realpathSync } from 'node:fs';
 import sharp from 'sharp';
-import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput, nativeProofSteps, NATIVE_BOOK_VERSION } from '../lib/personal-wizard/native-page-proof';
+import { nativePageProofSchema, nativePageProofGrantValid, nativePageProofSteps, nativePageProofAuthority, snapshotNativePageProofArgs, verifyNativePageProofCode, verifyNativePageProofPins, verifyNativePageProofOutput, nativeProofSteps, nativeBookPolicy } from '../lib/personal-wizard/native-page-proof';
 import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames, preflightNativeBookFrames } from '../lib/personal-wizard/native-page-proof-frames';
 import { trialDrawnFrames } from '../lib/personal-wizard/native-page-render-evidence';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { nativeBookContinuityContracts, NATIVE_BOOK_CONTINUITY_VERSION, storyboardContinuityAdmissionSchema, type StoryboardContinuityAdmission } from '../lib/personal-wizard/engine-continuity-contracts';
-import { generateGPTImage, planGPTImageRequest, type BookDesignReferenceRole } from '../lib/generate-image';
+import { generateGPTImage, planGPTImageRequest, isSceneV2Mode, type BookDesignReferenceRole } from '../lib/generate-image';
+import { sceneJudgeReferenceRoles } from '../lib/personal-wizard/scene-preservation';
 import { companionIdentityReference } from '../lib/personal-wizard/companion-identity';
 import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
@@ -799,7 +800,10 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
   const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
     dataUrl(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer())));
   const imageURLs = [dataUrl(buffer), ...crops, ...args.refs.map(dataUrl), ...(args.predecessor ? [dataUrl(args.predecessor)] : [])];
-  const refRoles = ['canonical_child', 'canonical_companion', 'canonical_entities', 'canonical_locations'].slice(0, args.refs.length);
+  // v2 (scene-preservation/v1): the context declares each reference's judge role next to its image hash; positions are never assumed.
+  const declared = sceneJudgeReferenceRoles(args.context);
+  if (declared && (declared.length !== args.refs.length || declared.some((d, i) => previewSha(args.refs[i]) !== d.imageSha))) fail('scene_judge_reference_binding');
+  const refRoles = declared ? declared.map(d => d.role) : ['canonical_child', 'canonical_companion', 'canonical_entities', 'canonical_locations'].slice(0, args.refs.length);
   const text = JSON.stringify({ candidateSha: args.candidate.imageSha, contextSha: args.contextSha, context: args.context,
     imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
       ...refRoles, ...(args.predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
@@ -959,10 +963,11 @@ export function durableReviewPayload(payload: Awaited<ReturnType<typeof audition
 }
 /** The EXACT renderer's pure dry plan, shared by native first-operation admission. No key, provider or image write. */
 export function auditionRenderPlan(directory: string, prompt: string, refs: AuditionImage[],
-  mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'identity' | 'anchor_photo_style_only' | 'style',
+  mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'book_scene_render' | 'book_scene_edit_v2' | 'identity' | 'anchor_photo_style_only' | 'style',
   roles?: readonly BookDesignReferenceRole[], signal?: AbortSignal, readerFraming?: ReaderSafeFramingVersion) {
   const sceneSize = readerSceneImageSize(readerFraming);
-  const size = mode === 'book_identity' || mode === 'book_scene_edit' ? sceneSize : '1024x1024';
+  // Scene modes (v1 and the native v2 scene modes) use the reader's scene canvas; sheets stay square.
+  const size = mode === 'book_identity' || mode === 'book_scene_edit' || isSceneV2Mode(mode) ? sceneSize : '1024x1024';
   const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(directory, r.imageName)), referenceMode: mode,
     ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size,
     modelOverride: 'gpt-image-2', signal, requestTimeoutMs: 180000 };
@@ -1035,7 +1040,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   // 'identity' is the plain reference mode of a fictional child anchor (none or one rejected edit target); sheets and pages are unchanged.
   // 'anchor_photo_style_only' is production's real-photo anchor mode (photo first, then technique references), used only by the likeness probe.
   // 'style' is production's technique-reference mode, used only by the opt-in child-anchor-style/v1 anchor (pinned character-free references).
-  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'identity' | 'anchor_photo_style_only' | 'style',
+  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'book_scene_render' | 'book_scene_edit_v2' | 'identity' | 'anchor_photo_style_only' | 'style',
     roles?: readonly BookDesignReferenceRole[]) => {
     checkStep(step); const bytes = refs.map(bytesOf);
     const { input, wire, maximumMicroUsd } = auditionRenderPlan(args.directory, prompt, refs, mode, roles, args.signal, args.readerFraming);
@@ -1317,7 +1322,10 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if(!proof&&args.proofReview)fail('page_proof_scope');
   if(proof&&args.signal.aborted)fail('audition_cancelled');
   if(proof&&!args.proofReview)fail('page_proof_execution_review_required');
-  const proofContinuity=proof?nativeBookContinuityContracts(proof.version===NATIVE_BOOK_VERSION?{version:NATIVE_BOOK_CONTINUITY_VERSION,wholeBook:true}
+  // scene-preservation/v1 needs qualified atlas mappings and actual-content evidence; no qualified source exists yet, so a real v2 run
+  // refuses here, before any source load, claim, key or output (the engine path is exercised offline only).
+  if(proof&&nativeBookPolicy(proof.version).scenePreservation)fail('scene_preservation_unqualified');
+  const proofContinuity=proof?nativeBookContinuityContracts(nativeBookPolicy(proof.version).kind==='book'?{version:NATIVE_BOOK_CONTINUITY_VERSION,wholeBook:true}
     :{version:NATIVE_BOOK_CONTINUITY_VERSION,sample:proofScope!.pages}):undefined;
   args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout, proofContinuity);
@@ -1349,7 +1357,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       grantFile:args.grantFile,grantSha256,grant,requiredInputs:required,review:args.proofReview});
     const proofPrecheck=()=>{if(args.signal.aborted)fail('audition_cancelled');proofAuthority!.beforeClaim();};
     proofPrecheck();
-    await (proof.version===NATIVE_BOOK_VERSION?preflightNativeBookFrames:preflightNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
+    await (nativeBookPolicy(proof.version).kind==='book'?preflightNativeBookFrames:preflightNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,
       child:{imageName:'reference_child.png',imageSha:previewSha(loaded.childBytes)},companion:{imageName:'reference_companion.png',imageSha:previewSha(loaded.companionBytes)},
       companionDescription:loaded.companionDescription,pages:proofScope!.pages,reuseSheets:reused!.sheets,check:proofPrecheck});
     proofPrecheck();
@@ -1503,7 +1511,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     ? `${name}-${resume.stepPrefix.slice(0, -1)}` : name, value);};
 
   const runFrames=async()=>{
-    if(proof)return (proof.version===NATIVE_BOOK_VERSION?runNativeBookFrames:runNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
+    if(proof&&nativeBookPolicy(proof.version).scenePreservation)return fail('scene_preservation_unqualified');
+    if(proof)return (nativeBookPolicy(proof.version).kind==='book'?runNativeBookFrames:runNativePageProofFrames)({book:loaded.book,rawReview:loaded.rawReview,texts:loaded.texts,current:loaded.current,child,companion,
       companionDescription:loaded.companionDescription,pages:proofScope!.pages,reuseSheets:reused!.sheets,
       render:io.render,judge:io.judge,identity:io.identity,check:io.check,save:engineSave});
     return illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
@@ -1549,9 +1558,10 @@ export async function dryNativePageProof(args:{bookDir:string;out:string;grantFi
   if([bookDir,out,grantFile].some(p=>!path.isAbsolute(p))||signal?.aborted)fail(signal?.aborted?'audition_cancelled':'page_proof_scope');
   const text=fencedText(grantFile,32000000),parsed=auditionGrantSchema.parse(JSON.parse(text)),scope=parsed.scope;
   if(scope.mode!=='render'||!scope.pageProof)return fail('page_proof_scope');const proof=scope.pageProof;
+  if(nativeBookPolicy(proof.version).scenePreservation)fail('scene_preservation_unqualified');
   if(path.resolve(proof.workspace).toLowerCase()!==path.resolve(workspace).toLowerCase())fail('page_proof_workspace');
   verifyNativePageProofOutput(out,[bookDir,scope.reuseSheets!.sourceRun,workspace]);
-  const book=proof.version===NATIVE_BOOK_VERSION;
+  const book=nativeBookPolicy(proof.version).kind==='book';
   const loaded=loadReviewedBook(bookDir,workspace,undefined,layout,nativeBookContinuityContracts(book?{version:NATIVE_BOOK_CONTINUITY_VERSION,wholeBook:true}
     :{version:NATIVE_BOOK_CONTINUITY_VERSION,sample:scope.pages}));
   const binding=readAuditionGrant(grantFile,{requestId:loaded.queued.requestId,storyboardDigest:loaded.book.storyboardDigest,

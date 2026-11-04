@@ -8,9 +8,12 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import vm from 'node:vm';
 import { transformSync } from 'esbuild';
+// Scene-preservation tests alone set `scenePackets.frame` to project a richer effective packet from the fixture book; unset, every other
+// test gets exactly the original minimal packet.
+const scenePackets = vi.hoisted(() => ({ frame: null as null | ((...a: unknown[]) => unknown) }));
 vi.mock('../storyboard', () => ({
   // A fifth argument (the owner's acceptance) is named in the packet, as the real frame does; four arguments give the exact packet as before.
-  currentPersonalStoryboardFrame: (...a: unknown[]) =>
+  currentPersonalStoryboardFrame: (...a: unknown[]) => scenePackets.frame ? scenePackets.frame(...a) :
     ({ context: { pageNumber: a[2], ...(a.length > 4 ? { ownerAcceptance: a[4] } : {}) }, render: { prompt: `PAGE ${a[2]}` } }),
 }));
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
@@ -26,7 +29,12 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
 import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
 import { NATIVE_BOOK_CONTINUITY_VERSION } from '../engine-continuity-contracts';
 import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
-import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames } from '../native-page-proof-frames';
+import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames, runNativeSceneBookFrames } from '../native-page-proof-frames';
+import { nativeBookPolicy } from '../native-page-proof';
+import { SCENE_PRESERVATION_VERSION, SCENE_PRESERVATION_MODE, REFERENCE_CONTENT_VERSION, OFFLINE_CONTENT_METHOD, contentEvidenceSha } from '../scene-preservation';
+import { REVEAL_SCOPED_ATLAS_VERSION, atlasManifestEvidenceSha } from '../reveal-scoped-atlas';
+import { PREVIEW_REFERENCE_ROLES_LINE } from '../../local-story-preview';
+import { previewContinuityContext } from '../../local-preview-quality';
 import { runTrialAudition, trialBookVisualQualification, trialDrawnFrames, writeTrialReader } from '../../../scripts/personal-book-e2e-trial';
 import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule, auditionJudgePayload,
   readReusedSheets, interruptedAttempts, conservativeDebitOf, rereviewAllowance, runReviewedAudition, auditionAdapters, auditionRenderPlan,
@@ -3365,6 +3373,111 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect(reviews.filter(s=>s.endsWith('_qa2'))).toHaveLength(9);expect(reviews).not.toContain('page_8_0_qa2');
     expect(renders[renders.length-1]).toBe('page_8_0');expect(identities).not.toContain('page_8_0_identity');
   });
+  // ---- native-cde-book/v2 (scene-preservation/v1): the real wrapper + engine with synthetic, offline-qualified inputs only. ----
+  const sceneRun=async(opts:{entityContents?:Record<string,string[]>;locationContents?:string[];evidence?:(sha:string,base:(c:string[])=>unknown)=>unknown;
+    tweak?:(b:any)=>void;judge?:(step:string,reply:any)=>any;prompt?:(n:number)=>string}={})=>{
+    const {h,input}=await proofInput(within,BOOK);opts.tweak?.(input.book);
+    const book:any=input.book;
+    scenePackets.frame=(...a:unknown[])=>{const n=a[2] as number,b=a[0] as any,page=n?b.sequence.pages[n-1]:null,vis=b.plan.continuity.pages[n].visibleEntityIds;
+      return{context:{pageNumber:n,...(page?{sequence:{sceneId:page.sceneId,visibleCastIds:page.visibleCastIds,
+        relations:page.states.filter((s:any)=>vis.includes(s.entityId)||page.visibleCastIds.includes(s.entityId)),allowedTransitions:[]}}:{}),
+        visual:{page:{locationId:'garden'},continuity:previewContinuityContext(b.plan.continuity,n)}},
+        render:{prompt:opts.prompt?opts.prompt(n):`PAGE ${n}\n${PREVIEW_REFERENCE_ROLES_LINE}`}};};
+    const tile=(r:number,g:number,b:number,w=100,hh=100)=>sharp({create:{width:w,height:hh,channels:3,background:{r,g,b}}}).png().toBuffer();
+    const atlasOf=async(tiles:{id:string;colour:[number,number,number];contents:string[]}[],role:'entities'|'locations')=>{
+      const layers=await Promise.all(tiles.map(async(t,i)=>({input:await tile(...t.colour),left:i*110,top:0})));
+      const bytes=await sharp({create:{width:tiles.length*110,height:100,channels:3,background:{r:250,g:250,b:250}}}).composite(layers).png().toBuffer();
+      const m:any={version:REVEAL_SCOPED_ATLAS_VERSION,role,atlasSha:previewSha(bytes),width:tiles.length*110,height:100,
+        tiles:tiles.map((t,i)=>({id:t.id,rect:{left:i*110,top:0,width:100,height:100},contents:t.contents}))};
+      m.qualification={method:OFFLINE_CONTENT_METHOD,evidenceSha:atlasManifestEvidenceSha({...m,method:OFFLINE_CONTENT_METHOD})};return{bytes,manifest:m};};
+    const ec=opts.entityContents??{};
+    const entities=await atlasOf([{id:'paper_boat',colour:[220,30,30],contents:ec.paper_boat??['paper_boat']},{id:'ribbon',colour:[230,190,40],contents:ec.ribbon??['ribbon']},
+      {id:'trail',colour:[40,40,40],contents:ec.trail??['trail']},{id:'cat',colour:[240,140,40],contents:ec.cat??['cat']}],'entities');
+    const locations=await atlasOf([{id:'garden',colour:[40,160,60],contents:opts.locationContents??['garden','old_tree']},{id:'stone',colour:[150,150,150],contents:['stone']}],'locations');
+    const base=(sha:string)=>(contents:string[])=>({version:REFERENCE_CONTENT_VERSION,imageSha:sha,contents,
+      qualification:{method:OFFLINE_CONTENT_METHOD,evidenceSha:contentEvidenceSha({imageSha:sha,contents,method:OFFLINE_CONTENT_METHOD})}});
+    const people:Record<string,string[]>={[input.child.imageSha]:['child'],[input.companion.imageSha]:['companion']};
+    const made=new Map<string,Buffer>(),calls:{step:string;mode:string;roles:string[];refs:string[];prompt:string}[]=[];
+    const sp:any={version:SCENE_PRESERVATION_VERSION,mode:SCENE_PRESERVATION_MODE,atlases:{entities,locations},
+      contentEvidence:(sha:string)=>opts.evidence?opts.evidence(sha,base(sha)):people[sha]?base(sha)(people[sha]):null,
+      materialize:async(name:string,bytes:Buffer)=>{made.set(name,bytes);return{imageName:name,imageSha:previewSha(bytes)};}};
+    const judge=input.judge;
+    const run=runNativeSceneBookFrames({...input,scenePreservation:sp,
+      render:async(...a:any[])=>{calls.push({step:a[0],mode:a[3] as string,roles:[...(a[4]??[])] as string[],refs:(a[2] as {imageName:string}[]).map(r=>r.imageName),prompt:a[1]});return (input.render as any)(...a);},
+      judge:async(...a:Parameters<typeof judge>)=>{const reply:any=await judge(...a);return opts.judge?opts.judge(a[0],reply):reply;}});
+    return{h,input,run,calls,made,people,base};
+  };
+  const finalPrompt=(c:{refs:string[];mode:string;roles:string[];prompt:string})=>planGPTImageRequest({finalPrompt:c.prompt,referenceImages:c.refs.map(r=>'/virtual/'+r),
+    referenceMode:c.mode as never,referenceRoles:c.roles as never,requireReferenceEdit:true,quality:'low',size:'1024x1536',modelOverride:'gpt-image-2'},
+    {defaultQuality:'low',defaultModel:'gpt-image-2',maxReferences:4});
+  it('v2: every frame renders with its admitted scoped roles; the same record and digest reach renderer and judge; no stray image numbers',async()=>{
+    try{const {h,run,calls}=await sceneRun();const m=await run;
+      expect(m.pages.map(p=>p.pageNumber)).toEqual(BOOK);expect(calls.every(c=>c.mode==='book_scene_render')).toBe(true);
+      expect(calls.find(c=>c.step==='page_1_0')!.roles).toEqual(['child_design_authority','companion_design_authority','entity_scoped_authority','location_scoped_authority']);
+      for(const c of calls){
+        const plan=finalPrompt(c),numbers=[...plan.finalPrompt.matchAll(/\bImage (\d+):/g)].map(x=>Number(x[1]));
+        expect(numbers).toEqual(c.refs.map((_,i)=>i+1));expect(plan.referenceCountPassed).toBe(c.refs.length);
+        expect(plan.finalPrompt.slice(plan.finalPrompt.indexOf('[SCENE TASK]'))).not.toMatch(/\bimages?\s*#?\s*\d+/i);
+        expect(c.prompt).not.toContain('Image 3 is the object/supporting-cast sheet');
+      }
+      const frame2=h.saved.get('scene_frame_2') as any,ctx2=h.contexts.get('page_2_0_qa') as any;
+      expect(ctx2.scenePreservation.recordDigest).toBe(frame2.recordDigest);expect(ctx2.scenePreservation.record).toEqual(frame2.record);
+      expect(ctx2.scenePreservation.referenceRoles.map((r:any)=>r.role)).toEqual(['canonical_child','canonical_companion','canonical_entities','canonical_locations']);
+      // p2 continues p1's visit: its pictured change is exactly the evidenced paper-boat fold; no predecessor evidence -> judge-only.
+      expect(frame2.record.baseline).toBe(false);expect(frame2.record.picturedDelta).toEqual([{entityId:'paper_boat',aspect:'attribute',attribute:'crease',from:'flat',to:'folded boat',evidence:[texts[1]]}]);
+      expect(frame2.record.predecessor).toMatchObject({usedForRender:false,omittedReason:'content_unqualified'});
+      expect(calls.find(c=>c.step==='page_2_0')!.roles).not.toContain('scene_continuity_reference');
+      expect((h.saved.get('scene_frame_4') as any).record.baseline).toBe(true);
+    }finally{scenePackets.frame=null;}
+  });
+  it('v2: a predecessor with qualified actual content becomes the continuity reference; record-copied, forbidden or rebound lists never do',async()=>{
+    try{
+      const ok=await sceneRun({evidence:(sha,base)=>sha===previewSha('page_1_0')?base(['child','companion','paper_boat','ribbon','old_tree','garden']):
+        sha===previewSha('child')?base(['child']):sha===previewSha('companion')?base(['companion']):null});
+      await ok.run;const p2=ok.calls.find(c=>c.step==='page_2_0')!;
+      expect(p2.roles[p2.roles.length-1]).toBe('scene_continuity_reference');expect(p2.refs[p2.refs.length-1]).toBe('page_1_0.png');expect(p2.refs).toHaveLength(5);
+      expect(finalPrompt(p2).finalPrompt).toContain('Image 5: The SAME place one moment earlier');
+      for(const [kind,make] of [['content_unqualified',(base:any)=>({...base(['child','companion','paper_boat']),qualification:{method:'expected_record',evidenceSha:'0'.repeat(64)}})],
+        ['content_forbidden',(base:any)=>base(['child','companion','paper_boat','stone'])],['content_binding',(_base:any)=>({...((s:string)=>({version:REFERENCE_CONTENT_VERSION,imageSha:s,contents:['child'],
+          qualification:{method:OFFLINE_CONTENT_METHOD,evidenceSha:contentEvidenceSha({imageSha:previewSha('other'),contents:['child'],method:OFFLINE_CONTENT_METHOD})}}))(previewSha('page_1_0'))})]] as const){
+        const r=await sceneRun({evidence:(sha,base)=>sha===previewSha('page_1_0')?(make as any)(base):sha===previewSha('child')?base(['child']):sha===previewSha('companion')?base(['companion']):null});
+        await r.run;expect((r.h.saved.get('scene_frame_2') as any).record.predecessor).toMatchObject({usedForRender:false,omittedReason:kind});
+        expect(r.calls.find(c=>c.step==='page_2_0')!.roles).not.toContain('scene_continuity_reference');
+      }
+    }finally{scenePackets.frame=null;}
+  });
+  it('v2: a child-only frame admits two/three references (no companion) and its judge roles follow the actual list',async()=>{
+    try{const {h,run,calls}=await sceneRun({tweak:b=>{b.sequence.pages[0].visibleCastIds=['child'];}});await run;
+      expect(calls.find(c=>c.step==='page_1_0')!.roles).toEqual(['child_design_authority','entity_scoped_authority','location_scoped_authority']);
+      expect((h.contexts.get('page_1_0_qa') as any).scenePreservation.referenceRoles.map((r:any)=>r.role)).toEqual(['canonical_child','canonical_entities','canonical_locations']);
+    }finally{scenePackets.frame=null;}
+  });
+  it('v2: a verified local defect is corrected by an edit of the chosen page; a global defect redraws; both record their bound parent',async()=>{
+    try{
+      const local=(step:string,reply:any)=>step==='page_1_0_qa'?{...reply,checks:reply.checks.map((c:any)=>c.category==='props'?{...c,verdict:'defect',observation:'The boat sits in image 3 area',
+        correction:'Put the boat back in her hand',issues:[issue('continuity','entity:paper_boat','Unlike image 3, the boat is on the ground instead of held')]}:c)}:reply;
+      const e=await sceneRun({judge:local});await e.run;const a1=e.calls.find(c=>c.step==='page_1_1')!;
+      expect(a1.mode).toBe('book_scene_edit_v2');expect(a1.refs[0]).toBe('page_1_0.png');expect(a1.roles[0]).toBe('scene_edit_target');
+      expect(a1.roles).not.toContain('scene_continuity_reference');expect(a1.prompt).not.toMatch(/\bimage 3\b/i);
+      const op=(e.h.saved.get('page_1') as any).attempts[1].correctionOperation;
+      expect(op).toMatchObject({kind:'edit',reason:'verified_local_defects',parent:{attempt:0,imageSha:previewSha('page_1_0')},allowedRequirementIds:['entity:paper_boat']});
+      const global=(step:string,reply:any)=>step==='page_1_0_qa'?{...reply,checks:reply.checks.map((c:any)=>c.category==='environment'?{...c,verdict:'defect',observation:'Wrong place',
+        correction:'Fix the place',issues:[issue('continuity','visual_language','Synthetic held scene')]}:c)}:reply;
+      const g=await sceneRun({judge:global});await g.run;
+      expect(g.calls.find(c=>c.step==='page_1_1')!.mode).toBe('book_scene_render');
+      expect((g.h.saved.get('page_1') as any).attempts[1].correctionOperation).toMatchObject({kind:'redraw',reason:'global_defect',parent:{attempt:0}});
+    }finally{scenePackets.frame=null;}
+  });
+  it.each([['forbidden landmark inside the location crop',{locationContents:['garden','old_tree','stone']},'scene_reference_forbidden_content'],
+    ['child without qualified content',{evidence:()=>null},'scene_reference_content_unqualified'],
+    ['a retained v1 positional prompt line',{prompt:(n:number)=>`PAGE ${n}`},'scene_prompt_positional']] as const)('v2 refuses before any render: %s',async(_name,opts,code)=>{
+    try{const r=await sceneRun(opts as any);await expect(r.run).rejects.toThrow(code);expect(r.calls).toHaveLength(0);}finally{scenePackets.frame=null;}
+  });
+  it('v2 composes with nothing else: a sample or recovery mode refuses its scope',async()=>{
+    const {input}=await proofInput(within,[1,2]);
+    await expect(illustrateReviewedAudition({...input,sample:[1,2],pageAttempts:1,structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,
+      referenceQualification:REFERENCE_QUALIFICATION_VERSION,scenePreservation:{version:SCENE_PRESERVATION_VERSION,mode:SCENE_PRESERVATION_MODE} as any})).rejects.toThrow('scene_preservation_scope');
+  });
   it('page proof keeps its old rule: an unusable answer ends the proof with no re-ask',async()=>{
     const {input}=await proofInput(),reviews:string[]=[],judge=misbound(input.judge,['page_1_0_qa']);
     await expect(runNativePageProofFrames({...input,judge:async(...a:any[])=>{reviews.push(a[0]);return judge(...a);}})).rejects.toThrow('audition_review_unusable');
@@ -3378,7 +3491,7 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     const legacy=vi.fn(async()=>{throw Error('LEGACY_FLOW_FORBIDDEN');}),failure=new ReviewedAuditionError('audition_unknown_cost'),judge=input.judge;
     const c:any={proof:{version},proofScope:{pages:input.pages},grant:{scope:{mode:'render',pages:input.pages}},loaded:{...input},
       child:input.child,companion:input.companion,reused:{sheets:input.reuseSheets},io:{render:input.render,judge:async(...a:Parameters<typeof judge>)=>{if(lost&&a[0]==='page_1_0_qa')throw failure;return judge(...a);},identity:input.identity,check:input.check},
-      runNativePageProofFrames,runNativeBookFrames:vi.fn(async()=>{throw Error('BOOK_FLOW_FORBIDDEN');}),NATIVE_BOOK_VERSION:'native-cde-book/v1',
+      runNativePageProofFrames,runNativeBookFrames:vi.fn(async()=>{throw Error('BOOK_FLOW_FORBIDDEN');}),nativeBookPolicy,fail:(code:string)=>{throw Error(code);},
       illustrateReviewedAudition:legacy,trialDrawnFrames,args:{out:'VIRTUAL'},resume:undefined,existsSync:()=>false,path,
       meter:{snapshot:()=>({unknownCost:lost?1:0,reservedUnsettledMicroUsd:lost?600000:0})},save:input.save};
     vm.createContext(c);vm.runInContext(js,c);return{h,c,legacy,failure};
@@ -3386,6 +3499,10 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
   it('the actual paid runner routes a native-book grant to the whole-book boundary only',async()=>{
     const {c,legacy}=await realProofRun(false,'native-cde-book/v1');await expect(c.executeFrames()).rejects.toThrow('BOOK_FLOW_FORBIDDEN');
     expect(c.runNativeBookFrames).toHaveBeenCalledTimes(1);expect(legacy).not.toHaveBeenCalled();
+  });
+  it('the actual paid runner never routes a v2 grant into the v1 book boundary (refused, no frame callback)',async()=>{
+    const {c,legacy}=await realProofRun(false,'native-cde-book/v2');await expect(c.executeFrames()).rejects.toThrow('scene_preservation_unqualified');
+    expect(c.runNativeBookFrames).not.toHaveBeenCalled();expect(legacy).not.toHaveBeenCalled();
   });
   it('R5 actual paid runner dispatches the real page-only boundary even after its sample passes',async()=>{
     const {h,c,legacy}=await realProofRun(),m=await c.executeFrames();expect(m.pages).toHaveLength(2);expect(m.scope.complete).toBe(false);

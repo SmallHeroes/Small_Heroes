@@ -246,10 +246,15 @@ export type GPTImageReferenceMode =
   /** Explicit, individually bound reference-sheet/edit roles, not full-page positions. */
   | 'book_design'
   /** Prospective full-scene repair: first image is the rejected scene, never an identity authority. */
-  | 'book_scene_edit';
+  | 'book_scene_edit'
+  /** native-cde-book/v2 only: a scene render whose explicit, variable roles come from the frame's admitted reference set. */
+  | 'book_scene_render'
+  /** native-cde-book/v2 only: a local edit of the chosen page, with the same variable scoped roles (no continuity reference). */
+  | 'book_scene_edit_v2';
 
 export type BookDesignReferenceRole = 'rejected_edit_target' | 'scene_edit_target' | 'child_design_authority' |
-  'companion_design_authority' | 'entity_design_authority' | 'landmark_subset_design_authority';
+  'companion_design_authority' | 'entity_design_authority' | 'landmark_subset_design_authority' |
+  'entity_scoped_authority' | 'location_scoped_authority' | 'scene_continuity_reference';
 const BOOK_DESIGN_ROLES: Record<BookDesignReferenceRole, string> = {
   scene_edit_target: 'Rejected full scene to edit, not canonical design authority.',
   rejected_edit_target: 'REJECTED reference sheet to edit, never canonical authority. Preserve its layout and unaffected designs; change only the named defects.',
@@ -257,7 +262,26 @@ const BOOK_DESIGN_ROLES: Record<BookDesignReferenceRole, string> = {
   companion_design_authority: 'Accepted selected companion design authority. Preserve its actual species, anatomy, silhouette, colors and accessories; never substitute another companion or add its body unless requested.',
   entity_design_authority: 'Accepted object/supporting-cast design atlas authority. Preserve the relevant materials, counts, silhouettes and structural details, not tile layout or labels.',
   landmark_subset_design_authority: 'Independently supported source-bound landmark SUBSET ONLY, not an approved complete location atlas. Preserve only its named landmark designs and counted parts; the full current location/topology design remains mandatory. Do not copy its isolated tile background or replace unrelated locations.',
+  entity_scoped_authority: 'Approved design tiles of ONLY the objects/supporting cast allowed in this picture. Preserve their materials, counts, silhouettes and structural details; never their tile layout, labels or background.',
+  location_scoped_authority: 'Approved design of ONLY the location(s) visible in this picture and the landmarks they contain. Preserve set geometry, landmark construction and topology; follow the scene camera, never the tile framing.',
+  scene_continuity_reference: 'The SAME place one moment earlier in this book: comparison for the construction, part identity and layout of persistent structures, landmarks and props only. Apply only the declared changes; follow this page\'s camera, composition and actions. Not an identity or design authority; never copy its listed defects.',
 };
+/** native-cde-book/v2: the only admitted role sequences (optional roles in parentheses keep their order); the cap is the longest sequence. */
+export const SCENE_V2_MAX_REFERENCES = 5;
+const SCENE_V2_ORDER: Record<'book_scene_render' | 'book_scene_edit_v2', readonly { role: BookDesignReferenceRole; required: boolean }[]> = {
+  book_scene_render: [{ role: 'child_design_authority', required: true }, { role: 'companion_design_authority', required: false },
+    { role: 'entity_scoped_authority', required: false }, { role: 'location_scoped_authority', required: true }, { role: 'scene_continuity_reference', required: false }],
+  book_scene_edit_v2: [{ role: 'scene_edit_target', required: true }, { role: 'child_design_authority', required: true },
+    { role: 'companion_design_authority', required: false }, { role: 'entity_scoped_authority', required: false }, { role: 'location_scoped_authority', required: true }],
+};
+export const isSceneV2Mode = (mode: unknown): mode is 'book_scene_render' | 'book_scene_edit_v2' => mode === 'book_scene_render' || mode === 'book_scene_edit_v2';
+/** True only for an exact ordered subsequence of the mode's sequence that keeps every required role. */
+export function validSceneV2Roles(mode: 'book_scene_render' | 'book_scene_edit_v2', roles: readonly BookDesignReferenceRole[]) {
+  const order = SCENE_V2_ORDER[mode];
+  let at = 0;
+  for (const role of roles) { while (at < order.length && order[at].role !== role) { if (order[at].required) return false; at++; } if (at === order.length) return false; at++; }
+  return order.slice(at).every(o => !o.required) && roles.length > 0;
+}
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
@@ -500,6 +524,11 @@ function resolveReferencePrefix(
   referenceCount: number,
   roles?: readonly BookDesignReferenceRole[]
 ): string {
+  // v2: every image number comes from the validated role sequence itself; no fixed position is assumed.
+  if (isSceneV2Mode(mode)) return (mode === 'book_scene_edit_v2' ? '[LOCAL SCENE EDIT - EXPLICIT SCOPED ROLES]\n' : '[SCENE REFERENCES - EXPLICIT SCOPED ROLES]\n') +
+    roles!.map((role, i) => `Image ${i + 1}: ${BOOK_DESIGN_ROLES[role]}`).join('\n') +
+    (mode === 'book_scene_edit_v2' ? '\nReturn ONE coherent corrected full page, not a sheet, collage, annotation or diagram.\n[SCENE EDIT TASK]\n'
+      : '\nThese are the only reference images. Use only their relevant designs, never their pose, background, layout, labels or panels.\n[SCENE TASK]\n');
   if (mode === 'book_scene_edit') return '[LOCAL SCENE REPAIR - EXPLICIT ROLES]\n' +
     'Image 1: rejected FULL PAGE EDIT TARGET. Preserve its camera, composition, setting and unaffected content; correct only the specified structural defects. Never copy its anatomical mistake.\n' +
     'Image 2: canonical fictional child identity, owned clothing and watercolor technique ONLY. Never copy its pose or background.\n' +
@@ -543,15 +572,19 @@ export function planGPTImageRequest(
     .filter((source) => typeof source === 'string' && source.trim().length > 0);
   const referenceCountRequested = references.length;
   const referenceMode: GPTImageReferenceMode = input.referenceMode ?? 'identity';
-  const referenceCountCap = resolved.maxReferences;
+  // v2 modes carry their own cap (both the dry plan and actual dispatch plan here), never the environment default.
+  const sceneV2 = isSceneV2Mode(referenceMode);
+  const referenceCountCap = sceneV2 ? SCENE_V2_MAX_REFERENCES : resolved.maxReferences;
   const orderedReferenceSources = references.slice(0, referenceCountCap);
   const roles = input.referenceRoles;
-  const explicitRoles = referenceMode === 'book_design' || referenceMode === 'book_scene_edit';
+  const explicitRoles = referenceMode === 'book_design' || referenceMode === 'book_scene_edit' || sceneV2;
+  // Roles are validated against the full requested list, before any truncation could hide a role.
   if (explicitRoles ? (!Array.isArray(roles) || roles.length !== referenceCountRequested ||
       roles.length === 0 || referenceCountRequested !== orderedReferenceSources.length ||
       new Set(roles).size !== roles.length || Array.from(roles).some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r)) ||
-      (referenceMode === 'book_design' ? roles.includes('scene_edit_target') :
-        roles.join('|') !== 'scene_edit_target|child_design_authority|companion_design_authority|entity_design_authority')) : roles !== undefined) {
+      (sceneV2 ? !validSceneV2Roles(referenceMode, roles) : referenceMode === 'book_design'
+        ? roles.includes('scene_edit_target') || roles.some(r => r === 'entity_scoped_authority' || r === 'location_scoped_authority' || r === 'scene_continuity_reference')
+        : roles.join('|') !== 'scene_edit_target|child_design_authority|companion_design_authority|entity_design_authority')) : roles !== undefined) {
     throw new Error('Invalid explicit book design reference roles.');
   }
   const apiMode = orderedReferenceSources.length > 0 ? 'images.edit' : 'images.generate';

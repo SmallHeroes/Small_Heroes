@@ -7,7 +7,7 @@ import {transformSync} from 'esbuild';
 import {execFileSync} from 'node:child_process';
 import {previewSha} from '../../local-story-preview';
 import {canonicalJson} from '../request-acceptance';
-import {nativePageProofSchema,nativePageProofOwnerApprovalSchema,nativePageProofGrantValid,nativePageProofSteps,nativeProofSteps,
+import {nativePageProofSchema,nativePageProofOwnerApprovalSchema,nativePageProofGrantValid,nativePageProofSteps,nativeProofSteps,nativeBookPolicy,
   verifyNativePageProofPins,verifyNativePageProofReview,nativePageProofAuthority,snapshotNativePageProofArgs} from '../native-page-proof';
 import {auditionGrantSchema,runReviewedAudition,dryNativePageProof,readAuditionGrant,AuditionMeter,auditionMeterRules,auditionRenderPlan,auditionRenderRule,auditionReviewRule,REVIEW_MODEL} from '../../../scripts/personal-simple-book-reviewed-audition';
 import {realDirectory} from '../../../scripts/personal-causal-trial-journal';
@@ -241,6 +241,20 @@ describe('native page-proof strict grant and evidence fences',()=>{
     expect(dispatch).not.toHaveBeenCalled();
     // The re-ask is a page review under the review rule; a sheet re-ask is no rule at all.
     expect(auditionMeterRules('page_4_1_qa2')).toBe(auditionReviewRule);expect(auditionMeterRules('sheet_entities_0_qa2')).toBeUndefined();
+  });
+  it('native book v2 is classified as a book everywhere, keeps v1 caps/steps, and the real runner and dry plan refuse it before any output',async()=>{
+    const f=bookFixture(),g:any=structuredClone(f.grant);g.scope.pageProof.version='native-cde-book/v2';
+    expect(auditionGrantSchema.safeParse(g).success).toBe(true);
+    const proof=nativePageProofSchema.parse(g.scope.pageProof);expect(nativeBookPolicy(proof.version)).toMatchObject({kind:'book',scenePreservation:true,attempts:3,reask:true});
+    expect(nativeProofSteps(proof,g.scope.pages)).toEqual(nativeProofSteps(f.proof,f.grant.scope.pages));
+    expect(nativeBookPolicy('native-cde-page-proof/v1')).toMatchObject({kind:'page_proof',scenePreservation:false});
+    const s:any=structuredClone(g);s.scope.sample=[3,7];expect(auditionGrantSchema.safeParse(s).success).toBe(false);
+    writeFileSync(f.grantFile,JSON.stringify(g));const out=path.join(f.root,'v2-out'),key=path.join(f.root,'NEVER-READ');
+    await expect(runReviewedAudition({bookDir:path.join(f.root,'missing-book'),out,keyFile:key,grantFile:f.grantFile,signal:new AbortController().signal,log:()=>{},
+      proofReview:{file:f.readyFile,sha256:pin(f.readyFile).sha256}})).rejects.toThrow('scene_preservation_unqualified');
+    await expect(dryNativePageProof({bookDir:path.join(f.root,'missing-book'),out,grantFile:f.grantFile})).rejects.toThrow('scene_preservation_unqualified');
+    expect(existsSync(out)).toBe(false);expect(existsSync(key)).toBe(false);
+    expect(existsSync(path.join(host.root,'native-page-proof-'+bookOwner().approvalId+'.claim.json'))).toBe(false);
   });
   it('native book frames refuse any frame set other than the whole fixed book before any callback',async()=>{
     const {runNativeBookFrames}=await import('../native-page-proof-frames'),render=vi.fn();

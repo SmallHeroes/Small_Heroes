@@ -1,5 +1,6 @@
 import 'server-only';
-import { illustrateReviewedAudition, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION } from './simple-book-reviewed-audition';
+import { illustrateReviewedAudition, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION, type ScenePreservationRun } from './simple-book-reviewed-audition';
+import { SCENE_PRESERVATION_VERSION, SCENE_PRESERVATION_MODE } from './scene-preservation';
 import { COMPANION_SCALE_SAMPLE_GATE, COMPANION_SCALE_VERSION } from './companion-scale';
 import { INSTANCE_DISTINCTION_VERSION } from './storyboard-instance-distinction';
 import { ENTITY_MATERIAL_FUNCTION_VERSION } from './storyboard-material-function';
@@ -14,7 +15,7 @@ const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTA
 /** Every paid step is one of the allowlist, used once, of its own kind; the engine's own attempt loop decides which are reached.
  *  `terminalRender`: a rejected render ends the run with its original error (the engine's attempt step rechecks `check` in its catch), so a
  *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
-function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true},terminalRender=false){
+function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true;scenePreservation?:ScenePreservationRun},terminalRender=false){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
   let renderFailed=false,renderFailure:unknown,reasks=0;
   const check=()=>{if(renderFailed)throw renderFailure;args.check();};
@@ -43,6 +44,16 @@ export async function runNativePageProofFrames(args:Input){
 export async function runNativeBookFrames(args:Input){
   if(!args||Object.keys(args).some(k=>!keys.has(k))||!Array.isArray(args.pages)||JSON.stringify(args.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(args))fail('page_proof_scope');
   return fencedFrames(args,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true},true);
+}
+/**
+ * native-cde-book/v2: the whole book with scene-preservation/v1 (same frames, attempts, latch, re-ask fence and allowlist as v1). Its input
+ * mode is the offline proof only; the real runner refuses v2 before any claim until a qualified mapping/content source exists.
+ */
+export async function runNativeSceneBookFrames(args:Input&{scenePreservation:ScenePreservationRun}){
+  const {scenePreservation,...rest}=args;
+  if(!scenePreservation||scenePreservation.version!==SCENE_PRESERVATION_VERSION||scenePreservation.mode!==SCENE_PRESERVATION_MODE)fail('page_proof_scope');
+  if(!rest||Object.keys(rest).some(k=>!keys.has(k))||!Array.isArray(rest.pages)||JSON.stringify(rest.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(rest))fail('page_proof_scope');
+  return fencedFrames(rest,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true,scenePreservation},true);
 }
 /** Real source/reference preflight: virtual saves only; every provider-shaped callback denied, sentinel at the first admitted page. */
 export async function preflightNativePageProofFrames(args:Omit<Input,'render'|'judge'|'identity'|'save'|'progress'>){

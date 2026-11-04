@@ -6,7 +6,12 @@ import { canonicalJson } from './request-acceptance';
 import { previewSha } from '../local-story-preview';
 import { STYLE_01_SHARED } from '../style01-prompt-core';
 import { readerSafeSceneFraming, READER_PORTRAIT_FRAMING_VERSION } from '../storybook-scene-framing';
-import { qualityDisposition, previewQualityContextSha, QUALITY_CATEGORIES, PREVIEW_JUDGE_INSTRUCTION } from '../local-preview-quality';
+import { qualityDisposition, previewQualityContextSha, QUALITY_CATEGORIES, PREVIEW_JUDGE_INSTRUCTION, previewContinuityContext } from '../local-preview-quality';
+import { PREVIEW_REFERENCE_ROLES_LINE } from '../local-story-preview';
+import { SCENE_PRESERVATION_VERSION, SCENE_PRESERVATION_MODE, frameProjection, assertProjectionMatchesPacket, scenePreservationRecord,
+  recordDigest, allowedContentIds, admitReferenceContent, assertNoPositionalReferences, neutralisePositional, classifyCorrection,
+  SCENE_V2_PAGE_SUFFIX, scenePreservationPromptSection, SCENE_EDIT_V2_RULES, type FrameProjection, type ScenePreservationRecord } from './scene-preservation';
+import { scopedAtlasComposite } from './reveal-scoped-atlas';
 import { BOOK_SEQUENCE_ROLES } from '../local-book-sequence';
 import { currentPersonalStoryboardFrame, type PersonalStoryboard } from './storyboard';
 import { drawnStates } from './storyboard-moments';
@@ -648,7 +653,12 @@ export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null
   sceneRepair?: { version: typeof AUDITION_LOCAL_ANATOMY_REPAIR_VERSION | 'audition-local-material-scene/v1'; parentImageSha: string; parentContextSha: string; targetActorIds: string[];
     clarity?: AnatomyClarityRequest & {requestSha:string} };
   /** Opt-in review re-ask only: the first answer for this same image arrived but was unusable (its code); the review kept is the re-ask's. */
-  reviewReask?: { firstError: string } };
+  reviewReask?: { firstError: string };
+  /** scene-preservation/v1 only: the operation of a correction attempt and the exact verified parent evidence it was bound to. */
+  correctionOperation?: { version: typeof SCENE_PRESERVATION_VERSION; kind: 'edit' | 'redraw'; reason: string;
+    /** Null only for a redraw with no eligible verified parent (reason no_eligible_parent). */
+    parent: { attempt: number; imageSha: string; contextSha: string; rawReviewSha: string; assessmentSha: string } | null;
+    allowedRequirementIds: string[] } };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
 
 const critical = (a: AuditionAssessment) => a.counts.story + a.counts.identity + a.counts.continuity;
@@ -1048,7 +1058,14 @@ function closedAttempts(list: readonly AuditionAttempt[] | undefined, limit: num
 }
 type Judge = (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
   predecessor: AuditionImage | null, kind: 'sheet' | 'page') => Promise<unknown>;
-type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
+type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'book_scene_render' | 'book_scene_edit_v2', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
+/** native-cde-book/v2 opt-in input. Only the offline proof mode exists: real atlas mappings and content evidence need their own qualified source. */
+export type ScenePreservationRun = { version: typeof SCENE_PRESERVATION_VERSION; mode: typeof SCENE_PRESERVATION_MODE;
+  atlases: { entities: { bytes: Buffer; manifest: unknown } | null; locations: { bytes: Buffer; manifest: unknown } };
+  /** Qualified ACTUAL-content evidence of an image (child, companion, a drawn predecessor), or null. Never derived from a record. */
+  contentEvidence: (imageSha: string) => unknown;
+  /** Persists a derived composite at the image boundary and returns its bound image. */
+  materialize: (name: string, bytes: Buffer) => Promise<AuditionImage> };
 
 /** One shared quality/identity path for normal attempts and explicitly granted successors. No new judge or relaxed gate. */
 export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page'; step: string; attempt: number; candidate: AuditionImage;
@@ -1200,8 +1217,10 @@ export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<Sa
 
 export function auditionPageContext(book: PersonalStoryboard, packetContext: unknown, pageNumber: number, companionDescription: string,
   references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION,
-  topology?: LandmarkTopologyVersion, structuralAnatomy?: true) {
+  topology?: LandmarkTopologyVersion, structuralAnatomy?: true,
+  scene?: { record: ScenePreservationRecord; referenceRoles: { role: string; imageSha: string }[] }) {
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
+  if (scene && (!structuralAnatomy || topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION)) fail('scene_preservation_scope');
   const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);
   if (structuralAnatomy && topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION) fail('audition_anatomy_contract');
   if (structuralAnatomy) checks.requirementIds.push(...checks.castIdentity.map(a => `anatomy:${a.id}`));
@@ -1221,8 +1240,86 @@ export function auditionPageContext(book: PersonalStoryboard, packetContext: unk
     predecessor: predecessor ? { pageNumber: pageNumber - 1, ...predecessor, authority: 'comparison_only_not_canonical' } : null,
     checks: { notYetRevealed: checks.notYetRevealed, uniqueLandmarks: checks.uniqueLandmarks, castIdentity: checks.castIdentity,
       ...(checks.instances ? { instances: checks.instances } : {}) },
-    requirementIds: checks.requirementIds };
+    requirementIds: checks.requirementIds,
+    // v2 only: the SAME record the renderer receives, its digest, and each judge reference bound to its exact image hash.
+    ...(scene ? { scenePreservation: { version: SCENE_PRESERVATION_VERSION, record: scene.record, recordDigest: recordDigest(scene.record),
+      referenceRoles: scene.referenceRoles } } : {}) };
   return { context, contextSha: previewQualityContextSha(context), checks };
+}
+
+/** v2's role-named replacement of the v1 page prompt's positional reference line. */
+export const SCENE_V2_REFERENCE_ROLES_LINE = 'Reference roles are the named images listed above: the child design authority gives exact child identity and watercolor technique ONLY; the companion design authority gives exact companion design ONLY; the scoped entity and location references are design boards ONLY. Never copy their pose, expression, composition or blank backdrop. No panels, collage, captions, words or typography.';
+/**
+ * scene-preservation/v1, one frame: its effective projection (equal to the packet), the shared record, and the references admitted by their
+ * ACTUAL qualified content against this frame's allow-set: child (always), companion (only when in the frame's cast), scoped entity
+ * composite (when any allowed tile exists), scoped location composite (mandatory), and the same-visit predecessor only when its own
+ * content evidence qualifies. Required references that do not qualify refuse before any render; the predecessor is then judge-only.
+ */
+async function scenePreservedFrame(a: { sp: ScenePreservationRun; book: PersonalStoryboard; packetContext: unknown; pageNumber: number;
+  checks: ReturnType<typeof auditionPageChecks>; child: AuditionImage; companion: AuditionImage; predecessor: AuditionImage | null;
+  previous: { projection: FrameProjection; page: SavedPage; context: unknown; contextSha: string; checks: ReturnType<typeof auditionPageChecks> } | null;
+  topology: LandmarkTopologyVersion }) {
+  const book = a.book, c = book.plan.continuity!, castIds = a.checks.castIdentity.map(x => x.id);
+  const projection = frameProjection(a.packetContext, { pageNumber: a.pageNumber, castIds,
+    mutableAttributes: (book.sequence as { mutableAttributes?: { entityId: string; attribute: string }[] }).mutableAttributes ?? [],
+    endRelations: a.pageNumber ? book.sequence.pages[a.pageNumber - 1].states : [],
+    endAttributes: Object.fromEntries(previewContinuityContext(c, a.pageNumber).entities.map(e => [e.id, e.currentState])),
+    changes: c.pages[a.pageNumber].changes });
+  assertProjectionMatchesPacket(projection, a.packetContext);
+  const allowed = allowedContentIds(projection);
+  const need = (img: AuditionImage, must: string) => {
+    const r = admitReferenceContent(img.imageSha, a.sp.contentEvidence(img.imageSha), allowed, must);
+    if (!r.admitted) fail(`scene_reference_${r.reason}`);
+  };
+  need(a.child, BOOK_SEQUENCE_ROLES.child);
+  const companionShown = castIds.includes(BOOK_SEQUENCE_ROLES.companion);
+  if (companionShown) need(a.companion, BOOK_SEQUENCE_ROLES.companion);
+  const ent = a.sp.atlases.entities ? await scopedAtlasComposite(a.sp.atlases.entities.bytes, a.sp.atlases.entities.manifest, 'entities',
+    projection.entityIds, allowed) : null;
+  const loc = await scopedAtlasComposite(a.sp.atlases.locations.bytes, a.sp.atlases.locations.manifest, 'locations', projection.locationIds,
+    allowed, projection.locationIds) ?? fail('scene_atlas_missing_tile');
+  const entImg = ent ? await a.sp.materialize(`scene_entities_${a.pageNumber}.png`, ent.bytes) : null;
+  const locImg = await a.sp.materialize(`scene_locations_${a.pageNumber}.png`, loc.bytes);
+  if ((entImg && entImg.imageSha !== ent!.sha) || locImg.imageSha !== loc.sha) fail('scene_reference_binding');
+  let continuity: AuditionImage | null = null, omittedReason: string | null = null, doNotInherit: { requirement: string; note: string }[] = [];
+  if (a.predecessor && a.previous) {
+    const r = admitReferenceContent(a.predecessor.imageSha, a.sp.contentEvidence(a.predecessor.imageSha), allowed);
+    if (r.admitted) continuity = a.predecessor; else omittedReason = r.reason;
+    // The predecessor's own bound findings, re-derived from its raw review under ITS context (never trusted from a save).
+    const chosen = a.previous.page.chosen;
+    const re = assessAuditionReview(chosen.review, chosen.candidate.imageSha, a.previous.contextSha, a.previous.checks.requirementIds,
+      a.previous.checks.uniqueLandmarks, a.topology, auditionAnatomyCast(a.previous.context), auditionInstanceDistinction(a.previous.context),
+      companionScaleFromContext(a.previous.context)).assessment;
+    if (canonicalJson(re) !== canonicalJson(chosen.assessment)) fail('scene_preservation_predecessor_binding');
+    doNotInherit = re.findings.filter(f => f.verdict === 'defect' && ['story', 'identity', 'continuity'].includes(f.impact))
+      .map(f => ({ requirement: f.requirement, note: neutralisePositional(f.note) }));
+  }
+  const record = scenePreservationRecord(projection, a.predecessor && a.previous ? a.previous.projection : null,
+    a.predecessor && a.previous ? { pageNumber: a.pageNumber - 1, imageSha: a.predecessor.imageSha, contextSha: a.previous.contextSha,
+      usedForRender: !!continuity, omittedReason, doNotInherit } : null);
+  const authority = [{ img: a.child, role: 'child_design_authority' as const, judge: 'canonical_child' },
+    ...(companionShown ? [{ img: a.companion, role: 'companion_design_authority' as const, judge: 'canonical_companion' }] : []),
+    ...(entImg ? [{ img: entImg, role: 'entity_scoped_authority' as const, judge: 'canonical_entities' }] : []),
+    { img: locImg, role: 'location_scoped_authority' as const, judge: 'canonical_locations' }];
+  return { projection, record,
+    renderRefs: [...authority.map(x => x.img), ...(continuity ? [continuity] : [])],
+    renderRoles: [...authority.map(x => x.role), ...(continuity ? ['scene_continuity_reference' as const] : [])] as BookDesignReferenceRole[],
+    editRefs: authority.map(x => x.img), editRoles: authority.map(x => x.role) as BookDesignReferenceRole[],
+    judgeRefs: authority.map(x => x.img), judgeRoles: authority.map(x => ({ role: x.judge, imageSha: x.img.imageSha })),
+    recipes: { entities: ent?.recipe ?? null, locations: loc.recipe } };
+}
+
+/** v2: EVERY eligible attempt is re-derived from its own raw review and must equal its saved assessment/status BEFORE ranking. */
+export function selectVerifiedParent(attempts: readonly AuditionAttempt[], a: { context: unknown; contextSha: string;
+  checks: ReturnType<typeof auditionPageChecks>; topology: LandmarkTopologyVersion }) {
+  const verified = attempts.map(x => {
+    if (!x.candidate || !x.review || !x.assessment) return x;
+    const re = assessAuditionReview(x.review, x.candidate.imageSha, a.contextSha, a.checks.requirementIds, a.checks.uniqueLandmarks, a.topology,
+      auditionAnatomyCast(a.context), auditionInstanceDistinction(a.context), companionScaleFromContext(a.context)).assessment;
+    if (canonicalJson(re) !== canonicalJson(x.assessment) || attemptStatus('page', { ...x, assessment: re }) !== x.status) fail('scene_preservation_attempt_binding');
+    return { ...x, assessment: re };
+  });
+  return selectAuditionAttempt('page', verified);
 }
 
 export async function illustrateReviewedAudition(args: {
@@ -1271,6 +1368,8 @@ export async function illustrateReviewedAudition(args: {
   pageAttempts?: number;
   /** Native whole book only: an unusable review answer gets one fresh identical request for the same image (step <image>_qa2). Absent: as before. */
   reviewReask?: true;
+  /** native-cde-book/v2 only (scene-preservation/v1): admitted scoped references, the shared record and per-attempt operations. Absent: as before. */
+  scenePreservation?: ScenePreservationRun;
   /**
    * Opt-in (spend grant only) stage-recovery/v1 for pages, inside the unchanged attempt ceiling: after two consecutive held attempts of a page
    * the next attempt carries the diagnosis of both (auditionRecoveryDiagnosis) instead of only the last one's findings, and the saved page
@@ -1302,6 +1401,12 @@ export async function illustrateReviewedAudition(args: {
 }) {
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
+  // scene-preservation/v1 composes with the native whole book only: no sample, lineup, continuation, recovery, resume or legacy repair mode.
+  const sp = args.scenePreservation;
+  if (sp && (sp.version !== SCENE_PRESERVATION_VERSION || sp.mode !== SCENE_PRESERVATION_MODE || !args.structuralAnatomy ||
+      topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || !args.referenceQualification || args.sample || args.scaleLineup || args.calibration ||
+      args.topologyContinuation || args.coverageContinuation || args.anatomyRecovery || args.resume || args.localAnatomyRepair || args.recovery ||
+      args.fullBookDiagnostic || args.freshCohort || args.ownerAcceptance !== undefined)) fail('scene_preservation_scope');
   if (topology && (args.calibration || args.book.landmarkKind !== LANDMARK_KIND_CONTRACT_VERSION)) fail('audition_landmark_contract');
   if (coverage) {
     if (topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || continuation || args.calibration || !args.resume ||
@@ -1419,11 +1524,14 @@ export async function illustrateReviewedAudition(args: {
       fail('audition_rereview_binding');
   } else args.save('audition_sheet_designs', { policy, designs });
   const attemptOnce = async (phase: 'sheet' | 'page', name: string, attempt: number, prompt: string, refs: AuditionImage[],
-    mode: 'book_identity' | 'book_design' | 'book_scene_edit', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
+    mode: 'book_identity' | 'book_design' | 'book_scene_edit' | 'book_scene_render' | 'book_scene_edit_v2', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     args.check();
     const step = `${prefix}${phase}_${name}_${attempt}`;
-    const rendered = await attemptStep(args.check, () => args.render(step, prompt + materialRenderAppendix(context) + scaleRenderAppendix(context), refs, mode, roles));
+    const full = prompt + materialRenderAppendix(context) + scaleRenderAppendix(context);
+    // v2: the complete engine prompt names references by role only (the image planner adds the one role-derived numbered prefix).
+    if (mode === 'book_scene_render' || mode === 'book_scene_edit_v2') assertNoPositionalReferences(full);
+    const rendered = await attemptStep(args.check, () => args.render(step, full, refs, mode, roles));
     if ('error' in rendered) return { attempt, candidate: null, review: null, assessment: null, status: 'unavailable', error: rendered.error };
     return judgeCandidate(phase, name, attempt, rendered.value, context, contextSha, requirementIds, judgeRefs, predecessor, landmarks);
   };
@@ -1646,6 +1754,7 @@ export async function illustrateReviewedAudition(args: {
           consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } }) };
   };
   const pages: SavedPage[] = [];
+  const sceneFrames = new Map<number, { projection: FrameProjection; context: unknown; contextSha: string; checks: ReturnType<typeof auditionPageChecks> }>();
   const diagnosticCandidates = new Map<number, AuditionImage>();
   if (diagnostic || freshCohort) for (const pageNumber of order) {
     if (diagnosticParents.has(pageNumber)) continue;
@@ -1682,8 +1791,19 @@ export async function illustrateReviewedAudition(args: {
     // Same-scene rule as sequencePredecessor; only a frame rendered in THIS run can be compared, never as authority.
     const seq = args.book.sequence.pages, previous = pages.find(p => p.pageNumber === pageNumber - 1);
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
-    const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription, canonical, refs, predecessor,
-      calibration || topology ? LANDMARK_DESIGN_HEAD_VERSION : undefined, topology, args.structuralAnatomy);
+    // v2: the frame's admitted scoped references and shared record come first; the context then binds both (same digest for renderer and judge).
+    const scene = sp ? await scenePreservedFrame({ sp, book: args.book, packetContext: packet.context, pageNumber,
+      checks: auditionPageChecks(args.book, pageNumber, args.companionDescription, LANDMARK_DESIGN_HEAD_VERSION), child: args.child, companion: args.companion,
+      predecessor, previous: predecessor && previous && sceneFrames.has(pageNumber - 1) ? { ...sceneFrames.get(pageNumber - 1)!, page: previous } : null,
+      topology: topology! }) : null;
+    const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, pageNumber, args.companionDescription,
+      scene ? scene.judgeRefs : canonical, refs, predecessor, calibration || topology ? LANDMARK_DESIGN_HEAD_VERSION : undefined, topology, args.structuralAnatomy,
+      scene ? { record: scene.record, referenceRoles: scene.judgeRoles } : undefined);
+    if (scene) {
+      sceneFrames.set(pageNumber, { projection: scene.projection, context, contextSha, checks });
+      args.save(`scene_frame_${pageNumber}`, { version: SCENE_PRESERVATION_VERSION, record: scene.record, recordDigest: recordDigest(scene.record),
+        renderRoles: scene.renderRoles, renderRefs: scene.renderRefs, judgeRoles: scene.judgeRoles, recipes: scene.recipes });
+    }
     const diagnosticParent = diagnosticParents.get(pageNumber);
     if (diagnosticParent) {
       if (diagnosticParent.contextSha !== contextSha) fail('audition_diagnostic_parent');
@@ -1751,7 +1871,30 @@ export async function illustrateReviewedAudition(args: {
     const attempts = closedAttempts(closed, pageAttempts);
     const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${args.structuralAnatomy ? ANATOMY_RENDER_RULES : ''}`;
     const diagnoses: NonNullable<SavedPage['recovery']>['diagnoses'] = [];
-    for (let attempt = attempts.length; attempt < pageAttempts; attempt++) {
+    if (scene) {
+      const at = packet.render.prompt.indexOf(PREVIEW_REFERENCE_ROLES_LINE);
+      if (at < 0 || packet.render.prompt.indexOf(PREVIEW_REFERENCE_ROLES_LINE, at + 1) >= 0) fail('scene_prompt_positional');
+      const sceneBase = `${packet.render.prompt.replace(PREVIEW_REFERENCE_ROLES_LINE, SCENE_V2_REFERENCE_ROLES_LINE)}${SCENE_V2_PAGE_SUFFIX}\n` +
+        `${pageChecksPrompt(checks, refs)}${ANATOMY_RENDER_RULES}${scenePreservationPromptSection(scene.record)}`;
+      assertNoPositionalReferences(sceneBase);
+      for (let attempt = attempts.length; attempt < pageAttempts; attempt++) {
+        // Each correction is bound to ONE verified parent; its operation is decided by the total classifier, then recorded with that parent.
+        const parent = attempts.length ? selectVerifiedParent(attempts, { context, contextSha, checks, topology: topology! }) : null;
+        const op = parent ? classifyCorrection(parent.assessment.findings, identityPassed(parent.identity)) : null;
+        const operation = attempts.length ? { version: SCENE_PRESERVATION_VERSION, kind: op?.kind ?? 'redraw' as const, reason: op?.reason ?? 'no_eligible_parent',
+          parent: parent ? { attempt: parent.attempt, imageSha: parent.candidate.imageSha, contextSha, rawReviewSha: previewSha(canonicalJson(parent.review)),
+            assessmentSha: previewSha(canonicalJson(parent.assessment)) } : null, allowedRequirementIds: op?.allowedRequirementIds ?? [] } : null;
+        const edit = op?.kind === 'edit' && parent ? { parent, defects: op.localDefects } : null;
+        const prompt = edit ? `${SCENE_EDIT_V2_RULES}\nVERIFIED LOCAL DEFECTS (data):\n${edit.defects.map(f => `- ${f.requirement}: ${neutralisePositional(f.note)}`).join('\n')}` +
+            `\nFROZEN PAGE DESCRIPTION AND PRESERVATION RECORD (data, not text to paint):\n${sceneBase}`
+          : sceneBase + (parent ? neutralisePositional(auditionCorrections(parent, 'page')) : '');
+        const result = await attemptOnce('page', String(pageNumber), attempt, prompt, edit ? [edit.parent.candidate, ...scene.editRefs] : scene.renderRefs,
+          edit ? 'book_scene_edit_v2' : 'book_scene_render', edit ? ['scene_edit_target', ...scene.editRoles] : scene.renderRoles,
+          context, contextSha, checks.requirementIds, scene.judgeRefs, predecessor, checks.uniqueLandmarks);
+        attempts.push(operation ? { ...result, correctionOperation: operation } : result); report('page', String(pageNumber), result);
+        if (finish('page', String(pageNumber), attempts)) break;
+      }
+    } else for (let attempt = attempts.length; attempt < pageAttempts; attempt++) {
       // Opt-in: after two consecutive held attempts the diagnosis of both replaces the last attempt's findings (same ceiling, same loop).
       const diagnosis = args.recovery ? auditionRecoveryDiagnosis(attempts) : null;
       if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });
