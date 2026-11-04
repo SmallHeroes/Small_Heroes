@@ -1,0 +1,20 @@
+STATUS: M07-PERSONAL-ORDERS DONE
+HEAD: 348c85dc213f85597eb484d05e68e9048edb5603
+Summary 1/5: Added a default-off customer mode of the personal wizard and authenticated order API.
+Summary 2/5: Server snapshots reviewed input, admitted options, appearance, owner and final inclusive offer.
+Summary 3/5: Owner/draft uniqueness plus SQL row lock preserve one immutable order on identical retry.
+Summary 4/5: New checkout checks owner; legacy pricing and local preview behavior remain separate.
+Summary 5/5: USD0; TypeScript exit0, focused199/199 in12files; no live provider/database/key access.
+Guy decisions: None required here. The proposed USD10 cap remains unapproved spend authority. Company/address/mailbox/cancellation/lawyer and eventual product/launch approval remain Guy's items.
+
+The source patch is based on the exact HEAD above. No index/commit/push was attempted. Old untracked logs/recovery artifacts were preserved. Relevant scene worktree remains clean at ddc08c52, release worktree clean at006b3757; neither was edited. Same dedicated thread is sole implementation writer.
+
+The order boundary rejects browser prices/quality/authority, fixtures, unavailable companions/voices/lengths, stale option fingerprints, local-only photos and mutation of a bound draft. Parent identity/email come from the existing authenticated session, never browser ownership fields. HTTP checks flag, origin, rate, session and bounded streamed JSON before persistence. Identical retry returns200/same id; first creation201; drift409. Unique WizardSession/Order relations and FOR UPDATE serialize writes. No new migration/generated client, story-bank call, provider, job, budget grant or payment is part of intake.
+
+The launch wizard starts with explicit typed/chip input, hides local example controls, offers one length, requires an appearance description, and shows the price only through offer-definition.ts. It creates an order only on the final explicit click. Private photos are unavailable until M08; they are never silently discarded as a successful upload. Existing short-tier internal display count16 still compiles to8 narrative beats; the launch UI says cover+8 story pages. Checkout remains ENGINE_SITE_CHECKOUT_ENABLED absent/off; intake/page also require ENGINE_SITE_ORDER_INTAKE_ENABLED. Rollback: unset intake flag.
+
+Validation: direct node TypeScript exit0 and focused199/199 in12files exit0 (engine-site namespace, personal request-acceptance, money-truth, fake-payment-gating). Logs typescript.log/focused.log. PGlite executes actual session fencing SQL and unique/FK constraints; its adapter implements relevant Prisma calls. It does not prove two-session production pooler concurrency, all real Prisma migrations or deployed sessions. React checklist reviewed explicit user events, effect cleanup, fixed order, labels/status, no client import of server authority; no browser/visual product approval is claimed. npm run check was invoked with a PowerShell5.1 stderr-safe wrapper and is informational; npm-check.log captures existing EPERM realpath failures. Its final native exit is recorded when the process finishes, independently of this package.
+
+RECOVER.ps1 verifies HEAD/branch/working pins/patch, direct-Node tsc/focused tests, reports npm check, stages an enumerated list and commits using COMMIT-MESSAGE.txt. It never pushes. If later milestones change these files before Guy recovers this package, use the latest cumulative package or this frozen patch in an owner-controlled isolated checkout; do not reset the working tree. PINS.json records every explicit source path and base HEAD.
+
+Claude Code brief (first pass read-only, only when Guy asks): review 348c85dc..the owner-created M07 commit, on codex/engine-site-launch-20261104 in this worktree. Falsify owner/price injection, duplicate creation, modified request replay, private/local photo confusion, bank fallback and automatic order creation. Verify actual HEAD against the handoff before accepting findings. No independent technical PASS or product/release readiness is claimed. Next milestone M08 private uploads starts immediately under the same authorized brief.

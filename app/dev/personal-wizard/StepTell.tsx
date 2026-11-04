@@ -78,6 +78,7 @@ type Props = {
   manualOpen: boolean;
   onToggleManual: () => void;
   topics: ReadonlyArray<{ id: string; label: string }>;
+  customerMode?: boolean;
 };
 
 /**
@@ -164,7 +165,7 @@ export function StepTell(props: Props) {
             )}
           </div>
         ) : null}
-        {idle ? <TestPanel {...props} /> : null}
+        {idle && !props.customerMode ? <TestPanel {...props} /> : null}
       </section>
     );
   }
@@ -354,7 +355,7 @@ function DetailsCard(
         ) : null}
       </div>
 
-      <TestPanel {...props} />
+      {!props.customerMode ? <TestPanel {...props} /> : null}
     </section>
   );
 }

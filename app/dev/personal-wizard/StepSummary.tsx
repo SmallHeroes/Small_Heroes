@@ -21,6 +21,7 @@ import { StoryPreview } from './StoryPreview';
 import { NativeBookPreview } from './NativeBookPreview';
 import { SimpleBookPreview } from './SimpleBookPreview';
 import { MomentumBookPreview } from './MomentumBookPreview';
+import { ENGINE_SITE_LAUNCH_OFFER } from '@/lib/engine-site/offer-definition';
 
 export type Submission =
   | { state: 'idle' }
@@ -46,9 +47,10 @@ type Props = {
   simpleBookPreview?: boolean;
   /** Opt-in local momentum book (updated engine + Dad narration); takes precedence when explicitly enabled. */
   momentumBookPreview?: boolean;
+  customerMode?: boolean;
 };
 
-export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false }: Props) {
+export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false, customerMode = false }: Props) {
   const name = normalizeText(draft.child.name);
   const copy = summaryCopy(name, draft.child.address);
   const tell = tellCopy(name, draft.child.address);
@@ -85,7 +87,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
   const companion = options.companions.find((candidate) => candidate.id === model.companionId);
   const voice = options.voices.find((candidate) => candidate.id === model.voiceId);
   const length = options.lengths.find((candidate) => candidate.id === model.lengthId);
-  const lengthText = length ? `${LENGTH_COPY[length.id]?.name ?? length.id}, ${length.pages} עמודים` : null;
+  const lengthText = customerMode ? `כריכה + ${ENGINE_SITE_LAUNCH_OFFER.narrativePages} עמודי סיפור` : length ? `${LENGTH_COPY[length.id]?.name ?? length.id}, ${length.pages} עמודים` : null;
   const intentText =
     model.intent === null
       ? copy.intentNone
@@ -219,7 +221,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
               <img className={styles.summaryPhoto} src={photoUrl} alt="" />
             ) : null}
             <ul className={styles.summaryList}>
-              <li>{model.photo === 'none' ? copy.photoNone : copy.photoLocal}</li>
+              <li>{customerMode ? 'המראה לפי התיאור או התמונה שבחרתם' : model.photo === 'none' ? copy.photoNone : copy.photoLocal}</li>
               <li>{copy.voice(voice ? voice.label : null)}</li>
               <li>{copy.length(lengthText)}</li>
             </ul>
@@ -227,7 +229,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
         </section>
       </div>
 
-      <div className={styles.statusBox}>
+      {!customerMode ? <div className={styles.statusBox}>
         <p className={styles.summaryText}>{copy.connectionBody}</p>
         <div role="status" aria-live="polite" className={styles.submission}>
           {submission.state === 'submitting' ? <p>{copy.finishing}</p> : null}
@@ -259,8 +261,8 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             <pre dir="ltr">{JSON.stringify(submission.canonical, null, 2)}</pre>
           </details>
         ) : null}
-      </div>
-      {submission.state === 'accepted' ? momentumBookPreview
+      </div> : null}
+      {!customerMode && submission.state === 'accepted' ? momentumBookPreview
         ? <MomentumBookPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} />
         : simpleBookPreview
         ? <SimpleBookPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} />

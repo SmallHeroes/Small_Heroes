@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkoutProductName, checkoutProductDescription, CHECKOUT_ADDONS } from '@/content';
 import { computePricing } from '../../../backend/config/wizard';
 import { engineSiteCheckoutEnabled, engineSiteCheckoutPricing } from '@/lib/engine-site/offer';
+import { resolveUserFromRequest } from '@/lib/auth-session';
 import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-security';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
@@ -248,6 +249,12 @@ export async function handleCheckoutPost(
     }
     if (engineSitePricing && env.PAYMENT_PROVIDER !== 'payme') {
       return NextResponse.json({ error: 'engine_site_requires_payme' }, { status: 503 });
+    }
+    if (engineSitePricing) {
+      const parent = await resolveUserFromRequest(req);
+      if (!parent || !order.userId || parent.user.id !== order.userId) {
+        return NextResponse.json({ error: 'engine_site_order_access_denied' }, { status: 403 });
+      }
     }
     if (engineSitePricing && typeof bodyCouponCode === 'string' && bodyCouponCode.trim()) {
       return NextResponse.json({ error: 'engine_site_launch_has_no_discounts_or_addons' }, { status: 422 });
