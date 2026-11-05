@@ -21,17 +21,12 @@ import { assetBytesSha256 } from './private-assets';
 /** Rebuild the entire producer through its real compilers, raw saved provider answers and native resume gates.
  * No grant, lease, provider execute(), key, mutation or replacement answer is available in this runtime. */
 export async function admitEngineBookEvidence(db: PrismaClient, storage: EnginePrivateStorage, context: EngineReaderContext) {
-  const checkpoint = structuredClone(context.checkpoint); checkpoint.phase = 'story';
-  const cached = new Map<string, unknown>(), denied = (): never => engineSiteFail('engine_readmission_dispatch_forbidden');
+  const checkpoint = context.checkpoint;
   const readJson = async (id: string) => {
     const asset = await loadEnginePrivateAsset(db, id);
     if (asset.kind !== 'receipt' || asset.orderId !== context.order.id || asset.ownerId !== checkpoint.ownerId || asset.draftId !== checkpoint.draftId)
       engineSiteFail('engine_readmission_asset_changed');
     return JSON.parse((await readEnginePrivateBytes(storage, asset)).toString('utf8'));
-  };
-  const load = async (name: string) => {
-    if (cached.has(name)) return cached.get(name);
-    const value = checkpoint.outputs[name] ? await readJson(checkpoint.outputs[name]) : null; cached.set(name, value); return value;
   };
   const result = async (step: string): Promise<EngineProviderResult> => {
     const r = await readEngineCallResult(db, checkpoint.authority, step), c = checkpoint.calls[step];
@@ -41,6 +36,24 @@ export async function admitEngineBookEvidence(db: PrismaClient, storage: EngineP
     if (canonicalHash(saved) !== r.receiptSha256 || saved.wireSha256 !== r.wireSha256 || !saved.completed ||
         saved.result.estimatedMicroUsd !== r.estimatedMicroUsd) engineSiteFail('engine_readmission_receipt_changed');
     return saved.result;
+  };
+  return replayEngineRecordedBook(context, { readJson, result }, { db, storage });
+}
+
+/** The same provider-free producer/raw-review/identity/narration replay for private DB books and
+ * explicit local test journals. It neither grants a paid Order nor substitutes a database privacy check. */
+export async function replayEngineRecordedBook(context: Pick<EngineReaderContext, 'checkpoint' | 'snapshot' | 'book'>,
+  evidence: { readJson: (id: string) => Promise<any>; result: (step: string) => Promise<EngineProviderResult> },
+  privatePhoto?: { db: PrismaClient; storage: EnginePrivateStorage }) {
+  const checkpoint = structuredClone(context.checkpoint); checkpoint.phase = 'story';
+  const denied = (): never => engineSiteFail('engine_readmission_dispatch_forbidden');
+  if (!privatePhoto && context.snapshot.appearance.kind !== 'description') engineSiteFail('engine_readmission_private_photo_required');
+  const db = privatePhoto?.db ?? new Proxy({}, { get: denied }) as PrismaClient;
+  const storage = privatePhoto?.storage ?? { put: denied, read: denied, sign: denied };
+  const { readJson, result } = evidence, cached = new Map<string, unknown>();
+  const load = async (name: string) => {
+    if (cached.has(name)) return cached.get(name);
+    const value = checkpoint.outputs[name] ? await readJson(checkpoint.outputs[name]) : null; cached.set(name, value); return value;
   };
   let final: SavedPage[] | null = null;
   const runtime: EngineRuntime = {

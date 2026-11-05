@@ -1,5 +1,11 @@
 > 2026-11-05 M18: verified R4 HOLD; general R4-1 stable staging alias, R4-3 global dispatch preflight/no order mutation, R4-2 precise proof notices/all-sale cleanup/nonblocking review/audited dismiss are implemented for manual re-gate. Final1267/1267/73 files and bothTS0; actual Linux build/check/native media0. M17 Windows build is baseline, not a new M18 claim. Archived native ENOENT recovery and prepared drain/long-host/inbox instructions included. Independent QA, actual Vercel/private target/browser/paid/product/launch qualification remain separate. USD0; no real env/key/service/SQL/book/server/push/deploy/automatic handoff. Package _review/engine-site-launch/m18-r4-corrections/.
 
+## M20 one internal fictional-book trial — owner authorized, independent QA pending (2026-11-05)
+
+- Guy authorized Codex to finish ONE local fictional book, maxUSD10/121 logical paid calls, existing credentials, no real PayMe/public release. M19 committed locally at55d22e35; M20 adds a default-inactive file-backed operator using the same native recipe, raw readmission, LOW images, Dad narration and PDF.
+- Local1316/1316 in77 files and bothTS0. Consent-wide exclusive claim, exact code/input pins, immutable raw journals and full UNKNOWN/pending reserves enforce the bound. Source stays frozen during paid work. Technical tests do not establish model image efficacy, independent PASS or product acceptance.
+- Next: freeze clean M20 and exact one-book grant, execute durably once, reconcile every charged receipt and quality result, inspect the actual book/assets/audio/PDF and local Reader. Stop truthfully on UNKNOWN or exhausted authority; no new book/cap extension/manual art repair/push/deploy. Claude manual adversarial review and production/private target qualification remain separate.
+
 ## M19 R5 correction — local green, manual independent re-gate pending (2026-11-05)
 
 - M18 independent R5 closed prior findings and found one P2: confirmed non-primary paid mismatch lost its operator signal. M19 separates persistent manual notice from primary cleanup/automatic refund, with exact server evidence and unchanged financial authority. Cheap sale-id/cache-dir/runbook wording fixes included.

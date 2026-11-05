@@ -20,6 +20,11 @@ export const engineMaterializedBookSchema = z.object({ version: z.literal('engin
   voiceId: z.string().min(1), pages: z.array(z.object({ pageNumber: z.number().int().min(0).max(8), text: z.string().min(1).max(5000),
     image: assetRef, audio: assetRef, duration: z.number().positive().max(180) }).strict()).length(9), pdf: assetRef }).strict();
 export type EngineMaterializedBook = z.infer<typeof engineMaterializedBookSchema>;
+/** Internal test/operator storage port. Production always defaults to the private DB/storage implementation. */
+export type EngineMaterializationAssets = {
+  put: (kind: 'page' | 'audio' | 'pdf', contentType: string, bytes: Buffer) => Promise<z.infer<typeof assetRef>>;
+  read: (ref: z.infer<typeof assetRef>, kind: 'page' | 'audio' | 'pdf') => Promise<Buffer>;
+};
 export function validateEngineMaterializedBook(runtime: Pick<EngineRuntime, 'checkpoint'>, value: unknown) {
   const book = engineMaterializedBookSchema.parse(value), manifest = boundBookManifest(runtime.checkpoint.authority, book.manifest);
   if (book.pdf.sha256 !== manifest.pdfSha256 || book.pages.some((p, i) => p.pageNumber !== i ||
@@ -36,7 +41,7 @@ export async function verifyEngineBookAsset(db: PrismaClient, storage: EnginePri
 }
 export function createEngineMaterializer(args: { db: PrismaClient; storage: EnginePrivateStorage;
   snapshot: { request: ReviewedPersonalBookRequest; options: PersonalWizardOptions }; narration: EngineNarrationPorts;
-  pdf?: typeof buildEngineBookPdf }) {
+  pdf?: typeof buildEngineBookPdf; assets?: EngineMaterializationAssets }) {
   return async (runtime: EngineRuntime) => {
     const authority = runtime.checkpoint.authority, prior = await runtime.load('materialized_book');
     if (prior) { validateEngineMaterializedBook(runtime, prior); await runtime.advance('accept'); return; }
@@ -54,11 +59,14 @@ export function createEngineMaterializer(args: { db: PrismaClient; storage: Engi
       const found = await runtime.load(name) as z.infer<typeof assetRef> | null;
       if (found) {
         if (assetBytesSha256(bytes) !== found.sha256) engineSiteFail('engine_materialization_bytes_changed');
-        await verifyEngineBookAsset(args.db, args.storage, runtime, found, kind); return found;
+        const saved = args.assets ? await args.assets.read(found, kind) : await verifyEngineBookAsset(args.db, args.storage, runtime, found, kind);
+        if (assetBytesSha256(saved) !== found.sha256) engineSiteFail('engine_materialization_bytes_changed'); return found;
       }
-      runtime.check(); const asset = await persistEnginePrivateAsset(args.db, args.storage, { ownerId: runtime.checkpoint.ownerId,
+      runtime.check(); const asset = args.assets ? await args.assets.put(kind, contentType, bytes) : await persistEnginePrivateAsset(args.db, args.storage, { ownerId: runtime.checkpoint.ownerId,
         draftId: runtime.checkpoint.draftId, orderId: authority.orderId, kind, contentType }, bytes);
-      const ref = { assetId: asset.assetId, sha256: asset.sha256 }; await runtime.save(name, ref); return ref;
+      const ref = assetRef.parse({ assetId: asset.assetId, sha256: asset.sha256 });
+      if (ref.sha256 !== assetBytesSha256(bytes)) engineSiteFail('engine_materialization_bytes_changed');
+      await runtime.save(name, ref); return ref;
     };
     const pages: EngineMaterializedBook['pages'] = [], pdfPages: Parameters<typeof buildEngineBookPdf>[1] = [];
     for (const page of native.pages) {
