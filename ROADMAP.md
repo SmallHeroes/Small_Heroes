@@ -1,10 +1,16 @@
 > 2026-11-05 M18: verified R4 HOLD; general R4-1 stable staging alias, R4-3 global dispatch preflight/no order mutation, R4-2 precise proof notices/all-sale cleanup/nonblocking review/audited dismiss are implemented for manual re-gate. Final1267/1267/73 files and bothTS0; actual Linux build/check/native media0. M17 Windows build is baseline, not a new M18 claim. Archived native ENOENT recovery and prepared drain/long-host/inbox instructions included. Independent QA, actual Vercel/private target/browser/paid/product/launch qualification remain separate. USD0; no real env/key/service/SQL/book/server/push/deploy/automatic handoff. Package _review/engine-site-launch/m18-r4-corrections/.
 
-## M21 settled-HOLD recovery within the SAME one-book cap (2026-11-06)
+## M20/M21 outcome — book held, schema correction next (2026-11-06)
+
+- Both bounded runs are terminal; the book is incomplete with no illustrations/audio/PDF/Reader. M20's population HOLD was corrected by the model in M21, but17 literal string-null source quotes failed the compiler before a new plan review. Do not restart either consumed grant or relabel the response.
+- Seven settled calls total852724 microUSD, UNKNOWN/pending/reserves0. Carry and original USD10/121 remain; unused9147276/114 is not a fresh attempt. Paid/source/parent/history bytes preserved, wake helper released. Independent QA is manual and pending.
+- Next: versioned standard-null provider schema emission, provider-denied domain/legacy-wire controls and independent review; then an exact, bounded same-book continuation decision. No new envelope, paid retry, story/child/page-specific repair, budget expansion or public activation is authorized by this roadmap. See M21 TERMINAL-REPORT.md and external outcome evidence.
+
+## M21 settled-HOLD recovery within the SAME one-book cap — implementation history (2026-11-06)
 
 - M20 stopped correctly before images: one incomplete location population, six settled calls/628568 microUSD. Keep all parent bytes, text and failures. The existing model-repair contract was not connected to this API-native wrapper.
 - General local-only one-child continuation is implemented for validation: provider-free old-authority replay, cumulative cost/call carry, no old-slot repurchase/UNKNOWN/branching/recursive repair, one newly reviewed source repair. Full-wire120000 with1,200,000 reserve is separate from unchanged ordinary104000 Sol/production limits. Native callback signal binding is corrected.
-- Next: final relevant/TypeScript/adversarial/preservation gates, local focused commit and exact fresh continuation freeze, then only that same book inside TOTAL USD10/121. Existing spend leaves9371432/115; no reset or extra budget. Independent QA and actual visual/Reader/product acceptance remain pending. No new book, manual plan repair, public service/payment, push/deploy or automatic Claude dispatch.
+- Historical implementation gates/freeze completed atf3897df7; that continuation has now terminated and is consumed. Its earlier9371432/115 pre-run balance is superseded by852724/7 cumulative use and9147276/114 unused cap above. Independent QA and actual visual/Reader/product acceptance remain pending. No new book, manual plan repair, public service/payment, push/deploy or automatic Claude dispatch.
 
 ## M20 one internal fictional-book trial — owner authorized, independent QA pending (2026-11-05)
 
