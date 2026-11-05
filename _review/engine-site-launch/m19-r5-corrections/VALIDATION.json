@@ -1,0 +1,78 @@
+{
+  "localRequiredGatesSatisfied": true,
+  "independentQA": "PENDING_MANUAL_CLAUDE",
+  "providerCalls": 0,
+  "newExpenseMicroUsd": 0,
+  "focused": {
+    "passed": 1288,
+    "failed": 0,
+    "pending": 0,
+    "files": 74
+  },
+  "typescript": [
+    {
+      "name": "source",
+      "started": "2026-11-05T20:47:48.880Z",
+      "finished": "2026-11-05T20:49:27.468Z",
+      "code": 0,
+      "signal": null
+    },
+    {
+      "name": "autonomous",
+      "started": "2026-11-05T20:49:27.469Z",
+      "finished": "2026-11-05T20:49:28.611Z",
+      "code": 0,
+      "signal": null
+    }
+  ],
+  "linuxNativeCleanup": {
+    "at": "2026-11-05T20:48:52.981Z",
+    "platform": "linux",
+    "arch": "x64",
+    "node": "v22.19.0",
+    "scope": "Real Linux filesystem resolver/cleanup using explicitly synthetic archive bytes; no media execution or full build claim",
+    "root": "/tmp/smallheroes-m19-proof-bElGmb",
+    "oldExtraction": "/tmp/smallheroes-native-FHloOc",
+    "newExtraction": "/tmp/smallheroes-native-BkmHdc",
+    "oldExtractionRemoved": true,
+    "survivingPeerTamperRefusedBeforeRemoval": true,
+    "privateMode0700": true,
+    "resolverSha256": "aef463a7f76b35dc2be12543a5c32f59ab97afe09a7d4476d1a7961823403908",
+    "providerCalls": 0,
+    "expenseMicroUsd": 0
+  },
+  "newFullBuild": false,
+  "fullBuildBaseline": "M18 Linux full build/native media proof retained as inherited baseline only. No fresh M19 Windows/Linux build or Vercel adapter claim. Packaging configs/dependencies/assets unchanged.",
+  "npmCheck": "Historical non-green/report-only, no blind repeat. The full relevant pinned gate is new.",
+  "evidenceRoot": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105",
+  "artifacts": [
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\INTAKE-VERIFIED.json",
+      "sha256": "5b58adffa05c1467bd34cb7de2c59fa2c5ac86d9abb5b65bc2dc1a0bba462389"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\PRESERVATION-END.json",
+      "sha256": "8460b4ffc25f0d57e7efb0db171778b1726d05b5991fb791e0d72712e4d43763"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\final-full.exit.json",
+      "sha256": "89bad17a7c8f2fcc32be3de1b60b35577ca4d61bba68577ddc081ab5c3ce01ec"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\TYPESCRIPT-RESULT-final.json",
+      "sha256": "df7682ee542ec0dde5dbadd1f804f613353aa0e3eab6a76a97e0a816cee22e1e"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\LINUX-NATIVE-CLEANUP-RESULT.json",
+      "sha256": "0d85fb40d857585a6e429521cabe618cafb18b4ee790533455a5624264c5d216"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\linux-native-cleanup.exit.json",
+      "sha256": "fa8ebba30a35b510b90242668c9425d99bca966e4320cb9e9a6d4465387d75a2"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m19-20261105\\R17-HISTORICAL-PRESERVATION.json",
+      "sha256": "a6fc62a34f6bc04d19f66b97154e6c33d2425dccd0aef512c4f5d55581ac934b"
+    }
+  ]
+}

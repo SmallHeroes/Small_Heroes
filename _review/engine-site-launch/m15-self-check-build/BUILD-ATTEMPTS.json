@@ -1,0 +1,202 @@
+{
+  "status": "BLOCKED_LOCAL_BUILD_NOT_DEPLOYMENT_PROOF",
+  "baseHead": "36bd62daf98cc73c1b3e49a2f3c3b23548d4bddd",
+  "nodeVersion": "22.19.0",
+  "nextVersion": "15.5.18",
+  "attempts": [
+    {
+      "metadata": {
+        "head": "36bd62daf98cc73c1b3e49a2f3c3b23548d4bddd",
+        "platform": "Windows",
+        "command": [
+          "node",
+          "node_modules/next/dist/bin/next",
+          "build"
+        ],
+        "nonSecretBuildValues": {
+          "NODE_ENV": "production",
+          "NEXT_TELEMETRY_DISABLED": "1",
+          "NODE_OPTIONS": "--require=C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\guard.cjs",
+          "TEMP": "C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\tmp",
+          "TMP": "C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\tmp",
+          "DATABASE_URL": "postgresql://build_placeholder:build_placeholder@127.0.0.1:1/build_placeholder",
+          "DIRECT_URL": "postgresql://build_placeholder:build_placeholder@127.0.0.1:1/build_placeholder",
+          "NEXT_PUBLIC_APP_URL": "https://build.example.invalid",
+          "APP_URL": "https://build.example.invalid",
+          "SUPABASE_URL": "https://aaaaaaaaaaaaaaaaaaaa.supabase.co",
+          "SUPABASE_SERVICE_ROLE_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "OPENAI_API_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "ANTHROPIC_API_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "ENGINE_SITE_INTAKE_ENABLED": "false",
+          "ENGINE_SITE_CHECKOUT_ENABLED": "false",
+          "ENGINE_SITE_WORKER_ENABLED": "false",
+          "ENGINE_SITE_PROVIDERS_ENABLED": "false",
+          "ENGINE_SITE_FULFILLMENT_ENABLED": "false",
+          "GENERATION_READINESS_ENABLED": "false"
+        },
+        "inheritedOSVariableNames": [
+          "SystemRoot",
+          "WINDIR",
+          "PATH",
+          "PATHEXT",
+          "COMSPEC",
+          "NUMBER_OF_PROCESSORS",
+          "PROCESSOR_ARCHITECTURE"
+        ],
+        "envFilesLoaded": false,
+        "network": "denied by local preload",
+        "configOverride": {
+          "distDir": ".next/m15-build-proof/output"
+        },
+        "prismaGenerateRun": false,
+        "reason": "shared node_modules junction is read-only; existing client used",
+        "startedAt": "2026-11-05T08:19:47.996103+00:00",
+        "exitCode": 1,
+        "finishedAt": "2026-11-05T08:26:15.143226+00:00",
+        "guardSha256": "3ab174aac927d6457d417804df5f52c601d6dbfddf94f27d51097f2b4e51c336",
+        "logSha256": "866e6d7b65b1619422ab3c1dbab736956fce890edcb3faab6f54dfe252980431"
+      },
+      "metadataPath": ".next/m15-build-proof/BUILD-ATTEMPT-1.json",
+      "metadataSha256": "14badd9dcedc6538eeb143679fd21d366d2d2ad26a7ec08c147e45791d778334",
+      "logPath": ".next/m15-build-proof/next-build.log",
+      "logSha256": "866e6d7b65b1619422ab3c1dbab736956fce890edcb3faab6f54dfe252980431",
+      "guardPath": ".next/m15-build-proof/guard-attempt1.cjs",
+      "guardSha256": "3ab174aac927d6457d417804df5f52c601d6dbfddf94f27d51097f2b4e51c336"
+    },
+    {
+      "metadata": {
+        "head": "36bd62daf98cc73c1b3e49a2f3c3b23548d4bddd",
+        "platform": "Windows",
+        "command": [
+          "node",
+          "node_modules/next/dist/bin/next",
+          "build"
+        ],
+        "nonSecretBuildValues": {
+          "NODE_ENV": "production",
+          "NEXT_TELEMETRY_DISABLED": "1",
+          "NODE_OPTIONS": "--require=C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\guard-attempt2.cjs",
+          "TEMP": "C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\tmp",
+          "TMP": "C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\tmp",
+          "DATABASE_URL": "postgresql://build_placeholder:build_placeholder@127.0.0.1:1/build_placeholder",
+          "DIRECT_URL": "postgresql://build_placeholder:build_placeholder@127.0.0.1:1/build_placeholder",
+          "NEXT_PUBLIC_APP_URL": "https://build.example.invalid",
+          "APP_URL": "https://build.example.invalid",
+          "SUPABASE_URL": "https://aaaaaaaaaaaaaaaaaaaa.supabase.co",
+          "SUPABASE_SERVICE_ROLE_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "OPENAI_API_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "ANTHROPIC_API_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "ENGINE_SITE_CHECKOUT_ENABLED": "false",
+          "ENGINE_SITE_WORKER_ENABLED": "false",
+          "ENGINE_SITE_PROVIDERS_ENABLED": "false",
+          "ENGINE_SITE_FULFILLMENT_ENABLED": "false",
+          "GENERATION_READINESS_ENABLED": "false",
+          "ENGINE_SITE_ORDER_INTAKE_ENABLED": "false",
+          "ENGINE_SITE_READER_ENABLED": "false",
+          "ENGINE_SITE_LONG_WORKER_ENABLED": "false",
+          "ENABLE_PROD_GENERATION": "false"
+        },
+        "inheritedOSVariableNames": [
+          "SystemRoot",
+          "WINDIR",
+          "PATH",
+          "PATHEXT",
+          "COMSPEC",
+          "NUMBER_OF_PROCESSORS",
+          "PROCESSOR_ARCHITECTURE"
+        ],
+        "envFilesLoaded": false,
+        "network": "Only GET fonts.googleapis.com/fonts.gstatic.com allowed; all provider/service destinations denied",
+        "configOverride": {
+          "distDir": ".next/m15-build-proof/output-attempt2"
+        },
+        "prismaGenerateRun": false,
+        "reason": "shared node_modules junction is read-only; existing client used",
+        "startedAt": "2026-11-05T08:32:59.751803+00:00",
+        "guardSha256": "c55c53dc16d56668b69fb623d012d55f54a3d9769dd4ed5b1062c99b546ab6b1",
+        "exitCode": 1,
+        "finishedAt": "2026-11-05T08:40:13.045359+00:00",
+        "logSha256": "0f4425e8ad8b90acf6aac432faa71d5b3c51b03f0d5e000f49be76299d7d6777"
+      },
+      "metadataPath": ".next/m15-build-proof/BUILD-ATTEMPT-2.json",
+      "metadataSha256": "ab5090af10a2e749f6752883f1b40f032d73756ac916a6d7aa20059622e8c358",
+      "logPath": ".next/m15-build-proof/next-build-attempt2.log",
+      "logSha256": "0f4425e8ad8b90acf6aac432faa71d5b3c51b03f0d5e000f49be76299d7d6777",
+      "guardPath": ".next/m15-build-proof/guard-attempt2.cjs",
+      "guardSha256": "c55c53dc16d56668b69fb623d012d55f54a3d9769dd4ed5b1062c99b546ab6b1"
+    },
+    {
+      "metadata": {
+        "head": "36bd62daf98cc73c1b3e49a2f3c3b23548d4bddd",
+        "platform": "Windows",
+        "command": [
+          "node",
+          "node_modules/next/dist/bin/next",
+          "build"
+        ],
+        "nonSecretBuildValues": {
+          "NODE_ENV": "production",
+          "NEXT_TELEMETRY_DISABLED": "1",
+          "NODE_OPTIONS": "--require=C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\guard-final.cjs",
+          "TEMP": "C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\tmp",
+          "TMP": "C:\\GNart\\Work\\sh-engine-site-launch\\.next\\m15-build-proof\\tmp",
+          "DATABASE_URL": "postgresql://build_placeholder:build_placeholder@127.0.0.1:1/build_placeholder",
+          "DIRECT_URL": "postgresql://build_placeholder:build_placeholder@127.0.0.1:1/build_placeholder",
+          "NEXT_PUBLIC_APP_URL": "https://build.example.invalid",
+          "APP_URL": "https://build.example.invalid",
+          "SUPABASE_URL": "https://aaaaaaaaaaaaaaaaaaaa.supabase.co",
+          "SUPABASE_SERVICE_ROLE_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "OPENAI_API_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "ANTHROPIC_API_KEY": "BUILD_PLACEHOLDER_NOT_A_KEY",
+          "ENGINE_SITE_CHECKOUT_ENABLED": "false",
+          "ENGINE_SITE_WORKER_ENABLED": "false",
+          "ENGINE_SITE_PROVIDERS_ENABLED": "false",
+          "ENGINE_SITE_FULFILLMENT_ENABLED": "false",
+          "GENERATION_READINESS_ENABLED": "false",
+          "ENGINE_SITE_ORDER_INTAKE_ENABLED": "false",
+          "ENGINE_SITE_READER_ENABLED": "false",
+          "ENGINE_SITE_LONG_WORKER_ENABLED": "false",
+          "ENABLE_PROD_GENERATION": "false"
+        },
+        "inheritedOSVariableNames": [
+          "SystemRoot",
+          "WINDIR",
+          "PATH",
+          "PATHEXT",
+          "COMSPEC",
+          "NUMBER_OF_PROCESSORS",
+          "PROCESSOR_ARCHITECTURE"
+        ],
+        "envFilesLoaded": false,
+        "network": "Only GET fonts.googleapis.com/fonts.gstatic.com allowed; all provider/service destinations denied",
+        "configOverride": {
+          "distDir": ".next/m15-build-proof/output-final"
+        },
+        "prismaGenerateRun": false,
+        "reason": "shared node_modules junction is read-only; existing client used",
+        "startedAt": "2026-11-05T09:00:26.894539+00:00",
+        "guardSha256": "0ddcb8db41781a92cf34f62be846a1c48b7c58e47632b6e9b1dcdbe48a32ec56",
+        "finalRuntimeFilePins": {
+          "lib/engine-site/failure-policy.ts": "67c1419408da30aeed43aeb75f5bb61d228a44ab52dbc31d47e98fe9d0fe95dd",
+          "lib/engine-site/fulfillment.ts": "0a5c9483a42aaad9cc41958d74118a32cc694a3c9e78e684c9137b0fd14955d4",
+          "lib/engine-site/__tests__/fulfillment.spec.ts": "e9dff91526910e57c08b51795d7461e89f3543cf1c4b5f6f09b2487862a2bbd8",
+          "lib/engine-site/__tests__/r2-recovery.spec.ts": "b390bd036dc98c038241005f91f197136e973b7dbda76b3c37c230b54216c92f",
+          "lib/engine-site/__tests__/r2-exception-isolation.spec.ts": "f71a31353d5b27fa4876f4fc577b4fc332b7cdea3dbc8ebc0e23cf618379368c",
+          "next.config.js": "9436bb7439c787570eac2fa70c7d770c7d1143e2b43e46769a41291822ca0b2e"
+        },
+        "sourceState": "Final M15 runtime/test bytes after preserving the explicit-refund contract",
+        "exitCode": 1,
+        "finishedAt": "2026-11-05T09:09:49.806688+00:00",
+        "logSha256": "c249719ff68425a25e63c89677ec2275865bc1a6894932a9d50a481dd7b9003c",
+        "finalRuntimePinsStillMatch": true
+      },
+      "metadataPath": ".next/m15-build-proof/BUILD-FINAL.json",
+      "metadataSha256": "9b25d0347d78c9bb3ebdcb08dad050e6024095d08271e7f7b580bf576e0b314b",
+      "logPath": ".next/m15-build-proof/next-build-final.log",
+      "logSha256": "c249719ff68425a25e63c89677ec2275865bc1a6894932a9d50a481dd7b9003c",
+      "guardPath": ".next/m15-build-proof/guard-final.cjs",
+      "guardSha256": "0ddcb8db41781a92cf34f62be846a1c48b7c58e47632b6e9b1dcdbe48a32ec56"
+    }
+  ],
+  "note": "First two attempts are development candidates. Final attempt binds final runtime/test bytes; no successful build."
+}

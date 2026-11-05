@@ -2,6 +2,7 @@ import 'server-only';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { lockEngineOrder } from './order-meter';
 import { lockOrderForExceptionCase,openExceptionCase } from '@/lib/generation-chunked/exception-case';
+import { recordEngineOperatorNotice } from './operator-notices';
 
 export const ENGINE_INFRA_SCOPE = 'engine_site_infrastructure';
 /** Caller already owns the Order fence. This is a manual case, never an automatic refund/redrive. */
@@ -12,6 +13,7 @@ export async function openEngineInfrastructureCase(tx: Prisma.TransactionClient,
   if(row.actionAttemptedAt||!['open','retry_scheduled'].includes(row.status))throw Error('engine_operator_case_conflict');
   await tx.exceptionCase.update({where:{id:row.id},data:{status:'open',nextActionAt:null,leaseExpiresAt:null,
     resolution:{operatorRequired:true,outcome:'infrastructure_hold',domain,code}}});
+  await recordEngineOperatorNotice(tx,{caseId:row.id,orderId,scope:ENGINE_INFRA_SCOPE,domain,code});
 }
 
 export const ENGINE_INFRA_MAX_FAILURES = 3;
@@ -31,7 +33,7 @@ export function engineDeterministicFailure(error: unknown) {
   return /^(engine_readmission_|engine_saved_|engine_final_|engine_claim_corrupt$|engine_result_corrupt$)/.test(code) ||
     ['engine_private_bytes_changed', 'engine_reader_order_changed', 'engine_reader_manifest_binding',
       'engine_budget_exhausted', 'engine_native_review_reask_limit', 'engine_runtime_policy_changed',
-      'engine_runtime_revision_mismatch', 'engine_worker_input_changed', 'engine_worker_call_changed',
+      'engine_worker_input_changed', 'engine_worker_call_changed',
       'engine_worker_wire_changed', 'engine_worker_output_changed', 'engine_worker_result_changed',
       'engine_worker_saved_result_invalid', 'engine_worker_provider_result_unusable', 'engine_worker_saved_result_unusable',
       'engine_native_book_held', 'engine_child_style_held', 'engine_reference_sheet_held',
@@ -55,7 +57,10 @@ export async function recordEngineInfrastructureFault(db: PrismaClient, orderId:
     const order = await lockEngineOrder(tx, orderId);
     const job = await tx.generationJob.findUnique({ where: { orderId } });
     if (job?.lockedBy && job.leaseExpiresAt && job.leaseExpiresAt.getTime() > now) return { status: 'busy' as const };
-    if(await tx.deliveryOutbox.findFirst({where:{orderId,scope:'engine_site_book',status:'processing',sendAttempted:true}}))return {status:'busy' as const};
+    // A late free-read failure cannot revoke an authorized external send or an already delivered book.
+    if(await tx.deliveryOutbox.findFirst({where:{orderId,scope:'engine_site_book',OR:[
+      {status:'processing',sendAttempted:true},{status:'sent',sentAt:{not:null}},
+    ]}}))return {status:'busy' as const};
     if (order.status === 'failed' || order.deliveryHoldReason && !['engine_site_hold:operator_review', 'engine_site_hold:infrastructure'].includes(order.deliveryHoldReason))
       return { status: 'operator_reconciliation_required' as const };
     const sessionId = engineRecoveryKey(orderId, domain), prior = await tx.wizardSession.findUnique({ where: { sessionId } });

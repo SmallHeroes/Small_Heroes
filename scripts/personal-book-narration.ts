@@ -6,7 +6,7 @@
 import 'server-only';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
+import { narrationMediaBinaries } from './lib/narration-media.cjs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { z } from 'zod';
@@ -103,8 +103,7 @@ export function createNarrationTransport(args: { key: () => string; fetch?: type
 }
 /** Local media check of a saved MP3 (the same probe/decoder pair the earlier narrated reader used): one audio stream, 0 < duration <= 180 s. */
 export function probeNarrationAudio(file: string) {
-  const load = createRequire(path.resolve(__dirname, '..', 'package.json'));
-  const probe = load('@ffprobe-installer/ffprobe').path as string, ffmpeg = load('@ffmpeg-installer/ffmpeg').path as string;
+  const { ffprobe: probe, ffmpeg } = narrationMediaBinaries();
   const measured = JSON.parse(execFileSync(probe, ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', file], { encoding: 'utf8', windowsHide: true, timeout: 30000 }));
   const duration = Number(measured.format?.duration);
   if (measured.streams?.length !== 1 || measured.streams[0].codec_type !== 'audio' || !Number.isFinite(duration) || duration <= 0 || duration > 180) fail('narration_media_invalid');

@@ -9,8 +9,8 @@ import { engineOrderInputSchema } from './order-input';
 import { assertEnginePrivateDatabase } from './private-assets';
 
 /** Short remains eight engine beats. The UI uses the offer's eight story pages, never the old spread display count. */
-export function resolveEngineWizardOptions(): PersonalWizardOptions {
-  const options = resolvePersonalWizardOptions();
+export function resolveEngineWizardOptions(root: string = process.cwd()): PersonalWizardOptions {
+  const options = resolvePersonalWizardOptions(root);
   const lengths = options.lengths.filter(length => length.id === 'short');
   return { ...options, lengths, fingerprint: canonicalHash({ version: 'engine-site-options/v1',
     admittedOptions: options.fingerprint, lengths, offer }) };

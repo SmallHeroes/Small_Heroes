@@ -1,6 +1,6 @@
 import { engineFulfillmentEnabled } from '@/lib/engine-site/lifecycle-config';
 import { prisma } from '@/lib/prisma';
-import { chainGenerationWorker } from './chain-worker';
+import { chainGenerationWorker,engineDispatchConfigurationAvailable } from './chain-worker';
 import { getMaxStaleReclaims } from './constants';
 import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 import { lockOrderForExceptionCase, openExceptionCase } from './exception-case';
@@ -81,6 +81,7 @@ export async function sweepStaleGenerationJobs(
   });
 
   const maxReclaims = getMaxStaleReclaims();
+  let dispatchReady:boolean|undefined;
   let processed = 0;
   for (const job of stale) {
     const orderSnapshot = (
@@ -96,6 +97,7 @@ export async function sweepStaleGenerationJobs(
         : null;
     if (job.order?.frozenProductVersion?.startsWith('engine-site/')) {
       if (job.order.frozenProductVersion !== 'engine-site/v1' || options?.releaseProtocol || !engineFulfillmentEnabled()) continue;
+      dispatchReady??=engineDispatchConfigurationAvailable();if(!dispatchReady)continue;
       const { reconcileEngineGeneration } = await import('@/lib/engine-site/generation-backstop');
       const result = await reconcileEngineGeneration(prisma, job.orderId, now);
       if (result.status === 'dispatch') { chainGenerationWorker(job.orderId); processed += 1; }

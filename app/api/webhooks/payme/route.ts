@@ -140,10 +140,9 @@ export async function POST(req: NextRequest) {
       const verified = await verifyPaymePayment({ orderId: observed.id, paymentId: parsed.transactionId!, amountAgorot: observed.totalPrice, currency: 'ILS' });
       if (!verified.verified || verified.status !== 'paid') {
         logger.warn('[PayMeWebhook] Signed paid event could not be independently verified',{orderId:observed.id,signed:hasVerifiedSignature});
-        if(hasVerifiedSignature)await recordEnginePaymentProofRefusal(prisma,observed.id,parsed.transactionId!);
+        if(hasVerifiedSignature&&verified.proofRefused===true)await recordEnginePaymentProofRefusal(prisma,observed.id,parsed.transactionId!,'signed_callback',verified.paidMismatch);
         return NextResponse.json({ received: false, reason: 'payment_proof_unavailable' }, { status: 503 });
       }
-      await clearEnginePaymentProofRefusal(prisma,observed.id,parsed.transactionId!);
     }
     const shouldTriggerGeneration = await prisma.$transaction(async (tx) => {
       // The same Order lock serializes primary adoption, extra captures and checkout persistence.
@@ -271,6 +270,7 @@ export async function POST(req: NextRequest) {
     // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: the money tx is durably committed. Open the payment_integrity
     // review case in its OWN tx, best-effort — a failure here can never affect the payment, and the reconciler is
     // the guaranteed repair. A no-op unless the fence actually parked the order (syncHumanQaHoldCase re-reads it).
+    await clearEnginePaymentProofRefusal(prisma,parsed.orderId!,parsed.transactionId!).catch(()=>logger.warn('Payment notice reconciliation pending',{orderId:parsed.orderId}));
     await syncHumanQaHoldCasePostCommit(prisma, parsed.orderId);
 
     if (!shouldTriggerGeneration) {

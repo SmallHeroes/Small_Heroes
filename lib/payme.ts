@@ -1,5 +1,5 @@
 import 'server-only';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 
 /**
  * Canonical PayMe webhook payload contract used by this integration.
@@ -338,6 +338,15 @@ export async function queryPaymeOrderSales(orderId:string,amountAgorot:number,fe
   });
 }
 
+/** Evidence for a manual notice only; it is deliberately not a verified payment/refund receipt. */
+export type PaymePaidProofMismatch = Readonly<{
+  orderId: string;
+  saleId: string;
+  expectedAmountAgorot: number;
+  observedAmountAgorot: number | null;
+  observedCurrency: string | null;
+  providerProofSha256: string;
+}>;
 export async function verifyPaymePayment(params: {
   paymentId?: string;
   transactionId?: string;
@@ -348,6 +357,8 @@ export async function verifyPaymePayment(params: {
   verified: boolean;
   status: 'paid' | 'failed' | 'pending' | 'unknown';
   raw: unknown;
+  proofRefused?: boolean;
+  paidMismatch?: PaymePaidProofMismatch;
 }> {
   const cfg = resolvePaymeConfig();
   if (!cfg.apiBaseUrl || !cfg.apiKey) {
@@ -389,13 +400,22 @@ export async function verifyPaymePayment(params: {
     const price = typeof sale.sale_price === 'number' ? sale.sale_price :
       typeof sale.sale_price === 'string' && /^\d+(?:\.0+)?$/.test(sale.sale_price) ? Number(sale.sale_price) : NaN;
     const currency = sale.sale_currency ?? sale.currency;
-    if (textId(sale.sale_payme_id) !== identifier || textId(sale.transaction_id) !== params.orderId.slice(0, 50) ||
-        !Number.isSafeInteger(price) || price !== params.amountAgorot || typeof currency !== 'string' || currency.toUpperCase() !== 'ILS')
-      return { verified: false, status: 'unknown', raw };
-    const rawStatus = (
-      typeof sale.sale_status === 'string' ? sale.sale_status :
-      typeof sale.status === 'string' ? sale.status : ''
-    ).toLowerCase();
+    const rawStatus = (typeof sale.sale_status === 'string' ? sale.sale_status : typeof sale.status === 'string' ? sale.status : '').toLowerCase();
+    const claimsPaid=['completed','approved','success','paid'].includes(rawStatus);
+    const sameSale = textId(sale.sale_payme_id) === identifier;
+    const sameOrder = textId(sale.transaction_id) === params.orderId.slice(0, 50);
+    if (!sameSale || !sameOrder || !Number.isSafeInteger(price) || price !== params.amountAgorot ||
+        typeof currency !== 'string' || currency.toUpperCase() !== 'ILS') {
+      const paidMismatch: PaymePaidProofMismatch | undefined = sameSale && sameOrder && claimsPaid ? {
+        orderId: params.orderId, saleId: identifier, expectedAmountAgorot: params.amountAgorot,
+        observedAmountAgorot: Number.isSafeInteger(price) ? price : null,
+        observedCurrency: typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency) ? currency.toUpperCase() : null,
+        providerProofSha256: createHash('sha256').update(JSON.stringify(raw)).digest('hex'),
+      } : undefined;
+      return { verified: false, status: 'unknown', raw, ...(paidMismatch ? { paidMismatch } : {}), proofRefused:
+        sameSale && (claimsPaid || Number.isSafeInteger(price)&&price!==params.amountAgorot ||
+          typeof currency==='string'&&/^[A-Za-z]{3}$/.test(currency)&&currency.toUpperCase()!=='ILS') };
+    }
 
     if (['completed', 'approved', 'success', 'paid'].includes(rawStatus)) {
       return { verified: true, status: 'paid', raw };

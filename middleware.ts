@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import {enforceEngineStagingAccess} from './lib/engine-site/staging-access';
 
 /**
  * Prod safety gate (Goal A / 0083 Phase 3): dev & debug surfaces must never be reachable on the
@@ -18,7 +19,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * Read process.env DIRECTLY here — middleware is edge and must not import the server-only env module.
  */
-export function middleware(req: NextRequest): NextResponse {
+function legacyMiddleware(req: NextRequest): NextResponse {
   // One cutover point for existing landing/start links. A partial/invalid personal activation must
   // reach the personal route's closed gates, never silently return the parent to bank checkout.
   if (['/wizard', '/start'].includes(req.nextUrl.pathname) && process.env.ENGINE_SITE_CHECKOUT_ENABLED === 'true') {
@@ -83,6 +84,7 @@ export function middleware(req: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
+    '/:path*',
     '/wizard',
     '/start',
     '/dev/:path*',
@@ -92,3 +94,9 @@ export const config = {
     '/api/release/v1/fake-payment/confirm',
   ],
 };
+
+export function middleware(req:NextRequest):Response {
+  const legacy=legacyMiddleware(req);
+  if(legacy.status===404||legacy.status===401)return legacy;
+  return enforceEngineStagingAccess(req)??legacy;
+}

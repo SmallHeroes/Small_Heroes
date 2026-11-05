@@ -57,6 +57,27 @@ async function setup() {
   return { ...s, c, ports, command, reconcile, context, claim, send, deliver };
 }
 describe('personal automatic path + audited launch gate + existing readiness/outbox/refund (synthetic only)', () => {
+  it('M15 a delivered book cannot acquire a new infrastructure hold after a storage outage', async () => {
+    const s = await setup(), policy = await readEngineLaunchPolicy(s.db);
+    await changeEngineLaunchPolicy(s.db, { expectedPolicySha256: policyDigest(policy), idempotencyKey: 'm15_delivery_off',
+      mode: 'off', reason: 'Synthetic publication control' }, 'synthetic_guy');
+    await s.reconcile(); expect(await s.deliver()).toBe('sent');
+    const before = await s.db.order.findUnique({ where: { id: 'synthetic_order' } }), read = s.storage.read;
+    s.storage.read = async () => { throw Error('ECONNRESET'); };
+    await expect(s.context()).rejects.toThrow('ECONNRESET');
+    const now = Date.now();
+    for (const delta of [0, 180_000, 900_000]) {
+      vi.spyOn(Date, 'now').mockReturnValue(now + delta);
+      await s.reconcile();
+    }
+    const after = await s.db.order.findUnique({ where: { id: 'synthetic_order' } });
+    expect(after).toMatchObject({ status: 'ready', deliveryHoldReason: null, manualReviewRequired: false,
+      deliveryFenceVersion: before!.deliveryFenceVersion });
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
+    expect((await s.db.generationJob.findUnique({ where: { orderId: 'synthetic_order' } }))!.status).toBe('done');
+    s.storage.read = read;
+    expect(await readEngineFamilyReady(s.db, await s.context())).toBe(true);
+  }, 120_000);
   it('R2 P3 a revoked personal outbox cannot reopen a refunded case after the notice window',async()=>{
     const s=await setup(),p=await readEngineLaunchPolicy(s.db);
     await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(p),idempotencyKey:'r2_refunded_off',mode:'off',reason:'Synthetic'},'synthetic_guy');

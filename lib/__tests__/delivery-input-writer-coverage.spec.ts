@@ -321,7 +321,8 @@ const ENGINE_AUTHORITY_WRITERS: Record<string, { signatures: readonly string[]; 
     'generationJob.update[currentStage,lastError,leaseExpiresAt,lockedBy,pipelineCache,retryable,status]',
     'generationJob.update[currentStage,pipelineCache]',
   ], guards: ['await runAtomicOperation(db', 'await lockEngineOrder(tx,orderId)', 'current.holdSha256!==command.expectedHoldSha256',
-    'current.receiptSha256!==before.receiptSha256', "command.action==='resume'&&!canResume", 'await failEngineOrder(db,orderId',
+    'current.receiptSha256!==before.receiptSha256', "command.action==='resume'&&!resume.allowed", 'await failEngineOrder(db,orderId',
+    'engineAbsoluteDeadlineExpired(current.job.createdAt)', 'cp.progressAt=Date.parse(decidedAt)',
     "deliveryHoldReason!=='engine_site_hold:infrastructure'"] },
   'lib/engine-site/personal-orders.ts': { signatures: [
     'order.create[addonsPrice,audioEnabled,avoidItems,basePrice,bundleEnabled,challengeItems,childAge,childGender,childImageUrl,childName,childTraits,customerEmail,customerName,expectedPageCount,frozenProductVersion,helperItems,illustrationStyle,outcomeItems,pdfEnabled,selectedVoice,selectionFilename,status,storyDirection,storyLength,storySourceHash,topic,totalPrice,userId,videoEnabled,wizardSessionId]',

@@ -60,7 +60,10 @@ const nextConfig = {
       '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/generate/worker': ['./backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*', './story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/wizard/personal': [...STYLE01_COMPANION_SHEETS],
-      '/': [...STYLE01_COMPANION_SHEETS],
+      // Next15 normalizes its app/page entry to /app here; the post-build policy uses public /.
+      // Separate negative globs match exactly those two roots without matching child/API routes.
+      '!/?*': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './public/Images/personal-companions/**/*', './public/voice-samples/**/*'],
+      '!/!(app)': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './public/Images/personal-companions/**/*', './public/voice-samples/**/*'],
       '/api/engine-site/v1/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
       '/personal/book/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
       '/personal/review/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
@@ -101,6 +104,10 @@ const nextConfig = {
       '/release/v1/fake-payment': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES],
       '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
     };
+    const engineAssets = [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './public/Images/personal-companions/**/*', './public/voice-samples/**/*'];
+    for (const route of ['/api/engine-site/v1/**', '/personal/book/**', '/personal/review/**', '/wizard/personal', '/personal/orders/**', '/api/checkout', '/api/generate/worker', '/api/generate/cron/**']) {
+      includes[route] = [...new Set([...(includes[route] || []), ...engineAssets])];
+    }
     return includes;
   })(),
   /**
@@ -139,6 +146,8 @@ const nextConfig = {
       './public/gallery/**/*',
       './public/voice-samples/**/*',
     ];
+    const UNUSED_OPTION_UI = SITE_MEDIA.filter(pattern => !pattern.startsWith('./public/Images/') && !pattern.startsWith('./public/voice-samples/'));
+    UNUSED_OPTION_UI.push('./public/Images/*.*', './public/Images/!(personal-companions)/**');
     // Generation routes: keep Style01 refs (bundled via includes) + story-bank; drop media/headless +
     // companions (CDN) + Style02.
     const GENERATION_ROUTES = [
@@ -167,7 +176,11 @@ const nextConfig = {
       '/api/webhooks/stripe',
       '/api/dev/fake-payment/confirm',
     ];
-    const excludes = {};
+    // Never package environment/account state. The post-build checker enforces this on every platform before file IO.
+    const excludes = { '**': ['**/.env', '**/.env.*', '**/.envrc', '**/.git-credentials', '**/.yarnrc.yml', '**/*.pem', '**/*.key', '**/*.p12', '**/*.pfx', '**/.npmrc', '**/.pypirc', '**/.netrc', '**/.git/**', '**/.vercel/**', '**/.ssh/**', '**/.aws/**', '**/.codex/**', '**/.claude/**', './_review/**/*'] };
+    // Current Style01 resolvers name the four locked root references. These retired auditions
+    // are not runtime authorities for any style; retain them on disk, outside every function.
+    excludes['**'].push(...STYLE01_HISTORICAL);
     // Generation/render routes: keep the bundled Style01 companion sheets (.png/.json) but still drop the raw .jpg
     // companion source refs (CDN-served) + media/headless + Style02.
     for (const r of GENERATION_ROUTES) {
@@ -177,7 +190,7 @@ const nextConfig = {
         ...HEADLESS,
         ...COMPANIONS_SOURCE_JPGS,
         ...STYLE02,
-        ...SITE_MEDIA,
+        ...(r === '/api/generate' || r.startsWith('/api/generate/') ? UNUSED_OPTION_UI : SITE_MEDIA),
         ...ALL_OUTPUTS,
       ];
     }
@@ -202,7 +215,8 @@ const nextConfig = {
     for (const r of LEAN_ROUTES) {
       excludes[r] = [
         ...MEDIA,
-        ...HEADLESS,
+        // /api/orders is contains-matched to its power-card child, which really executes Chromium.
+        ...(r === '/api/orders' ? [] : HEADLESS),
         ...ALL_PUBLIC,
         ...ALL_STYLE,
         ...ALL_OUTPUTS,
@@ -224,6 +238,14 @@ const nextConfig = {
       './public/Images/**/*',
       ...ALL_OUTPUTS,
     ];
+    // Personal routes previously had includes only. Keep their real runtime authority families/media,
+    // not the unrelated UI, retired Style02 or historical design candidates pulled in by dynamic fs reads.
+    const ENGINE_ROUTES = ['/api/engine-site/v1/**', '/personal/book/**', '/personal/review/**', '/wizard/personal', '/personal/orders/**', '/api/checkout', '!/?*', '!/!(app)'];
+    for (const route of ENGINE_ROUTES) excludes[route] = [...HEADLESS, ...COMPANIONS_SOURCE_JPGS, ...STYLE02,
+      ...STYLE01_HISTORICAL, ...UNUSED_OPTION_UI, ...ALL_OUTPUTS,
+      ...(['/api/engine-site/v1/**', '/personal/book/**', '/personal/review/**'].includes(route) ? ['./story-bank/**/*'] : [])];
+    // Shared workers still need the legacy bank and native media; trim historical style candidates only.
+    excludes['/api/generate'].push(...STYLE01_HISTORICAL);
     return excludes;
   })(),
   /**

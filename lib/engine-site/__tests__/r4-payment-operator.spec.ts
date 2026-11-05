@@ -1,0 +1,38 @@
+import {afterEach,describe,expect,it,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+import {createRequire} from 'node:module';
+import {createElement} from 'react';
+import * as React from 'react';
+const {renderToStaticMarkup}=createRequire(import.meta.url)('react-dom/server') as {renderToStaticMarkup(node:React.ReactNode):string};
+import {PaymentNoticeList} from '@/app/personal/review/[orderId]/review';
+const h=vi.hoisted(()=>({context:null as any}));
+vi.mock('@/lib/engine-site/reader',async original=>({...await original<any>(),loadEngineReaderBook:async()=>h.context}));
+import {r4TestDb as engineTestDb} from './r4-test-db';
+import {syntheticEngineActivationEnv} from './synthetic-order';
+import {startEnginePersonalJob} from '../personal-jobs';
+import {parseEngineCheckpoint} from '../durable-worker';
+import {ensureEngineLaunchPolicy} from '../launch-policy';
+import {recordEnginePaymentProofRefusal} from '../payment-proof-alert';
+import {listEngineOperatorNotices} from '../operator-notices';
+import {handleEngineOperator} from '../operator-http';
+const stores:Awaited<ReturnType<typeof engineTestDb>>[]=[];
+afterEach(async()=>{for(const s of stores.splice(0))await s.pg.close();vi.unstubAllEnvs();vi.unstubAllGlobals();});
+async function setup(){for(const[k,v]of Object.entries(syntheticEngineActivationEnv()))vi.stubEnv(k,v);vi.stubEnv('APP_URL','https://app.example.invalid');vi.stubEnv('NEXT_PUBLIC_APP_URL','https://app.example.invalid');
+ const s=await engineTestDb();stores.push(s);await startEnginePersonalJob(s.db,'synthetic_order',JSON.parse(syntheticEngineActivationEnv().ENGINE_SITE_SPEND_POLICY!));await ensureEngineLaunchPolicy(s.db);
+ const checkpoint=parseEngineCheckpoint((await s.db.generationJob.findUnique({where:{orderId:'synthetic_order'}}))!.pipelineCache);
+ await s.db.order.update({where:{id:'synthetic_order'},data:{status:'pending_payment'}});await recordEnginePaymentProofRefusal(s.db,'synthetic_order','sale_a');
+ h.context={order:await s.db.order.findUnique({where:{id:'synthetic_order'}}),checkpoint,bookSha256:'a'.repeat(64),book:{pdf:{assetId:'synthetic_pdf'}}};
+ const ports:any={db:s.db,parent:async()=>({id:'synthetic_operator'}),operatorIds:['synthetic_operator'],fulfillmentEnabled:true,storage:()=>({}),fulfillment:()=>({})};return {...s,ports};}
+const req=(body?:unknown)=>new NextRequest('https://app.example.invalid/api/engine-site/v1/review/synthetic_order',body?{method:'POST',headers:{origin:'https://app.example.invalid','content-type':'application/json'},body:JSON.stringify(body)}:undefined);
+describe('R4 actual operator endpoint, notice coexistence and audited dismissal',()=>{
+ it('returns book review and payment notice together, rather than masking the book',async()=>{const s=await setup(),r=await handleEngineOperator(req(),'synthetic_order',s.ports);expect(r.status).toBe(200);expect(await r.json()).toMatchObject({kind:'book',bookSha256:'a'.repeat(64),paymentCases:[{code:'engine_payment_proof_refused'}]});});
+ it('requires an operator, binds the exact notice, audits once on replay, and changes no order/refund',async()=>{const s=await setup(),notice=(await listEngineOperatorNotices(s.db))[0],before=await s.db.order.findUnique({where:{id:'synthetic_order'}});
+  const command={action:'dismiss_payment_notice',caseId:notice.caseId,expectedNoticeSha256:notice.noticeSha256,idempotencyKey:'synthetic_dismiss',reason:'Synthetic investigation complete'};
+  expect((await handleEngineOperator(req(command),'synthetic_order',{...s.ports,operatorIds:[]})).status).toBe(404);
+  expect((await handleEngineOperator(req({...command,expectedNoticeSha256:'0'.repeat(64)}),'synthetic_order',s.ports)).status).toBe(409);
+  for(let i=0;i<2;i++)expect((await handleEngineOperator(req(command),'synthetic_order',s.ports)).status).toBe(200);
+  expect(await listEngineOperatorNotices(s.db)).toHaveLength(0);expect(await s.db.order.findUnique({where:{id:'synthetic_order'}})).toEqual(before);expect(await s.db.refundAttempt.findMany()).toHaveLength(0);
+  const audits=await s.db.exceptionCaseAudit.findMany({where:{reason:'engine_payment_notice_dismissed'}});expect(audits).toHaveLength(1);expect(audits[0].actor).toBe('synthetic_operator');
+ });
+ it('escapes hostile notice text without implying payment approval',()=>{vi.stubGlobal('React',React);const html=renderToStaticMarkup(createElement(PaymentNoticeList,{cases:[{caseId:'x',noticeSha256:'a'.repeat(64),createdAt:'now',code:'<script>alert(1)</script>'}],dismiss:()=>{},disabled:true}));expect(html).not.toContain('<script>');expect(html).toContain('&lt;script&gt;');expect(html).toContain('אינה מאשרת תשלום');});
+});

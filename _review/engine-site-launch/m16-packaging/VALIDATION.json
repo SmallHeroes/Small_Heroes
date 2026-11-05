@@ -1,0 +1,232 @@
+{
+  "localRequiredGatesSatisfied": true,
+  "independentQA": "PENDING_MANUAL_CLAUDE",
+  "newExpenseMicroUsd": 0,
+  "providerCalls": 0,
+  "focused": {
+    "passed": 1189,
+    "failed": 0,
+    "pending": 0,
+    "files": 63
+  },
+  "finalPackagingControls": {
+    "passed": 41,
+    "failed": 0,
+    "pending": 0,
+    "files": 2
+  },
+  "sourceTypesExit": 0,
+  "autonomousTypesExit": 0,
+  "windowsBuild": {
+    "started": "2026-11-05T12:00:14.715Z",
+    "finished": "2026-11-05T12:08:05.203Z",
+    "buildExit": 0,
+    "signal": null,
+    "packageExit": 0,
+    "sourceFilesVerified": 3002,
+    "sourceChanged": [],
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0,
+    "sharedNodeModulesWritten": false
+  },
+  "linuxBuild": {
+    "begin": "2026-11-05T11:52:04.600Z",
+    "finished": "2026-11-05T11:55:17.451Z",
+    "platform": "linux",
+    "arch": "x64",
+    "node": "v22.19.0",
+    "libc": "Alpine3.22/musl",
+    "sourceFilesVerified": 3002,
+    "buildExit": 0,
+    "buildSignal": null,
+    "packageExit": 0,
+    "packageSignal": null,
+    "copyOnlyGeneratedMetadataChanges": [],
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0,
+    "envFileReadsAllowed": false,
+    "limitation": "Linux musl local proof, not the Vercel glibc runtime or deployment adapter.",
+    "prismaMuslOverride": true
+  },
+  "linuxFinal": {
+    "at": "2026-11-05T11:57:48.507Z",
+    "results": [
+      {
+        "mode": "--apply",
+        "code": 0,
+        "signal": null
+      },
+      {
+        "mode": "--check",
+        "code": 0,
+        "signal": null
+      }
+    ],
+    "sourceFilesVerified": 3002,
+    "bundledRuntimeUnchangedSinceNextBuild": true,
+    "reportSha256": "78833e68df2dff4370ab28c6baab02de30d113810352896fba45424a4f8fd0c8",
+    "engineRoutes": 17,
+    "largestEngineBytes": 226378845,
+    "legacyOversized": [
+      {
+        "route": "/api/checkout",
+        "bytes": 281159155,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/debug/dev-image-limit",
+        "bytes": 252648706,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/debug/expressive-2page",
+        "bytes": 252821826,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/debug/minimal-e2e",
+        "bytes": 252821791,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/debug/storyboard-prompts",
+        "bytes": 252648717,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/creator/meta",
+        "bytes": 262788847,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/personal-wizard/book",
+        "bytes": 268577389,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/personal-wizard/intake/audio",
+        "bytes": 253541242,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/personal-wizard/intake/status",
+        "bytes": 253539347,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/personal-wizard/simple-book",
+        "bytes": 268582897,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/qa-console/anchor",
+        "bytes": 250047644,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/qa-console/meta",
+        "bytes": 262788874,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/dev/qa-console/run",
+        "bytes": 262787734,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/api/my-books",
+        "bytes": 269017381,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/personal/orders/[orderId]",
+        "bytes": 334920241,
+        "limitBytes": 250000000
+      },
+      {
+        "route": "/wizard/personal",
+        "bytes": 251168621,
+        "limitBytes": 250000000
+      }
+    ],
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0
+  },
+  "nativeLinux": {
+    "at": "2026-11-05T11:51:20.776Z",
+    "platform": "linux",
+    "arch": "x64",
+    "node": "v22.19.0",
+    "libc": "Alpine3.22/musl",
+    "rawHashesMatch": true,
+    "rawInstallersDenied": true,
+    "privateDirectoryMode": "0700",
+    "realNarrationProbeDuration": 1.227755,
+    "realLegacyVideoBytes": 50392,
+    "videoDuration": 12.703991,
+    "videoStreams": [
+      {
+        "codec_type": "video"
+      },
+      {
+        "codec_type": "audio"
+      }
+    ],
+    "videoFullDecode": true,
+    "fixtureOnly": true,
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0
+  },
+  "npmCheck": "M15 recorded exit1 remains report-only; full stability is NOT declared green. M16 did not repeat the blind broad suite.",
+  "evidenceRoot": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105",
+  "artifacts": [
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\INPUT-FREEZE.json",
+      "sha256": "6a5d1084c82b3f9c412bc513cdf295530b6314c75cdfd3f8dfb1004e0c56d59c"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\TRACING-ROOT-CAUSE.json",
+      "sha256": "c42e476dc9669d0e2bf540e8c4547f76c869c5ca84d7b4a5e29197dfa6a0969b"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\REPLAY-AFTER.json",
+      "sha256": "074f4f54dfbf0684dacd4849e6eaff4d817bdbfbf1e14de603026e8240b2e710"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\NATIVE-REPLAY.json",
+      "sha256": "fc4230e8ec22cceafff6c890ee8169d7fb6e5585f4b7bbc87ff0b2ff16723090"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\WINDOWS-BUILD-RESULT.json",
+      "sha256": "5884e1e4c586270cb4600304d72dc3630db89f247b430cc6c672ce291c7f9fd8"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\WINDOWS-NEW-BUILD-TRACE-REPORT.json",
+      "sha256": "396221b33f6137a9a80794dc091ca2eed7775bb7072eb954eb5527c6150d3ee5"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\LINUX-BUILD-RESULT-R2.json",
+      "sha256": "ce4488753cf95701bdbd60b6d753edd46e9efc195c32de635fb6ed42d25d07a0"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\LINUX-FINAL-VERIFIED.json",
+      "sha256": "bc6e2184f99f61ea239420eaa010d58afb7d8015e3957dbb472774cc96d99af6"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\LINUX-NATIVE-RESULT.json",
+      "sha256": "207dc177bdfe5fddb609545a469b46d16b20698ac8ce0b905038866372aa6bff"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\TYPESCRIPT-RESULT-final.json",
+      "sha256": "f2fb86611d2c912146f6893e2203746369ebc6d868571a952c45ab9bd214f61c"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\focused-m16-r2.exit.json",
+      "sha256": "f9b6f8e0cf49b52b9fb47bbff87fb3140a700014c9077e88903f1f2b30473b2f"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-packaging-m16-20261105\\native-policy-final.exit.json",
+      "sha256": "9110cd26df9146a479acf9929841cd3727d866efe51d2f0e44c518305afaf026"
+    }
+  ]
+}

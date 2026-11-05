@@ -1,4 +1,5 @@
 import 'server-only';
+import {closeEnginePaymentProofCases} from './payment-proof-alert';
 import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { z } from 'zod';
 import sharp from 'sharp';
@@ -159,6 +160,7 @@ export async function failEngineOrder(db: PrismaClient, orderId: string, reason:
     await tx.order.update({ where: { id: orderId }, data: { status: 'failed', manualReviewRequired: true,
       deliveryHoldReason: 'engine_site_hold:failed', lastError: /^engine_[a-z_]+$/.test(reason) ? reason : 'engine_fulfillment_failed',
       deliveryFenceVersion: { increment: 1 } } });
+    await closeEnginePaymentProofCases(tx,orderId);
     await tx.bookReadiness.updateMany({ where: { orderId, scope: ENGINE_BOOK_SCOPE }, data: { status: 'blocked', reason: 'engine_site_failed' } });
     await tx.generationJob.updateMany({ where: { orderId }, data: { status: 'failed', currentStage: 'engine_site_terminal', retryable: false,
       lastError: 'engine_site_failed', failedAt: new Date() } });

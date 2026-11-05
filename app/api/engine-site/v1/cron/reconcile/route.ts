@@ -3,6 +3,8 @@ import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { engineFulfillmentEnabled, reconcileEngineBook, recoverEnginePaidJob, engineSiteOrigin,failEngineOrder } from '@/lib/engine-site/fulfillment';
 import { productionEnginePrivateStorage } from '@/lib/engine-site/private-storage';
+import {createLogger} from '@/lib/logger';
+const logger=createLogger({subsystem:'engine-site-reconcile'});
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 export async function GET(req: NextRequest) {
@@ -12,7 +14,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   // Finish a committed operator fail intent even if its response/process died before failEngineOrder.
   const terminal=await prisma.order.findFirst({where:{frozenProductVersion:'engine-site/v1',deliveryHoldReason:'engine_site_hold:worker_failed',lastError:'engine_operator_failed_infrastructure'},select:{id:true}});
-  if(terminal)return NextResponse.json({processed:1,results:[await failEngineOrder(prisma,terminal.id,'engine_operator_failed_infrastructure')]});
+  if(terminal) {
+    try {return NextResponse.json({processed:1,results:[await failEngineOrder(prisma,terminal.id,'engine_operator_failed_infrastructure')]});}
+    catch {logger.warn('Committed fail intent still requires operator reconciliation',{orderId:terminal.id});}
+  }
   const paidRows=await prisma.$queryRaw<Array<{id:string}>>`SELECT o.id FROM "Order" o
     WHERE o."frozenProductVersion"='engine-site/v1' AND o.status::text='paid' AND o."deliveryHoldReason" IS NULL AND NOT o."manualReviewRequired"
       AND NOT EXISTS(SELECT 1 FROM "GenerationJob" j WHERE j."orderId"=o.id)

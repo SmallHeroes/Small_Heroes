@@ -10,6 +10,7 @@ import { assertEnginePrivateDatabase } from './private-assets';
 import { ENGINE_INFRA_SCOPE } from './failure-policy';
 import { assertEnginePolicyCurrent } from './platform-policy';
 import { failEngineOrder } from './fulfillment';
+import { engineAbsoluteDeadlineExpired } from './execution-deadlines';
 
 export const infrastructureActionSchema=z.object({action:z.enum(['resume','fail']),expectedHoldSha256:digestSchema,
   idempotencyKey:identifierSchema,reason:z.string().trim().min(1).max(500)}).strict();
@@ -30,16 +31,19 @@ async function state(tx:Tx,orderId:string) {
 async function snapshot(db:PrismaClient,orderId:string) {return db.$transaction(async tx=>{await lockEngineOrder(tx,orderId);return state(tx,orderId);});}
 async function resumeAllowed(db:PrismaClient,s:Awaited<ReturnType<typeof state>>) {
   try {
-    if(s.job?.lockedBy&&s.job.leaseExpiresAt&&s.job.leaseExpiresAt>new Date())return false;
-    if(s.checkpoint){assertEnginePolicyCurrent(s.checkpoint.authority);const meter=await inspectEngineOrderMeter(db,s.checkpoint.authority);return !meter.blocked;}
+    if(s.job&&engineAbsoluteDeadlineExpired(s.job.createdAt))return {allowed:false,reason:'engine_operator_absolute_deadline'};
+    if(s.job?.lockedBy&&s.job.leaseExpiresAt&&s.job.leaseExpiresAt>new Date())return {allowed:false,reason:'engine_operator_active_lease'};
+    if(s.checkpoint){assertEnginePolicyCurrent(s.checkpoint.authority);const meter=await inspectEngineOrderMeter(db,s.checkpoint.authority);
+      return {allowed:!meter.blocked,reason:meter.blocked?'engine_operator_unsettled_call':null};}
     // No job may still have a durable authority/claim after an ambiguous creation. Never guess that it is unpaid.
-    return s.receipts.length===0;
-  }catch{return false;}
+    return {allowed:s.receipts.length===0,reason:s.receipts.length?'engine_operator_unsettled_call':null};
+  }catch{return {allowed:false,reason:'engine_operator_current_authority_required'};}
 }
 export async function readEngineInfrastructureReview(db:PrismaClient,orderId:string) {
   await assertEnginePrivateDatabase(db);const s=await snapshot(db,orderId);
   if(s.order.deliveryHoldReason!=='engine_site_hold:infrastructure')return null;
-  return {kind:'infrastructure' as const,orderId,holdSha256:s.holdSha256,canResume:await resumeAllowed(db,s),
+  const resume=await resumeAllowed(db,s);
+  return {kind:'infrastructure' as const,orderId,holdSha256:s.holdSha256,canResume:resume.allowed,resumeBlockedReason:resume.reason,
     holdReason:s.order.deliveryHoldReason,code:s.order.lastError,caseId:s.exception?.id??null,
     actions:await db.atomicOperationReceipt.findMany({where:{orderId,kind:'engine_site_infrastructure_action_v1'},select:{result:true}})};
 }
@@ -49,7 +53,7 @@ export async function decideEngineInfrastructure(db:PrismaClient,orderId:string,
   await assertEnginePrivateDatabase(db);
   const operationKey=`engine-site/v1/${orderId}/infrastructure-action/${command.idempotencyKey}`;
   const replay=await db.atomicOperationReceipt.findUnique({where:{operationKey}});
-  const before=replay?null:await snapshot(db,orderId),canResume=before?await resumeAllowed(db,before):false;
+  const before=replay?null:await snapshot(db,orderId),resume=before?await resumeAllowed(db,before):{allowed:false,reason:'engine_operator_unsettled_call'};
   const action=await runAtomicOperation(db,{operationKey,orderId,kind:'engine_site_infrastructure_action_v1',payloadHash:hashOperationPayload(command),
     beforeReceipt:async tx=>{await lockEngineOrder(tx,orderId);},run:async tx=>{
       const current=await state(tx,orderId);
@@ -57,7 +61,8 @@ export async function decideEngineInfrastructure(db:PrismaClient,orderId:string,
         current.receiptSha256!==before.receiptSha256||current.order.status!=='needs_human_qa'||
         current.order.deliveryHoldReason!=='engine_site_hold:infrastructure'||current.job?.lockedBy&&current.job.leaseExpiresAt&&current.job.leaseExpiresAt>new Date())
         engineSiteFail('engine_operator_hold_changed');
-      if(command.action==='resume'&&!canResume)engineSiteFail('engine_operator_unsettled_call');
+      if(command.action==='resume'&&current.job&&engineAbsoluteDeadlineExpired(current.job.createdAt))engineSiteFail('engine_operator_absolute_deadline');
+      if(command.action==='resume'&&!resume.allowed)engineSiteFail(resume.reason??'engine_operator_unsettled_call');
       const sent=await tx.deliveryOutbox.findFirst({where:{orderId,sendAttempted:true}});
       const liability=await tx.exceptionCase.findFirst({where:{orderId,status:'refund_pending'}});
       if(sent||liability)engineSiteFail('engine_operator_external_action');
@@ -74,7 +79,7 @@ export async function decideEngineInfrastructure(db:PrismaClient,orderId:string,
           ...(recovery.data as any),attempts:0,nextAt:0,recoveredBy:actorId,recoveredAt:decidedAt}}});
         if(current.checkpoint&&current.job){
           const cp=current.checkpoint;cp.phase=cp.recovery?.resumePhase??(cp.outputs.materialized_book?'accept':cp.outputs.native_book?'materialize':cp.outputs.prepared_source?'native':'story');
-          delete cp.recovery;
+          delete cp.recovery;cp.progressAt=Date.parse(decidedAt);
           await tx.generationJob.update({where:{orderId},data:{status:'running',currentStage:cp.waiting?'engine_site_long':`engine_site_${cp.phase}`,
             lockedBy:null,leaseExpiresAt:null,retryable:true,lastError:null,pipelineCache:{engineSite:cp} as unknown as Prisma.InputJsonValue}});
         }

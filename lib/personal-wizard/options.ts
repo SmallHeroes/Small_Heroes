@@ -73,6 +73,15 @@ export type PersonalWizardOptions = {
 
 const MIN_ASSET_BYTES = 100;
 
+/** Every local file whose presence affects wizard options, derived from the actual registries. */
+export function personalWizardPublicAssetPaths(): string[] {
+  const cards = PROTOTYPE_COMPANION_ROSTER.map(id => {
+    const companion = getCompanionById(id); return companion?.cardImage ?? companion?.image;
+  }).concat(PERSONAL_ADDED_COMPANIONS.map(companion => companion.image ?? undefined));
+  return [...new Set([...cards, ...VOICES.map(voice => voice.previewUrl)].filter((file): file is string =>
+    typeof file === 'string' && file.startsWith('/') && !file.includes('..')))];
+}
+
 function publicAssetExists(publicPath: string, root: string): boolean {
   if (!publicPath.startsWith('/') || publicPath.includes('..')) return false;
   const absolute = join(root, 'public', publicPath.replace(/^\//, ''));

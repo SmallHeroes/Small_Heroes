@@ -7,9 +7,23 @@ vi.mock('@/backend/lib/email',()=>({sendBookReadyEmail:vi.fn(),sendRefundNoticeE
 vi.mock('@/lib/env',()=>({env:{}}));
 import { engineTestDb } from './engine-test-db';
 import { GET } from '@/app/api/generate/cron/exceptions/route';
+import { claimDueExceptionCases } from '@/lib/generation-chunked/exception-case';
 const stores:Awaited<ReturnType<typeof engineTestDb>>[]=[];
 afterEach(async()=>{for(const s of stores.splice(0))await s.pg.close();state.db=null;vi.unstubAllEnvs();vi.unstubAllGlobals();});
 describe('R2-1 actual engine-only cron and legacy quarantine boundary',()=>{
+  it('M15 claims require both a personal scope and personal owning order and exclude manual cases',async()=>{
+    const s=await engineTestDb();stores.push(s);
+    await s.pg.exec(`INSERT INTO "Order"(id,status,"frozenProductVersion") VALUES('legacy_owner','failed','legacy/v1');
+      INSERT INTO "ExceptionCase"(id,"activeKey","orderId",scope,kind,status,reason,resolution) VALUES
+      ('wrong_owner','legacy_owner:engine_site_book','legacy_owner','engine_site_book','quality_failed','refund_pending','synthetic',NULL),
+      ('wrong_scope','synthetic_order:legacy_scope','synthetic_order','legacy_scope','quality_failed','refund_pending','synthetic',NULL),
+      ('manual','synthetic_order:engine_site_infrastructure','synthetic_order','engine_site_infrastructure','infra_transient','open','synthetic','{"operatorRequired":true}'),
+      ('personal_due','synthetic_order:engine_site_book','synthetic_order','engine_site_book','quality_failed','refund_pending','synthetic',NULL);`);
+    const claimed=await claimDueExceptionCases(s.db,new Date(),10,true);
+    expect(claimed.map(row=>row.id)).toEqual(['personal_due']);
+    const remaining=(await s.pg.query<{id:string;attempts:number}>('SELECT id,attempts FROM "ExceptionCase" WHERE id<>\'personal_due\' ORDER BY id')).rows;
+    expect(remaining.map(row=>row.attempts)).toEqual([0,0,0]);
+  });
   it('does not synthesize, claim, redrive or refund legacy failures or cases when readiness is off',async()=>{
     const s=await engineTestDb();stores.push(s);state.db=s.db;
     vi.stubEnv('CRON_SECRET','SYNTHETIC_CRON');vi.stubEnv('ENGINE_SITE_FULFILLMENT_ENABLED','true');

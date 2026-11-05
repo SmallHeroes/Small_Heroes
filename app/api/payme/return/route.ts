@@ -9,6 +9,7 @@ import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/co
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
 import { isEngineSiteOrder } from '@/lib/engine-site/offer';
+import {recordEnginePaymentProofRefusal,clearEnginePaymentProofRefusal} from '@/lib/engine-site/payment-proof-alert';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       select: { id: true, status: true, paymentProvider: true, paymentId: true, totalPrice: true, frozenProductVersion: true },
     });
     personal = !!order && isEngineSiteOrder(order);
+    if(personal)await clearEnginePaymentProofRefusal(prisma,orderId,'').catch(()=>logger.warn('Payment notice reconciliation pending',{orderId}));
     if (!order || (order.paymentProvider && order.paymentProvider !== 'payme')) {
       const redirectUrl = new URL(target(), req.nextUrl.origin);
       const accessKey = paymentIdFromQuery || transactionIdFromQuery;
@@ -81,6 +83,9 @@ export async function GET(req: NextRequest) {
       allowUnsafeRedirectTrust && !personal &&
       !verification.verified &&
       ['paid', 'success', 'succeeded', 'completed', 'approved'].includes(statusRaw);
+
+    if(personal&&order.paymentId&&verification.proofRefused===true)
+      await recordEnginePaymentProofRefusal(prisma,order.id,order.paymentId,'stored_sale_query');
 
     if (verification.verified && verification.status === 'paid') {
       const resolvedPaymentId = order.paymentId!;
@@ -146,6 +151,7 @@ export async function GET(req: NextRequest) {
       // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: open the payment_integrity review case in its own tx,
       // best-effort. The money tx is durably committed; a failure here can never affect it, and the reconciler
       // repairs a missed write. A no-op unless the fence parked the order.
+      if(personal)await clearEnginePaymentProofRefusal(prisma,order.id,resolvedPaymentId).catch(()=>logger.warn('Payment notice reconciliation pending',{orderId:order.id}));
       await syncHumanQaHoldCasePostCommit(prisma, order.id);
       // CONCURRENCY FENCE (coupon re-gate 3): ONLY the request that actually CLAIMED the paid
       // transition may trigger generation — `claimed` is false when an overlapping success path (the

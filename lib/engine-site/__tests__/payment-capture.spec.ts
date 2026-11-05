@@ -32,12 +32,17 @@ async function callback(sale: string) {
     'x-payme-signature':createHmac('sha256','SYNTHETIC_ONLY').update(body).digest('hex') } }));
 }
 describe('Q10 actual signed webhook, immutable primary capture and sale-specific refund liability', () => {
-  it('R2-7 repeated signed paid proof refusals are logged and create an operator case',async()=>{
+  it('R4 signed callbacks with an empty independent reply remain unavailable without a false proof case',async()=>{
     const s=await setup('pending_payment');m.fetch.mockImplementation(async()=>new Response(JSON.stringify({items:[]})));
     for(let n=0;n<3;n++)expect((await callback('primary_sale')).status).toBe(503);
     expect(m.warn).toHaveBeenCalled();
-    expect((await s.db.exceptionCase.findFirst())!.resolution).toMatchObject({operatorRequired:true,outcome:'payment_proof_refused'});
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
     expect(m.trigger).not.toHaveBeenCalled();
+  });
+  it('R4 the first signed definite mismatch creates one operator case without starting a book',async()=>{
+    const s=await setup('pending_payment');m.fetch.mockImplementation(async()=>new Response(JSON.stringify({items:[{sale_payme_id:'primary_sale',transaction_id:'synthetic_order',sale_price:1,sale_currency:'ILS',sale_status:'completed'}]})));
+    expect((await callback('primary_sale')).status).toBe(503);
+    expect((await s.db.exceptionCase.findFirst())!.resolution).toMatchObject({operatorRequired:true,outcome:'payment_proof_refused'});expect(m.trigger).not.toHaveBeenCalled();
   });
   it('a bound primary capture becomes paid once; its replay cannot start a second job',async()=>{
     const s=await setup('pending_payment');await s.pg.exec('UPDATE "Order" SET "paymeTransactionId"=NULL');

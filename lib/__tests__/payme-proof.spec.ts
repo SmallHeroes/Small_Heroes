@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 const m = vi.hoisted(() => ({ order: vi.fn(), update: vi.fn(), record: vi.fn(), trigger: vi.fn(), fetch: vi.fn() }));
-vi.mock('@/lib/prisma', () => ({ prisma: { order: { findUnique: m.order }, $transaction: (f: any) => f({
+vi.mock('@/lib/prisma', () => ({ prisma: { wizardSession: { findUnique: async () => null }, order: { findUnique: m.order }, $transaction: (f: any) => f({
   order: { updateMany: m.update }, paymentRecord: { upsert: m.record } }) } }));
 vi.mock('@/lib/env', () => ({ env: { PAYMENT_PROVIDER: 'payme', PAYME_REDIRECT_TRUST_MODE: false } }));
 vi.mock('@/app/api/generate/trigger', () => ({ triggerGeneration: m.trigger }));
@@ -42,6 +42,15 @@ describe('Q1 actual PayMe verifier and redirect, synthetic HTTP only', () => {
   it('queries the documented exact sale filter and accepts a fully bound paid sale', async () => {
     expect(await verify()).toMatchObject({ verified: true, status: 'paid' });
     expect(JSON.parse(m.fetch.mock.calls[0][1].body)).toEqual({ seller_payme_id: 'SYNTHETIC_ONLY', sale_payme_id: 'sale_server' });
+  });
+  it('R5 never attributes a returned different sale to the queried sale, even on the same order', async () => {
+    m.fetch.mockResolvedValueOnce(new Response(JSON.stringify({items:[{...sale(),sale_payme_id:'different_sale'}]})));
+    const result=await verify();expect(result.verified).toBe(false);expect(result.proofRefused).toBe(false);expect(result.paidMismatch).toBeUndefined();
+  });
+  it('R5 distinguishes exact paid mismatch evidence from payment or automatic-refund authority', async () => {
+    const raw={items:[{...sale(),sale_price:1}]};m.fetch.mockResolvedValueOnce(new Response(JSON.stringify(raw)));
+    expect(await verify()).toMatchObject({verified:false,status:'unknown',proofRefused:true,raw,
+      paidMismatch:{orderId:'order_synthetic',saleId:'sale_server',expectedAmountAgorot:5900,observedAmountAgorot:1,observedCurrency:'ILS',providerProofSha256:expect.stringMatching(/^[a-f0-9]{64}$/)}});
   });
   it.each([
     { sale_payme_id: 'unrelated_sale' }, { transaction_id: 'other_order' }, { sale_price: 1 },

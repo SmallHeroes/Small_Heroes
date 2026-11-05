@@ -30,6 +30,19 @@ async function setup(){
   return {...s,cp,invoke,plan,ports,request,park};
 }
 describe('R2-4/R2-8/R2-10 actual operator, durable progress and backstop paths',()=>{
+  it.each(['stale_hold','active_lease','unknown_action','unauthorized_actor'] as const)('M15 infrastructure action refuses %s without changing the hold or meter',async scenario=>{
+    const s=await setup();await s.park();
+    const view=await (await handleEngineOperator(s.request(),'synthetic_order',s.ports)).json();
+    if(scenario==='stale_hold')await s.db.order.update({where:{id:'synthetic_order'},data:{deliveryFenceVersion:{increment:1}}});
+    if(scenario==='active_lease')await s.db.generationJob.update({where:{orderId:'synthetic_order'},data:{lockedBy:'synthetic_other_worker',leaseExpiresAt:new Date(Date.now()+60_000)}});
+    const before=await s.db.atomicOperationReceipt.findMany({where:{orderId:'synthetic_order'}});
+    const response=await handleEngineOperator(s.request({action:scenario==='unknown_action'?'retry':'resume',expectedHoldSha256:view.holdSha256,
+      idempotencyKey:`m15_${scenario}`,reason:'Synthetic adversarial action'}),'synthetic_order',scenario==='unauthorized_actor'?{...s.ports,operatorIds:[]}:s.ports);
+    expect(response.status).toBe(scenario==='unauthorized_actor'?404:409);
+    expect(await s.db.atomicOperationReceipt.findMany({where:{orderId:'synthetic_order'}})).toEqual(before);
+    expect((await s.db.order.findUnique({where:{id:'synthetic_order'}}))!.deliveryHoldReason).toBe('engine_site_hold:infrastructure');
+    expect((await s.db.exceptionCase.findFirst())!.status).toBe('open');
+  });
   it('R2-3 the existing global policy writer also enforces the extended private database guard',async()=>{
     const s=await setup();await ensureEngineLaunchPolicy(s.db);const policy=await readEngineLaunchPolicy(s.db);
     await s.pg.exec('GRANT SELECT,INSERT ON "UserSession" TO anon');

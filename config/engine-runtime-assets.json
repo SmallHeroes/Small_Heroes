@@ -1,0 +1,396 @@
+{
+  "version": "engine-runtime-assets/v1",
+  "purpose": "Build integrity of existing static runtime families; not visual/product admission.",
+  "groups": {
+    "fonts": [
+      {
+        "path": "backend/assets/fonts/Heebo-Bold.ttf",
+        "bytes": 44304,
+        "sha256": "ff9e18d0f96e813c1668406a70bddbe7419ad7b926d772a1bfc06c617d9b688a"
+      },
+      {
+        "path": "backend/assets/fonts/Heebo-Regular.ttf",
+        "bytes": 43956,
+        "sha256": "c3e828690d20e344b2a0c9bcd3d64b21d62d65d465c21dd6117dd33fb5fe2532"
+      },
+      {
+        "path": "backend/assets/fonts/NotoSansHebrew-Bold.ttf",
+        "bytes": 20704,
+        "sha256": "342aa0f194ba76b8fddb69c08c74d109f8d9a99db44d4850ee936cea0f84aa8f"
+      },
+      {
+        "path": "backend/assets/fonts/NotoSansHebrew-Regular.ttf",
+        "bytes": 20516,
+        "sha256": "f9ced0325880ab81fdaca60595c96dbd99cf9ef6fad67540ce14d68993c7493c"
+      }
+    ],
+    "style01": [
+      {
+        "path": "style-references/01/style01-texture-night-mountains.png",
+        "bytes": 632061,
+        "sha256": "77e7acbb521f973707498a78cd2dae8d878b2c0ad5d816a34d0c275e28c4f39a"
+      },
+      {
+        "path": "style-references/01/style01-texture-night-window.png",
+        "bytes": 521755,
+        "sha256": "1cb65ac452dd0fe3a37b787b3296073e15dfd446cf7e9e76b649afcb37beeeb1"
+      },
+      {
+        "path": "style-references/01/style01-texture-porch-lavender.png",
+        "bytes": 572561,
+        "sha256": "8a87d8f3da12d31d4ab73b7adede9e8396c0e3b81463cc6c8b392c630993e4dd"
+      },
+      {
+        "path": "style-references/01/style01-texture-stream-rocks.png",
+        "bytes": 1418803,
+        "sha256": "83311934321dd7edcc6a399324f8687a6653d87abc055edea6ccbdf6706ba092"
+      }
+    ],
+    "childTemplate": [
+      {
+        "path": "style-references/01-child-template/boy.png",
+        "bytes": 2207303,
+        "sha256": "cc76726222f5c796d9bd2df081e3d31b5c6284e9665ccce4b79779a73a50b925"
+      },
+      {
+        "path": "style-references/01-child-template/girl.png",
+        "bytes": 2314635,
+        "sha256": "d3e0d1caee83c3e4ae750fd71e86b6b834a7fa423ab52012b1fe1f47db159e6b"
+      },
+      {
+        "path": "style-references/01-child-template/manifest.json",
+        "bytes": 183,
+        "sha256": "5db45948b9971736e9dd86e765205d8135153ad87b03a32ff14a8b6657f31ce7"
+      }
+    ],
+    "companionSheets": [
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/3-4.png",
+        "bytes": 1719910,
+        "sha256": "480b60170f8558805b66fe50a3c25b3e3d4759707490d89ac86655f494d09c47"
+      },
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/back.png",
+        "bytes": 1796111,
+        "sha256": "4c6509537787f8cfaef9cb3bef15c542432c30070ce93cd8a8804417f478f7ea"
+      },
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/front.png",
+        "bytes": 1876362,
+        "sha256": "5cafce583bc9276be34ebc7a2dd0a443c9fc2f1c5c9d04264c0bf7339d370472"
+      },
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/happy.png",
+        "bytes": 1768961,
+        "sha256": "8c81a9b1e09ceb955e40232180edc222a0563da72589cc3e1f3396bf3891ff6e"
+      },
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/manifest.json",
+        "bytes": 965,
+        "sha256": "422f3ca9b55aca0dea343f5e4fce20fd3b4be05de3572179dddf5cd10b42f59a"
+      },
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/side.png",
+        "bytes": 1669433,
+        "sha256": "639bc28137915622e92f05a48cb79174e6f98681e4efcfe8ef569818b35cbb37"
+      },
+      {
+        "path": "public/companions/bunny_ometz/style01-sheets/theme.png",
+        "bytes": 1549730,
+        "sha256": "67a763d1bb3824c976a642552f2cc47da72ecbcc95364890de206638ffae3762"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/3-4.png",
+        "bytes": 1975989,
+        "sha256": "cb20ac18526e9b134ebc634c9d1c915efe055add6bbe5377310517d9a4b106ff"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/back.png",
+        "bytes": 1991130,
+        "sha256": "1b02779b12c53ac98c43e7713bef1836372c38bca43ca9c7ef6b0e0cbccdda49"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/front.png",
+        "bytes": 2191692,
+        "sha256": "f0e044a58117435be8bfcf1c5f1c0cff5599b8c062a3a423a6aad9b1b5a4675f"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/happy.png",
+        "bytes": 1902545,
+        "sha256": "67eb27464577d96d3e345fb8275a28deb9ed7f47b92d96ffe2754edae598bffb"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/manifest.json",
+        "bytes": 1038,
+        "sha256": "a455f2b3cdd6830e0efb0c513c3ec0fac652749b8c75a20b27a79f02c9f0a427"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/side.png",
+        "bytes": 1953595,
+        "sha256": "125e0eba9579f375b6d5e2ebaf4436c948df6ff1f2253e39a25c5dcd6c0a8a09"
+      },
+      {
+        "path": "public/companions/chameleon_koko/style01-sheets/theme.png",
+        "bytes": 2001677,
+        "sha256": "f0ecb99c29bea8ebff86d83d2a8c0c1719202ff58403f24699005956bd84c2fd"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/3-4.png",
+        "bytes": 2064731,
+        "sha256": "cee1a7e93c2decd21452d766e936c61194c81165c270a8e0b9b7d70f55118637"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/back.png",
+        "bytes": 2040306,
+        "sha256": "2fff5ff847be4d6ea8e8a4e17dab80e84d9bbe095b94cef8df3cebd479e4056e"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/front.png",
+        "bytes": 2307366,
+        "sha256": "ea452225967aa864ff50d78ebdae21f029cef13bc86145990102d9825a08e1fb"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/happy.png",
+        "bytes": 2062209,
+        "sha256": "2aa470529e8341dff6ccffd19a8bbb0d2bd316b1a789d6c1ad00d89534dcd699"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/manifest.json",
+        "bytes": 955,
+        "sha256": "07fde8a2979fb8be182637607f5cb5e44c9a6bc3fc1ac16259ffcc8933c9cb9e"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/side.png",
+        "bytes": 2010436,
+        "sha256": "4104dd3246eeb3a696aa33abd35113ac055392bd1f862e0660c52f872e4507cb"
+      },
+      {
+        "path": "public/companions/dragon_dini/style01-sheets/theme.png",
+        "bytes": 2198176,
+        "sha256": "c001fc63fc95ef77bae8c9baa7c858170a429aff5789ef58b9945266d580f08e"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/3-4.png",
+        "bytes": 2234134,
+        "sha256": "387bd4b89079a95acc5a7aa70ceffbedccf1bd1dbce113a5ee465bd9f50dd6af"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/back.png",
+        "bytes": 2120931,
+        "sha256": "f8e6189dd089a329cd6f68827cb49e696150a36f0f25367b7219e733a6e169c5"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/front.png",
+        "bytes": 2336911,
+        "sha256": "a4a8ba6db30374fd2a33513ecbb13c9b89676a2f5d5b705f0e909e81925d18a3"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/happy.png",
+        "bytes": 2142441,
+        "sha256": "4fc25cccefb1797df57878637751027db801e694d07ddce0f30b73c2d6d1462a"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/manifest.json",
+        "bytes": 5711,
+        "sha256": "5cb4bd83cc785a6c3fce12b49d3816deaee5351de9283e327b27b3170592bd13"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/side.png",
+        "bytes": 2015659,
+        "sha256": "d4388f3169bf44bde65d63e0d2178499a7e51cf3069bc925fc3471fac9d8587f"
+      },
+      {
+        "path": "public/companions/elephant_momo/style01-sheets/theme.png",
+        "bytes": 2156820,
+        "sha256": "7e842dea8a3b31da1bdf38c699a030cd0d43d331fdc6409cf2b1b970fad64f09"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/3-4.png",
+        "bytes": 2052280,
+        "sha256": "1371b2fc19193d8e45d5873f098e0d42c3370ad777d5edca36f0196b09b2878a"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/back.png",
+        "bytes": 2113806,
+        "sha256": "5879b141df7d074a2218abf8038001355bdb97a953aa6f3e439cd2d7aca9ae8e"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/front.png",
+        "bytes": 2206315,
+        "sha256": "e84671a13e1c0b9d9e5015b79b9f3fd330b858e48ad806733ae8b3d50d8a9613"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/happy.png",
+        "bytes": 2021178,
+        "sha256": "d2e806d99c333e29c821dd6b24ec4e5cc43ed4fdd34c58ced8dc0b90846f346d"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/manifest.json",
+        "bytes": 955,
+        "sha256": "6b2be6524a356b1715e205aefa01bd640269bf865999a650e11980d298b6babb"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/side.png",
+        "bytes": 1948409,
+        "sha256": "f02be9a49c7ebc2e185cd3a45bdbb9ccc51dc063ccbdb94dc82036c955b87d60"
+      },
+      {
+        "path": "public/companions/fox_uri/style01-sheets/theme.png",
+        "bytes": 2056581,
+        "sha256": "620a5ecdca916e7d494c3f1e35b77f14f541687abf22495e6b60053da2a30fb0"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/3-4.png",
+        "bytes": 2100613,
+        "sha256": "5c4a30af7a627598f8e6ca913d77cefc774d11b005b44195cf2bb8f52540543d"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/back.png",
+        "bytes": 2075990,
+        "sha256": "c2eaaf55551c99a8ba694aae01d0f0fce183a002b09955cf918270a567ebe6f6"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/front.png",
+        "bytes": 2248247,
+        "sha256": "cc52689b2a50efc5a5b88b7bfbd1279eeeea0be9975fa7b179faf1300b0bd375"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/happy.png",
+        "bytes": 2148737,
+        "sha256": "9bf67070ddc05faf4b1fa1bf77047b7638fdd9c7057a4b603e077d3f272b5e09"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/manifest.json",
+        "bytes": 953,
+        "sha256": "61c9ec5909711322b5b64f3c938d447305904ef202709749d88b16e5c675971a"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/side.png",
+        "bytes": 1853127,
+        "sha256": "f5028a551d4fe89c6af16466bd186e751a47d6234b1a15322ba41f3b724a82d4"
+      },
+      {
+        "path": "public/companions/lion_shaket/style01-sheets/theme.png",
+        "bytes": 1922371,
+        "sha256": "9afda8079005a667f2f47b43bb3840416ff8cc28fe77ef22df5eaa191b9c50c1"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/3-4.png",
+        "bytes": 1593621,
+        "sha256": "4f6b050ad85e70b35226ede3fc0816777614ef966f0f4a7e6a0e24570cacaa91"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/back.png",
+        "bytes": 1505999,
+        "sha256": "216be0903382d71e5f6b9424c69c4ecab9c54d129e2506f397c8b5487701281c"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/front.png",
+        "bytes": 1920728,
+        "sha256": "a538fecc897c25e59f8f0e0ac805be5eda1180d36b642d878f3d90d1e5e77c08"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/happy.png",
+        "bytes": 1614751,
+        "sha256": "5c8dbcbcf2157744173e1619d15e61c185a083dcadef897eefde83aaf376a0f7"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/manifest.json",
+        "bytes": 974,
+        "sha256": "b2b0c26307fc9e72ebc909be1693b784241f57e24976bef2ba0f0efcd7848fce"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/side.png",
+        "bytes": 1619858,
+        "sha256": "033fdcffb1ce0b3c9b948facaebf022223c1ae46ea5612eda61479bfee550f03"
+      },
+      {
+        "path": "public/companions/octopus_seara/style01-sheets/theme.png",
+        "bytes": 1403015,
+        "sha256": "17107b187cf7f02ae4e245c607468ac3d7072ad1f40e28e85846a98dbe36e991"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/3-4.png",
+        "bytes": 1838421,
+        "sha256": "65e345b70f27f6cf9d4e43e28170f6e274f33a4d172953328b3f8a3784a5f718"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/back.png",
+        "bytes": 1631762,
+        "sha256": "cb8afac31d467a1133d07b9fb2c7a38fcd0f2913620fdf2e34c43d25c1140ca8"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/front.png",
+        "bytes": 1925664,
+        "sha256": "c67a1aa7958489963f0946eed3a1de76d772f4fcf0abe955c6fa5bc05403a45f"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/happy.png",
+        "bytes": 1830786,
+        "sha256": "582beed9780403be6faee270f5abe31b2a8791f2af601375c9eb2f9d0d216c16"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/manifest.json",
+        "bytes": 958,
+        "sha256": "ca28755afb6455879f19544141012b24fec6cf367fab6051c401ce8292aa9bcf"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/side.png",
+        "bytes": 1780909,
+        "sha256": "2a800a0e1e80ac5acc06161a66ff6b54ef6d2a4c5c93374e3d1a35360162a31d"
+      },
+      {
+        "path": "public/companions/panda_anat/style01-sheets/theme.png",
+        "bytes": 1884689,
+        "sha256": "abe7c0158c9f567f12b5acf719fa612da69e5e40563dc5a25455446392737b2a"
+      }
+    ],
+    "wizardOptions": [
+      {
+        "path": "public/Images/personal-companions/elephant_momo.webp",
+        "bytes": 42968,
+        "sha256": "fc1cc468a154c63b0be11f9882ae3dc9cfc4397de6fc52bebcc8fddc21460f71"
+      },
+      {
+        "path": "public/Images/personal-companions/turtle_tuk.webp",
+        "bytes": 49348,
+        "sha256": "f5373d4245df5db72203dde501fd5ee74727d7e29c03b19ee7afaa8408b765ab"
+      },
+      {
+        "path": "public/Images/personal-companions/hedgehog_tuti.webp",
+        "bytes": 53048,
+        "sha256": "83be784a3678e0880312a155f01aecf70271deb46a8bfe6dffd6ef21ea62d715"
+      },
+      {
+        "path": "public/Images/personal-companions/owl_shush.webp",
+        "bytes": 48724,
+        "sha256": "2ae3dc36a67fa65b28b627cc6b9071a9ca4c1fe54927398163fe898667642701"
+      },
+      {
+        "path": "public/Images/personal-companions/kangaroo_nula.webp",
+        "bytes": 30240,
+        "sha256": "8fe3b24dffc424f275f33b0ae7499ce16810330d69b5f57cf999b74a3a8fb04e"
+      },
+      {
+        "path": "public/Images/personal-companions/dog_zohar.webp",
+        "bytes": 40654,
+        "sha256": "bcb9af7c76df2c6450af29b794d582b92c8f02a500d78b971cc3153ca00a1c1d"
+      },
+      {
+        "path": "public/Images/personal-companions/cloud_puf.webp",
+        "bytes": 23418,
+        "sha256": "8db9387e63c97b7e378a49cc12358e50d9758d8e3575a9dc9fac4a8787e474c6"
+      },
+      {
+        "path": "public/voice-samples/4RZ84U1b4WCqpu57LvIq.mp3",
+        "bytes": 43511,
+        "sha256": "65488e5a02e3786e9756d4ce2cd64ae6d15e57834a5fe023ab2fff2cc53d26e7"
+      },
+      {
+        "path": "public/voice-samples/piI8Kku0DcvcL6TTSeQt.mp3",
+        "bytes": 40586,
+        "sha256": "2f83dc9317940f8cdc0d4271f9ea5b6ae36859eeb22f289527214684c4b6cd0f"
+      }
+    ]
+  }
+}

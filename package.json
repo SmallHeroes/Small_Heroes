@@ -3,7 +3,7 @@
     "dev": "node scripts/dev-safe.js",
     "dev:raw": "next dev",
     "postinstall": "prisma generate",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build && node scripts/engine-package.cjs --apply",
     "start": "next start",
     "lint": "node scripts/lint-honest-gate.mjs",
     "release-check": "tsx --require ./scripts/shims/register-server-only.cjs scripts/release-check.ts",

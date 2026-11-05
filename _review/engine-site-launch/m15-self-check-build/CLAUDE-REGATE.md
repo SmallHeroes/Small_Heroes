@@ -1,0 +1,27 @@
+STATUS: M15 INDEPENDENT REVIEW BRIEF DONE
+HEAD: 36bd62daf98cc73c1b3e49a2f3c3b23548d4bddd
+Summary 1/5: Claude Code's independent round 3 has not run; this package supplies no independent technical PASS.
+Summary 2/5: M14 owner recovery is verified at36bd62da, and M15 is one uncommitted explicit-path correction/runbook package against it.
+Summary 3/5: Review the whole relevant6a223a28..ACTUAL_M15_OWNER_COMMIT surface; use36bd62da..M15 only to locate the new changes.
+Summary 4/5: Falsify sent-publication fault fencing, preserved explicit refund authority, private/payment/worker composition and prepared operational instructions.
+Summary 5/5: USD0/synthetic, prepared SQL/hotfix/runbooks only; failed/partial Windows build artifacts are not final bundle or Linux proof.
+Guy decisions: Owner recovery/commit and later protected/paid/visual/launch actions remain separate; do not execute them as part of this read-only first pass.
+
+You are Claude Code, independent QA. First pass READ ONLY in C:/GNart/Work/sh-engine-site-launch, branch codex/engine-site-launch-20261104. Reconcile actual HEAD/status/topology with OWNER-COMMIT and PINS. M14 is36bd62daf98cc73c1b3e49a2f3c3b23548d4bddd. After M15 owner recovery, freeze the actual resulting SHA; no invented review head and no review against a silently different dirty tree.
+
+Read the R2 report in full, M14/M15 reports, SELF-CHECK, BUILD-PROOF/NFT results, source pins, all red/green/final evidence and both owner runbooks. Review all relevant wizard/order/payment/private-upload/source/native/durable/reader/narration/PDF/acceptance/operator/delivery/refund code, not only M15's diff. LOW/59ILS/5900agorot/cover+8/narration/PDF/0.70/3attempts/9reasks/meter/default-off and no-bank decisions remain fixed.
+
+Falsification targets:
+
+1. Late free infrastructure faults cannot park an Order after a confirmed sent publication or during the existing processing-send fence. Test concurrent send/fault under the same Order lock, actual sentAt evidence, no receipt/fence/readiness/case mutation and continued family access after outage recovery. Unsent faults must still back off/park. Explicit financial revocation/refund and genuine byte/quality failure paths must retain their existing authority; verify the unchanged Q6 explicit-refund control. There is intentionally no broad failEngineOrder change.
+2. Engine-only claims bind both scope and owning protocol and exclude operator-required cases, while genuine personal refunds are still claimable. Readiness-off must not synthesize or act on legacy failures; readiness-on must not imply missing quarantine activation authority.
+3. Re-test nine-table RLS/effective table/column privileges, checkout ownership and operator actor checks. Review the prepared SQL order, role assumptions, actual session lookup and protection against client-role session/OTP insertion. No live project proof is supplied.
+4. Resume/fail must fence exact hold/checkpoint/receipts/case/lease, stale/concurrent/unknown actions, server actor/time, replay, UNKNOWN reserves and one financial liability. Verify the initial policy helper/required state and actual per-book review route in the runbook; no nonexistent list UI or silent off-mode reset.
+5. Re-gate checkout/sale expiry/late capture and exact payment proof; preserve the primary sale and independent extra-sale refund authority. Verify actual account fixture is still absent, not synthetically labeled real.
+6. Narration must persist/settle billed audio before free retryable decoding, avoid a second paid POST, preserve deterministic invalid-media failure and packaged native requirements. Re-gate the complete positive production recipe/readmission composition separately from fixtures that inject admitted pages.
+7. Inspect real failed-build logs, guard/source pins and generated partial NFT lists. Do not count a failed compilation's raw pre-finalization asset closure as final Next tracing or Vercel package size. Windows/junction evidence does not prove Linux. Required media cannot be excluded just to fit a size assertion. Complete production build/NFT/adapter/native qualification remains open.
+8. Audit FIRST-PAID-TEST-RUNBOOK against actual environment variable names, source/authority/host guards, migrations, private Storage, Preview external scheduler, callback Deployment Protection and recipient/operator identity. It is prepared only; USD10/121 calls is a proposal requiring Guy's explicit GO and does not guarantee completion/invoice cap. The 82.263104 reserve envelope remains larger.
+9. Audit PROD-HOTFIX-GUY against the exact production base and actual log/CAS semantics. The Order marked paid log is not a CAS-count proof. Confirm applied planned blobs, 17 offline controls, failed-order replay, two-file scope and no implied shipping authority. Optional queryPaymeSale remains outside that patch.
+10. Verify recovery hashes, explicit staged membership, direct-Node gates, report-only npm, actual owner commit SHA, preserved unrelated logs/index and no service/SQL/key/push/deploy action. Fake recovery simulation does not establish that Codex performed a real commit.
+
+Report reproducible defects with exact caller/authority/minimal correction. Keep independent technical disposition separate from paid/account/visual/product/launch acceptance. No provider/key/.env/live query/service write, paid book, SQL application, deployment or external message is authorized by this reviewer brief.

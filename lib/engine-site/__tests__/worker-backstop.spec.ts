@@ -3,7 +3,7 @@ const m = vi.hoisted(() => ({ db: {} as any, run: vi.fn(), chain: vi.fn(), revis
 vi.mock('@/lib/prisma', () => ({ prisma: new Proxy({}, { get: (_t,k) => m.db[k] }) }));
 vi.mock('@/lib/engine-site/production-worker', () => ({ runProductionPersonalWorker: m.run }));
 vi.mock('node:child_process', () => ({ execFileSync: (_cmd: string,args: string[]) => args[0] === 'rev-parse' ? m.revision : '' }));
-vi.mock('@/lib/generation-chunked/chain-worker', () => ({ chainGenerationWorker: m.chain }));
+vi.mock('@/lib/generation-chunked/chain-worker', () => ({ chainGenerationWorker: m.chain,engineDispatchConfigurationAvailable:()=>true }));
 vi.mock('@/lib/generation-chunked/env-separation-guard', () => ({ assertProdGenerationAllowed() {}, assertEnvSeparation() {} }));
 vi.mock('@/lib/env', () => ({ env: {}, validateEnv() {} }));
 vi.mock('@/lib/child-photo-deletion', () => ({ tryDeleteOriginalChildPhotoAfterGeneration: vi.fn() }));

@@ -5,8 +5,7 @@
 import 'server-only';
 
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import ffprobeInstaller from '@ffprobe-installer/ffprobe';
+import { nativeMediaBinaries } from '../../scripts/lib/native-media.cjs';
 import sharp from 'sharp';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -18,10 +17,13 @@ import { basename } from 'path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { uploadToSupabaseWithRetry } from '../../lib/image-storage';
 
-const FFMPEG_BIN = ffmpegInstaller.path.replace(/\\/g, '/');
-const FFPROBE_BIN = ffprobeInstaller.path.replace(/\\/g, '/');
-ffmpeg.setFfmpegPath(FFMPEG_BIN);
-ffmpeg.setFfprobePath(FFPROBE_BIN);
+let FFMPEG_BIN: string;
+function configureMedia(): void {
+  const binaries = nativeMediaBinaries();
+  FFMPEG_BIN = binaries.ffmpeg.replace(/\\/g, '/');
+  ffmpeg.setFfmpegPath(FFMPEG_BIN);
+  ffmpeg.setFfprobePath(binaries.ffprobe.replace(/\\/g, '/'));
+}
 
 const VIDEO_WIDTH = 1080;
 const VIDEO_HEIGHT = 1440;
@@ -354,6 +356,7 @@ async function encodeSlidesWithAudio(
 /** Full MP4 pipeline — returns video bytes. */
 export async function generateBookVideo(input: VideoInput): Promise<Buffer> {
   if (!input.pages.length) throw new Error('No pages supplied for video export');
+  configureMedia();
 
   const workDir = join(tmpdir(), `book-video-${input.orderId}-${randomUUID()}`);
   await mkdir(workDir, { recursive: true });

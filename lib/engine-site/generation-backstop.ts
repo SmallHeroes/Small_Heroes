@@ -1,16 +1,20 @@
 import 'server-only';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { parseEngineCheckpoint } from './durable-worker';
-import { assertEnginePolicyCurrent } from './platform-policy';
+import { assertEnginePolicyCurrent, configuredEngineSpendPolicy } from './platform-policy';
 import { engineErrorCode, engineDeterministicFailure, recordEngineInfrastructureFault, clearEngineInfrastructureFault } from './failure-policy';
 import { lockEngineOrder } from './order-meter';
 import { failEngineOrder } from './fulfillment';
+import { createLogger } from '@/lib/logger';
+import { ENGINE_ORDER_DEADLINE_MS, ENGINE_ORDER_ABSOLUTE_DEADLINE_MS } from './execution-deadlines';
+export { ENGINE_ORDER_DEADLINE_MS, ENGINE_ORDER_ABSOLUTE_DEADLINE_MS } from './execution-deadlines';
+const logger=createLogger({subsystem:'engine-site-backstop'});
 
 /** An abandoned paid generation cannot wait forever. This is an execution deadline, never a quality downgrade. */
-export const ENGINE_ORDER_DEADLINE_MS = 4 * 60 * 60_000;
-export const ENGINE_ORDER_ABSOLUTE_DEADLINE_MS = 24 * 60 * 60_000;
 /** Free, Order-first recovery. Active leases and publication/operator stages are never commandeered. */
 export async function reconcileEngineGeneration(db: PrismaClient, orderId: string, now = new Date(), executorRevision?: string) {
+  try { configuredEngineSpendPolicy(); }
+  catch(error) { const code=engineErrorCode(error);logger.warn('Engine executor configuration unavailable; order untouched',{orderId,code});return {status:'executor_unavailable' as const,code}; }
   const outcome = await db.$transaction(async tx => {
     const order = await lockEngineOrder(tx, orderId);
     const rows = await tx.$queryRaw<Array<{ orderId: string }>>`SELECT "orderId" FROM "GenerationJob" WHERE "orderId"=${orderId} FOR UPDATE`;

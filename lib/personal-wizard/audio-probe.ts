@@ -1,7 +1,6 @@
 import 'server-only';
 
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import ffprobeInstaller from '@ffprobe-installer/ffprobe';
+import { nativeMediaBinaries } from '../../scripts/lib/native-media.cjs';
 import { execFile, spawn } from 'child_process';
 import { randomBytes } from 'crypto';
 import { rm, writeFile } from 'fs/promises';
@@ -167,11 +166,12 @@ export async function measureAudioDuration(
   const file = join(tmpdir(), `pw-intake-${randomBytes(12).toString('hex')}.${extension}`);
   const timeoutMs = options.timeoutMs ?? 20_000;
   try {
+    const binaries = options.ffprobePath && options.ffmpegPath ? null : nativeMediaBinaries();
     await writeFile(file, bytes, { mode: 0o600, flag: 'wx' });
     let layout: { stdout: string; stderr: string };
     try {
       layout = await runProbe(
-        options.ffprobePath ?? ffprobeInstaller.path,
+        options.ffprobePath ?? binaries!.ffprobe,
         ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', file],
         timeoutMs,
       );
@@ -185,7 +185,7 @@ export async function measureAudioDuration(
     let probe: { stdout: string; stderr: string };
     try {
       probe = await runProbe(
-        options.ffprobePath ?? ffprobeInstaller.path,
+        options.ffprobePath ?? binaries!.ffprobe,
         ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'packet=pts_time,duration_time', '-of', 'csv=p=0', file],
         timeoutMs,
       );
@@ -197,7 +197,7 @@ export async function measureAudioDuration(
     if (!timeline.ok) return timeline;
 
     const decoded = await decodeBounded(
-      options.ffmpegPath ?? ffmpegInstaller.path,
+      options.ffmpegPath ?? binaries!.ffmpeg,
       file,
       options.maxDurationMs / 1000,
       timeoutMs,

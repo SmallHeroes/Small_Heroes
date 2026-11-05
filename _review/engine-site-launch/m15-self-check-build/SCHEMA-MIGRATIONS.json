@@ -1,0 +1,261 @@
+{
+  "schema": "backend/schema.prisma",
+  "meaning": "Existing schema baseline. Prepared inventory, not execution authority. Apply only reviewed pending migrations after target history review; never replay init on an existing DB.",
+  "migrations": [
+    {
+      "order": 1,
+      "path": "backend/migrations/00000000000000_init/migration.sql",
+      "sha256": "eb238fa101dd18004f05ea4ef92246e1cf5786bab4c27f0aeadc51f8d50f2445"
+    },
+    {
+      "order": 2,
+      "path": "backend/migrations/20260420_align_illustration_style_enum/migration.sql",
+      "sha256": "bc782908a7c0a841601dc6eea399097f15ef3d6d8020ec4b01916322f83d5bdf"
+    },
+    {
+      "order": 3,
+      "path": "backend/migrations/20260420_correct_historical_style_mapping/migration.sql",
+      "sha256": "db029d3c6e37d89b1299e786bce14af7cae44181e8e582bccb39dd62807498c8"
+    },
+    {
+      "order": 4,
+      "path": "backend/migrations/20260421_add_story_directions_stage/migration.sql",
+      "sha256": "1b7685a07b87b95b4070ca6021c43eaa7ca78e00464fc1e51b09f48201bbc3df"
+    },
+    {
+      "order": 5,
+      "path": "backend/migrations/20260422_add_cover_image_and_length_update/migration.sql",
+      "sha256": "0cbabd5bebc08c3baae2fd4487055715e5a72300fd2c18fbaf3c4ea7b236a92a"
+    },
+    {
+      "order": 6,
+      "path": "backend/migrations/20260422_image_asset_presentation_url/migration.sql",
+      "sha256": "838063e4ddb59dfa95c7df51acddd18c7b9522bf5d9970d536529ad088c96c80"
+    },
+    {
+      "order": 7,
+      "path": "backend/migrations/20260422_stripe_webhook_idempotency/migration.sql",
+      "sha256": "c753fe42c9160affe3fbebdfc7de5807893a9013e0ba2f6d3457b8e5d78daa0e"
+    },
+    {
+      "order": 8,
+      "path": "backend/migrations/20260423_add_book_page_template/migration.sql",
+      "sha256": "75e9dcbb4f9527e51aef1a416d5e8a53d289e2ab33dece9c5bf916389da74adc"
+    },
+    {
+      "order": 9,
+      "path": "backend/migrations/20260423_add_payme_payment_tracking/migration.sql",
+      "sha256": "2f8c369d6d4771fb6c566f2cb666be298e2913420cec8b04e3365a336d657818"
+    },
+    {
+      "order": 10,
+      "path": "backend/migrations/20260424_illustration_styles_v2/migration.sql",
+      "sha256": "81e82963b9f3b7e80d6e536e7db77878e8874180925c2de8bf2b11644c9c40ac"
+    },
+    {
+      "order": 11,
+      "path": "backend/migrations/20260425_add_resemblance_audit/migration.sql",
+      "sha256": "edd785bf2db1b2a9bc30f3096c537c7302d68957f1fceb7ab27338f521d5886e"
+    },
+    {
+      "order": 12,
+      "path": "backend/migrations/20260509_add_page_audio_url/migration.sql",
+      "sha256": "0519b4c706235b863a3912adec813bafe7a242ae32cc27b3796cc92ad74ec9ba"
+    },
+    {
+      "order": 13,
+      "path": "backend/migrations/20260509_order_video_enabled/migration.sql",
+      "sha256": "9311f85f84192a29a728132ca398de678b1dddc8bab2a048cc22b5fcda40a3ed"
+    },
+    {
+      "order": 14,
+      "path": "backend/migrations/20260510_add_generated_book_video_url/migration.sql",
+      "sha256": "e213acbdafd5f0c3cc9552db2298dfe043291b7d3d3e79577c2b514439033a1f"
+    },
+    {
+      "order": 15,
+      "path": "backend/migrations/20260511_add_dedication_field/migration.sql",
+      "sha256": "7537ffca53a1e341856bc301154bd77a40eb347f7bca53ab89a511738c3431a5"
+    },
+    {
+      "order": 16,
+      "path": "backend/migrations/20260511_add_detailed_whimsical_world_style/migration.sql",
+      "sha256": "12f74901b221037e8e411a5fa28a723d5a1e92d0149d7def20edb0f015af23aa"
+    },
+    {
+      "order": 17,
+      "path": "backend/migrations/20260511_order_story_direction/migration.sql",
+      "sha256": "6932c1c3af8850aef156f7bb5dc028c43cd5287917ec26860472677fd19d2d04"
+    },
+    {
+      "order": 18,
+      "path": "backend/migrations/20260511_rename_direction_archetypes/migration.sql",
+      "sha256": "2dd101056aa678873ed0ac1a51c67488b22702efc187804d51b54f67ebe4188b"
+    },
+    {
+      "order": 19,
+      "path": "backend/migrations/20260624_anchor_delivery_hold/migration.sql",
+      "sha256": "2fd0c0ec8ef15e6ee89bb0b179fd3aee67a1c68fbd4def50d3942e620a85c4eb"
+    },
+    {
+      "order": 20,
+      "path": "backend/migrations/20260624_generation_job_reliability/migration.sql",
+      "sha256": "b932a82a062a0cc4d8d96e4d48d241671ba4c63d9764eb993cdc7ad8e6cd006c"
+    },
+    {
+      "order": 21,
+      "path": "backend/migrations/20260629_base_book_integrity/migration.sql",
+      "sha256": "3b6996c8404301eff97ea5ab55e97fc190771fc124ac6c07a896fc99f5c5a9cc"
+    },
+    {
+      "order": 22,
+      "path": "backend/migrations/20260630_add_input_version/migration.sql",
+      "sha256": "97d6669027a3e96ab1afe30f28f1cf29046433eee695edf38a0c2c1f2e3b8689"
+    },
+    {
+      "order": 23,
+      "path": "backend/migrations/20260630_exception_case_recovery/migration.sql",
+      "sha256": "2bec88c76dcbe89959fe843ae4af6f806a2dcb825c9ce7576f57ea51aaff766c"
+    },
+    {
+      "order": 24,
+      "path": "backend/migrations/20260630_outbox_failure_class/migration.sql",
+      "sha256": "90052c83a22e9e9dd066b12f10acfd022209072a7c3507b971711b37110e4a18"
+    },
+    {
+      "order": 25,
+      "path": "backend/migrations/20260630_outbox_firstsendattempt_and_status_split/migration.sql",
+      "sha256": "4ba2d12fab42e9bfd0af77826b531af395e8e471f5fc2a2e962be990520c7c56"
+    },
+    {
+      "order": 26,
+      "path": "backend/migrations/20260630_outbox_manifest_binding/migration.sql",
+      "sha256": "f072de542d62fde01f02c0eb96a59a85507c487c9f567374d84ade05a8a29303"
+    },
+    {
+      "order": 27,
+      "path": "backend/migrations/20260630_outbox_send_attempt_count/migration.sql",
+      "sha256": "7ed84a2bd6ce852919366ead76aa20794c5f24c2d52f95621eb0b8bfaa7088c6"
+    },
+    {
+      "order": 28,
+      "path": "backend/migrations/20260630_outbox_send_attempted/migration.sql",
+      "sha256": "3bb135fddf462a6b08ea929545c40571721a0215a2b9b21004dea548015ae992"
+    },
+    {
+      "order": 29,
+      "path": "backend/migrations/20260630_outbox_status_blocked_invalid/migration.sql",
+      "sha256": "ed99a0acf4944465588d1a4807b5b5eb5bf3e90ee106ff9db0ccbece14bf34d2"
+    },
+    {
+      "order": 30,
+      "path": "backend/migrations/20260630_outbox_status_superseded/migration.sql",
+      "sha256": "6f4f31ec35fd21702924c377482b0690d36348b49ff3579b5481d724f6bbed47"
+    },
+    {
+      "order": 31,
+      "path": "backend/migrations/20260630_outbox_zz_binding_not_null/migration.sql",
+      "sha256": "ef3026ef80e43b7cbaa38c65dfa62089d10c5c8e45e718f2e8f39cd75f266d7d"
+    },
+    {
+      "order": 32,
+      "path": "backend/migrations/20260630_refund_attempt_fence/migration.sql",
+      "sha256": "f7b05fb82d960da8dc29e74dec722df78396e0435c79ac8ff18fe989f07b0d32"
+    },
+    {
+      "order": 33,
+      "path": "backend/migrations/20260630_reissue_budget/migration.sql",
+      "sha256": "e36fff9bbfce00c3b9375f23501dd9f53241fdfedad77d3ebfd9207ee2ff8571"
+    },
+    {
+      "order": 34,
+      "path": "backend/migrations/20260701_quality_evidence/migration.sql",
+      "sha256": "c26a3f0a30346dbbe313d00095449f66412c2d066e9abeffa3fe375dc88ad413"
+    },
+    {
+      "order": 35,
+      "path": "backend/migrations/20260701_rls_integrity_tables/migration.sql",
+      "sha256": "c7cbd4081d8aa4897a11d8ea5699b3036fc865a5c363092e6cc822ee0b81eaf5"
+    },
+    {
+      "order": 36,
+      "path": "backend/migrations/20260702_atomic_operation_receipt/migration.sql",
+      "sha256": "aaca0c457d1d7aa51210e9eb4fc94c4297d9e82acdad2f07356e3e3e0d9c61aa"
+    },
+    {
+      "order": 37,
+      "path": "backend/migrations/20260702_atomic_receipt_revoke_grants/migration.sql",
+      "sha256": "3d64ba4cb8e616ba4550899cd795fc88817b9868717f83761bdbd611234ce284"
+    },
+    {
+      "order": 38,
+      "path": "backend/migrations/20260703_visual_contract_vnext_foundation/migration.sql",
+      "sha256": "9637f9a96fed1e00887c8a044f0e4ed61cf73f11e35556389156c11ecac8c167"
+    },
+    {
+      "order": 39,
+      "path": "backend/migrations/20260707_add_coupon_code/migration.sql",
+      "sha256": "baf5d574e0bf2e87ff04b56aabdfd1ef4ab7777b724f696af5fd6b96afd9aa62"
+    },
+    {
+      "order": 40,
+      "path": "backend/migrations/20260715_coupon_checkout_attempt_lease/migration.sql",
+      "sha256": "8a69084eb867431f862d1d76c58419802e4dccf51ec7e1db0981de22fca2fae5"
+    },
+    {
+      "order": 41,
+      "path": "backend/migrations/20260715_safety_hold_signal/migration.sql",
+      "sha256": "4205d20e914502452aa6d6c04b056fb9d71f9282543e513650a574f7392121ed"
+    },
+    {
+      "order": 42,
+      "path": "backend/migrations/20260718_human_qa_review_case/migration.sql",
+      "sha256": "8a6dc976a0692b79b04d974cf9a22788d8af32b82d8503a551e2ac4be99192f8"
+    },
+    {
+      "order": 43,
+      "path": "backend/migrations/20260719_delivery_fence_version/migration.sql",
+      "sha256": "80c64fdefa19d24d6a18561220451b872d926835af752782c09b90fb030c13e6"
+    },
+    {
+      "order": 44,
+      "path": "backend/migrations/20260719_zz_outbox_delivery_fence/migration.sql",
+      "sha256": "6333e32e0141babf5da29207b0505e6ae6c770523fc1b3c30b9b0ecce4bc87c6"
+    },
+    {
+      "order": 45,
+      "path": "backend/migrations/20260720_outbox_fence_reconcile/migration.sql",
+      "sha256": "d31c3643d95f5c43878a9e0ba9f4b5243f075d2093c04b926e36bf385fe31f0f"
+    },
+    {
+      "order": 46,
+      "path": "backend/migrations/20260721_coupon_first100_50pct/migration.sql",
+      "sha256": "c28f9ee6e3c98ada166872126ee51fa0c052676952c928665e9499bef6517240"
+    },
+    {
+      "order": 47,
+      "path": "backend/migrations/20260722_human_qa_operator_action/migration.sql",
+      "sha256": "e66b6afdc618942317d0147472a01cb6572f9b7216c7fe9469db74e0eb103beb"
+    },
+    {
+      "order": 48,
+      "path": "backend/migrations/20260723_human_qa_release_override/migration.sql",
+      "sha256": "67aac363e88936dc3b19ed67e59a12ae6a8c95c045e7b46887cd0d3d7c298630"
+    },
+    {
+      "order": 49,
+      "path": "backend/migrations/20260724_safety_sha_hex_check/migration.sql",
+      "sha256": "1cd6e8edb09b01f6b5f56a77589e1f9234b4ffa474c25011822bb9cdadc07769"
+    },
+    {
+      "order": 50,
+      "path": "backend/migrations/20260725_page_upload_candidate/migration.sql",
+      "sha256": "35e481c6d45e8e9c7610058ef930f23dd3db6a3d95758323e9b13bccd2602b2b"
+    },
+    {
+      "order": 51,
+      "path": "backend/migrations/20260827_order_visual_package_authority/migration.sql",
+      "sha256": "1121abdbc47ec30788c83f1924a502b91a445b69b34139a19f9e694f63f6209b"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "localRequiredGatesSatisfied": true,
+  "independentQA": "PENDING_MANUAL_CLAUDE",
+  "providerCalls": 0,
+  "newExpenseMicroUsd": 0,
+  "focused": {
+    "passed": 1267,
+    "failed": 0,
+    "pending": 0,
+    "files": 73
+  },
+  "typescript": [
+    {
+      "name": "source",
+      "started": "2026-11-05T18:40:52.306Z",
+      "finished": "2026-11-05T18:41:37.131Z",
+      "code": 0,
+      "signal": null
+    },
+    {
+      "name": "autonomous",
+      "started": "2026-11-05T18:41:37.131Z",
+      "finished": "2026-11-05T18:41:38.331Z",
+      "code": 0,
+      "signal": null
+    }
+  ],
+  "linuxBuild": {
+    "started": "2026-11-05T18:36:41.914Z",
+    "finished": "2026-11-05T18:40:04.827Z",
+    "steps": [
+      {
+        "name": "fresh_ci_dependencies_reused_from_r1",
+        "code": 0
+      },
+      {
+        "name": "vercel_build_command",
+        "args": [
+          "/tmp/smallheroes-m16-node-20261105/usr/local/lib/node_modules/npm/bin/npm-cli.js",
+          "run",
+          "build"
+        ],
+        "code": 0,
+        "signal": null
+      },
+      {
+        "name": "packaged_check",
+        "args": [
+          "scripts/engine-package.cjs",
+          "--check"
+        ],
+        "code": 0,
+        "signal": null
+      }
+    ],
+    "sourceFilesVerified": 3018,
+    "sourceChanged": [],
+    "libc": "Alpine/musl; copy-only Prisma native-target override",
+    "actualVercelCommand": true,
+    "cloudAdapterQualified": false,
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0
+  },
+  "routeSummary": [
+    {
+      "platform": "linux",
+      "measured": 126,
+      "engine": 23,
+      "largestBytes": 240909437,
+      "largestEngineBytes": 209442764,
+      "requiredStaticAssets": 76,
+      "allBelowLimit": true
+    }
+  ],
+  "native": {
+    "at": "2026-11-05T18:42:04.516Z",
+    "platform": "linux",
+    "arch": "x64",
+    "node": "v22.19.0",
+    "libc": "Alpine3.22/musl",
+    "rawHashesMatch": true,
+    "rawInstallersDenied": true,
+    "privateDirectoryMode": "0700",
+    "realNarrationProbeDuration": 1.227755,
+    "realLegacyVideoBytes": 50577,
+    "videoDuration": 12.703991,
+    "videoStreams": [
+      {
+        "codec_type": "video"
+      },
+      {
+        "codec_type": "audio"
+      }
+    ],
+    "videoFullDecode": true,
+    "fixtureOnly": true,
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0,
+    "defaultIntakePaths": true,
+    "measuredIntake": {
+      "ok": true,
+      "durationMs": 1223,
+      "decodedMs": 1208,
+      "timelineMs": 1223
+    },
+    "boundedIntake": {
+      "ok": false,
+      "reason": "too_long"
+    },
+    "multiStream": {
+      "ok": false,
+      "reason": "unexpected_streams"
+    }
+  },
+  "windows": "M17 full build retained as baseline, not re-claimed as an M18 full build. Current Windows source/unit/filesystem and both TS gates are new.",
+  "npmCheck": "Historical non-green/report-only; full relevant gate is new, broad historical loops not repeated.",
+  "evidenceRoot": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105",
+  "artifacts": [
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\INTAKE-VERIFIED.json",
+      "sha256": "776ae80d8fb604dc7eb39980248e1b7d97ad92eb3cb0f0527c5e4ab205108bc2"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\PRESERVATION-END.json",
+      "sha256": "a1366b140df2296ebba3f3d4329c44ae190f4b35c4d1e1b1adccc1fd6bc26c59"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\final-full-r2.exit.json",
+      "sha256": "5b237441a6c8cce7c1404956c3a277167673763d08c22d265ad15063f917a24b"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\TYPESCRIPT-RESULT-sealed-source.json",
+      "sha256": "e6ead3f0c178628844118d603e8cb55dd3c6dd6f79395964364fdf87a34cc9a0"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\LINUX-BUILD-RESULT-r2.json",
+      "sha256": "0eaa395e72657079e16b94d9ea5805c63236ea0c9dd67c7b8a573889bb66316d"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\LINUX-PACKAGE-REPORT-r2.json",
+      "sha256": "905d6ad23d803c087caae86d6f1b2fef3d7cd5c7a9262b04e3f3319d05af8b8e"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\LINUX-NATIVE-RESULT.json",
+      "sha256": "6b0e27fcb81a2083d2e2bc406b6f9b031c31e1b50e39f7060ad79284cf91fd83"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m18-20261105\\R17-HISTORICAL-PRESERVATION.json",
+      "sha256": "28ab3ac1b7c994fdf13107481a061a5eb380fc1e74ded3ce495e073edb4381a1"
+    }
+  ]
+}

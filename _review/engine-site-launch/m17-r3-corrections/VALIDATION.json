@@ -1,0 +1,251 @@
+{
+  "localRequiredGatesSatisfied": true,
+  "independentQA": "PENDING_MANUAL_CLAUDE",
+  "newExpenseMicroUsd": 0,
+  "providerCalls": 0,
+  "focused": {
+    "passed": 1248,
+    "failed": 0,
+    "pending": 0,
+    "files": 70
+  },
+  "sourceTypesExit": 0,
+  "autonomousTypesExit": 0,
+  "windowsBuild": {
+    "started": "2026-11-05T14:02:06.621Z",
+    "finished": "2026-11-05T14:06:02.194Z",
+    "steps": [
+      {
+        "name": "fresh_ci_dependencies_reused_from_r1",
+        "code": 0
+      },
+      {
+        "name": "actual_vercel_build_command",
+        "args": [
+          "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js",
+          "run",
+          "build"
+        ],
+        "code": 0,
+        "signal": null
+      },
+      {
+        "name": "packaged_check",
+        "args": [
+          "scripts/engine-package.cjs",
+          "--check"
+        ],
+        "code": 0,
+        "signal": null
+      }
+    ],
+    "root": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\windows-project",
+    "sourceFilesVerified": 3015,
+    "sourceChanged": [],
+    "copyChanged": [],
+    "actualVercelCommand": true,
+    "ownFreshDependencies": true,
+    "sharedNodeModulesWritten": false,
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0
+  },
+  "linuxBuild": {
+    "started": "2026-11-05T14:02:13.626Z",
+    "finished": "2026-11-05T14:05:58.736Z",
+    "steps": [
+      {
+        "name": "fresh_ci_dependencies_reused_from_r1",
+        "code": 0
+      },
+      {
+        "name": "vercel_build_command",
+        "args": [
+          "/tmp/smallheroes-m16-node-20261105/usr/local/lib/node_modules/npm/bin/npm-cli.js",
+          "run",
+          "build"
+        ],
+        "code": 0,
+        "signal": null
+      },
+      {
+        "name": "packaged_check",
+        "args": [
+          "scripts/engine-package.cjs",
+          "--check"
+        ],
+        "code": 0,
+        "signal": null
+      }
+    ],
+    "sourceFilesVerified": 3015,
+    "sourceChanged": [],
+    "libc": "Alpine/musl; copy-only Prisma native-target override",
+    "actualVercelCommand": true,
+    "cloudAdapterQualified": false,
+    "providerCalls": 0,
+    "newExpenseMicroUsd": 0
+  },
+  "routeSummary": [
+    {
+      "platform": "win32",
+      "measured": 126,
+      "engine": 23,
+      "largestBytes": 243850880,
+      "largestEngineBytes": 217289695,
+      "allBelowLimit": true,
+      "requiredStaticAssets": 76
+    },
+    {
+      "platform": "linux",
+      "measured": 126,
+      "engine": 23,
+      "largestBytes": 240909437,
+      "largestEngineBytes": 209438188,
+      "allBelowLimit": true,
+      "requiredStaticAssets": 76
+    }
+  ],
+  "native": [
+    {
+      "at": "2026-11-05T13:58:12.945Z",
+      "platform": "linux",
+      "arch": "x64",
+      "node": "v22.19.0",
+      "libc": "Alpine3.22/musl",
+      "rawHashesMatch": true,
+      "rawInstallersDenied": true,
+      "privateDirectoryMode": "0700",
+      "realNarrationProbeDuration": 1.227755,
+      "realLegacyVideoBytes": 50582,
+      "videoDuration": 12.703991,
+      "videoStreams": [
+        {
+          "codec_type": "video"
+        },
+        {
+          "codec_type": "audio"
+        }
+      ],
+      "videoFullDecode": true,
+      "fixtureOnly": true,
+      "providerCalls": 0,
+      "newExpenseMicroUsd": 0,
+      "defaultIntakePaths": true,
+      "measuredIntake": {
+        "ok": true,
+        "durationMs": 1223,
+        "decodedMs": 1208,
+        "timelineMs": 1223
+      },
+      "boundedIntake": {
+        "ok": false,
+        "reason": "too_long"
+      },
+      "multiStream": {
+        "ok": false,
+        "reason": "unexpected_streams"
+      }
+    },
+    {
+      "at": "2026-11-05T14:07:18.075Z",
+      "platform": "win32",
+      "arch": "x64",
+      "node": "v22.19.0",
+      "libc": "Windows",
+      "rawHashesMatch": true,
+      "rawInstallersDenied": true,
+      "privateDirectoryMode": "Windows temporary directory; no POSIX-mode claim",
+      "realNarrationProbeDuration": 1.227755,
+      "realLegacyVideoBytes": 52311,
+      "videoDuration": 12.703991,
+      "videoStreams": [
+        {
+          "codec_type": "video"
+        },
+        {
+          "codec_type": "audio"
+        }
+      ],
+      "videoFullDecode": true,
+      "fixtureOnly": true,
+      "providerCalls": 0,
+      "newExpenseMicroUsd": 0,
+      "defaultIntakePaths": true,
+      "measuredIntake": {
+        "ok": true,
+        "durationMs": 1223,
+        "decodedMs": 1208,
+        "timelineMs": 1223
+      },
+      "boundedIntake": {
+        "ok": false,
+        "reason": "too_long"
+      },
+      "multiStream": {
+        "ok": false,
+        "reason": "unexpected_streams"
+      }
+    }
+  ],
+  "npmCheck": "Not declared green. Preserved M15 exit1/history remains report-only; M17 uses the full relevant 70-file gate, not blind historical loops.",
+  "limitations": [
+    "Local Windows and Alpine/musl proof only; real Vercel glibc/adapter/private target remains unqualified.",
+    "Option A infrastructure and SQL/runbook are PREPARE ONLY; no account/service/SQL application.",
+    "No real payment/book/provider or product acceptance."
+  ],
+  "evidenceRoot": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105",
+  "artifacts": [
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\INTAKE-VERIFIED.json",
+      "sha256": "82f84a424004ba675d8daf1e914745054654392bdc300857bb7a99f7bcc0e838"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\SOURCE-SNAPSHOT-r4.json",
+      "sha256": "95d84782aa21a64e056604525cc2b57eddaee8982b984b1b92a6995f59d98556"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\WINDOWS-BUILD-RESULT-r3.json",
+      "sha256": "63fd3279ca9fbdec01bee1311a70aea94b039bab7d54e0f8e3cdf26155800ba2"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\WINDOWS-PACKAGE-REPORT-r3.json",
+      "sha256": "b62b35858c04372845ffb59e6f1c8347fe5c56bcddc874eb8216216ef0ddb332"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\LINUX-BUILD-RESULT-r4.json",
+      "sha256": "28f0f874e33f682cf34714de177bc822ecf21a0b59502d69fe7933322580fd56"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\LINUX-PACKAGE-REPORT-r4.json",
+      "sha256": "27efe6e8ab1d03b2cf3b990522a000d0a3548adf30a7ea830d8f66883c3b90b7"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\LINUX-NATIVE-RESULT.json",
+      "sha256": "e486eb883e272535efe65b9d776075c7836dafabccea9964e8d2d39d61618324"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\WIN32-NATIVE-RESULT.json",
+      "sha256": "544437eb73948cff1dd0b0c118f8d3b8c7b241ba18ea2dcb090cebb3fe08c3c9"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\TYPESCRIPT-RESULT-final-r4.json",
+      "sha256": "eec35468d06d96d0cb4246c4d8f90a345469763208a13cb0f70d1564766864d2"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\focused-m17-r3.exit.json",
+      "sha256": "0b68ea7d4759ebe8747b3b06bb10065935b06d27607fa8d4b05cf22efe37e487"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\PRESERVATION-FINAL.json",
+      "sha256": "a8bd71457e7291a4b7efea85c64fe6deefb58d246d5de40ab79d046c6997cc3a"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\HOTFIX-EOL-PROOF.json",
+      "sha256": "fde10ae90424875fd533cddd7d9ea735f53de6d88b2a8cc7bad109022dcc3f5c"
+    },
+    {
+      "path": "C:\\Users\\guyna\\.codex\\visualizations\\2026\\10\\28\\01a1819d-8113-7d80-9ce1-2557130edd9e\\engine-site-launch-m17-20261105\\HOTFIX-POWERSHELL-PARSE.json",
+      "sha256": "bf348e2b9d9b7d2d494b233547437b81fed05cec32666d79bc062547a74e61b2"
+    }
+  ]
+}

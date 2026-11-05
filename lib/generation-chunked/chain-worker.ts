@@ -9,6 +9,7 @@ import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { assertEnvSeparation } from './env-separation-guard';
 import type { GenerationReleaseContinuityV1 } from '@/lib/generation-pipeline/release-v1-continuity';
+import {engineStagingInternalHeaders} from '@/lib/engine-site/staging-access';
 
 /**
  * Run best-effort background work DURABLY from a serverless request. Inside a request scope (Vercel /
@@ -32,8 +33,8 @@ export function runAfterResponse(work: () => Promise<void>): void {
 async function failGenerationChain(orderId: string, message: string): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { frozenProductVersion: true } });
   if (order?.frozenProductVersion === 'engine-site/v1') {
-    const { recordEngineInfrastructureFault } = await import('@/lib/engine-site/failure-policy');
-    await recordEngineInfrastructureFault(prisma, orderId, 'dispatch', Error('engine_dispatch_configuration_unavailable')); return;
+    console.warn('[engine-site-dispatch] Executor configuration unavailable; order untouched',
+      {orderId,code:'engine_dispatch_configuration_unavailable'});return;
   }
   console.error(`[chunked-gen] ${message}`, { orderId });
   await prisma.generationJob
@@ -69,6 +70,10 @@ export type InternalWorkerTarget = { url: string; source: string; isFallback: bo
  * NEXT_PUBLIC_APP_URL remain ONLY as a last-resort, warned fallback. Returns null if none set.
  */
 export function resolveInternalWorkerBaseUrl(): InternalWorkerTarget | null {
+  if(process.env.ENGINE_SITE_STAGING_ACCESS_ENABLED==='true') {
+    const host=process.env.ENGINE_SITE_STAGING_HOST?.trim();
+    return host?{url:`https://${host}`,source:'ENGINE_SITE_STAGING_HOST',isFallback:false}:null;
+  }
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) {
     const withProto = /^https?:\/\//i.test(vercelUrl) ? vercelUrl : `https://${vercelUrl}`;
@@ -83,6 +88,14 @@ export function resolveInternalWorkerBaseUrl(): InternalWorkerTarget | null {
     return { url: appUrl.replace(/\/$/, ''), source: 'APP_URL_FALLBACK', isFallback: true };
   }
   return null;
+}
+
+/** Global engine executor preflight, before a sweep may mutate any order or its deadline state. */
+export function engineDispatchConfigurationAvailable():boolean {
+  try{const target=resolveInternalWorkerBaseUrl();if(!target||!process.env.GENERATION_SECRET?.trim())throw Error('missing');
+    const url=new URL(target.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw Error('target');
+    engineStagingInternalHeaders(target.url);return true;
+  }catch{console.warn('[engine-site-dispatch] Executor configuration unavailable; sweep untouched',{code:'engine_dispatch_configuration_unavailable'});return false;}
 }
 
 export function chainGenerationWorker(
@@ -139,11 +152,13 @@ export function chainGenerationWorker(
     Authorization: `Bearer ${secret}`,
     'x-generation-secret': secret,
   };
+  try {Object.assign(headers,engineStagingInternalHeaders(target.url));}
+  catch {void failGenerationChain(orderId,'Staging worker target or access configuration is invalid');return;}
   // Vercel Deployment Protection is on for preview — get the internal self-call past the 401 with
   // the automation bypass secret (when configured). Do NOT set the bypass cookie on this server
   // request. Only added when VERCEL_AUTOMATION_BYPASS_SECRET is present.
   const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
-  if (bypassSecret) {
+  if (bypassSecret && process.env.ENGINE_SITE_STAGING_ACCESS_ENABLED !== 'true') {
     headers['x-vercel-protection-bypass'] = bypassSecret;
     headers['x-vercel-set-bypass-cookie'] = 'false';
   }
@@ -152,6 +167,8 @@ export function chainGenerationWorker(
   // extended (post-response) window via runAfterResponse — so the kick actually fires in serverless
   // instead of being dropped when the route returns (the dispatch-stranding root cause).
   runAfterResponse(async () => {
+    const kind=await prisma.order.findUnique({where:{id:orderId},select:{frozenProductVersion:true}});
+    if(kind?.frozenProductVersion==='engine-site/v1'&&!engineDispatchConfigurationAvailable())return;
     if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
     // Stamp the kick attempt (so a hung/failed chain is visible) — awaited, inside the durable window.
     await recordChainDiagnostic(orderId, { lastWorkerKickAt: new Date(), lastChainError: null });
@@ -161,6 +178,7 @@ export function chainGenerationWorker(
         headers,
         body: JSON.stringify({ orderId, secret }),
         keepalive: true,
+        redirect: 'manual',
       });
       if (!res.ok) {
         const snippet = await res
@@ -178,6 +196,11 @@ export function chainGenerationWorker(
         });
       } else {
         await recordChainDiagnostic(orderId, { lastChainStatus: res.status, lastChainError: null });
+        const order=await prisma.order.findUnique({where:{id:orderId},select:{frozenProductVersion:true}});
+        if(order?.frozenProductVersion==='engine-site/v1') {
+          const {clearEngineInfrastructureFault}=await import('@/lib/engine-site/failure-policy');
+          await clearEngineInfrastructureFault(prisma,orderId,'dispatch');
+        }
       }
     } catch (err) {
       const msg = (err as Error)?.message ?? 'unknown';

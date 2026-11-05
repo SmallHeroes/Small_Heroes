@@ -115,6 +115,10 @@ export async function engineTestDb() {
       paymeWebhookEvent: model('PaymeWebhookEvent'), paymentRecord: model('PaymentRecord'),
     };
   }
+  // Mirror the server-only schema posture, not just the old nine-table allowlist.
+  await pg.exec(`DO $$ DECLARE t record; BEGIN FOR t IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relkind IN ('r','p') LOOP EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t.relname); END LOOP; END $$;
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC,anon,authenticated;`);
   const db = { ...adapter(pg), $transaction: (work: any) => pg.transaction(tx => work(adapter(tx))) } as unknown as PrismaClient;
   const parent = { id: 'synthetic_parent', email: 'parent@example.invalid', name: 'Synthetic' };
   const prepared = prepareEngineOrder(syntheticEngineOrderInput(), parent, resolveEngineWizardOptions());
