@@ -7,7 +7,7 @@ import { authorityDigest, engineOrderAuthoritySchema, engineSiteFail, type Engin
 import { inspectEngineOrderMeter, readEngineCallResult, reserveEngineCall, settleEngineCall, type EngineCall } from './order-meter';
 import { loadEnginePrivateAsset, persistEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
 import type { EnginePrivateStorage } from './private-storage';
-import { ENGINE_INFRA_MAX_FAILURES, ENGINE_INFRA_BACKOFF_MS, engineDeterministicFailure, engineErrorCode, engineOwnershipLost } from './failure-policy';
+import { ENGINE_INFRA_MAX_FAILURES, ENGINE_INFRA_BACKOFF_MS, engineDeterministicFailure, engineErrorCode, engineOwnershipLost,openEngineInfrastructureCase } from './failure-policy';
 
 export const ENGINE_CHUNK_BUDGET_MS = 270_000;
 export const ENGINE_LONG_BUDGET_MS = 25 * 60_000;
@@ -16,7 +16,9 @@ const checkpointSchema = z.object({
   version: z.literal('engine-site-job/v1'), authority: engineOrderAuthoritySchema,
   ownerId: z.string().min(1), draftId: z.string().min(1), snapshotSha256: z.string().length(64),
   phase: z.enum(['story', 'native', 'materialize', 'accept', 'held', 'operator', 'done']),
-  recovery: z.object({ failures: z.number().int().nonnegative(), nextAt: z.number().int().nonnegative() }).strict().optional(),
+  progressAt: z.number().int().positive().optional(),
+  recovery: z.object({ failures: z.number().int().nonnegative(), nextAt: z.number().int().nonnegative(),
+    resumePhase: z.enum(['story','native','materialize','accept']).optional() }).strict().optional(),
   calls: z.record(z.object({ wireSha256: z.string().length(64), requestAssetId: z.string().uuid(),
     pendingId: z.string().optional(), deadlineAt: z.number().int().positive(), polls: z.number().int().nonnegative(),
     resultAssetId: z.string().uuid().optional(), settled: z.boolean() }).strict()),
@@ -110,6 +112,7 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
     await tx.generationJob.update({ where: { orderId }, data: { pipelineCache: { engineSite: checkpoint } as unknown as Prisma.InputJsonValue,
       currentStage: checkpoint.waiting ? 'engine_site_long' : `engine_site_${checkpoint.phase}` } });
   }, new Date(now()));
+  const progress = () => { delete checkpoint.recovery; checkpoint.progressAt = now(); };
   const privateJson = async (value: unknown) => {
     await fence();
     const asset = await persistEnginePrivateAsset(db, options.storage, { ownerId: checkpoint.ownerId, draftId: checkpoint.draftId,
@@ -145,9 +148,9 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
       check(); if (checkpoint.outputs[name]) {
         if (valueHash(await readJson(checkpoint.outputs[name])) !== valueHash(value)) engineSiteFail('engine_worker_output_changed'); return;
       }
-      checkpoint.outputs[name] = await privateJson(value); await persist();
+      checkpoint.outputs[name] = await privateJson(value); progress(); await persist();
     },
-    async advance(phase) { check(); checkpoint.phase = phase; checkpoint.waiting = null; await persist(); },
+    async advance(phase) { check(); if(checkpoint.phase!==phase)progress(); checkpoint.phase = phase; checkpoint.waiting = null; await persist(); },
     async call(plan) {
       await fence(); plan.revalidate?.();
       const { step, wireSha256 } = plan.call;
@@ -161,7 +164,7 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
         if (saved.wireSha256 !== wireSha256 || typeof saved.completed !== 'boolean') engineSiteFail('engine_worker_saved_result_invalid');
         await settleEngineCall(db, { authority, step, wireSha256, completed: saved.completed,
           estimatedMicroUsd: saved.result.estimatedMicroUsd, receiptSha256: valueHash(saved), privateResultAssetId: prior.resultAssetId });
-        if (!prior.settled) { prior.settled = true; await persist(); }
+        if (!prior.settled) { prior.settled = true; progress(); await persist(); }
         if (saved.result.estimatedMicroUsd === null) engineSiteFail('engine_worker_provider_cost_unknown');
         if (!saved.completed) engineSiteFail('engine_worker_saved_result_unusable');
         await plan.admitSaved?.(saved.result);
@@ -214,7 +217,7 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
         estimatedMicroUsd: answer.result.estimatedMicroUsd, receiptSha256: valueHash(saved), privateResultAssetId });
       await fence();
       checkpoint.calls[step].resultAssetId = privateResultAssetId;
-      checkpoint.calls[step].settled = true; await persist();
+      checkpoint.calls[step].settled = true; progress(); await persist();
       if (answer.result.estimatedMicroUsd === null) engineSiteFail('engine_worker_provider_cost_unknown');
       if (!completed) engineSiteFail('engine_worker_provider_result_unusable');
       const meter = await inspectEngineOrderMeter(db, authority);
@@ -227,7 +230,6 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
     const current = await db.generationJob.findUnique({ where: { orderId } });
     if (!current || valueHash(parseCache(current.pipelineCache)) !== valueHash(checkpoint)) engineSiteFail('engine_worker_checkpoint_changed');
     await options.recipe(runtime); check();
-    if (checkpoint.recovery) { delete checkpoint.recovery; await persist(); }
     return { kind: 'progress' as const, phase: checkpoint.phase };
   } catch (error) {
     if (pause) return { kind: pause === 'long' ? 'long_step_required' as const : pause === 'pending' ? 'pending' as const : 'progress' as const,
@@ -241,18 +243,19 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
       const unknownCall = Object.values(checkpoint.calls).some(c => !c.settled && !c.pendingId) || code === 'engine_worker_pending_deadline';
       const failures = (checkpoint.recovery?.failures ?? 0) + 1;
       const operator = !terminal && (unknownCall || failures >= ENGINE_INFRA_MAX_FAILURES);
-      checkpoint.recovery = { failures, nextAt: now() + ENGINE_INFRA_BACKOFF_MS[Math.min(failures, ENGINE_INFRA_MAX_FAILURES) - 1] };
+      const resumePhase=['story','native','materialize','accept'].includes(checkpoint.phase) ? checkpoint.phase as 'story'|'native'|'materialize'|'accept' : checkpoint.recovery?.resumePhase;
+      checkpoint.recovery = { failures, nextAt: now() + ENGINE_INFRA_BACKOFF_MS[Math.min(failures, ENGINE_INFRA_MAX_FAILURES) - 1], ...(resumePhase?{resumePhase}:{}) };
       if (terminal || operator) {
         await tx.order.update({ where: { id: orderId }, data: { status: 'needs_human_qa', manualReviewRequired: true,
           deliveryHoldReason: terminal ? 'engine_site_hold:worker_failed' : 'engine_site_hold:infrastructure', lastError: code } });
         checkpoint.phase = terminal ? 'held' : 'operator';
+        if(operator)await openEngineInfrastructureCase(tx,orderId,'worker',code);
       }
       await tx.generationJob.update({ where: { orderId }, data: { status: terminal ? 'failed' : 'running',
         currentStage: terminal ? 'failed' : operator ? 'engine_site_operator' : checkpoint.waiting ? 'engine_site_long' : `engine_site_${checkpoint.phase}`,
         failedAt: terminal ? new Date(now()) : null, retryable: !terminal && !operator, lastError: code,
         pipelineCache: { engineSite: checkpoint } as unknown as Prisma.InputJsonValue } });
-      terminalWritten = terminal;
-    }, new Date(now())).catch(() => {});
+    }, new Date(now())).then(() => { terminalWritten = terminal; }).catch(() => {});
     return { kind: 'held' as const, code, terminalWritten };
   } finally {
     clearInterval(heartbeat); controller.abort();

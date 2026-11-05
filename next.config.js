@@ -62,6 +62,8 @@ const nextConfig = {
       '/wizard/personal': [...STYLE01_COMPANION_SHEETS],
       '/': [...STYLE01_COMPANION_SHEETS],
       '/api/engine-site/v1/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
+      '/personal/book/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
+      '/personal/review/**': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
       '/api/generate/cron/outbox': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
       '/api/generate/cron/exceptions': [...STYLE01_COMPANION_SHEETS, ...STYLE01_REFS, './backend/assets/fonts/**/*', './node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'],
       '/api/release/v1/generate/worker': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
@@ -109,8 +111,9 @@ const nextConfig = {
    * remains CDN-served from /public — companion refs resolve to a CDN URL via mergeGptImageReferenceSources
    * (baseUrl passed in /api/generate), so the render fetches them by URL. Style01 refs are bundled on
    * disk (see outputFileTracingIncludes) because they have NO URL fallback; only Style02 is excluded.
-   * NOTE: /api/generate imports video via a dynamic, optional, non-fatal `if (order.videoEnabled)`
-   * branch — excluding ffmpeg there only makes that optional video stage a no-op (caught + logged).
+   * /api/generate imports optional legacy video; its contains-matched tracing rule also covers the
+   * worker/crons. R2: keep MEDIA there for personal narration and existing legacy media consumers.
+   * This changes tracing only, not legacy video/narration logic or entitlements.
    */
   outputFileTracingExcludes: (() => {
     const MEDIA = ['./node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'];
@@ -169,7 +172,8 @@ const nextConfig = {
     // companion source refs (CDN-served) + media/headless + Style02.
     for (const r of GENERATION_ROUTES) {
       excludes[r] = [
-        ...(['/api/generate/worker','/api/generate/cron/sweep'].includes(r) ? [] : MEDIA),
+        // Next uses contains:true: /api/generate also matches worker and ALL its crons.
+        ...(r === '/api/generate' || r.startsWith('/api/generate/') ? [] : MEDIA),
         ...HEADLESS,
         ...COMPANIONS_SOURCE_JPGS,
         ...STYLE02,

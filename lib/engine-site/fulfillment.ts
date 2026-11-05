@@ -15,7 +15,7 @@ import { parseEngineCheckpoint } from './durable-worker';
 import { admitEngineBookEvidence } from './readmission';
 import { engineDeterministicFailure, recordEngineInfrastructureFault, engineRecoveryDue, clearEngineInfrastructureFault } from './failure-policy';
 import { loadEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
-import { decodeEngineAudio } from './narration';
+import { decodeEngineAudio,validateEngineNarrationAudio } from './narration';
 import { verifyEngineBookAsset } from './materialize';
 import { loadEngineReaderBook, type EngineReaderContext } from './reader';
 import type { EnginePrivateStorage } from './private-storage';
@@ -98,7 +98,7 @@ async function admittedAutomatic(db: PrismaClient, c: EngineReaderContext, ports
     for (const page of c.book.pages) {
       const image = await verifyEngineBookAsset(db, ports.storage, c, page.image, 'page'), metadata = await sharp(image).metadata();
       if (metadata.format !== 'png' || metadata.width !== 1024 || metadata.height !== 1536) engineSiteFail('engine_final_image_invalid');
-      const audio = await verifyEngineBookAsset(db, ports.storage, c, page.audio, 'audio'); await (ports.decodeAudio ?? decodeEngineAudio)(audio);
+      const audio = await verifyEngineBookAsset(db, ports.storage, c, page.audio, 'audio'); await (ports.decodeAudio ?? validateEngineNarrationAudio)(audio);
     }
     const pdf = await PDFDocument.load(await verifyEngineBookAsset(db, ports.storage, c, c.book.pdf, 'pdf'));
     if (pdf.getPageCount() !== 9) engineSiteFail('engine_final_pdf_invalid');
@@ -166,7 +166,7 @@ export async function failEngineOrder(db: PrismaClient, orderId: string, reason:
       data: { status: 'delivery_revoked', attempts: { increment: 1 }, leaseExpiresAt: null, nextAttemptAt: null, lastError: 'engine_site_failed' } });
     // Only a genuinely paid new order has a refund liability. The existing provider fence owns external money actions.
     const priorCases = await tx.exceptionCase.findMany({ where: { orderId } });
-    const existingLiability = priorCases.filter(c => !c.scope.startsWith('engine_site_extra_payment/')).some(c => !['resolved', 'cancelled'].includes(c.status) || c.actionAttemptedAt !== null ||
+    const existingLiability = priorCases.filter(c => !c.scope.startsWith('engine_site_extra_payment/')&&c.scope!=='engine_site_infrastructure'&&!c.scope.startsWith('engine_site_payment_proof/')).some(c => !['resolved', 'cancelled'].includes(c.status) || c.actionAttemptedAt !== null ||
       c.resolution && typeof c.resolution === 'object' && !Array.isArray(c.resolution) && c.resolution.refundConfirmed === true);
     if (!existingLiability && order.paymentProvider === 'payme' && order.paymeTransactionId) await openExceptionCase(tx, { orderId, scope: ENGINE_BOOK_SCOPE,
       kind: 'quality_failed', reason: /^engine_[a-z_]+$/.test(reason) ? reason : 'engine_fulfillment_failed',
@@ -190,6 +190,8 @@ async function reconcileEngineBookAttempt(db: PrismaClient, orderId: string, por
   if (checkpoint.phase === 'held') return failEngineOrder(db, orderId, 'engine_worker_failed');
   if (job.status === 'failed') return recordEngineInfrastructureFault(db, orderId, 'fulfillment', Error('engine_generation_unknown_failure'));
   if (!['accept', 'done'].includes(checkpoint.phase)) return { status: 'preparing' as const };
+  if(await db.deliveryOutbox.findFirst({where:{orderId,scope:ENGINE_BOOK_SCOPE,status:'processing',sendAttempted:true}}))
+    return {status:'delivery_in_progress' as const};
   let c: EngineReaderContext;
   try { c = await loadEngineReaderBook(db, ports.storage, orderId); } catch (error) {
     return engineDeterministicFailure(error) ? failEngineOrder(db, orderId, 'engine_materialized_book_unavailable')
@@ -210,6 +212,10 @@ async function reconcileEngineBookAttempt(db: PrismaClient, orderId: string, por
   // No provider action inside the transaction. A retry after ambiguous commit simply observes this same readiness.
   return db.$transaction(async tx => {
     const policy = await readEngineLaunchPolicy(tx, true), { order, job: freshJob, checkpoint: fresh } = await currentBinding(tx, c);
+    // Once the external send has begun, its authorized manifest stays pinned until the send settles.
+    // The actual send CAS and this guard share Order/policy locks, including the race after preflight.
+    const inFlight=await tx.deliveryOutbox.findFirst({where:{orderId,scope:ENGINE_BOOK_SCOPE,status:'processing',sendAttempted:true}});
+    if(inFlight)return {status:'delivery_in_progress' as const,bookSha256:c.bookSha256};
     const liability = await tx.exceptionCase.findUnique({ where: { activeKey: `${orderId}:${ENGINE_BOOK_SCOPE}` } });
     if (liability && !['resolved', 'cancelled'].includes(liability.status)) engineSiteFail('engine_fulfillment_liability_active');
     if (!['generating', 'paid', 'ready', 'needs_human_qa'].includes(order.status) ||

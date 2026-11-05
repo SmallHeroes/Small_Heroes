@@ -1,0 +1,57 @@
+[
+  {
+    "path": "lib/engine-site/offer-definition.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "34e154b94e9538fb31791edf7f333682df5bc3a77add6ab42b6f0bcb7ae7b04b"
+  },
+  {
+    "path": "lib/engine-site/contract.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "701b9ecec27f4ad49f5e0cf1dd0e048faf47718937f782cfade701456bffdd59"
+  },
+  {
+    "path": "lib/engine-site/order-meter.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "ab682031125b3f4a32bc89a7fb8eb300ffa6f376430f3581a96584c46c3a4e45"
+  },
+  {
+    "path": "lib/engine-site/offer.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "b15b70d88903fa7c3a5cfa40fa546a7dbfe86bcf1a7b95d6a5a10000aadc924c"
+  },
+  {
+    "path": "lib/engine-site/platform-policy.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "f8e0211d82553420faab834edfc642e1f679b34e3235d00030d1e1240173e0fb"
+  },
+  {
+    "path": "lib/engine-site/provider-plans.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "8eb6880410b93698cc022a584c571a2aa8dd42450b7591aedce12eab9c1c9f0c"
+  },
+  {
+    "path": "lib/engine-site/photo-policy.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "0a34d1017f23f9d3b973c57695806ab66581e2a94e39a2476704cf80e1c4e0cc"
+  },
+  {
+    "path": "lib/personal-wizard/native-page-proof.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "8de91d6ec48ce7515d1e44f42a57914fe1489d802ff3323dfcccb152f16fcea9"
+  },
+  {
+    "path": "lib/personal-wizard/simple-book-reviewed-audition.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "91ca99b8e88ed8285916ba9d1ef0106eb346220c3b8efc416d298665bb944191"
+  },
+  {
+    "path": "lib/personal-wizard/review-impact.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "ab7ad1a711f3498bca3218af6baac70343ba611e18cbde16db44329933077e4b"
+  },
+  {
+    "path": "lib/generation-pipeline/page-child-resemblance-vision.ts",
+    "unchangedSinceBase": true,
+    "workingSha256": "eba392fdb4cf0c092d8951f1bcb46307804e4666ea1b0fed8a80209889b11a2e"
+  }
+]

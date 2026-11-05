@@ -13,6 +13,7 @@ import {
 } from '@/lib/payme';
 import { isEngineSiteOrder } from '@/lib/engine-site/offer';
 import { recordEngineUnexpectedCapture } from '@/lib/engine-site/extra-payment';
+import { recordEnginePaymentProofRefusal,clearEnginePaymentProofRefusal } from '@/lib/engine-site/payment-proof-alert';
 import { env } from '@/lib/env';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
@@ -137,7 +138,12 @@ export async function POST(req: NextRequest) {
     const observed = await prisma.order.findUnique({ where: { id: parsed.orderId! }, select: { id: true, totalPrice: true, frozenProductVersion: true } });
     if (observed && isEngineSiteOrder(observed)) {
       const verified = await verifyPaymePayment({ orderId: observed.id, paymentId: parsed.transactionId!, amountAgorot: observed.totalPrice, currency: 'ILS' });
-      if (!verified.verified || verified.status !== 'paid') return NextResponse.json({ received: false, reason: 'payment_proof_unavailable' }, { status: 503 });
+      if (!verified.verified || verified.status !== 'paid') {
+        logger.warn('[PayMeWebhook] Signed paid event could not be independently verified',{orderId:observed.id,signed:hasVerifiedSignature});
+        if(hasVerifiedSignature)await recordEnginePaymentProofRefusal(prisma,observed.id,parsed.transactionId!);
+        return NextResponse.json({ received: false, reason: 'payment_proof_unavailable' }, { status: 503 });
+      }
+      await clearEnginePaymentProofRefusal(prisma,observed.id,parsed.transactionId!);
     }
     const shouldTriggerGeneration = await prisma.$transaction(async (tx) => {
       // The same Order lock serializes primary adoption, extra captures and checkout persistence.

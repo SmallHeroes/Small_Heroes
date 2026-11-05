@@ -1,0 +1,644 @@
+{
+  "schemaVersion": "engine-site-m14-validation/v1",
+  "status": "LOCAL_GATES_COMPLETE_INDEPENDENT_REGATE_PENDING",
+  "recordedAt": "2026-11-05T07:56:03.280287+00:00",
+  "baseHead": "f4dd9d46c35b871d02934a577cb4490fd0073b6c",
+  "head": "f4dd9d46c35b871d02934a577cb4490fd0073b6c",
+  "branch": "codex/engine-site-launch-20261104",
+  "costUsd": 0,
+  "syntheticOnly": true,
+  "realProviderCalls": 0,
+  "realServiceWrites": 0,
+  "realGitIndexWrites": 0,
+  "realCommits": 0,
+  "envKeyReads": 0,
+  "sqlAndLiveQueries": "PREPARED_ONLY",
+  "productionHotfix": "PREPARED_ONLY",
+  "focused": {
+    "files": 61,
+    "passed": 1148,
+    "failed": 0,
+    "exitCode": 0,
+    "durationSeconds": 164.06,
+    "log": "focused-handoff.log"
+  },
+  "typescript": {
+    "exitCode": 0,
+    "log": "typescript-handoff.log"
+  },
+  "additionalTimeoutDiagnostics": {
+    "files": 2,
+    "passed": 114,
+    "failed": 0,
+    "exitCode": 0,
+    "durationSeconds": 48.34,
+    "log": "broad-timeouts-isolated.log",
+    "timeoutsUnchanged": true
+  },
+  "npmCheck": {
+    "exitCode": 1,
+    "reportOnly": true,
+    "comparison": {
+      "runs": [
+        {
+          "folder": "m13-qa-r1-fixes",
+          "summaries": [
+            "Test Files  26 failed | 474 passed | 21 skipped (521)",
+            "Tests  446 failed | 8987 passed | 195 skipped (9628)",
+            "Test Files  4 failed | 16 passed (20)",
+            "Tests  8 failed | 628 passed (636)",
+            "NATIVE_EXIT_CODE=1"
+          ],
+          "failedFileCount": 30
+        },
+        {
+          "folder": "m14-qa-r2-fixes",
+          "summaries": [
+            "Test Files  28 failed | 477 passed | 21 skipped (526)",
+            "Tests  449 failed | 9036 passed | 195 skipped (9680)",
+            "Test Files  4 failed | 16 passed (20)",
+            "Tests  8 failed | 628 passed (636)",
+            "NATIVE_EXIT_CODE=1"
+          ],
+          "failedFileCount": 32
+        }
+      ],
+      "newFailedFiles": [
+        "lib/__tests__/personal-single-book-calibration.spec.ts",
+        "lib/engine-site/__tests__/r2-recovery.spec.ts",
+        "lib/personal-wizard/__tests__/native-book-bridge.spec.ts"
+      ],
+      "noLongerFailed": [
+        "lib/__tests__/recovery-providers.spec.ts"
+      ]
+    },
+    "classification": "Not blanket pre-existing. Two newly failing files timed out at 5 seconds and pass the isolated 114-test rerun. A third captured an incorrect development 404 expectation; existing policy writer correctly returned 409. The final focused control is corrected and passes. Full suite was not rerun after that test correction.",
+    "diagnosticClasses": [
+      "test_timeout",
+      "on_task_update_rpc_timeout",
+      "signal_or_exit_failure"
+    ]
+  },
+  "productionHotfixProof": {
+    "passed": 17,
+    "failed": 0,
+    "exitCode": 0,
+    "historicalM13Passed": 11,
+    "historicalM13Failed": 6,
+    "baselineHead": "ed1da86cc114a767dc1086b71a30a4ef4595c097",
+    "patchSha256": "522044285a813b7d2cd0317d15b93e0d0c57e11cdbddd58720f3f56d3d82287c",
+    "applied": false,
+    "log": "production-hotfix-handoff.log"
+  },
+  "recoverySimulation": {
+    "cases": 8,
+    "status": "PASS",
+    "fakeCommandTransport": true,
+    "realCommits": 0,
+    "actualOwnerCommitModeTested": false
+  },
+  "sourceInvariants": {
+    "files": 11,
+    "allWorkingPinsExact": true,
+    "allGitContentUnchangedSinceBase": true,
+    "rawBlobDifferenceOnlyCRLF": [
+      "lib/engine-site/provider-plans.ts",
+      "lib/generation-pipeline/page-child-resemblance-vision.ts"
+    ],
+    "file": "INVARIANTS.json"
+  },
+  "qaR2ReportSha256": "81092b0f2acca60ab861337a861f99aa894c374570f8c0e480bc049ac7d22d77",
+  "scopePaths": 67,
+  "topology": {
+    "file": "topology-handoff.json",
+    "sha256": "f84a42cc95932cb6e828f6b701f704ea4766716b03e0d6f22d2a34c71e49a802",
+    "otherRelevantWorktreesReadOnly": true
+  },
+  "evidenceLogs": {
+    "broad-timeouts-isolated.log": {
+      "file": "broad-timeouts-isolated.log",
+      "bytes": 17034,
+      "sha256": "0dfaff5e0549243ad5daf221863ed786db3ca920b9df9c01e76889ad0325f547",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  2 passed (2)",
+        "Tests  114 passed (114)",
+        "Duration  48.34s (transform 973ms, setup 0ms, collect 3.33s, tests 58.28s, environment 0ms, prepare 157ms)"
+      ]
+    },
+    "checkout-sql-development.log": {
+      "file": "checkout-sql-development.log",
+      "bytes": 20794,
+      "sha256": "3c159b15d3d56663f74b02cda6d3c26d32fcfa63833bce21d2377bc35ea413d7",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  1 passed (1)",
+        "Tests  3 passed (3)",
+        "Duration  7.25s (transform 1.18s, setup 0ms, collect 2.48s, tests 4.47s, environment 0ms, prepare 75ms)"
+      ]
+    },
+    "focused-candidate.log": {
+      "file": "focused-candidate.log",
+      "bytes": 187156,
+      "sha256": "96000f84020cb0799c4b47725c899acd5e384ff45adfcd079c1874cbd341c80a",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  3 failed | 58 passed (61)",
+        "Tests  7 failed | 1131 passed (1138)",
+        "Duration  136.18s (transform 5.72s, setup 0ms, collect 39.98s, tests 281.54s, environment 8ms, prepare 4.91s)"
+      ]
+    },
+    "focused-final.log": {
+      "file": "focused-final.log",
+      "bytes": 315860,
+      "sha256": "4d30ae15d06584a7b160c311803e3e2065f382576c6f2456a99882b858d1f72d",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  3 failed | 58 passed (61)",
+        "Tests  3 failed | 1139 passed (1142)",
+        "Duration  15599.04s (transform 7.76s, setup 0ms, collect 55.88s, tests 15801.70s, environment 9ms, prepare 6.17s)"
+      ]
+    },
+    "focused-handoff.log": {
+      "file": "focused-handoff.log",
+      "bytes": 183550,
+      "sha256": "e2b3b754eb6ed4f59c210093ad772b649aa87050f825fa45b4b4166e249ea8ad",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  61 passed (61)",
+        "Tests  1148 passed (1148)",
+        "Duration  164.06s (transform 6.48s, setup 0ms, collect 45.07s, tests 341.22s, environment 8ms, prepare 5.19s)"
+      ]
+    },
+    "focused-release.log": {
+      "file": "focused-release.log",
+      "bytes": 182422,
+      "sha256": "9680fd383b6b8a76d119c771ca8343e3135dcc0819d2e5f7e6aeb846cb8bdbda",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  61 passed (61)",
+        "Tests  1147 passed (1147)",
+        "Duration  169.13s (transform 7.16s, setup 0ms, collect 49.91s, tests 353.53s, environment 9ms, prepare 6.99s)"
+      ]
+    },
+    "focused-resumed-final.log": {
+      "file": "focused-resumed-final.log",
+      "bytes": 175914,
+      "sha256": "c5c7818591eff2b91c1a925ac95316f073c2aa305871be3c01afc7b9781f3029",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  61 passed (61)",
+        "Tests  1146 passed (1146)",
+        "Duration  165.56s (transform 6.28s, setup 0ms, collect 42.82s, tests 334.38s, environment 8ms, prepare 4.98s)"
+      ]
+    },
+    "green-billed-audio-alert-development.log": {
+      "file": "green-billed-audio-alert-development.log",
+      "bytes": 5788,
+      "sha256": "b9ee94336d73b56139a261ef6ffc6c335e5a95e165f42f7423dd26a9e332f686",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  2 passed (2)",
+        "Tests  10 passed (10)",
+        "Duration  20.41s (transform 2.06s, setup 0ms, collect 5.78s, tests 25.20s, environment 0ms, prepare 147ms)"
+      ]
+    },
+    "green-boundaries-development.log": {
+      "file": "green-boundaries-development.log",
+      "bytes": 5150,
+      "sha256": "041f63a213d2f38ef8c0a6cc9be9cd73ce3f876e1dab091a3c63a9da0242f19a",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  5 passed (5)",
+        "Tests  29 passed (29)",
+        "Duration  13.38s (transform 2.63s, setup 0ms, collect 6.21s, tests 14.84s, environment 1ms, prepare 437ms)"
+      ]
+    },
+    "green-checkout-recovery-development.log": {
+      "file": "green-checkout-recovery-development.log",
+      "bytes": 6252,
+      "sha256": "6efce1915d24530ff86b54431c02bad4af6b34a6629097255edae6d544b1e038",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  3 passed (3)",
+        "Tests  30 passed (30)",
+        "Duration  13.40s (transform 2.02s, setup 0ms, collect 7.30s, tests 20.71s, environment 0ms, prepare 237ms)"
+      ]
+    },
+    "green-payment-recovery-development.log": {
+      "file": "green-payment-recovery-development.log",
+      "bytes": 3862,
+      "sha256": "42da604ab123ae22e6e001891700e48719b31def56a6783604ed74a90255a92b",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  3 passed (3)",
+        "Tests  32 passed (32)",
+        "Duration  11.17s (transform 1.65s, setup 0ms, collect 7.57s, tests 14.10s, environment 0ms, prepare 238ms)"
+      ]
+    },
+    "npm-check.log": {
+      "file": "npm-check.log",
+      "bytes": 2230110,
+      "sha256": "26167dd6e676cd834e7beac7594fe08917e0b142a91cc4b4a2b2e8fe152a56a1",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  28 failed | 477 passed | 21 skipped (526)",
+        "Tests  449 failed | 9036 passed | 195 skipped (9680)",
+        "Duration  386.59s (transform 22.84s, setup 0ms, collect 230.59s, tests 1178.84s, environment 72ms, prepare 48.07s)",
+        "Test Files  4 failed | 16 passed (20)",
+        "Tests  8 failed | 628 passed (636)",
+        "Duration  213.58s (transform 2.36s, setup 0ms, collect 10.16s, tests 412.16s, environment 2ms, prepare 1.57s)"
+      ]
+    },
+    "production-hotfix-final.log": {
+      "file": "production-hotfix-final.log",
+      "bytes": 2866,
+      "sha256": "716fb6c6b68a9942816b41db3e936acfc7f8437b4ff33fe4410baa898830dca5",
+      "exitCodes": [],
+      "summaries": []
+    },
+    "production-hotfix-handoff.log": {
+      "file": "production-hotfix-handoff.log",
+      "bytes": 2906,
+      "sha256": "d4be1f6c2440bf4db7d6573f5e4ee35c6632f7e2d522059bb7cb71e955225b9d",
+      "exitCodes": [
+        0
+      ],
+      "summaries": []
+    },
+    "production-hotfix.log": {
+      "file": "production-hotfix.log",
+      "bytes": 2866,
+      "sha256": "716fb6c6b68a9942816b41db3e936acfc7f8437b4ff33fe4410baa898830dca5",
+      "exitCodes": [],
+      "summaries": []
+    },
+    "red-billed-audio.log": {
+      "file": "red-billed-audio.log",
+      "bytes": 5802,
+      "sha256": "c6d26ae463d33affd60d079158874dcb2a3fd3badf6a664d64e1996903a55fbc",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 4 skipped (5)",
+        "Duration  6.86s (transform 1.27s, setup 0ms, collect 2.79s, tests 3.73s, environment 0ms, prepare 80ms)"
+      ]
+    },
+    "red-boundaries.log": {
+      "file": "red-boundaries.log",
+      "bytes": 47734,
+      "sha256": "f5b3f5a88318983397437e6d2bd62cd091e6a4c975aec892970df1a78d0786bb",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  4 failed (4)",
+        "Tests  19 failed | 9 passed (28)",
+        "Duration  13.31s (transform 2.41s, setup 0ms, collect 5.44s, tests 14.60s, environment 1ms, prepare 346ms)"
+      ]
+    },
+    "red-checkout-proof-alert-real.log": {
+      "file": "red-checkout-proof-alert-real.log",
+      "bytes": 15896,
+      "sha256": "399aa94be85c0ea55d37068f5540a921998333393b86a9e9098733e44dc6b5ca",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  2 failed (2)",
+        "Tests  3 failed | 13 skipped (16)",
+        "Duration  5.36s (transform 1.78s, setup 0ms, collect 5.55s, tests 1.83s, environment 0ms, prepare 147ms)"
+      ]
+    },
+    "red-checkout-proof-alert.log": {
+      "file": "red-checkout-proof-alert.log",
+      "bytes": 3082,
+      "sha256": "d6422a8d8e6d4f975848db8fd77b36df2f4429ea054e8040360e8db50d22e353",
+      "exitCodes": [
+        1
+      ],
+      "summaries": []
+    },
+    "red-dsn-override.log": {
+      "file": "red-dsn-override.log",
+      "bytes": 9372,
+      "sha256": "31b364004f823929008d1aa84acd9af2c2d48e22e4e23c7b36a28bcd7db09480",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  3 failed | 14 skipped (17)",
+        "Duration  697ms (transform 175ms, setup 0ms, collect 424ms, tests 9ms, environment 0ms, prepare 82ms)"
+      ]
+    },
+    "red-expiry-margin.log": {
+      "file": "red-expiry-margin.log",
+      "bytes": 8504,
+      "sha256": "244121240d4bdf7c698943973dc224fab40742d2bd3e4cca74a8f56a9bbf846c",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 5 skipped (6)",
+        "Duration  5.02s (transform 1.42s, setup 0ms, collect 2.86s, tests 1.85s, environment 0ms, prepare 86ms)"
+      ]
+    },
+    "red-inflight-queue.log": {
+      "file": "red-inflight-queue.log",
+      "bytes": 11770,
+      "sha256": "a49182d238bbcb2ab8f8e60ce6e2f3fd0e8329e8810069d4196034ee0787d2dc",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed | 1 passed (2)",
+        "Tests  1 failed | 1 passed | 18 skipped (20)",
+        "Duration  14.13s (transform 2.04s, setup 0ms, collect 6.31s, tests 11.91s, environment 0ms, prepare 152ms)"
+      ]
+    },
+    "red-manual-case-liability.log": {
+      "file": "red-manual-case-liability.log",
+      "bytes": 5830,
+      "sha256": "3a6c99f07951d3dee45449565475bda2d4c846edd5965380304ad856c539d3a5",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 7 skipped (8)",
+        "Duration  5.05s (transform 1.35s, setup 0ms, collect 2.88s, tests 1.89s, environment 0ms, prepare 70ms)"
+      ]
+    },
+    "red-original-checkout-expiry.log": {
+      "file": "red-original-checkout-expiry.log",
+      "bytes": 3960,
+      "sha256": "43cd62ff464de8e4f8dce33ad8f1475ac491e5f8b7912563446d49ba9fd33ed2",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 2 skipped (3)",
+        "Duration  4.53s (transform 1.25s, setup 0ms, collect 2.55s, tests 1.66s, environment 0ms, prepare 86ms)"
+      ]
+    },
+    "red-original-outbox-liability.log": {
+      "file": "red-original-outbox-liability.log",
+      "bytes": 5648,
+      "sha256": "736dbd325f17a42218eaa69b4b2406fb209518c2e678435bc7697dfca8a7d95c",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 19 skipped (20)",
+        "Duration  14.13s (transform 2.16s, setup 0ms, collect 4.59s, tests 9.23s, environment 0ms, prepare 79ms)"
+      ]
+    },
+    "red-original-raw-assessment.log": {
+      "file": "red-original-raw-assessment.log",
+      "bytes": 56481,
+      "sha256": "03c6815f749130d764a091febd1ead4fb5eafd62123de0b41026f871a092fb15",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 3 skipped (4)",
+        "Duration  5.69s (transform 1.19s, setup 0ms, collect 2.45s, tests 2.95s, environment 0ms, prepare 78ms)"
+      ]
+    },
+    "red-original-terminal-commit.log": {
+      "file": "red-original-terminal-commit.log",
+      "bytes": 2569,
+      "sha256": "6bc9f5ef2727536d8f31aae6b12e7e686b76b1c4c403e1fca9c5551b80844441",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 5 skipped (6)",
+        "Duration  5.06s (transform 1.34s, setup 0ms, collect 2.89s, tests 1.88s, environment 0ms, prepare 71ms)"
+      ]
+    },
+    "red-payment-recovery.log": {
+      "file": "red-payment-recovery.log",
+      "bytes": 27394,
+      "sha256": "d9df4afdf68bd48e082b582759be793b60957efcfff5d203edad7c2e2e089c2e",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  3 failed (3)",
+        "Tests  10 failed | 22 passed (32)",
+        "Duration  11.22s (transform 1.69s, setup 0ms, collect 7.70s, tests 14.31s, environment 0ms, prepare 239ms)"
+      ]
+    },
+    "red-policy-private-authority-real.log": {
+      "file": "red-policy-private-authority-real.log",
+      "bytes": 6682,
+      "sha256": "11e0d47ef8b62a426936086d3b2c1f9c802c439ab9162d5952c3ea7e557c808c",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 10 skipped (11)",
+        "Duration  8.06s (transform 2.25s, setup 0ms, collect 5.26s, tests 2.46s, environment 0ms, prepare 89ms)"
+      ]
+    },
+    "red-policy-private-authority.log": {
+      "file": "red-policy-private-authority.log",
+      "bytes": 7470,
+      "sha256": "43cc84aad85289c87bab76eb02d8fc28fcb10b341818f0b39129a9cc67b05770",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 10 skipped (11)",
+        "Duration  8.03s (transform 2.40s, setup 0ms, collect 5.38s, tests 2.32s, environment 0ms, prepare 88ms)"
+      ]
+    },
+    "red-production-hotfix.log": {
+      "file": "red-production-hotfix.log",
+      "bytes": 2886,
+      "sha256": "51ec17bb5cffbc4f7f8bafe6da27194ae8c95bb13e7beff6fc6571ffb8e485ef",
+      "exitCodes": [],
+      "summaries": []
+    },
+    "red-reconcile-queue-real.log": {
+      "file": "red-reconcile-queue-real.log",
+      "bytes": 3222,
+      "sha256": "479fe02fc6c21254824d08e6989720dae94e95013e412100edfaa8f83190ce49",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed (1)",
+        "Duration  5.01s (transform 1.38s, setup 0ms, collect 2.91s, tests 1.81s, environment 0ms, prepare 72ms)"
+      ]
+    },
+    "red-rejection-criteria.log": {
+      "file": "red-rejection-criteria.log",
+      "bytes": 12408,
+      "sha256": "6fc16b9d59e7769086e9685c80fd76aa3acb3c898f4a4120c947c68489526843",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  2 failed | 3 skipped (5)",
+        "Duration  7.02s (transform 1.72s, setup 0ms, collect 3.51s, tests 3.20s, environment 0ms, prepare 96ms)"
+      ]
+    },
+    "red-runtime-effective-posix.log": {
+      "file": "red-runtime-effective-posix.log",
+      "bytes": 20180,
+      "sha256": "b04dc72274606cc4053d985459ca9c5d23c4ce7d8e83d2f13d55733b0c15ec9c",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  6 failed | 5 passed (11)",
+        "Duration  297ms (transform 22ms, setup 0ms, collect 33ms, tests 25ms, environment 0ms, prepare 73ms)"
+      ]
+    },
+    "red-runtime-next-matcher.log": {
+      "file": "red-runtime-next-matcher.log",
+      "bytes": 29838,
+      "sha256": "f4ec30532fd5e5494fa7b910731d11d9e975ab4ff99f59f44a322337411d84c1",
+      "exitCodes": [
+        1
+      ],
+      "summaries": [
+        "Test Files  1 failed (1)",
+        "Tests  10 failed | 1 passed (11)",
+        "Duration  309ms (transform 23ms, setup 0ms, collect 35ms, tests 23ms, environment 0ms, prepare 77ms)"
+      ]
+    },
+    "regression-repairs-development.log": {
+      "file": "regression-repairs-development.log",
+      "bytes": 35752,
+      "sha256": "e3f083ec77edc93be35c03cfe455723b40b3c23c4cd9b9f0427e941e36bcd98e",
+      "exitCodes": [
+        0
+      ],
+      "summaries": [
+        "Test Files  6 passed (6)",
+        "Tests  69 passed (69)",
+        "Duration  15.39s (transform 2.75s, setup 0ms, collect 11.21s, tests 33.42s, environment 1ms, prepare 512ms)"
+      ]
+    },
+    "typescript-candidate.log": {
+      "file": "typescript-candidate.log",
+      "bytes": 20,
+      "sha256": "66a726d35a926f4db04121e777c574999a62024e184076b69c5e4a3b7ba9d699",
+      "exitCodes": [
+        0
+      ],
+      "summaries": []
+    },
+    "typescript-development-2.log": {
+      "file": "typescript-development-2.log",
+      "bytes": 380,
+      "sha256": "99ab2e7d78d1baf6372bac837146c205b91dd59ac03d08cf9b1aeb7bb264d461",
+      "exitCodes": [],
+      "summaries": []
+    },
+    "typescript-development.log": {
+      "file": "typescript-development.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitCodes": [],
+      "summaries": []
+    },
+    "typescript-final.log": {
+      "file": "typescript-final.log",
+      "bytes": 20,
+      "sha256": "66a726d35a926f4db04121e777c574999a62024e184076b69c5e4a3b7ba9d699",
+      "exitCodes": [
+        0
+      ],
+      "summaries": []
+    },
+    "typescript-handoff.log": {
+      "file": "typescript-handoff.log",
+      "bytes": 20,
+      "sha256": "66a726d35a926f4db04121e777c574999a62024e184076b69c5e4a3b7ba9d699",
+      "exitCodes": [
+        0
+      ],
+      "summaries": []
+    },
+    "typescript-release.log": {
+      "file": "typescript-release.log",
+      "bytes": 20,
+      "sha256": "66a726d35a926f4db04121e777c574999a62024e184076b69c5e4a3b7ba9d699",
+      "exitCodes": [
+        0
+      ],
+      "summaries": []
+    },
+    "typescript-resumed-final.log": {
+      "file": "typescript-resumed-final.log",
+      "bytes": 20,
+      "sha256": "66a726d35a926f4db04121e777c574999a62024e184076b69c5e4a3b7ba9d699",
+      "exitCodes": [
+        0
+      ],
+      "summaries": []
+    }
+  },
+  "retainedInterruptedRun": {
+    "log": "focused-final.log",
+    "durationSeconds": 15599.04,
+    "passingGate": false,
+    "cause": "machine-sleep/process termination reported by owner"
+  },
+  "qualifiedHypotheses": [
+    "R2 privacy live default grants unqueried; synthetic grant controls only",
+    "Global policy bypass rejected: existing launch-policy writer already returns 409. Earlier red expectations/fixture errors are not product findings.",
+    "Isolated raw-assessment boundary red is not a full production-producer exploit."
+  ],
+  "proofLimits": [
+    "Independent technical PASS pending whole relevant 6a223a28..actual owner M14 commit re-gate",
+    "No complete positive production recipe/readmission composition",
+    "No Linux build/NFT/bundle-size/native-media execution proof",
+    "No protected browser/mobile/private/payment/cron/delivery/refund target proof",
+    "No real merchant fixture, account expiry, paid provider, book cost/runtime or visual acceptance",
+    "Bulk sealed-byte optimization deferred pending immutable storage/version proof",
+    "Real owner index staging/commit not executed; actual empty index is not staged-byte proof"
+  ],
+  "packageInspection": "Separate package-inspection.json records final freeze/parse/InspectOnly and pins without a self-referential hash."
+}

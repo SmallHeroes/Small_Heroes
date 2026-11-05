@@ -47,12 +47,12 @@ describe('Q4/Q8 actual production wrapper + durable SQL fences', () => {
     expect((await s.db.generationJob.findUnique({ where: { orderId: 'synthetic_order' } }))!.lockedBy).toBe('new_owner');
     expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
   });
-  it('Q8 a deploy mismatch terminates through the owning engine fence without a call or crash loop', async () => {
+  it('R2-9 a foreign-revision executor skips without failing an order or creating a liability', async () => {
     const s = await setup(), recipe = vi.fn(); m.recipe = recipe;
     const updated = { ...JSON.parse(syntheticEngineActivationEnv().ENGINE_SITE_SPEND_POLICY!), sourceRevision: 'b'.repeat(40) };
     vi.stubEnv('ENGINE_SITE_SPEND_POLICY', JSON.stringify(updated)); vi.stubEnv('ENGINE_SITE_SOURCE_REVISION', updated.sourceRevision);
-    await expect(runProductionPersonalWorker(s.db, 'synthetic_order', 'long')).resolves.toMatchObject({ kind: 'held' });
-    expect(recipe).not.toHaveBeenCalled(); expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))!.status).toBe('failed');
-    expect((await s.db.exceptionCase.findFirst())!.scope).toBe('engine_site_book');
+    await expect(runProductionPersonalWorker(s.db, 'synthetic_order', 'long')).resolves.toMatchObject({ kind: 'skipped' });
+    expect(recipe).not.toHaveBeenCalled(); expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))!.status).toBe('generating');
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);
   });
 });

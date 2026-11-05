@@ -9,7 +9,7 @@ import { setLength, setVoice } from '@/lib/personal-wizard/draft';
 import type { WizardOptionsView } from './PersonalWizard';
 import styles from './personal-wizard.module.css';
 import { ENGINE_SITE_LAUNCH_OFFER } from '@/lib/engine-site/offer-definition';
-import { ENGINE_PHOTO_MAX_BYTES } from '@/lib/engine-site/photo-policy';
+import { ENGINE_PHOTO_CLIENT_MAX_BYTES } from '@/lib/engine-site/photo-upload-client';
 
 const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_MAX_BYTES = 15 * 1024 * 1024;
@@ -68,8 +68,8 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
                   setPhotoError(copy.photoTypeError);
                   return;
                 }
-                if (file.size > (launchOrder ? ENGINE_PHOTO_MAX_BYTES : PHOTO_MAX_BYTES)) {
-                  setPhotoError(launchOrder ? 'יש לבחור תמונה עד 3MB.' : copy.photoSizeError);
+                if (file.size > (launchOrder ? ENGINE_PHOTO_CLIENT_MAX_BYTES : PHOTO_MAX_BYTES)) {
+                  setPhotoError(launchOrder ? `יש לבחור תמונה עד ${ENGINE_PHOTO_CLIENT_MAX_BYTES/(1024*1024)}MB, או לתאר את הילד או הילדה.` : copy.photoSizeError);
                   return;
                 }
                 setPhotoError(null);

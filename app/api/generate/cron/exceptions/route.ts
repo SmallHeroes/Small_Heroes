@@ -25,6 +25,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ skipped: 'readiness_manifest_disabled' });
   }
 
-  const summary = await drainExceptionCases(prisma, { limit: 1 });
+  const summary = await drainExceptionCases(prisma, { limit: 1, ...(!isReadinessManifestEnabled() ? { engineOnly: true } : {}) });
   return NextResponse.json(summary);
 }

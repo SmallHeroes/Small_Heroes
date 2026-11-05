@@ -16,6 +16,20 @@ export async function decodeEngineAudio(bytes: Buffer) {
   try { await writeFile(file, bytes, { flag: 'wx', mode: 0o600 }); return probeNarrationAudio(file); }
   finally { await unlink(file).catch(() => {}); await rmdir(dir).catch(() => {}); }
 }
+/** Tool/host outages are free retries. Only a positive invalid-media diagnosis authorizes a deterministic hold. */
+export async function validateEngineNarrationAudio(bytes:Buffer,probe:((bytes:Buffer)=>Promise<number>)=decodeEngineAudio) {
+  try {
+    const duration=await probe(bytes);
+    if(!Number.isFinite(duration)||duration<=0||duration>180)engineSiteFail('engine_narration_media_invalid');
+    return duration;
+  }catch(error){
+    const e=(error&&typeof error==='object'?error:{}) as {code?:unknown;status?:unknown;stderr?:unknown};
+    if(e.code==='engine_narration_media_invalid'||error instanceof BookNarrationError&&error.code==='narration_media_invalid'||
+      typeof e.status==='number'&&e.status!==0&&/invalid data|invalid frame|failed to read frame|could not find codec parameters|error while decoding/i.test(String(e.stderr??'')))
+      engineSiteFail('engine_narration_media_invalid');
+    engineSiteFail('engine_narration_decode_unavailable');
+  }
+}
 export function prepareEngineNarration(a: EngineOrderAuthority, input: NarrationWire, ports: EngineNarrationPorts): PreparedEngineCall {
   const authority = engineOrderAuthoritySchema.parse(a), narration = narrationWireSchema.parse(input), step = `narration_${narration.page}`;
   const wire = { version: 'engine-site-narration/v1', authoritySha256: authorityDigest(authority), narration };
@@ -38,10 +52,10 @@ export function prepareEngineNarration(a: EngineOrderAuthority, input: Narration
         const result = await createNarrationTransport(ports)(narration, signal); receipt = result.receipt;
         if (receipt.characterCost === null || receipt.characterCost > narration.body.text.length * BOOK_NARRATION.reserveFactor)
           engineSiteFail('engine_narration_usage_over_reservation');
-        const duration = await (ports.probe ?? decodeEngineAudio)(result.audio);
-        if (!Number.isFinite(duration) || duration <= 0 || duration > 180 || assetBytesSha256(result.audio) !== receipt.audioSha256)
+        if (assetBytesSha256(result.audio) !== receipt.audioSha256)
           engineSiteFail('engine_narration_media_invalid');
-        return { kind: 'completed', result: { output: { b64: result.audio.toString('base64'), audioSha256: receipt.audioSha256, duration },
+        // Return billed bytes to the durable runtime BEFORE local decoding. Its private result receipt settles the one TTS claim.
+        return { kind: 'completed', result: { output: { b64: result.audio.toString('base64'), audioSha256: receipt.audioSha256 },
           raw: { receipt, wireSha256: canonicalHash(wire) }, estimatedMicroUsd: narrationCostMicroUsd(narration, receipt.characterCost) } };
       } catch (error) {
         if (error instanceof BookNarrationError) receipt = error.receipt;

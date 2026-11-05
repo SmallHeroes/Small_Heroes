@@ -794,7 +794,7 @@ export async function processExceptionCase(
     attempts: exceptionCase.attempts,
   });
 
-  if (exceptionCase.scope === ENGINE_BOOK_SCOPE && exceptionCase.kind === 'send_ambiguous' && resolutionOf(exceptionCase.resolution).operatorRequired === true)
+  if (exceptionCase.scope.startsWith('engine_site_') && resolutionOf(exceptionCase.resolution).operatorRequired === true)
     return 'operator_required';
   if (exceptionCase.status === 'refund_pending') {
     return handleRefund(prisma, exceptionCase, deps, now);
@@ -911,6 +911,8 @@ export async function syncTerminalExceptionCases(
   let produced = 0;
   for (const row of outboxRows) {
     if (alreadyProduced.has(row.id)) continue;
+    // Personal producers already write their liability atomically. Never synthesize a second case from their revoked intent.
+    if (row.scope.startsWith('engine_site_') || (await prisma.order.findUnique({ where: { id: row.orderId } }))?.frozenProductVersion?.startsWith('engine-site/')) continue;
     const kind =
       row.status === 'invalid_payload'
         ? 'invalid_payload'
@@ -959,13 +961,13 @@ export type ExceptionDrainSummary = {
 
 export async function drainExceptionCases(
   prisma: PrismaClient,
-  options: { limit?: number } = {},
+  options: { limit?: number; engineOnly?: boolean } = {},
   overrides: Partial<ExceptionProcessorDeps> = {},
 ): Promise<ExceptionDrainSummary> {
   const deps = { ...defaultDeps(), ...overrides };
   const now = deps.now();
-  const synced = await syncTerminalExceptionCases(prisma, now);
-  const rows = await claimDueExceptionCases(prisma, now, options.limit ?? 1);
+  const synced = options.engineOnly ? 0 : await syncTerminalExceptionCases(prisma, now);
+  const rows = await claimDueExceptionCases(prisma, now, options.limit ?? 1, options.engineOnly ?? false);
   const summary: ExceptionDrainSummary = {
     synced,
     claimed: rows.length,

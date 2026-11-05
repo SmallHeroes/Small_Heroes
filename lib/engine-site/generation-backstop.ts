@@ -8,8 +8,9 @@ import { failEngineOrder } from './fulfillment';
 
 /** An abandoned paid generation cannot wait forever. This is an execution deadline, never a quality downgrade. */
 export const ENGINE_ORDER_DEADLINE_MS = 4 * 60 * 60_000;
+export const ENGINE_ORDER_ABSOLUTE_DEADLINE_MS = 24 * 60 * 60_000;
 /** Free, Order-first recovery. Active leases and publication/operator stages are never commandeered. */
-export async function reconcileEngineGeneration(db: PrismaClient, orderId: string, now = new Date()) {
+export async function reconcileEngineGeneration(db: PrismaClient, orderId: string, now = new Date(), executorRevision?: string) {
   const outcome = await db.$transaction(async tx => {
     const order = await lockEngineOrder(tx, orderId);
     const rows = await tx.$queryRaw<Array<{ orderId: string }>>`SELECT "orderId" FROM "GenerationJob" WHERE "orderId"=${orderId} FOR UPDATE`;
@@ -20,7 +21,11 @@ export async function reconcileEngineGeneration(db: PrismaClient, orderId: strin
       return { status: 'ineligible' as const };
     if (job.lockedBy && job.leaseExpiresAt && job.leaseExpiresAt > now) return { status: 'busy' as const };
     const checkpoint = parseEngineCheckpoint(job.pipelineCache);
-    let reason: string | null = now.getTime() - job.createdAt.getTime() >= ENGINE_ORDER_DEADLINE_MS ? 'engine_generation_deadline' : null;
+    // A long host is not deployment authority for orders belonging to another source revision.
+    if(executorRevision && checkpoint.authority.sourceRevision!==executorRevision) return {status:'foreign_revision' as const};
+    const createdAt=job.createdAt.getTime(), progressAt=Math.max(createdAt,Math.min(checkpoint.progressAt??createdAt,now.getTime()));
+    let reason: string | null = now.getTime()-createdAt >= ENGINE_ORDER_ABSOLUTE_DEADLINE_MS ||
+      now.getTime()-progressAt >= ENGINE_ORDER_DEADLINE_MS ? 'engine_generation_deadline' : null;
     if (!reason) {
       try { assertEnginePolicyCurrent(checkpoint.authority); }
       catch (error) { if (engineDeterministicFailure(error)) reason = engineErrorCode(error); else throw error; }

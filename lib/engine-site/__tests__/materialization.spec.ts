@@ -61,6 +61,23 @@ async function setup() {
   return { ...s, storage, objects, pages, materialize, invoke, finish, fetchTts, ports, title, text };
 }
 describe('private nine-scene book/narration/PDF materialization (synthetic providers only)', () => {
+  it('R2-11 persists and settles billed audio before a free decode outage, then retries decode without repurchasing that page',async()=>{
+    const s=await setup(),probe=vi.fn().mockRejectedValueOnce(Object.assign(Error('synthetic_missing_decoder'),{code:'ENOENT'})).mockResolvedValue(1.2);
+    const retryable=createEngineMaterializer({db:s.db,storage:s.storage,snapshot:s.prepared.snapshot,
+      narration:{key:()=> 'SYNTHETIC',fetch:s.fetchTts as typeof fetch,probe}});
+    expect(await s.invoke(retryable)).toMatchObject({kind:'held',terminalWritten:false});
+    const c=parseEngineCheckpoint((await s.db.generationJob.findUnique({where:{orderId:'synthetic_order'}}))!.pipelineCache);
+    expect(c.phase).toBe('materialize');expect(c.calls.narration_0.settled).toBe(true);
+    const receipt=(await s.db.atomicOperationReceipt.findMany({where:{kind:'engine_site_call_result_v1'}})).find(r=>(r.result as any)?.value.step==='narration_0')!;
+    expect((receipt.result as any).value).toMatchObject({completed:true,estimatedMicroUsd:s.title.length*100});
+    const asset=await loadEnginePrivateAsset(s.db,(receipt.result as any).value.privateResultAssetId);
+    const saved=JSON.parse((await s.storage.read(asset.key)).toString('utf8'));expect(saved.result.output.b64).toBe(audio.toString('base64'));
+    vi.spyOn(Date,'now').mockReturnValue(Date.now()+180_000);
+    await s.invoke(retryable);
+    expect(s.fetchTts.mock.calls.filter(([,init])=>JSON.parse(init.body).text===s.title)).toHaveLength(1);
+    const after=parseEngineCheckpoint((await s.db.generationJob.findUnique({where:{orderId:'synthetic_order'}}))!.pipelineCache);
+    expect(after.outputs.reader_audio_verified_0).toBeDefined();
+  },120_000);
   it('materializes exact bytes once across actual durable invocations and serves only published final assets', async () => {
     const s = await setup(), c = await s.finish();
     expect(c.checkpoint.phase).toBe('accept'); expect(s.fetchTts).toHaveBeenCalledTimes(9);
@@ -110,7 +127,7 @@ describe('private nine-scene book/narration/PDF materialization (synthetic provi
     const checkpoint = parseEngineCheckpoint((await s.db.generationJob.findUnique({ where: { orderId: 'synthetic_order' } }))!.pipelineCache);
     expect(checkpoint.outputs.materialized_book).toBeUndefined(); expect(checkpoint.phase).toBe('held');
     const recorded = (await s.pg.query<any>('SELECT result FROM "AtomicOperationReceipt" WHERE kind=$1', ['engine_site_call_result_v1'])).rows;
-    expect(recorded.find(r => r.result.value.step === 'narration_0').result.value).toMatchObject({ completed: false, estimatedMicroUsd: s.title.length * 100 });
+    expect(recorded.find(r => r.result.value.step === 'narration_0').result.value).toMatchObject({ completed: true, estimatedMicroUsd: s.title.length * 100 });
   }, 120_000);
   it('preserves Hebrew and rejects text overflow, incomplete coverage, wrong image format and manifest substitution', async () => {
     const pages = Array.from({ length: 9 }, (_, pageNumber) => ({ pageNumber, text: pageNumber ? 'לילה טוב 123. שָׁלוֹם!' : 'הסיפור שלי', image }));

@@ -8,11 +8,16 @@ import { readFileSync } from 'fs';
 const stores: Awaited<ReturnType<typeof engineTestDb>>[] = [];
 afterEach(async () => { for (const s of stores.splice(0)) await s.pg.close(); vi.unstubAllEnvs(); vi.clearAllMocks(); });
 describe('Q12/Q13 actual private storage factory and PostgreSQL privacy guard', () => {
+  it.each(['host','hostaddr','%68ost'])('R2 P3 refuses a DSN override parameter %s before the Storage client',param=>{
+    vi.stubEnv('SUPABASE_URL','https://aaaaaaaaaaaaaaaaaaaa.supabase.co');vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','SYNTHETIC_ONLY');
+    vi.stubEnv('DATABASE_URL',`postgresql://postgres:SYNTHETIC@db.aaaaaaaaaaaaaaaaaaaa.supabase.co:5432/postgres?${param}=db.bbbbbbbbbbbbbbbbbbbb.supabase.co`);
+    expect(()=>productionEnginePrivateStorage()).toThrow('engine_private_project_mismatch');expect(m.create).not.toHaveBeenCalled();
+  });
   it('the prepared SQL removes actual table/column grants in offline PostgreSQL; both client roles are denied',async()=>{
     const s=await engineTestDb();stores.push(s);
     await s.pg.exec('GRANT SELECT ON "Order","GenerationJob" TO anon,authenticated; GRANT SELECT(data) ON "WizardSession" TO anon; GRANT TRUNCATE ON "WizardSession" TO authenticated');
     await expect(assertEnginePrivateDatabase(s.db)).rejects.toThrow('private_database_required');
-    await s.pg.exec(readFileSync('_review/engine-site-launch/m13-qa-r1-fixes/PRIVATE-DATABASE-SETUP.sql','utf8'));
+    await s.pg.exec(readFileSync('_review/engine-site-launch/m14-qa-r2-fixes/PRIVATE-DATABASE-SETUP.sql','utf8'));
     await expect(assertEnginePrivateDatabase(s.db)).resolves.toBeUndefined();
     for(const role of ['anon','authenticated']) {
       await s.pg.exec(`SET ROLE ${role}`);
@@ -36,6 +41,11 @@ describe('Q12/Q13 actual private storage factory and PostgreSQL privacy guard', 
     const s = await engineTestDb(); stores.push(s); await s.pg.exec(`GRANT SELECT ON "${table}" TO anon`);
     await expect(assertEnginePrivateDatabase(s.db)).rejects.toThrow('engine_private_database_required');
   });
+  it.each(['UserSession','OtpCode','UserAccount','Customer','PaymentRecord','PaymeWebhookEvent'])(
+    'R2-3 refuses client access to authentication/payment authority %s',async table=>{
+      const s=await engineTestDb();stores.push(s);await s.pg.exec(`GRANT SELECT,INSERT ON "${table}" TO anon`);
+      await expect(assertEnginePrivateDatabase(s.db)).rejects.toThrow('engine_private_database_required');
+    });
   it.each(['GRANT SELECT(data) ON "WizardSession" TO authenticated', 'GRANT TRUNCATE ON "WizardSession" TO anon'])(
     'P3 catches column and non-row table grants: %s', async grant => {
       const s = await engineTestDb(); stores.push(s); await s.pg.exec(grant);

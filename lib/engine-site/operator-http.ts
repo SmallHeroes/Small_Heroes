@@ -9,6 +9,7 @@ import { readEngineLaunchPolicy, changeEngineLaunchPolicy } from './launch-polic
 import { readEngineOperatorHistory } from './operator-review-store';
 import { operatorDecisionDigest, policyDigest } from './delivery-gate';
 import { identifierSchema, digestSchema } from './contract';
+import { readEngineInfrastructureReview,decideEngineInfrastructure,infrastructureActionSchema } from './infrastructure-review';
 const decisionSchema = z.object({ expectedBookSha256: digestSchema, expectedPreviousDecisionSha256: digestSchema.nullable(),
   expectedPolicySha256: digestSchema, idempotencyKey: identifierSchema, decision: z.enum(['approve', 'reject']), reason: z.string().trim().min(1).max(500) }).strict();
 const policyCommand = z.object({ idempotencyKey: identifierSchema, expectedPolicySha256: digestSchema, mode: z.enum(['required', 'off']),
@@ -28,8 +29,14 @@ export async function handleEngineOperator(req: NextRequest, orderId: string | n
         : await readEngineLaunchPolicy(ports.db);
       return NextResponse.json({ policy, policySha256: policyDigest(policy) }, { headers });
     }
-    if (req.method === 'POST') return NextResponse.json(await decideEngineBook(ports.db, orderId,
-      decisionSchema.parse(await readEngineJson(req, 8192)), actorId, ports.fulfillment()), { headers });
+    if (req.method === 'POST') {
+      const body=await readEngineJson(req,8192);
+      if(body&&typeof body==='object'&&'action' in body)return NextResponse.json(await decideEngineInfrastructure(ports.db,orderId,
+        infrastructureActionSchema.parse(body),actorId),{headers});
+      return NextResponse.json(await decideEngineBook(ports.db, orderId,decisionSchema.parse(body), actorId, ports.fulfillment()), { headers });
+    }
+    const infrastructure=await readEngineInfrastructureReview(ports.db,orderId);
+    if(infrastructure)return NextResponse.json(infrastructure,{headers});
     const context = await loadEngineReaderBook(ports.db, ports.storage(), orderId), policy = await readEngineLaunchPolicy(ports.db);
     const history = await readEngineOperatorHistory(ports.db, context.checkpoint.authority), previous = history[history.length - 1];
     const readiness = await ports.db.bookReadiness.findUnique({ where: { orderId_scope: { orderId, scope: ENGINE_BOOK_SCOPE } } });

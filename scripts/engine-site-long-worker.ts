@@ -27,7 +27,7 @@ export async function engineLongWorkerMain(once = false) {
     for (const job of jobs) {
       try {
         if (!await engineRecoveryDue(prisma, job.orderId, 'long')) continue;
-        const backstop = await reconcileEngineGeneration(prisma, job.orderId);
+        const backstop = await reconcileEngineGeneration(prisma, job.orderId, new Date(), policy.sourceRevision);
         if (backstop.status !== 'long') continue;
         const result = await runProductionPersonalWorker(prisma, job.orderId, 'long');
         if (result.kind === 'progress' || result.kind === 'pending') await clearEngineInfrastructureFault(prisma, job.orderId, 'long');

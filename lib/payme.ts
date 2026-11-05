@@ -216,7 +216,11 @@ export function isPaymeStatusPaid(status: string | null): boolean {
  * Kept as a literal here (not imported) to avoid a payme ↔ coupon-service import cycle; keep it
  * ≤ the coupon lease TTL.
  */
-const PAYME_SALE_TTL_MS = 45 * 60_000; // 45 minutes (== coupon lease)
+export const PAYME_SALE_TTL_MS = 45 * 60_000; // 45 minutes (== coupon lease)
+export class PaymeCheckoutError extends Error {
+  readonly code: 'payme_checkout_no_sale'|'payme_checkout_unknown';
+  constructor(message:string,noSale=false){super(message);this.code=noSale?'payme_checkout_no_sale':'payme_checkout_unknown';}
+}
 
 /**
  * Format a sale-expiration timestamp for PayMe generate-sale.
@@ -247,7 +251,7 @@ function formatPaymeSaleExpiration(at: Date): string {
 export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promise<PaymeCheckoutResponse> {
   const cfg = resolvePaymeConfig();
   if (!cfg.apiBaseUrl || !cfg.apiKey) {
-    throw new Error('PayMe checkout configuration is missing');
+    throw new PaymeCheckoutError('PayMe checkout configuration is missing',true);
   }
   const endpoint = `${cfg.apiBaseUrl}/generate-sale`;
   const body: Record<string, unknown> = {
@@ -292,24 +296,16 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
       raw = { nonJsonBody: responseText.slice(0, 1500) };
     }
   }
-  if (!res.ok) {
-    const contentType = res.headers.get('content-type') || 'unknown';
-    const excerpt =
-      typeof raw === 'object' && raw && 'nonJsonBody' in (raw as Record<string, unknown>)
-        ? String((raw as Record<string, unknown>).nonJsonBody || '')
-        : JSON.stringify(raw);
-    throw new Error(
-      `PayMe checkout request failed (${res.status}) [content-type=${contentType}] body_excerpt=${(excerpt || '').slice(0, 240)}`
-    );
-  }
   const root = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
   const statusCode = root.status_code;
+  const definiteRejection=(res.ok||res.status>=400&&res.status<500)&&Number(statusCode)===1&&!root.payme_sale_id&&!root.sale_url;
+  if(!res.ok)throw new PaymeCheckoutError(`PayMe checkout request failed (${res.status})`,definiteRejection);
   if (statusCode !== undefined && statusCode !== null && Number(statusCode) !== 0) {
-    throw new Error(`PayMe generate-sale failed: status_code=${statusCode} ${JSON.stringify(raw)}`);
+    throw new PaymeCheckoutError('PayMe generate-sale rejected',definiteRejection);
   }
   const rawCheckoutUrl = pickString(root.sale_url);
   if (!rawCheckoutUrl) {
-    throw new Error(`PayMe generate-sale failed: no sale_url in response ${JSON.stringify(raw)}`);
+    throw new PaymeCheckoutError('PayMe generate-sale missing checkout URL');
   }
   const checkoutUrl = absolutizePaymeCheckoutUrl(
     rawCheckoutUrl,
@@ -318,6 +314,28 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
   );
   const checkoutId = pickString(root.payme_sale_id);
   return { checkoutUrl, checkoutId, raw };
+}
+
+export type PaymeOrderSale={saleId:string;orderId:string;priceAgorot:number;currency:'ILS';status:string;checkoutUrl:string|null};
+/** Read-only reconciliation of a lost generate-sale reply. Every item is independently order/amount bound; no first-item fallback. */
+export async function queryPaymeOrderSales(orderId:string,amountAgorot:number,fetchImpl:typeof fetch=fetch):Promise<PaymeOrderSale[]> {
+  const cfg=resolvePaymeConfig();if(!cfg.apiBaseUrl||!cfg.apiKey)throw Error('payme_order_query_unavailable');
+  const response=await fetchImpl(`${cfg.apiBaseUrl}/get-sales`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
+    body:JSON.stringify({seller_payme_id:cfg.apiKey,transaction_id:orderId.slice(0,50),page_size:500,page:1}),signal:AbortSignal.timeout(45_000)});
+  const raw=await response.json().catch(()=>null) as any;
+  if(!response.ok||!raw||Number(raw.status_code??0)!==0||!Array.isArray(raw.items)||raw.items.length>=500||
+    raw.items_count!==undefined&&Number(raw.items_count)!==raw.items.length)throw Error('payme_order_query_unavailable');
+  const ids=new Set<string>();
+  return raw.items.map((sale:any)=>{
+    const price=typeof sale?.sale_price==='number'?sale.sale_price:typeof sale?.sale_price==='string'&&/^\d+(?:\.0+)?$/.test(sale.sale_price)?Number(sale.sale_price):NaN;
+    if(typeof sale?.sale_payme_id!=='string'||!sale.sale_payme_id||ids.has(sale.sale_payme_id)||String(sale.transaction_id)!==orderId.slice(0,50)||
+      !Number.isSafeInteger(price)||price!==amountAgorot||String(sale.sale_currency??sale.currency).toUpperCase()!=='ILS'||typeof sale.sale_status!=='string')
+      throw Error('payme_order_sale_binding_mismatch');
+    ids.add(sale.sale_payme_id);
+    let checkoutUrl:string|null=null;
+    if(typeof sale.sale_url==='string')checkoutUrl=absolutizePaymeCheckoutUrl(sale.sale_url,cfg.apiBaseUrl,cfg.checkoutPageOrigin||null);
+    return {saleId:sale.sale_payme_id,orderId,priceAgorot:price,currency:'ILS',status:sale.sale_status.toLowerCase(),checkoutUrl};
+  });
 }
 
 export async function verifyPaymePayment(params: {
@@ -366,8 +384,13 @@ export async function verifyPaymePayment(params: {
     if (Number(root.status_code ?? 0) !== 0 || items.length !== 1 || !items[0] || typeof items[0] !== 'object')
       return { verified: false, status: 'unknown', raw };
     const sale = items[0] as Record<string, unknown>;
-    if (sale.sale_payme_id !== identifier || sale.transaction_id !== params.orderId ||
-        sale.sale_price !== params.amountAgorot || sale.sale_currency !== params.currency)
+    const textId = (value: unknown) => typeof value === 'string' ? value :
+      typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : null;
+    const price = typeof sale.sale_price === 'number' ? sale.sale_price :
+      typeof sale.sale_price === 'string' && /^\d+(?:\.0+)?$/.test(sale.sale_price) ? Number(sale.sale_price) : NaN;
+    const currency = sale.sale_currency ?? sale.currency;
+    if (textId(sale.sale_payme_id) !== identifier || textId(sale.transaction_id) !== params.orderId.slice(0, 50) ||
+        !Number.isSafeInteger(price) || price !== params.amountAgorot || typeof currency !== 'string' || currency.toUpperCase() !== 'ILS')
       return { verified: false, status: 'unknown', raw };
     const rawStatus = (
       typeof sale.sale_status === 'string' ? sale.sale_status :

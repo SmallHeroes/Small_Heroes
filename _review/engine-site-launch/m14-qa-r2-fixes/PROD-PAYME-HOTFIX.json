@@ -1,0 +1,23 @@
+{
+  "productionHead": "ed1da86cc114a767dc1086b71a30a4ef4595c097",
+  "files": [
+    "lib/payme.ts",
+    "app/api/payme/return/route.ts"
+  ],
+  "baselineBlobs": {
+    "lib/payme.ts": "bdbced3a85081a744a7d830917679cd2bb8c477716dd27d04f6b841485708f17",
+    "app/api/payme/return/route.ts": "0e5e1bc3a62212780b1a680a407bfbf9a1bd8c5a7e27f45a509a38e94122ad03"
+  },
+  "plannedBlobs": {
+    "lib/payme.ts": "7eb27b56756df99f78a1df8c3dd53cb829cf7fb80102f1b566b4f09f57334f63",
+    "app/api/payme/return/route.ts": "5d399b76e64a162d91a69a1581af1c9693fd6049e632bf902607791d178961b3"
+  },
+  "verifierSha256": "a1d290b99bfdf924a78e93359d9f30f8a552269b23932e5102ea8662c2e9a40a",
+  "patchSha256": "522044285a813b7d2cd0317d15b93e0d0c57e11cdbddd58720f3f56d3d82287c",
+  "prepareOnly": true,
+  "requiredR2Changes": [
+    "type-tolerant exact proof",
+    "failed status removed from return paid CAS"
+  ],
+  "optionalQueryPaymeSaleChangeIncluded": false
+}

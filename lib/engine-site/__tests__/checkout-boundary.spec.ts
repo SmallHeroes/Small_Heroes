@@ -2,10 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), payme: vi.fn(),
-  reserveCoupon: vi.fn(), photo: vi.fn(), parent: vi.fn(), paymentProvider: { value: 'payme' } }));
+  reserveCoupon: vi.fn(), photo: vi.fn(), parent: vi.fn(), querySales:vi.fn(), paymentProvider: { value: 'payme' } }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: mocks.parent }));
-vi.mock('@/lib/prisma', () => ({ prisma: { order: { findUnique: mocks.findUnique, update: mocks.update, updateMany: mocks.updateMany } } }));
-vi.mock('@/lib/payme', () => ({ createPaymeCheckout: mocks.payme }));
+vi.mock('@/lib/prisma', () => {
+  const tx={order:{findUnique:mocks.findUnique,update:mocks.update,updateMany:mocks.updateMany},wizardSession:{upsert:vi.fn()},$queryRaw:async()=>[{id:'synthetic_order',safe:true}]};
+  return {prisma:{...tx,$transaction:(work:any)=>work(tx)}};
+});
+vi.mock('@/lib/payme', async original => ({...await original<any>(),createPaymeCheckout:mocks.payme,queryPaymeOrderSales:mocks.querySales}));
 vi.mock('@/lib/request-security', () => ({ enforceSameOrigin: () => null, enforceRateLimit: () => null }));
 vi.mock('@/lib/resemblance-core', () => ({ evaluatePhotoGate: mocks.photo }));
 vi.mock('@/lib/coupon/coupon-service', () => ({ reserveCoupon: mocks.reserveCoupon, releaseCouponForOrder: vi.fn() }));
@@ -35,6 +38,20 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('actual checkout handler — new SKU cannot inherit bank pricing/add-ons/fake fallback', () => {
+  it('R2-5 releases a personal attempt only on a definite no-sale failure',async()=>{
+    mocks.payme.mockRejectedValueOnce(Object.assign(Error('synthetic rejected request'),{code:'payme_checkout_no_sale'}));
+    expect((await handleCheckoutPost(request(),{routeProtocol:'legacy-route'})).status).toBe(500);
+    expect(mocks.updateMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({checkoutAttemptToken:expect.any(String)}),
+      data:{checkoutAttemptToken:null,checkoutAttemptAt:null}}));
+  });
+  it('R2-5 reconciles a stale ambiguous attempt by order reference before another sale',async()=>{
+    mocks.findUnique.mockResolvedValue({...order(),paymentId:null,checkoutAttemptToken:'old_attempt',checkoutAttemptAt:new Date(Date.now()-180_000)});
+    mocks.querySales.mockResolvedValue([{saleId:'recovered_sale',orderId:'synthetic_order',priceAgorot:5900,currency:'ILS',status:'created',
+      checkoutUrl:'https://payme.example.invalid/recovered',createdAt:new Date(Date.now()-180_000).toISOString()}]);
+    const response=await handleCheckoutPost(request(),{routeProtocol:'legacy-route'});
+    expect(mocks.querySales).toHaveBeenCalledWith('synthetic_order',5900);
+    expect(response.status).toBe(200);expect(await response.json()).toMatchObject({paymentId:'recovered_sale'});expect(mocks.payme).not.toHaveBeenCalled();
+  });
   it('Q10 persists the canonical checkout URL so retries work even when the provider raw URL is relative or absent',async()=>{
     expect((await handleCheckoutPost(request(),{routeProtocol:'legacy-route'})).status).toBe(200);
     const stored=mocks.updateMany.mock.calls.find(([arg])=>arg.data.status==='pending_payment')![0].data;

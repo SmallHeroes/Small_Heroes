@@ -44,6 +44,7 @@ export function enginePrivateStorage(client: SupabaseClient): EnginePrivateStora
 export function assertEngineStorageProjectBinding(storageUrl: string | undefined, databaseUrl: string | undefined) {
   try {
     const api = new URL(storageUrl ?? ''), db = new URL(databaseUrl ?? '');
+    if([...db.searchParams.keys()].some(key=>['host','hostaddr'].includes(key.toLowerCase())))throw Error('engine_private_project_mismatch');
     const project = /^([a-z0-9]{20})\.supabase\.co$/.exec(api.hostname)?.[1];
     const direct = /^db\.([a-z0-9]{20})\.supabase\.co$/.exec(db.hostname)?.[1];
     const pooler = /(^|\.)pooler\.supabase\.com$/.test(db.hostname)

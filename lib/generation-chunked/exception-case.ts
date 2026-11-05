@@ -702,6 +702,7 @@ export async function claimDueExceptionCases(
   prisma: PrismaClient,
   now: Date,
   limit = 1,
+  engineOnly = false,
 ): Promise<ExceptionCase[]> {
   const leaseExpiresAt = new Date(now.getTime() + EXCEPTION_LEASE_MS);
   const acceptedRevisionPrefix = `${ACCEPTED_REVISION_NAMESPACE_PREFIX}%`;
@@ -715,7 +716,9 @@ export async function claimDueExceptionCases(
        SELECT "id"
          FROM "ExceptionCase"
          WHERE "status" IN ('open', 'retry_scheduled', 'customer_action', 'refund_pending')
-            AND NOT ("scope"='engine_site_book' AND "kind"='send_ambiguous' AND COALESCE("resolution"->>'operatorRequired','false')='true')
+           AND (${!engineOnly} OR (left("scope",12)='engine_site_' AND EXISTS (
+             SELECT 1 FROM "Order" WHERE "Order".id="ExceptionCase"."orderId" AND left("Order"."frozenProductVersion",12)='engine-site/')))
+           AND NOT (left("scope",12)='engine_site_' AND COALESCE("resolution"->>'operatorRequired','false')='true')
            AND ("nextActionAt" IS NULL OR "nextActionAt" <= ${now})
            AND ("leaseExpiresAt" IS NULL OR "leaseExpiresAt" < ${now})
            AND NOT EXISTS (

@@ -1,5 +1,3 @@
-> M13 update, base3185919b (2026-11-04): independent R1 HOLD corrections are documented in m13-qa-r1-fixes/REPORT.md and FINDING-MATRIX.md. Infrastructure ambiguity now retries boundedly then parks; only a deterministic/fenced terminal failure authorizes the refund path. Completed delivery survives later launch-policy changes; unsent jobs re-evaluate the same gate. Incompatible in-flight revisions fail through the engine fence, and abandoned generation has a four-hour execution backstop. Private metadata checks cover all three child-bearing tables and bind the Storage project. These are authorized technical corrections, not new product/spend approval. The minimal production Q1 PayMe patch is prepared separately and not applied.
-
 STATUS: PHASE-0 DONE
 HEAD: 348c85dc213f85597eb484d05e68e9048edb5603
 Summary 1/5: FINAL launch offer is 59 ILS inclusive: cover + eight story pages + narration + PDF, no add-ons/coupons.
@@ -7,6 +5,10 @@ Summary 2/5: Customer image quality is explicit LOW, from one offer/order/image 
 Summary 3/5: Use the NEW live-written personal engine, Anthropic API/current Opus design and existing durable jobs; no bank stories for new orders.
 Summary 4/5: One automatic acceptance/delivery path has an initially required switchable operator gate bound to actor/time/exact book bytes.
 Summary 5/5: Continue USD0 implementation in the owner's ordered milestones; recovery packages replace unavailable Git-index writes.
+
+> M14 update (2026-11-05), base f4dd9d46: R2 HOLD corrections and red evidence are in m14-qa-r2-fixes/. Personal-only exception draining preserves the legacy quarantine boundary; effective Next traces retain media. Privacy authority covers all nine child/login/payment tables, with setup and read-only live query prepared only. Infrastructure holds have audited resume/fail, without clearing UNKNOWN reserves; new progress resets consecutive faults, foreign executors skip, and the web backstop uses four-hour inactivity with a24hour absolute bound. Checkout reconciles/renews with archived old sale ids; billed narration persists before free decode. The production patch includes both required R2 proof/CAS corrections and is prepared only. Unchanged LOW/59ILS/0.70/default-off and independent/full/protected/paid qualification boundaries still apply; see ACTIVATION-CHECKLIST.md.
+
+> Historical M13 update, base3185919b (2026-11-04): independent R1 HOLD corrections are documented in m13-qa-r1-fixes/REPORT.md and FINDING-MATRIX.md. Infrastructure ambiguity retries boundedly then parks; only a deterministic/fenced terminal failure authorizes refund. Completed delivery survives later launch-policy changes; unsent jobs re-evaluate the same gate. The original four-hour creation deadline and three-table metadata check are superseded by M14 above. The prepared production Q1 patch was not applied.
 
 Owner decisions needed for this implementation: none. Product decisions above are FINAL and are not reopened. A proposed per-order cap is not activation/spend permission. Legal/customer delivery-refund sign-off and eventual paid/release GO remain owner items.
 

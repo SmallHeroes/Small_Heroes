@@ -11,7 +11,7 @@ import { authorityDigest, boundBookManifest, engineBookManifestSchema, engineSit
 import { assetBytesSha256, loadEnginePrivateAsset, persistEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
 import type { EnginePrivateStorage } from './private-storage';
 import type { EngineRuntime } from './durable-worker';
-import { prepareEngineNarration, type EngineNarrationPorts } from './narration';
+import { prepareEngineNarration,validateEngineNarrationAudio, type EngineNarrationPorts } from './narration';
 import { buildEngineBookPdf } from './book-pdf';
 
 const assetRef = z.object({ assetId: z.string().uuid(), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
@@ -70,10 +70,14 @@ export function createEngineMaterializer(args: { db: PrismaClient; storage: Engi
       const image = Buffer.from(output.b64, 'base64'); if (assetBytesSha256(image) !== output.imageSha) engineSiteFail('engine_materialization_image_changed');
       const imageRef = await persist(`reader_image_${n}`, 'page', 'image/png', image);
       const narrated = await runtime.call(prepareEngineNarration(authority, plan.rows[n].wire, args.narration));
-      const audio = z.object({ b64: z.string(), audioSha256: z.string().length(64), duration: z.number().positive().max(180) }).parse(narrated.output);
+      const audio = z.object({ b64: z.string(), audioSha256: z.string().length(64) }).parse(narrated.output);
       const bytes = Buffer.from(audio.b64, 'base64'); if (assetBytesSha256(bytes) !== audio.audioSha256) engineSiteFail('engine_materialization_audio_changed');
       const audioRef = await persist(`reader_audio_${n}`, 'audio', 'audio/mpeg', bytes);
-      pages.push({ pageNumber: n, text: texts[n], image: imageRef, audio: audioRef, duration: audio.duration });
+      const verificationSchema=z.object({audioSha256:z.literal(audio.audioSha256),duration:z.number().positive().max(180)}).strict();
+      const existing=await runtime.load(`reader_audio_verified_${n}`);
+      const verified=existing?verificationSchema.parse(existing):{audioSha256:audio.audioSha256,duration:await validateEngineNarrationAudio(bytes,args.narration.probe)};
+      if(!existing)await runtime.save(`reader_audio_verified_${n}`,verified);
+      pages.push({ pageNumber: n, text: texts[n], image: imageRef, audio: audioRef, duration: verified.duration });
       pdfPages.push({ pageNumber: n, text: texts[n], image });
     }
     const pdf = await persist('reader_pdf', 'pdf', 'application/pdf', await (args.pdf ?? buildEngineBookPdf)(title, pdfPages));

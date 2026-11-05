@@ -13,6 +13,8 @@ import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-securi
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { createPaymeCheckout } from '@/lib/payme';
+import { recoverEngineCheckout,personalCheckoutMetadata } from '@/lib/engine-site/checkout-recovery';
+import { assertEnginePrivateDatabase } from '@/lib/engine-site/private-assets';
 import { env, isFakePaymentEnabled, canUseFakePayments, isWaitlistMode } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
@@ -124,8 +126,10 @@ export async function handleCheckoutPost(
   // catch — can release ONLY the hold this attempt owns, never a concurrent sibling's.
   const attemptToken = randomUUID();
   let claimedReleaseOrderId: string | null = null;
+  let personalClaim=false,providerDispatched=false,definiteNoSale=false;
   const releaseVersionedCheckoutClaim = async () => {
     if (!claimedReleaseOrderId) return;
+    if(personalClaim&&providerDispatched&&!definiteNoSale)return;
     const orderId = claimedReleaseOrderId;
     claimedReleaseOrderId = null;
     await prisma.order.updateMany({
@@ -251,6 +255,7 @@ export async function handleCheckoutPost(
       return NextResponse.json({ error: 'engine_site_requires_payme' }, { status: 503 });
     }
     if (engineSitePricing) {
+      await assertEnginePrivateDatabase(prisma);
       const parent = await resolveUserFromRequest(req);
       if (!parent || !order.userId || parent.user.id !== order.userId) {
         return NextResponse.json({ error: 'engine_site_order_access_denied' }, { status: 403 });
@@ -293,18 +298,13 @@ export async function handleCheckoutPost(
       return NextResponse.json({ error: 'Order already has payment' }, { status: 409 });
     }
 
-    // One personal Order has one sale for its lifetime. A retry reuses its provider page;
-    // a lost generate-sale answer remains operator-reconcilable instead of minting another charge.
-    if (engineSitePricing && order.paymentId) {
-      const metadata = order.paymeMetadata as { sale_url?: unknown; checkoutUrl?: unknown } | null;
-      const storedUrl = metadata?.checkoutUrl ?? metadata?.sale_url;
-      let url: URL | null = null; try { if (typeof storedUrl === 'string') url = new URL(storedUrl); } catch { /* Hold, never mint another sale. */ }
-      if (order.paymentProvider !== 'payme' || !url || url.protocol !== 'https:' || url.origin === new URL(appUrl).origin)
-        return NextResponse.json({ error: 'engine_checkout_sale_reconciliation_required' }, { status: 409 });
-      return NextResponse.json({ url: url.href, paymentProvider: 'payme', paymentId: order.paymentId, checkoutId: order.paymentId, provider: 'payme' });
+    if (engineSitePricing) {
+      const recovered=await recoverEngineCheckout(prisma,order,appUrl).catch(()=>({kind:'hold' as const}));
+      if(recovered.kind==='reuse')return NextResponse.json({url:recovered.url,paymentProvider:'payme',paymentId:recovered.saleId,checkoutId:recovered.saleId,provider:'payme'});
+      if(recovered.kind==='hold')return NextResponse.json({error:'engine_checkout_sale_reconciliation_required'},{status:409});
+      // Any expired/ambiguous predecessor was reconciled and archived under the Order lock.
+      order.paymentId=null;order.checkoutAttemptToken=null;
     }
-    if (engineSitePricing && order.checkoutAttemptToken)
-      return NextResponse.json({ error: 'engine_checkout_sale_reconciliation_required' }, { status: 409 });
 
     // ── (LB#1b) CHECKOUT-ATTEMPT CAS — the atomic owner claim ────────────────────────────────────────
     // The status read above is a point-in-time snapshot: two concurrent checkouts on ONE order both saw
@@ -336,7 +336,8 @@ export async function handleCheckoutPost(
       logger.warn('Checkout rejected: another checkout attempt for this order is in flight', { orderId });
       return NextResponse.json({ error: 'checkout_in_progress' }, { status: 409 });
     }
-    if (releaseV1) claimedReleaseOrderId = order.id;
+    if (releaseV1 || engineSitePricing) claimedReleaseOrderId = order.id;
+    personalClaim=Boolean(engineSitePricing);
 
     const pricing = engineSitePricing ?? computePricing({
       length: order.storyLength,
@@ -446,7 +447,9 @@ export async function handleCheckoutPost(
     }
 
     let paymeCheckout;
+    const paymeIssuedAt=new Date();
     try {
+      providerDispatched=true;
       paymeCheckout = await createPaymeCheckout({
         orderId: order.id,
         amountAgorot: totalPriceAgorot,
@@ -464,6 +467,7 @@ export async function handleCheckoutPost(
         },
       });
     } catch (error) {
+      definiteNoSale=Boolean(error&&typeof error==='object'&&'code' in error&&error.code==='payme_checkout_no_sale');
       if (!engineSitePricing && canUseFakePayments()) {
         logger.warn('PayMe checkout failed; falling back to fake checkout in local/dev', {
           orderId: order.id,
@@ -487,7 +491,7 @@ export async function handleCheckoutPost(
     const checkoutUrl = paymeCheckout.checkoutUrl?.trim() || '';
     try {
       const pay = new URL(checkoutUrl);
-      if (pay.protocol !== 'http:' && pay.protocol !== 'https:') {
+      if (engineSitePricing ? pay.protocol !== 'https:' : pay.protocol !== 'http:' && pay.protocol !== 'https:') {
         throw new Error('bad_protocol');
       }
       const appOrigin = new URL(appUrl);
@@ -527,7 +531,9 @@ export async function handleCheckoutPost(
         status: 'pending_payment' as const,
         paymentProvider: 'payme',
         paymentId: paymeCheckout.checkoutId ?? null,
-        paymeMetadata: { version: 'engine-site-payme-checkout/v1', saleId: paymeCheckout.checkoutId, checkoutUrl },
+        paymeMetadata: personalCheckoutMetadata(paymeCheckout.checkoutId,checkoutUrl,paymeIssuedAt),
+        checkoutAttemptToken: null,
+        checkoutAttemptAt: null,
         basePrice: basePriceAgorot,
         addonsPrice: addonsPriceAgorot,
         totalPrice: totalPriceAgorot,

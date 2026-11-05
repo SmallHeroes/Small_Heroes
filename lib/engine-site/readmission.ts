@@ -1,7 +1,8 @@
 import 'server-only';
 import type { PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
-import { auditionPageReviewSchemaForContext } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import { auditionPageReviewSchemaForContext,assessAuditionReview,auditionAnatomyCast,auditionLandmarkTopology,auditionInstanceDistinction } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import { companionScaleFromContext } from '@/lib/personal-wizard/companion-scale';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { engineSiteFail } from './contract';
 import { createEngineNativeRecipe } from './native-recipe';
@@ -101,9 +102,14 @@ export async function admitEngineBookEvidence(db: PrismaClient, storage: EngineP
           canonicalHash(parsedRaw) !== canonicalHash(attempt.review) ||
           canonicalHash(parsedOutput) !== canonicalHash(attempt.review) || auditionUsageCost(rawQa.usage, 'sol') !== qa.estimatedMicroUsd)
         engineSiteFail('engine_readmission_review_changed');
-      // The real producer reconstruction above re-derived this assessment through the unchanged engine resume rule.
+      let assessment:ReturnType<typeof assessAuditionReview>['assessment'];
+      try {assessment=assessAuditionReview(parsedRaw,attempt.candidate.imageSha,judged.contextSha,judged.context.requirementIds??[],
+        judged.context.checks?.uniqueLandmarks??[],auditionLandmarkTopology(judged.context),auditionAnatomyCast(judged.context),
+        auditionInstanceDistinction(judged.context),companionScaleFromContext(judged.context)).assessment;}
+      catch{engineSiteFail('engine_readmission_assessment_changed');}
+      if(canonicalHash(assessment)!==canonicalHash(attempt.assessment))engineSiteFail('engine_readmission_assessment_changed');
       if (attempt.status === 'identity_unusable') engineSiteFail('engine_readmission_identity_changed');
-      if (attempt.assessment?.safetyBlocked || attempt.assessment?.invalidCitations) continue;
+      if (assessment.safetyBlocked || assessment.invalidCitations) continue;
       const measured = await result(`${step}_identity`), raw = measured.raw as any;
       const candidateUrl = `data:image/png;base64,${output.b64}`;
       const body = planPageChildResemblanceVisionRequest(childUrl, candidateUrl, 'gpt-4o');

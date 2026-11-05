@@ -55,7 +55,7 @@ async function fixture(blocked: boolean | 'citation', whitespace: boolean) {
         ...(excluded ? {} : { identity: measured }) }; attempts.push(attempt);
       const usage = { input_tokens: 100, output_tokens: 100 };
       await record(step, { usable: true, model: 'gpt-image-2', output: { b64, imageSha }, raw: { data: [{ b64_json: b64 }], usage }, estimatedMicroUsd: auditionUsageCost(usage, 'image') });
-      await record(`${step}_qa`, { usable: true, output: rawReview, raw: { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', output_text: JSON.stringify(rawReview), usage }, estimatedMicroUsd: auditionUsageCost(usage, 'sol') }, { version: 'engine-site-responses/v1', body: { input: [{ content: [{ type: 'input_text', text: JSON.stringify({ candidateSha: imageSha, contextSha: canonicalHash(n), context: {} }) }] }] } });
+      await record(`${step}_qa`, { usable: true, output: rawReview, raw: { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', output_text: JSON.stringify(rawReview), usage }, estimatedMicroUsd: auditionUsageCost(usage, 'sol') }, { version: 'engine-site-responses/v1', body: { input: [{ content: [{ type: 'input_text', text: JSON.stringify({ candidateSha: imageSha, contextSha: canonicalHash(n), context: {requirementIds:[],checks:{uniqueLandmarks:[]}} }) }] }] } });
       if (!excluded) {
         const wire = { version: 'engine-site-identity/v1', step: `${step}_identity`, authoritySha256: canonicalHash(cp.authority), body: planPageChildResemblanceVisionRequest(childUrl, childUrl, 'gpt-4o'), maxRetries: 0 };
         await record(`${step}_identity`, { usable: true, raw: identityRaw, output: measured, estimatedMicroUsd: auditionUsageCost(usage, 'identity') }, wire);
@@ -73,6 +73,13 @@ async function fixture(blocked: boolean | 'citation', whitespace: boolean) {
   return { ...s, cp, storage, context: { order: { id: 'synthetic_order' }, checkpoint: cp, snapshot: s.prepared.snapshot, book: { title: text, voiceId: voice.id, pages: bookPages } } as any };
 }
 describe('Q5/Q11 actual raw-evidence admission (producer/compiler boundary isolated)', () => {
+  it('R2 P3 derives the identity exception from verified raw review rather than a saved safety flag',async()=>{
+    const s=await fixture(false,false),asset=await import('../private-assets').then(m=>m.loadEnginePrivateAsset(s.db,s.cp.outputs.native_book));
+    const native=JSON.parse((await s.storage.read(asset.key)).toString('utf8'));native.pages[0].attempts[0].assessment.safetyBlocked=true;
+    const replacement=await persistEnginePrivateAsset(s.db,s.storage,{ownerId:s.cp.ownerId,draftId:s.cp.draftId,orderId:'synthetic_order',kind:'receipt',contentType:'application/json'},Buffer.from(JSON.stringify(native)));
+    s.cp.outputs.native_book=replacement.assetId;
+    await expect(admitEngineBookEvidence(s.db,s.storage,s.context)).rejects.toThrow('engine_readmission_assessment_changed');
+  },120_000);
   it('Q5 admits the same schema-parsed whitespace review saved by the engine', async () => {
     const s = await fixture(false,true); await expect(admitEngineBookEvidence(s.db, s.storage, s.context)).resolves.toHaveLength(9);
   },120_000);

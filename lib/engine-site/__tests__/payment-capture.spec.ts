@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createHmac } from 'crypto';
-const m = vi.hoisted(() => ({ db: {} as any, trigger: vi.fn(), fetch: vi.fn() }));
+const m = vi.hoisted(() => ({ db: {} as any, trigger: vi.fn(), fetch: vi.fn(),warn:vi.fn() }));
 vi.mock('@/lib/prisma', () => ({ prisma: new Proxy({}, { get: (_t,k) => m.db[k] }) }));
 vi.mock('@/lib/env', () => ({ env: { PAYMENT_PROVIDER: 'payme' } }));
 vi.mock('@/app/api/generate/trigger', () => ({ triggerGeneration: m.trigger }));
 vi.mock('@/lib/coupon/coupon-service', () => ({ confirmCouponForOrder: async () => null, couponConfirmFenceReason: async () => null }));
 vi.mock('@/lib/human-qa/sync-hold-case', () => ({ syncHumanQaHoldCasePostCommit: async () => {} }));
-vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }));
+vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn:m.warn, error() {} }) }));
 import { POST } from '@/app/api/webhooks/payme/route';
 import { engineTestDb } from './engine-test-db';
 import { claimDueExceptionCases } from '@/lib/generation-chunked/exception-case';
@@ -32,6 +32,13 @@ async function callback(sale: string) {
     'x-payme-signature':createHmac('sha256','SYNTHETIC_ONLY').update(body).digest('hex') } }));
 }
 describe('Q10 actual signed webhook, immutable primary capture and sale-specific refund liability', () => {
+  it('R2-7 repeated signed paid proof refusals are logged and create an operator case',async()=>{
+    const s=await setup('pending_payment');m.fetch.mockImplementation(async()=>new Response(JSON.stringify({items:[]})));
+    for(let n=0;n<3;n++)expect((await callback('primary_sale')).status).toBe(503);
+    expect(m.warn).toHaveBeenCalled();
+    expect((await s.db.exceptionCase.findFirst())!.resolution).toMatchObject({operatorRequired:true,outcome:'payment_proof_refused'});
+    expect(m.trigger).not.toHaveBeenCalled();
+  });
   it('a bound primary capture becomes paid once; its replay cannot start a second job',async()=>{
     const s=await setup('pending_payment');await s.pg.exec('UPDATE "Order" SET "paymeTransactionId"=NULL');
     expect((await callback('primary_sale')).status).toBe(200);expect((await callback('primary_sale')).status).toBe(200);

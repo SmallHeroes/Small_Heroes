@@ -355,7 +355,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             if (upload.status === 401) {
               setOrderState({ busy: false, signIn: true, message: 'יש להתחבר לחשבון לפני שמירת התמונה.' }); return;
             }
-            if (!upload.ok || typeof photo?.assetId !== 'string') throw Error('photo_upload_failed');
+            if (!upload.ok || typeof photo?.assetId !== 'string') throw Error('engine_photo_upload_failed');
             uploadedPhoto.current = { file: photoFile, draftId: built.request.draftId, assetId: photo.assetId };
           }
           appearance = { kind: 'private_photo', assetId: uploadedPhoto.current.assetId };
@@ -383,7 +383,9 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
           window.location.assign(url.href);
         }
         setOrderState({ busy: false, orderId: body.orderId, message: 'פרטי הספר נשמרו. התשלום עדיין אינו פתוח.' });
-      } catch { setOrderState({ busy: false, message: 'לא הצלחנו להמשיך. הפרטים נשארו כאן ואפשר לנסות שוב.' }); }
+      } catch (error) { setOrderState({ busy: false, message: error instanceof Error && error.message.startsWith('engine_photo_')
+        ? 'לא הצלחנו להכין את התמונה. אפשר לבחור תמונה אחרת, או לתאר את הילד או הילדה במקום תמונה.'
+        : 'לא הצלחנו להמשיך. הפרטים נשארו כאן ואפשר לנסות שוב.' }); }
       finally { orderInFlight.current = false; }
       return;
     }

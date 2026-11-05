@@ -1,0 +1,163 @@
+{
+  "status": "PASS",
+  "cases": 8,
+  "realGitIndexWrites": 0,
+  "realCommits": 0,
+  "realNativeTestTools": 0,
+  "externalCalls": 0,
+  "limitation": "Fake command transport validates recovery control flow; actual owner commit is still required.",
+  "results": [
+    {
+      "case": "normal",
+      "outcome": 0,
+      "adds": 1,
+      "commits": 1,
+      "npmCalls": 1,
+      "error": null,
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current",
+        "git diff --cached --name-only",
+        "git diff --name-only f4dd9d46c35b871d02934a577cb4490fd0073b6c",
+        "git ls-files --others --exclude-standard -- app lib backend scripts",
+        "git diff --check",
+        "git diff --cached --check",
+        "git apply --reverse --check _review/engine-site-launch/m14-qa-r2-fixes/CHANGES.patch",
+        "node node_modules/typescript/bin/tsc --noEmit",
+        "node node_modules/vitest/vitest.mjs run synthetic.spec.ts",
+        "node _review/engine-site-launch/m14-qa-r2-fixes/verify-production-hotfix.cjs",
+        "npm.cmd run check",
+        "git diff --cached --name-only",
+        "git --literal-pathspecs add -- lib/[synthetic]/sample.ts REPORT.md",
+        "git diff --cached --name-only",
+        "git diff --cached --check",
+        "git commit --file _review/engine-site-launch/m14-qa-r2-fixes/COMMIT-MESSAGE.txt",
+        "git rev-parse HEAD",
+        "git status --short --branch --untracked-files=no"
+      ],
+      "ownerRecord": true
+    },
+    {
+      "case": "inspect_only",
+      "outcome": 0,
+      "adds": 0,
+      "commits": 0,
+      "npmCalls": 0,
+      "error": null,
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current",
+        "git diff --cached --name-only",
+        "git diff --name-only f4dd9d46c35b871d02934a577cb4490fd0073b6c",
+        "git ls-files --others --exclude-standard -- app lib backend scripts",
+        "git diff --check",
+        "git diff --cached --check",
+        "git apply --reverse --check _review/engine-site-launch/m14-qa-r2-fixes/CHANGES.patch"
+      ],
+      "ownerRecord": false
+    },
+    {
+      "case": "typescript_failure",
+      "outcome": 1,
+      "adds": 0,
+      "commits": 0,
+      "npmCalls": 0,
+      "error": "node failed with exit=23",
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current",
+        "git diff --cached --name-only",
+        "git diff --name-only f4dd9d46c35b871d02934a577cb4490fd0073b6c",
+        "git ls-files --others --exclude-standard -- app lib backend scripts",
+        "git diff --check",
+        "git diff --cached --check",
+        "git apply --reverse --check _review/engine-site-launch/m14-qa-r2-fixes/CHANGES.patch",
+        "node node_modules/typescript/bin/tsc --noEmit"
+      ],
+      "ownerRecord": false
+    },
+    {
+      "case": "foreign_index",
+      "outcome": 1,
+      "adds": 0,
+      "commits": 0,
+      "npmCalls": 0,
+      "error": "Existing index must be preserved; inspect it before any recovery.",
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current",
+        "git diff --cached --name-only"
+      ],
+      "ownerRecord": false
+    },
+    {
+      "case": "pin_drift",
+      "outcome": 1,
+      "adds": 0,
+      "commits": 0,
+      "npmCalls": 0,
+      "error": "Source changed: lib/[synthetic]/sample.ts",
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current"
+      ],
+      "ownerRecord": false
+    },
+    {
+      "case": "wrong_head",
+      "outcome": 1,
+      "adds": 0,
+      "commits": 0,
+      "npmCalls": 0,
+      "error": "Unexpected HEAD; preserve the tree and obtain a new package.",
+      "calls": [
+        "git rev-parse HEAD"
+      ],
+      "ownerRecord": false
+    },
+    {
+      "case": "resume_staged",
+      "outcome": 0,
+      "adds": 0,
+      "commits": 1,
+      "npmCalls": 1,
+      "error": null,
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current",
+        "git diff --cached --name-only",
+        "git diff --name-only -- lib/[synthetic]/sample.ts REPORT.md",
+        "git diff --name-only f4dd9d46c35b871d02934a577cb4490fd0073b6c",
+        "git ls-files --others --exclude-standard -- app lib backend scripts",
+        "git diff --check",
+        "git diff --cached --check",
+        "git apply --reverse --check _review/engine-site-launch/m14-qa-r2-fixes/CHANGES.patch",
+        "node node_modules/typescript/bin/tsc --noEmit",
+        "node node_modules/vitest/vitest.mjs run synthetic.spec.ts",
+        "node _review/engine-site-launch/m14-qa-r2-fixes/verify-production-hotfix.cjs",
+        "npm.cmd run check",
+        "git diff --cached --name-only",
+        "git diff --cached --check",
+        "git commit --file _review/engine-site-launch/m14-qa-r2-fixes/COMMIT-MESSAGE.txt",
+        "git rev-parse HEAD",
+        "git status --short --branch --untracked-files=no"
+      ],
+      "ownerRecord": true
+    },
+    {
+      "case": "resume_index_drift",
+      "outcome": 1,
+      "adds": 0,
+      "commits": 0,
+      "npmCalls": 0,
+      "error": "Staged bytes differ from pinned working bytes.",
+      "calls": [
+        "git rev-parse HEAD",
+        "git branch --show-current",
+        "git diff --cached --name-only",
+        "git diff --name-only -- lib/[synthetic]/sample.ts REPORT.md"
+      ],
+      "ownerRecord": false
+    }
+  ]
+}

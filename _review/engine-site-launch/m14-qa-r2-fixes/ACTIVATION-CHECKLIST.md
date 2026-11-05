@@ -1,0 +1,33 @@
+STATUS: M14 ACTIVATION CHECKLIST DONE
+HEAD: f4dd9d46c35b871d02934a577cb4490fd0073b6c
+Summary 1/5: This checklist prepares later qualification; it does not grant a paid call, SQL/live query, deployment or public launch.
+Summary 2/5: Final launch product stays LOW,59ILS inclusive, cover+8story pages+narration+PDF, identity0.70 and unchanged attempt/re-ask/meter gates.
+Summary 3/5: Owner recovery/commit and independent whole-surface re-gate are prerequisites; actual runtime and complete-book provider proof remain separate.
+Summary 4/5: The prepared privacy setup/query now cover the authentication/payment authority as well as direct child-bearing tables.
+Summary 5/5: Every intake/checkout/runtime flag remains default-off. No real key/.env/provider/customer/service or other-worktree action occurred.
+Guy decisions: Protected target/infrastructure authority, explicit bounded LOW paid GO, first-book eye approval, retention/legal and launch acceptance remain Guy's. No settled product choice is reopened.
+
+## Guy / infrastructure owner
+
+- Choose a protected target bound to the final actual owner commit. Web and the long executor must use matching intended DB/Storage and policy/source revision, credentials supplied only as deployment environment variables, and the approved model/voice/sender/payment/cron access. Never place credentials in chat/source/reports or create a local .env workaround.
+- Review PRIVATE-DATABASE-SETUP.sql and LIVE-PRIVATE-PRIVILEGES-READONLY.sql. Neither was run against a service. Before a paid test involving a real child photo, an authorized infra owner must run the prepared catalog query on the verified target and inspect all9 rows. Runtime requires RLS and no anon/authenticated table or column privilege on WizardSession,Order,GenerationJob,UserSession,OtpCode,UserAccount,Customer,PaymentRecord,PaymeWebhookEvent. Keep M08's private bucket and restrictive Storage policy, and prove actual anonymous/cross-parent denial. PGlite/code evidence does not establish live privileges, views/functions or account configuration.
+- Reject host/hostaddr overrides when binding the database DSN to Storage. Confirm real project identity without printing keys. Applying/reviewing SQL, running the live query and any infrastructure writes remain separately authorized actions.
+- For payments, retain a sanitized REAL sandbox get-sales fixture with field names/types/status/order/agorot/currency. Exercise lost checkout reply, expiry+5minute renewal, late old capture, signed callback, redirect, dedupe and refund in the approved target. The45minute sale expiration field remains account qualification; even if an old sale remains capturable, its id is retained and a verified late capture has its own liability.
+- Before shipping the separate production hotfix, confirm from authorized production logs that the webhook marks payments paid. This task neither read those logs nor applied the patch. Optional historical queryPaymeSale tightening is excluded from the minimal production patch and remains listed.
+- Give a separate paid GO with exact source/environment, maximum USD/calls, actor/time/reference. There is no default cap/approval. The existing USD10 proposal and larger worst-case reserve envelope remain proposals/limits; a failed/refunded book still consumes generation cost. MEDIUM measurement stays cancelled.
+- Configure the authenticated operator allowlist. Infrastructure holds are visible at the existing review URL before a book exists. Resume is an audited command only when there is no unsettled/failed/unknown meter state and current authority matches; fail uses the existing terminal/refund path. It does not clear UNKNOWN reserves or retry a paid POST. Repeated signed paid-proof refusal is an operator-required exception, resolved automatically only after independent proof succeeds.
+
+## Engineering qualification
+
+- Run the M14 recovery and obtain the actual commit from OWNER-COMMIT.json. Claude Code re-gates the entire relevant6a223a28..actual M14 commit surface, not only this diff; valid findings require another separate fix/re-gate.
+- Finish a complete positive production recipe/readmission composition. Lifecycle fixtures inject admitted frames and raw-admission tests isolate reconstruction; they are not a real generated book or full joined proof.
+- Qualify Linux build/NFT traces, bundle size, fonts/Sharp/Pango, ffmpeg/ffprobe/styles/sheets and the protected long host. Runtime tests use Next's actual contains matcher, real on-disk files through the Windows junction, and deployment-style POSIX paths. They do not produce a deployed bundle or a Linux execution proof. The broad generation exclusion also affected existing legacy media/video consumers; M14 changes their tracing only.
+- Prove authenticated desktop/mobile wizard, large phone image/fallback, status, reader, narration seeking, PDF, policy review, private/cross-owner denials, cron, delivery and refund behavior in the protected target. First internal paid measurement can use a fictional child without a real photo.
+- The long host skips foreign source revisions, including its pre-invocation backstop; web-owned backstop handles incompatible revisions. Execution uses4hours without recorded settled-call/completed-step progress and an absolute24hours from job creation. Heartbeats/polls do not renew progress. Review/operator holds are not automatically commandeered; operator resume retains the original bounds and all budget receipts.
+- After paid GO, measure the actual complete LOW book cost/runtime and have Guy review the first book before delivery. Keep checkout/intake/provider flags off until complete activation prerequisites hold.
+
+## Before public launch
+
+Company number/address, hello@ mailbox and sender authentication, cancellation/customer promise/legal sign-off, retention/deletion policy and product/visual/launch acceptance remain Guy's. Engineering must implement/prove private lifecycle cleanup after that policy is settled; no schedule is invented. Personal one-paragraph pre-wrap needs visual acceptance. Opaque hash paths in signed redirects and the unused offline native-image-plan foundation remain documented deferrals. Bulk sealed-asset re-downloads during review are also retained pending a storage-immutability/version proof; substituting mutable metadata for exact-byte checks without that proof would reduce integrity.
+
+Reference: [Supabase API security](https://supabase.com/docs/guides/api/securing-your-api) distinguishes grants and RLS. The [current changelog](https://supabase.com/changelog) was checked; its Nov4 CLI target/confirmation change does not apply because no CLI, remote query or service mutation was run here.

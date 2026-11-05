@@ -39,6 +39,13 @@ export async function engineTestDb() {
     CREATE TABLE "PaymeWebhookEvent"(id text PRIMARY KEY,"paymeTransactionId" text UNIQUE,"eventType" text,"orderId" text);
     CREATE TABLE "PaymentRecord"(id text PRIMARY KEY,"orderId" text UNIQUE,provider text,paid boolean,"paidAt" timestamptz,amount int,currency text,raw jsonb);
     ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY; ALTER TABLE "GenerationJob" ENABLE ROW LEVEL SECURITY;
+    CREATE TABLE "UserSession"(id text PRIMARY KEY,"userId" text,"tokenHash" text);
+    CREATE TABLE "OtpCode"(id text PRIMARY KEY,code text);
+    CREATE TABLE "UserAccount"(id text PRIMARY KEY,email text);
+    CREATE TABLE "Customer"(id text PRIMARY KEY,email text);
+    ALTER TABLE "UserSession" ENABLE ROW LEVEL SECURITY; ALTER TABLE "OtpCode" ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE "UserAccount" ENABLE ROW LEVEL SECURITY; ALTER TABLE "Customer" ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE "PaymentRecord" ENABLE ROW LEVEL SECURITY; ALTER TABLE "PaymeWebhookEvent" ENABLE ROW LEVEL SECURITY;
   `);
   const jsonColumns = new Set(['data', 'pipelineCache', 'visualPackageAuthority', 'result', 'evidence', 'payload', 'resolution', 'metadata', 'raw', 'paymeMetadata']);
   function adapter(q: Pick<Transaction, 'query'>) {
@@ -46,13 +53,16 @@ export async function engineTestDb() {
     const params = () => { const values: unknown[] = []; return { values, param: (v: unknown) => { values.push(v); return `$${values.length}`; } }; };
     function whereSql(where: Record<string, any> = {}, param: (v: unknown) => string, table?: string): string {
       return Object.entries(where).filter(([, v]) => v !== undefined).map(([key, value]) => {
-        if (key === 'order' && table === 'GenerationJob') return `\"orderId\" IN (SELECT id FROM \"Order\" WHERE ${whereSql(value.is ?? value, param)})`;
+        if (key === 'order' && ['GenerationJob','DeliveryOutbox','ExceptionCase'].includes(table ?? '')) return `\"orderId\" IN (SELECT id FROM \"Order\" WHERE ${whereSql(value.is ?? value, param)})`;
         if (key === 'generationJob' && table === 'Order' && value?.is === null) return '\"id\" NOT IN (SELECT \"orderId\" FROM \"GenerationJob\")';
         if (key === 'orderId_scope') return whereSql(value, param);
         if (key === 'AND' || key === 'OR') return `(${(Array.isArray(value) ? value : [value]).map(v => whereSql(v, param, table)).join(` ${key} `)})`;
         if (key === 'NOT') return `NOT (${whereSql(value, param, table)})`;
         if (value === null) return `"${key}" IS NULL`;
         if (value && typeof value === 'object' && !(value instanceof Date)) {
+          if (value.equals === Prisma.DbNull) return `"${key}" IS NULL`;
+          if (typeof value.startsWith === 'string') return `"${key}" LIKE ${param(value.startsWith + '%')}`;
+          if (value.not && typeof value.not === 'object') return `NOT (${whereSql({[key]:value.not},param,table)})`;
           if ('in' in value) return `"${key}"=ANY(${param(value.in)}::text[])`;
           if ('notIn' in value) return `NOT("${key}"=ANY(${param(value.notIn)}::text[]))`;
           for (const [op, sql] of [['lt','<'],['lte','<='],['gt','>'],['gte','>='],['not','<>'],['equals','=']])

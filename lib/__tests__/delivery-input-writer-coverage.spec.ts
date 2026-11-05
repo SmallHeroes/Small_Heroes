@@ -317,6 +317,12 @@ function isOrderCreationException(site: WriterSite): boolean {
  * cannot enter the legacy barrier or overwrite a bank book. SQL falsification lives in engine-site specs.
  * Pin both shape and the actual guards: this is not a directory-wide writer exception. */
 const ENGINE_AUTHORITY_WRITERS: Record<string, { signatures: readonly string[]; guards: readonly string[] }> = {
+  'lib/engine-site/infrastructure-review.ts': { signatures: [
+    'generationJob.update[currentStage,lastError,leaseExpiresAt,lockedBy,pipelineCache,retryable,status]',
+    'generationJob.update[currentStage,pipelineCache]',
+  ], guards: ['await runAtomicOperation(db', 'await lockEngineOrder(tx,orderId)', 'current.holdSha256!==command.expectedHoldSha256',
+    'current.receiptSha256!==before.receiptSha256', "command.action==='resume'&&!canResume", 'await failEngineOrder(db,orderId',
+    "deliveryHoldReason!=='engine_site_hold:infrastructure'"] },
   'lib/engine-site/personal-orders.ts': { signatures: [
     'order.create[addonsPrice,audioEnabled,avoidItems,basePrice,bundleEnabled,challengeItems,childAge,childGender,childImageUrl,childName,childTraits,customerEmail,customerName,expectedPageCount,frozenProductVersion,helperItems,illustrationStyle,outcomeItems,pdfEnabled,selectedVoice,selectionFilename,status,storyDirection,storyLength,storySourceHash,topic,totalPrice,userId,videoEnabled,wizardSessionId]',
   ], guards: ['assertEnginePrivateDatabase(tx)', 'FOR UPDATE', 'frozenProductVersion: ENGINE_SITE_PROTOCOL', 'storySourceHash: inputSha256', 'wizardSessionId: session.id'] },

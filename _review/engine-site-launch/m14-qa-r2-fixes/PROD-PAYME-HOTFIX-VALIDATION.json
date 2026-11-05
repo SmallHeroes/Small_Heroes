@@ -1,0 +1,111 @@
+{
+  "mode": "synthetic VM transports and copied-baseline dry-run only",
+  "historicalM13": false,
+  "productionHead": "ed1da86cc114a767dc1086b71a30a4ef4595c097",
+  "passed": 17,
+  "failed": 0,
+  "results": [
+    {
+      "name": "exact",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "foreign_sale",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "foreign_order",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "amount",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "currency",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "root_fallback",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "duplicates",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "string_amount",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "integer_decimal_string",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "lowercase_currency",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "alternate_currency",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "fractional_amount",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "invalid_amount",
+      "passed": true,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "truncated_order",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "production_return_ignores_query",
+      "passed": true,
+      "transitions": 1,
+      "triggers": 1
+    },
+    {
+      "name": "production_return_refuses_foreign_proof",
+      "passed": true,
+      "transitions": 0,
+      "triggers": 0
+    },
+    {
+      "name": "failed_return_cannot_revive",
+      "passed": true,
+      "transitions": 0,
+      "triggers": 0
+    }
+  ]
+}

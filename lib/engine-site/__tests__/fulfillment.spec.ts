@@ -57,6 +57,34 @@ async function setup() {
   return { ...s, c, ports, command, reconcile, context, claim, send, deliver };
 }
 describe('personal automatic path + audited launch gate + existing readiness/outbox/refund (synthetic only)', () => {
+  it('R2 P3 a revoked personal outbox cannot reopen a refunded case after the notice window',async()=>{
+    const s=await setup(),p=await readEngineLaunchPolicy(s.db);
+    await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(p),idempotencyKey:'r2_refunded_off',mode:'off',reason:'Synthetic'},'synthetic_guy');
+    await s.reconcile();await failEngineOrder(s.db,'synthetic_order','engine_native_book_held');
+    const liability=(await s.db.exceptionCase.findFirst())!;
+    await s.db.exceptionCase.update({where:{id:liability.id},data:{status:'resolved',activeKey:null,resolution:{refundConfirmed:true},notificationMessageId:'synthetic_notice'}});
+    await syncTerminalExceptionCases(s.db,new Date(Date.now()+72*60*60_000));
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(1);
+  },120_000);
+  it('R2 P3 a policy flip during an authorized in-flight send cannot re-gate its immutable manifest',async()=>{
+    const s=await setup(),p=await readEngineLaunchPolicy(s.db);
+    const off=await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(p),idempotencyKey:'r2_inflight_off',mode:'off',reason:'Synthetic'},'synthetic_guy');
+    await s.reconcile();const row=await s.claim(),original=row.manifestId;
+    let complete!:(value:{providerMessageId:string})=>void,started!:()=>void;
+    const begun=new Promise<void>(resolve=>{started=resolve;});
+    const sending=processDelivery(s.db,row,{send:async()=>{started();return new Promise(resolve=>{complete=resolve;});},
+      cas:(r,token,expiry,now)=>casEngineClaimSendSlot(s.db,r,token,expiry,now,s.ports)});
+    await begun;
+    try {
+      await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(off),idempotencyKey:'r2_inflight_on',mode:'required',reason:'Synthetic'},'synthetic_guy');
+      const read=vi.spyOn(s.storage,'read');read.mockClear();
+      await s.reconcile();
+      expect(read).not.toHaveBeenCalled();
+      expect((await s.db.order.findUnique({where:{id:'synthetic_order'}}))!.status).toBe('ready');
+      expect((await s.db.bookReadiness.findFirst())!.currentManifestId).toBe(original);
+    }finally{complete({providerMessageId:'synthetic_inflight'});await sending;}
+    expect(await readEngineFamilyReady(s.db,await s.context())).toBe(true);
+  },120_000);
   it('P3 an expired ambiguous email behind a closed gate parks for an operator and leaves the automatic claim queue',async()=>{
     const s=await setup(),p=await readEngineLaunchPolicy(s.db);
     const off=await changeEngineLaunchPolicy(s.db,{expectedPolicySha256:policyDigest(p),idempotencyKey:'p3_off',mode:'off',reason:'Synthetic'},'synthetic_guy');
@@ -126,7 +154,7 @@ describe('personal automatic path + audited launch gate + existing readiness/out
     time.mockReturnValue(base+240_000);
     expect(await recoverEnginePaidJob(s.db,'synthetic_order',start,kick)).toMatchObject({status:'operator_reconciliation_required'});
     expect((await s.db.order.findUnique({where:{id:'synthetic_order'}}))!.deliveryHoldReason).toBe('engine_site_hold:infrastructure');
-    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);expect(kick).not.toHaveBeenCalled();
+    expect((await s.db.exceptionCase.findFirst())!.resolution).toMatchObject({operatorRequired:true});expect(kick).not.toHaveBeenCalled();
   });
   it('Q6 a delivered book remains readable after a global review policy flip, including PDF and status', async () => {
     const s = await setup(); await s.reconcile();

@@ -21,6 +21,20 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('Q1 actual PayMe verifier and redirect, synthetic HTTP only', () => {
+  it.each([{sale_price:'5900'},{sale_currency:'ils'},{sale_currency:undefined,currency:'ILS'}])(
+    'R2-7 normalizes exact provider types without relaxing binding %j',async change=>{
+      m.fetch.mockResolvedValueOnce(new Response(JSON.stringify({items:[{...sale(),...change}]})));
+      expect(await verify()).toMatchObject({verified:true,status:'paid'});
+    });
+  it('R2-7 compares the exact truncated generate-sale order reference',async()=>{
+    const orderId='synthetic_'+ 'a'.repeat(70);
+    m.fetch.mockResolvedValueOnce(new Response(JSON.stringify({items:[{...sale(),transaction_id:orderId.slice(0,50)}]})));
+    expect((await verifyPaymePayment({orderId,paymentId:'sale_server',amountAgorot:5900,currency:'ILS'})).verified).toBe(true);
+  });
+  it.each(['5900.01','5.9e3','5900oops',5900.5,null])('R2-7 rejects fractional/ambiguous money %j',async value=>{
+    m.fetch.mockResolvedValueOnce(new Response(JSON.stringify({items:[{...sale(),sale_price:value}]})));
+    expect((await verify()).verified).toBe(false);
+  });
   it('Q1 refund reconciliation also refuses another sale or the root fallback', async () => {
     m.fetch.mockResolvedValueOnce(new Response(JSON.stringify({items:[{...sale(),sale_payme_id:'other'}]})));
     await expect(queryPaymeSale('sale_server')).rejects.toThrow('binding');

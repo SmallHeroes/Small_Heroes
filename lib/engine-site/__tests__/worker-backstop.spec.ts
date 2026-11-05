@@ -32,6 +32,16 @@ async function setup() {
   return s;
 }
 describe('Q8 real sweep and long-host loop, synthetic database/transports', () => {
+  it('R2-9 an older long host skips a newer authorized order before invoking its backstop',async()=>{
+    for(const [k,v] of Object.entries(syntheticEngineActivationEnv()))vi.stubEnv(k,v);
+    const s=await engineTestDb();stores.push(s);m.db=s.db;
+    const newer={...JSON.parse(syntheticEngineActivationEnv().ENGINE_SITE_SPEND_POLICY!),sourceRevision:'b'.repeat(40)};
+    await startEnginePersonalJob(s.db,'synthetic_order',newer);
+    await s.db.generationJob.update({where:{orderId:'synthetic_order'},data:{currentStage:'engine_site_long'}});
+    await engineLongWorkerMain(true);
+    expect((await s.db.order.findUnique({where:{id:'synthetic_order'}}))!.status).toBe('generating');
+    expect(await s.db.exceptionCase.findMany()).toHaveLength(0);expect(m.run).not.toHaveBeenCalled();
+  });
   it('a long-stage job has a deadline backstop in the sweeper, with engine readiness and exactly one liability', async () => {
     const s = await setup(); await s.pg.exec(`UPDATE "GenerationJob" SET "currentStage"='engine_site_long', "createdAt"=now()-interval '1 day'`);
     await sweepStaleGenerationJobs();

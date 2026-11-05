@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { assertEnginePolicyCurrent, configuredEngineSpendPolicy } from './platform-policy';
 import { productionEnginePrivateStorage } from './private-storage';
 import { loadEngineOrderSnapshot, startEnginePersonalJob } from './personal-jobs';
-import { runEngineDurableInvocation, type EngineRuntime } from './durable-worker';
+import { runEngineDurableInvocation, parseEngineCheckpoint, type EngineRuntime } from './durable-worker';
 import { createEngineNativeRecipe } from './native-recipe';
 import { engineSiteFail } from './contract';
 import { createEngineMaterializer } from './materialize';
@@ -15,7 +15,10 @@ export async function startProductionPersonalJob(db: PrismaClient, orderId: stri
 export async function runProductionPersonalWorker(db: PrismaClient, orderId: string, executor: 'chunk' | 'long' = 'chunk',
   finishing?: { materialize: (r: EngineRuntime) => Promise<void>; accept: (r: EngineRuntime) => Promise<void> }) {
   // Admission before storage construction or deferred credential access. No .env/file-based key fallback.
-  configuredEngineSpendPolicy();
+  const policy = configuredEngineSpendPolicy();
+  const job = await db.generationJob.findUnique({where:{orderId}});
+  if(job && parseEngineCheckpoint(job.pipelineCache).authority.sourceRevision !== policy.sourceRevision)
+    return {kind:'skipped' as const,code:'engine_executor_revision_mismatch'};
   const loaded = await loadEngineOrderSnapshot(db, orderId), storage = productionEnginePrivateStorage();
   const key = (name: 'OPENAI_API_KEY' | 'ANTHROPIC_API_KEY') => {
     const value = process.env[name]; if (!value || /\s/.test(value)) engineSiteFail('engine_provider_credential_unavailable'); return value;
