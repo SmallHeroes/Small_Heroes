@@ -8,16 +8,8 @@ import type { GenerateGPTImageInput, BookDesignReferenceRole } from '@/lib/gener
 import { canonicalJson } from '@/lib/personal-wizard/request-acceptance';
 import { normalizeText, type ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
 import type { PersonalWizardOptions } from '@/lib/personal-wizard/options';
-import { prepareSimpleStory, writeSimpleStory } from '@/lib/personal-wizard/simple-story-engine';
-import { SIMPLE_CHILD_MOMENTUM_EXPERIENCE } from '@/lib/personal-wizard/simple-story-experience';
-import { SIMPLE_WRITING_ROLES } from '@/lib/personal-wizard/simple-writing-roles';
-import { simpleStoryReadingPackets, simpleStoryFindingIsMaterial } from '@/lib/personal-wizard/simple-story-source';
-import { causalSourceReviewPacket, compileCausalSourceReadingWithCorrection } from '@/lib/personal-wizard/story-causal-experiment';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, type PersonalStoryboard } from '@/lib/personal-wizard/storyboard';
-import { runSimpleStoryboardDiagnostic } from '@/lib/personal-wizard/simple-storyboard-diagnostic';
-import { personalBookProviderPayload, decodePersonalBookProviderOutput } from '@/lib/personal-wizard/book-openai';
 import { PREPARATION_CONTRACTS } from '@/lib/personal-wizard/source-preparation-contracts';
-import { STORYBOARD_REVIEW_CAPACITY } from '@/lib/personal-wizard/storyboard-review-capacity';
 import { deriveExistingChildAppearance, admitExistingChildAppearance, existingChildAppearanceData, type ExistingChildAppearance } from '@/lib/personal-wizard/existing-child-appearance';
 import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_ANCHOR_POSE_VERSION,
   childAnchorInspectionContext, CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorInspectionContextSha,
@@ -34,18 +26,18 @@ import { NATIVE_BOOK_FRAMES } from '@/lib/personal-wizard/native-page-proof';
 import type { AuditionImage } from '@/lib/personal-wizard/simple-book-illustrations';
 import { evaluatePageChildResemblanceVision, planPageChildResemblanceVisionRequest, PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD } from '@/lib/generation-pipeline/page-child-resemblance-vision';
 import { auditionUsageCost } from '@/scripts/personal-simple-book-illustrator';
-import { prepareSolWritingWire } from '@/scripts/personal-sol-writing-transport';
 import { READER_PORTRAIT_FRAMING_VERSION } from '@/lib/storybook-scene-framing';
 import { canonicalHash } from '@/lib/canonical-json';
 import { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 import { engineSiteFail } from './contract';
 import { loadEnginePrivateAsset, readEnginePrivateBytes, assetBytesSha256, type EnginePrivateAsset } from './private-assets';
-import { createEngineStoryApiSource, simpleAnthropicDispatch } from './story-api-source';
-import { prepareEngineAnthropic, prepareEngineImage, prepareEngineResponse, type EngineProviderPorts } from './provider-plans';
+import { prepareEngineImage, prepareEngineResponse, type EngineProviderPorts } from './provider-plans';
 import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durable-worker';
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
+import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,type AdmittedEngineInitialPreparation } from './story-preparation';
+import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
 const dataURL = engineImageDataUrl;
@@ -53,10 +45,9 @@ const supported = (status: string) => ['review_supported', 'review_supported_wit
 type OrderSnapshot = { ownerId: string; request: ReviewedPersonalBookRequest; options: PersonalWizardOptions;
   appearance: { kind: 'description'; description: string } | { kind: 'private_photo'; assetId: string };
   photoBytes?: { sha256: string; bytes: number } };
-type BoardResult = Awaited<ReturnType<typeof runSimpleStoryboardDiagnostic>>;
-function restoreBoard(snapshot: OrderSnapshot, sourceResult: unknown, rawDraft: unknown, rawReview: unknown, existing?: ExistingChildAppearance) {
+function restoreBoard(snapshot: OrderSnapshot, sourceResult: unknown, rawDraft: unknown, rawReview: unknown, existing?: ExistingChildAppearance,repair?:StoryboardRepair) {
   const source = prepareCurrentPersonalStoryboard(snapshot.request, sourceResult, snapshot.options,
-    true, true, true, undefined, true, true, undefined, true, true, true, true, true, true, true, true, true,
+    true, true, true, undefined, true, true, repair, true, true, true, true, true, true, true, true, true,
     PREPARATION_CONTRACTS.engineContinuity, existing);
   const book = compilePersonalStoryboard(source, rawDraft, { selfCheckNames: true, stagingFields: true, selfCheckSourceSpans: true });
   if (!supported(storyboardReviewDisposition(book, rawReview).disposition)) engineSiteFail('engine_storyboard_held');
@@ -70,10 +61,10 @@ async function fiveViews(bytes: Buffer) {
 
 /** Production glue for the existing simple story/source/compiler/native loops. No local grants, directories or CLI. */
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
-  snapshot: OrderSnapshot; materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
+  snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
+  materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
   return async runtime => {
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
-    const seed = `engine-site-${authority.orderId}`;
     if (canonicalHash(ENGINE_SITE_LAUNCH_OFFER) !== authority.offer.revisionSha256 || snapshot.ownerId !== runtime.checkpoint.ownerId)
       engineSiteFail('engine_recipe_binding_changed');
     const pool = new Map<string, Buffer>();
@@ -127,50 +118,16 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     };
     let prepared: any = await runtime.load('prepared_source');
     if (!prepared) {
-      const simple = prepareSimpleStory(snapshot.request, snapshot.options, seed, SIMPLE_CHILD_MOMENTUM_EXPERIENCE);
-      const records = {} as Record<'author' | 'editor', EngineProviderResult>;
-      const generated = await writeSimpleStory(simple, async call => {
-        const answer = await runtime.call(call.stage === 'author'
-          ? prepareEngineAnthropic(authority, simpleAnthropicDispatch(call, authority.orderId), ports)
-          : prepareEngineResponse(authority, 'story_editor', prepareSolWritingWire(call).payload, x => call.schema.parse(x), ports));
-        if (!answer.usage || answer.estimatedMicroUsd === null) engineSiteFail('engine_story_usage_unknown');
-        records[call.stage] = answer;
-        return { output: answer.output, usage: answer.usage, estimatedUsd: answer.estimatedMicroUsd / 1e6 };
-      }, { model: SIMPLE_WRITING_ROLES.label, reservedUsd: authority.budget.maximumMicroUsd / 1e6 });
-      const source = createEngineStoryApiSource(authority, snapshot.request, snapshot.options, seed, generated, records);
-      const readings = [], packets = simpleStoryReadingPackets(snapshot.request, source, snapshot.options);
-      for (const stage of ['final_review', 'comparison'] as const) {
-        const numbered = causalSourceReviewPacket(packets[stage === 'final_review' ? 'final' : 'comparison']);
-        const body = { model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' },
-          instructions: numbered.instructions, input: canonicalJson({ packetDigest: numbered.packetDigest, packet: numbered.packet }),
-          max_output_tokens: 16_000, text: { format: zodTextFormat(numbered.schema, 'engine_story_reading') } };
-        const answer = await runtime.call(prepareEngineResponse(authority, `story_${stage}`, body, x => x, ports));
-        const checked = await compileCausalSourceReadingWithCorrection(packets[stage === 'final_review' ? 'final' : 'comparison'], answer.output,
-          async correction => (await runtime.call(prepareEngineResponse(authority, `story_${stage}_citation`, {
-            model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' },
-            instructions: correction.instructions, input: correction.input, max_output_tokens: correction.maxOutputTokens,
-            text: { format: zodTextFormat(correction.schema, 'engine_story_citation_correction') },
-          }, x => x, ports))).output);
-        readings.push(checked.reading);
+      if(args.initialPreparation)assertEngineInitialPreparation(args.initialPreparation,authority,runtime.checkpoint);
+      const {source,readings}=args.initialPreparation??await prepareEngineStorySource(runtime,snapshot,ports);
+      let initial=args.initialPreparation?.initial??await prepareEngineStoryboard(runtime,snapshot,source,ports,'initial');
+      let initialRepair:StoryboardRepair|undefined;
+      if(!engineStoryboardSupported(initial.diagnostic.status)&&args.initialPreparation){
+        initialRepair={parentStoryboardDigest:initial.diagnostic.storyboardDigest,draft:initial.draft,review:initial.diagnostic.rawReview,
+          parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
+        initial=await prepareEngineStoryboard(runtime,snapshot,source,ports,'initial_repair_1',undefined,initialRepair);
       }
-      if (readings.some(reading => reading.findings.some(simpleStoryFindingIsMaterial))) engineSiteFail('engine_story_reading_held');
-      const board = async (prefix: 'initial' | 'prep', existingChildAppearance?: ExistingChildAppearance) => {
-        let draft: unknown = null;
-        const diagnostic = await runSimpleStoryboardDiagnostic({ request: snapshot.request, writerResult: source,
-          options: snapshot.options, signal: runtime.signal, ...PREPARATION_CONTRACTS, existingChildAppearance,
-          reviewCapacity: STORYBOARD_REVIEW_CAPACITY.version,
-          generate: async call => {
-            const body = call.stage === 'storyboard' ? prepareSolWritingWire(call).payload : personalBookProviderPayload(call, 'gpt-6.1-sol');
-            const step = prefix === 'initial' ? (call.stage === 'storyboard' ? 'initial_storyboard' : 'initial_storyboard_review')
-              : (call.stage === 'storyboard' ? 'prep_storyboard_0' : 'prep_storyboard_0_review');
-            const answer = await runtime.call(prepareEngineResponse(authority, step, body, x => decodePersonalBookProviderOutput(call, x), ports));
-            if (call.stage === 'storyboard') draft = answer.output;
-            return answer.output;
-          } });
-        if (!supported(diagnostic.status)) engineSiteFail('engine_storyboard_held');
-        return { diagnostic, draft };
-      };
-      const initial = await board('initial');
+      if(!engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_storyboard_held');
       let design: string;
       let photo: { image: AuditionImage; asset: EnginePrivateAsset } | null = null;
       if (snapshot.appearance.kind === 'private_photo') {
@@ -221,11 +178,12 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       const existing = deriveExistingChildAppearance({ requestId: source.requestId, sourceDigest: initial.diagnostic.sourceDigest,
         storyboardDigest: initial.diagnostic.storyboardDigest, clothing }, { age: childData.age, gender: childData.gender,
         design, acceptance: context.version, pose: CHILD_ANCHOR_POSE_VERSION }, adoption, anchor.candidate.imageSha);
-      const final = await board('prep', existing);
+      const final = await prepareEngineStoryboard(runtime,snapshot,source,ports,'prep',existing);
+      if(!engineStoryboardSupported(final.diagnostic.status))engineSiteFail('engine_storyboard_held');
       const companion = companionIdentityReference(snapshot.request.companion.id);
       const companionImage = { imageName: 'reference_companion.png', imageSha: companion.sha256 };
       const companionBytes = readFileSync(companion.file); put(companionImage, companionBytes);
-      prepared = { source, readings, initialDraft: initial.draft, initialReview: initial.diagnostic.rawReview,
+      prepared = { source, readings, ...(initialRepair?{initialRepair}:{}), initialDraft: initial.draft, initialReview: initial.diagnostic.rawReview,
         draft: final.draft, review: final.diagnostic.rawReview, sourceDigest: final.diagnostic.sourceDigest,
         storyboardDigest: final.diagnostic.storyboardDigest, appearance: existingChildAppearanceData(existing), adoption,
         child: anchor.candidate, childB64: bytesOf(anchor.candidate).toString('base64'),
@@ -234,7 +192,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     }
     const child = put(prepared.child, Buffer.from(prepared.childB64, 'base64'));
     const companion = put(prepared.companion, Buffer.from(prepared.companionB64, 'base64'));
-    const initial = restoreBoard(snapshot, prepared.source, prepared.initialDraft, prepared.initialReview);
+    const initial = restoreBoard(snapshot, prepared.source, prepared.initialDraft, prepared.initialReview,undefined,prepared.initialRepair);
     const appearance = admitExistingChildAppearance(prepared.appearance, prepared.adoption, child.imageSha);
     if (appearance.originalSourceDigest !== initial.book.sourceDigest || appearance.originalStoryboardDigest !== initial.book.storyboardDigest ||
         canonicalJson(appearance.child.clothing) !== canonicalJson(initial.book.plan.actorAppearance!.child.clothing)) engineSiteFail('engine_child_origin_changed');

@@ -13,18 +13,25 @@ const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 type Claim={version:'engine-local-claim/v1';authoritySha256:string;call:PreparedEngineCall['call'];requestAssetId:string;deadlineAt:number};
 type Settlement={version:'engine-local-result/v1';claimSha256:string;assetId:string;assetSha256:string;result:EngineProviderResult};
 type Poll={id:string;raw:unknown;at:number};
+export type LocalTrialCarry={accountedMicroUsd:number;logicalCalls:number;evidenceSha256:string};
 export class LocalEngineTrialRuntime implements EngineRuntime {
  readonly checkpoint:EngineCheckpoint;
  readonly signal:AbortSignal;
  private readonly root:string;
+ private readonly carried:Readonly<LocalTrialCarry>|null;
  private busy=false;
  constructor(private readonly options:{root:string;authority:EngineOrderAuthority;ownerId:string;draftId:string;snapshotSha256:string;
-   assertCurrent:()=>void|Promise<void>;signal?:AbortSignal;now?:()=>number;pause?:(ms:number)=>Promise<void>}){
+   assertCurrent:()=>void|Promise<void>;carried?:LocalTrialCarry;signal?:AbortSignal;now?:()=>number;pause?:(ms:number)=>Promise<void>}){
   const a=engineOrderAuthoritySchema.parse(options.authority);
+  this.carried=options.carried?Object.freeze({...options.carried}):null;
   if(a.purpose!=='test'||a.budget.maximumMicroUsd>10_000_000||a.budget.maximumCalls>121)engineSiteFail('local_trial_authority');
   this.root=path.resolve(options.root);mkdirSync(this.root,{recursive:true,mode:0o700});
   if(lstatSync(this.root).isSymbolicLink()||realpathSync(this.root)!==this.root)engineSiteFail('local_trial_path');
   for(const name of ['assets','calls']){const dir=path.join(this.root,name);mkdirSync(dir,{recursive:true,mode:0o700});if(lstatSync(dir).isSymbolicLink()||realpathSync(dir)!==dir)engineSiteFail('local_trial_path');}
+  if(this.carried){const c=this.carried;if(!Number.isSafeInteger(c.accountedMicroUsd)||c.accountedMicroUsd<0||c.accountedMicroUsd>a.budget.maximumMicroUsd||!Number.isSafeInteger(c.logicalCalls)||c.logicalCalls<1||c.logicalCalls>=a.budget.maximumCalls||!/^[a-f0-9]{64}$/.test(c.evidenceSha256))engineSiteFail('local_trial_carry_invalid');}
+  const carryFile=this.file('carry.json'),carry=this.carried;
+  if(existsSync(carryFile)){if(canonicalHash(this.read(carryFile))!==canonicalHash(carry))engineSiteFail('local_trial_carry_changed');}
+  else {if(existsSync(this.file('checkpoint.json'))&&carry)engineSiteFail('local_trial_carry_changed');this.exclusive(carryFile,carry);}
   this.signal=options.signal??new AbortController().signal;
   const state=this.file('checkpoint.json');
   this.checkpoint=existsSync(state)?parseEngineCheckpoint({engineSite:this.read(state)}):{
@@ -46,7 +53,8 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
  private async settled(step:string,claim:Claim):Promise<Settlement|null>{const file=this.callFile(step,'result.json');if(!existsSync(file))return null;
   const r=this.read(file) as Settlement,saved=await this.readJson(r.assetId);
   if(r.version!=='engine-local-result/v1'||r.claimSha256!==canonicalHash(claim)||r.assetSha256!==canonicalHash(saved)||saved.wireSha256!==claim.call.wireSha256||saved.completed!==true||canonicalHash(saved.result)!==canonicalHash(r.result))engineSiteFail('local_trial_result_changed');return r;}
- async meter(){let accountedMicroUsd=0,knownEstimateMicroUsd=0,pendingCalls=0,unknownCalls=0,failedCalls=0,overReservedCalls=0;
+ async meter(){if(canonicalHash(this.read(this.file('carry.json')))!==canonicalHash(this.carried))engineSiteFail('local_trial_carry_changed');
+  let accountedMicroUsd=this.carried?.accountedMicroUsd??0,knownEstimateMicroUsd=accountedMicroUsd,pendingCalls=0,unknownCalls=0,failedCalls=0,overReservedCalls=0;
   const steps=readdirSync(this.file('calls'));for(const step of steps){const claim=this.claim(step),r=await this.settled(step,claim);
    if(!r){accountedMicroUsd+=claim.call.maximumMicroUsd;pendingCalls++;}
    else if(r.result.estimatedMicroUsd===null){accountedMicroUsd+=claim.call.maximumMicroUsd;unknownCalls++;}
@@ -54,10 +62,12 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
    if(r?.result.usable===false)failedCalls++;
   }
   if(!Number.isSafeInteger(accountedMicroUsd))engineSiteFail('local_trial_meter_overflow');
-  return {accountedMicroUsd,knownEstimateMicroUsd,pendingCalls,unknownCalls,failedCalls,overReservedCalls,logicalCalls:steps.length,
-   blocked:unknownCalls>0||failedCalls>0||overReservedCalls>0||accountedMicroUsd>this.checkpoint.authority.budget.maximumMicroUsd||steps.length>this.checkpoint.authority.budget.maximumCalls,kind:'estimate_not_invoice' as const};
+  const logicalCalls=steps.length+(this.carried?.logicalCalls??0);
+  return {accountedMicroUsd,knownEstimateMicroUsd,pendingCalls,unknownCalls,failedCalls,overReservedCalls,logicalCalls,
+   ...(this.carried?{carriedMicroUsd:this.carried.accountedMicroUsd,carriedCalls:this.carried.logicalCalls}:{}),
+   blocked:unknownCalls>0||failedCalls>0||overReservedCalls>0||accountedMicroUsd>this.checkpoint.authority.budget.maximumMicroUsd||logicalCalls>this.checkpoint.authority.budget.maximumCalls,kind:'estimate_not_invoice' as const};
  }
- check(){if(this.signal.aborted)engineSiteFail('local_trial_cancelled');}
+ readonly check=()=>{if(this.signal.aborted)engineSiteFail('local_trial_cancelled');};
  async result(step:string){const claim=this.claim(step),r=await this.settled(step,claim);if(!r||r.result.estimatedMicroUsd===null||r.result.usable===false)engineSiteFail('local_trial_result_unavailable');return r.result;}
  async load(name:string){identifierSchema.parse(name);return this.checkpoint.outputs[name]?this.readJson(this.checkpoint.outputs[name]):null;}
  async save(name:string,value:unknown){identifierSchema.parse(name);this.check();await this.options.assertCurrent();const old=await this.load(name);if(old!==null&&canonicalHash(old)===canonicalHash(value))return;this.checkpoint.outputs[name]=this.blob(value);this.persist();}

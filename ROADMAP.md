@@ -1,5 +1,11 @@
 > 2026-11-05 M18: verified R4 HOLD; general R4-1 stable staging alias, R4-3 global dispatch preflight/no order mutation, R4-2 precise proof notices/all-sale cleanup/nonblocking review/audited dismiss are implemented for manual re-gate. Final1267/1267/73 files and bothTS0; actual Linux build/check/native media0. M17 Windows build is baseline, not a new M18 claim. Archived native ENOENT recovery and prepared drain/long-host/inbox instructions included. Independent QA, actual Vercel/private target/browser/paid/product/launch qualification remain separate. USD0; no real env/key/service/SQL/book/server/push/deploy/automatic handoff. Package _review/engine-site-launch/m18-r4-corrections/.
 
+## M21 settled-HOLD recovery within the SAME one-book cap (2026-11-06)
+
+- M20 stopped correctly before images: one incomplete location population, six settled calls/628568 microUSD. Keep all parent bytes, text and failures. The existing model-repair contract was not connected to this API-native wrapper.
+- General local-only one-child continuation is implemented for validation: provider-free old-authority replay, cumulative cost/call carry, no old-slot repurchase/UNKNOWN/branching/recursive repair, one newly reviewed source repair. Full-wire120000 with1,200,000 reserve is separate from unchanged ordinary104000 Sol/production limits. Native callback signal binding is corrected.
+- Next: final relevant/TypeScript/adversarial/preservation gates, local focused commit and exact fresh continuation freeze, then only that same book inside TOTAL USD10/121. Existing spend leaves9371432/115; no reset or extra budget. Independent QA and actual visual/Reader/product acceptance remain pending. No new book, manual plan repair, public service/payment, push/deploy or automatic Claude dispatch.
+
 ## M20 one internal fictional-book trial — owner authorized, independent QA pending (2026-11-05)
 
 - Guy authorized Codex to finish ONE local fictional book, maxUSD10/121 logical paid calls, existing credentials, no real PayMe/public release. M19 committed locally at55d22e35; M20 adds a default-inactive file-backed operator using the same native recipe, raw readmission, LOW images, Dad narration and PDF.

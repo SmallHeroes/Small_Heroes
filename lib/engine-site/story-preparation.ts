@@ -1,0 +1,93 @@
+import 'server-only';
+import { zodTextFormat } from 'openai/helpers/zod';
+import { canonicalHash } from '@/lib/canonical-json';
+import { canonicalJson } from '@/lib/personal-wizard/request-acceptance';
+import type { ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
+import type { PersonalWizardOptions } from '@/lib/personal-wizard/options';
+import { prepareSimpleStory,writeSimpleStory } from '@/lib/personal-wizard/simple-story-engine';
+import { SIMPLE_CHILD_MOMENTUM_EXPERIENCE } from '@/lib/personal-wizard/simple-story-experience';
+import { SIMPLE_WRITING_ROLES } from '@/lib/personal-wizard/simple-writing-roles';
+import { simpleStoryReadingPackets,simpleStoryFindingIsMaterial } from '@/lib/personal-wizard/simple-story-source';
+import { causalSourceReviewPacket,compileCausalSourceReadingWithCorrection } from '@/lib/personal-wizard/story-causal-experiment';
+import { runSimpleStoryboardDiagnostic } from '@/lib/personal-wizard/simple-storyboard-diagnostic';
+import { personalBookProviderPayload,decodePersonalBookProviderOutput } from '@/lib/personal-wizard/book-openai';
+import { PREPARATION_CONTRACTS } from '@/lib/personal-wizard/source-preparation-contracts';
+import { STORYBOARD_REVIEW_CAPACITY } from '@/lib/personal-wizard/storyboard-review-capacity';
+import type { ExistingChildAppearance } from '@/lib/personal-wizard/existing-child-appearance';
+import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
+import { prepareSolWritingWire } from '@/scripts/personal-sol-writing-transport';
+import { createEngineStoryApiSource,simpleAnthropicDispatch } from './story-api-source';
+import { prepareEngineAnthropic,prepareEngineResponse,type EngineProviderPorts } from './provider-plans';
+import type { EngineRuntime,EngineProviderResult } from './durable-worker';
+import type { EngineOrderAuthority } from './contract';
+import { engineSiteFail } from './contract';
+import {compactSchemaDefinitions} from '@/scripts/personal-opus-storyboard-transport';
+import {LOCAL_INITIAL_REPAIR_WIRE_BYTES,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
+import type {SimpleStoryboardDiagnosticCall} from '@/lib/personal-wizard/simple-storyboard-diagnostic';
+
+export type StorySnapshot={request:ReviewedPersonalBookRequest;options:PersonalWizardOptions};
+export const engineStoryboardSupported=(status:string)=>['review_supported','review_supported_with_notes'].includes(status);
+/** Complete untruncated schema/source, bounded only for the explicit owner-test repair slot. */
+export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined){
+ if(!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||authority.purpose!=='test'||authority.budget.steps.find(s=>s.id==='initial_storyboard_repair_1')?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
+ const body=personalBookProviderPayload(call,'gpt-6.1-sol');body.text.format.schema=compactSchemaDefinitions(body.text.format.schema);
+ if(Buffer.byteLength(JSON.stringify({...body,background:true,store:false}))>LOCAL_INITIAL_REPAIR_WIRE_BYTES)engineSiteFail('engine_initial_repair_wire_limit');return body;
+}
+/** Same four story operations and exact wire construction as the native recipe; no default transport. */
+export async function prepareEngineStorySource(runtime:EngineRuntime,snapshot:StorySnapshot,ports:EngineProviderPorts){
+ const authority=runtime.checkpoint.authority,seed=`engine-site-${authority.orderId}`;
+ const simple=prepareSimpleStory(snapshot.request,snapshot.options,seed,SIMPLE_CHILD_MOMENTUM_EXPERIENCE);
+ const records={} as Record<'author'|'editor',EngineProviderResult>;
+ const generated=await writeSimpleStory(simple,async call=>{
+  const answer=await runtime.call(call.stage==='author'?prepareEngineAnthropic(authority,simpleAnthropicDispatch(call,authority.orderId),ports)
+   :prepareEngineResponse(authority,'story_editor',prepareSolWritingWire(call).payload,x=>call.schema.parse(x),ports));
+  if(!answer.usage||answer.estimatedMicroUsd===null)engineSiteFail('engine_story_usage_unknown');records[call.stage]=answer;
+  return {output:answer.output,usage:answer.usage,estimatedUsd:answer.estimatedMicroUsd/1e6};
+ },{model:SIMPLE_WRITING_ROLES.label,reservedUsd:authority.budget.maximumMicroUsd/1e6});
+ const source=createEngineStoryApiSource(authority,snapshot.request,snapshot.options,seed,generated,records),readings=[];
+ const packets=simpleStoryReadingPackets(snapshot.request,source,snapshot.options);
+ for(const stage of ['final_review','comparison'] as const){
+  const numbered=causalSourceReviewPacket(packets[stage==='final_review'?'final':'comparison']);
+  const body={model:'gpt-6.1-sol',store:false,service_tier:'default',reasoning:{effort:'medium'},instructions:numbered.instructions,
+   input:canonicalJson({packetDigest:numbered.packetDigest,packet:numbered.packet}),max_output_tokens:16_000,text:{format:zodTextFormat(numbered.schema,'engine_story_reading')}};
+  const answer=await runtime.call(prepareEngineResponse(authority,`story_${stage}`,body,x=>x,ports));
+  const checked=await compileCausalSourceReadingWithCorrection(packets[stage==='final_review'?'final':'comparison'],answer.output,
+   async correction=>(await runtime.call(prepareEngineResponse(authority,`story_${stage}_citation`,{model:'gpt-6.1-sol',store:false,service_tier:'default',reasoning:{effort:'medium'},
+    instructions:correction.instructions,input:correction.input,max_output_tokens:correction.maxOutputTokens,text:{format:zodTextFormat(correction.schema,'engine_story_citation_correction')}},x=>x,ports))).output);
+  readings.push(checked.reading);
+ }
+ if(readings.some(reading=>reading.findings.some(simpleStoryFindingIsMaterial)))engineSiteFail('engine_story_reading_held');
+ return {source,readings};
+}
+export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:StorySnapshot,source:Awaited<ReturnType<typeof prepareEngineStorySource>>['source'],
+ ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
+ let draft:unknown=null;
+ const diagnostic=await runSimpleStoryboardDiagnostic({request:snapshot.request,writerResult:source,options:snapshot.options,signal:runtime.signal,
+  ...PREPARATION_CONTRACTS,existingChildAppearance,...(repair?{repair}:{}),reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
+  generate:async call=>{
+   let body;
+   if(call.stage==='storyboard'&&prefix==='initial_repair_1'){
+    body=localInitialRepairBody(runtime.checkpoint.authority,call,repair);
+   }else body=call.stage==='storyboard'?prepareSolWritingWire(call).payload:personalBookProviderPayload(call,'gpt-6.1-sol');
+   const step=prefix==='initial'?(call.stage==='storyboard'?'initial_storyboard':'initial_storyboard_review'):
+    prefix==='prep'?(call.stage==='storyboard'?'prep_storyboard_0':'prep_storyboard_0_review'):
+     (call.stage==='storyboard'?'initial_storyboard_repair_1':'initial_storyboard_repair_1_review');
+   const answer=await runtime.call(prepareEngineResponse(runtime.checkpoint.authority,step,body,x=>decodePersonalBookProviderOutput(call,x),ports));
+   if(call.stage==='storyboard')draft=answer.output;return answer.output;
+  }});
+ return {diagnostic,draft};
+}
+const admitted=new WeakSet<object>();
+export type AdmittedEngineInitialPreparation=Awaited<ReturnType<typeof admitEngineInitialPreparation>>;
+/** Only a complete provider-DENIED raw replay can create this in-memory capability. No supplied source/draft becomes approved. */
+export async function admitEngineInitialPreparation(runtime:EngineRuntime,snapshot:StorySnapshot){
+ if(runtime.checkpoint.authority.purpose!=='test')engineSiteFail('engine_preparation_parent_authority');
+ const denied=():never=>engineSiteFail('engine_preparation_replay_dispatch_forbidden'),ports={fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied};
+ const prepared=await prepareEngineStorySource(runtime,snapshot,ports),initial=await prepareEngineStoryboard(runtime,snapshot,prepared.source,ports,'initial');
+ if(engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_preparation_parent_not_held');
+ const value={...prepared,initial,requestSha256:runtime.checkpoint.authority.requestSha256,optionsSha256:runtime.checkpoint.authority.optionsSha256,orderId:runtime.checkpoint.authority.orderId,ownerId:runtime.checkpoint.ownerId,draftId:runtime.checkpoint.draftId};
+ const freeze=(v:unknown):void=>{if(!v||typeof v!=='object'||Object.isFrozen(v))return;for(const x of Object.values(v))freeze(x);Object.freeze(v);};freeze(value);admitted.add(value);return value;
+}
+export function assertEngineInitialPreparation(value:AdmittedEngineInitialPreparation,authority:EngineOrderAuthority,scope?:{ownerId:string;draftId:string}){
+ if(!admitted.has(value)||authority.purpose!=='test'||!scope||value.ownerId!==scope.ownerId||value.draftId!==scope.draftId||value.orderId!==authority.orderId||value.requestSha256!==authority.requestSha256||value.optionsSha256!==authority.optionsSha256||engineStoryboardSupported(value.initial.diagnostic.status))engineSiteFail('engine_preparation_parent_changed');
+}

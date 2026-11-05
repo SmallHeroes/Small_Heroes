@@ -13,6 +13,7 @@ import {LocalEngineTrialRuntime} from '../lib/engine-site/local-trial-runtime';
 import {runLocalEngineTrialBook,localTrialReaderBundle} from '../lib/engine-site/local-trial-book';
 import {ENGINE_SITE_LAUNCH_OFFER} from '../lib/engine-site/offer-definition';
 import {localReaderId} from '../lib/local-reader-preview';
+import {localContinuationSchema,assertLocalParentEvidence,loadLocalParentEnvelope,replayLocalInitialPreparation} from '../lib/engine-site/local-trial-continuation';
 
 const digest=z.string().regex(/^[a-f0-9]{64}$/),absolute=z.string().refine(path.isAbsolute);
 export const localEngineGrantSchema=z.object({version:z.literal('engine-local-book-grant/v1'),fictional:z.literal(true),
@@ -22,12 +23,13 @@ export const localEngineGrantSchema=z.object({version:z.literal('engine-local-bo
  approvalReference:identifierSchema,approvedBy:identifierSchema,approvedAt:z.string().datetime({precision:3}),
  maximumMicroUsd:z.number().int().positive().max(10_000_000),maximumCalls:z.number().int().positive().max(121),
  independentQA:z.literal('pending_owner_authorized_internal_trial'),publicDelivery:z.literal(false),realPayment:z.literal(false),
+ continuation:localContinuationSchema.optional(),
 }).strict();
 export type LocalEngineGrant=z.infer<typeof localEngineGrantSchema>;
 const activationSchema=z.object({version:z.literal('engine-local-one-book-activation/v1'),ownerAuthority:z.object({file:absolute,sha256:digest}).strict(),
  approvalReference:identifierSchema,approvedBy:identifierSchema,approvedAt:z.string().datetime({precision:3}),approvalTimeKind:z.literal('local_record_of_received_owner_authority'),
  maximumMicroUsd:z.number().int().positive().max(10_000_000),maximumCalls:z.number().int().positive().max(121),sourceRoot:absolute,sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
- profileSha256:digest,directory:absolute,readerId:z.string(),fictional:z.literal(true),publicDelivery:z.literal(false),realPayment:z.literal(false)}).strict();
+ profileSha256:digest,directory:absolute,readerId:z.string(),fictional:z.literal(true),publicDelivery:z.literal(false),realPayment:z.literal(false),parentGrantSha256:digest.optional()}).strict();
 const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
 function readFile(file:string){if(lstatSync(file).isSymbolicLink()||realpathSync(file)!==file)engineSiteFail('local_book_file_path');return readFileSync(file);}
 const safeError=(error:unknown)=>{const x=error&&typeof error==='object'?error as {code?:unknown;message?:unknown}:{};return typeof x.code==='string'&&/^[a-z][a-z0-9_]{1,100}$/.test(x.code)?x.code:typeof x.message==='string'&&/^[a-z][a-z0-9_]{1,100}$/.test(x.message)?x.message:'local_book_stopped';};
@@ -38,7 +40,7 @@ function activation(g:LocalEngineGrant){
  const owner=z.object({version:z.literal('engine-one-local-book-owner-authority/v1'),maximumMicroUsd:z.literal(10_000_000),maximumLogicalCalls:z.literal(121),additionalBudgetAllowed:z.literal(false),newPublicLaunchAllowed:z.literal(false),realPaymeChargeAllowed:z.literal(false)}).passthrough().parse(JSON.parse(readFile(record.ownerAuthority.file).toString('utf8')));
  if(sha(readFile(record.ownerAuthority.file))!==record.ownerAuthority.sha256||record.maximumMicroUsd!==g.maximumMicroUsd||record.maximumCalls!==g.maximumCalls||
   record.approvalReference!==g.approvalReference||record.approvedBy!==g.approvedBy||record.approvedAt!==g.approvedAt||record.sourceRoot!==g.source.root||record.sourceHead!==g.source.head||
-  record.profileSha256!==g.profile.sha256||record.directory!==g.directory||record.readerId!==g.readerId||owner.maximumMicroUsd<g.maximumMicroUsd)engineSiteFail('local_book_approval_changed');
+  record.profileSha256!==g.profile.sha256||record.directory!==g.directory||record.readerId!==g.readerId||record.parentGrantSha256!==g.continuation?.parentGrant.sha256||owner.maximumMicroUsd<g.maximumMicroUsd)engineSiteFail('local_book_approval_changed');
  return record;
 }
 /** All copied grants/source parents from the SAME owner consent share ONE global consumption key. */
@@ -48,11 +50,15 @@ export function prepareLocalEngineTrial(grant:LocalEngineGrant){
  if(profile.fictional!==true||profile.input?.appearance?.kind!=='description')engineSiteFail('local_book_fictional_description_required');
  const options=resolveEngineWizardOptions(g.source.root),owner={id:'local_owner_guy',email:'fictional-local@example.invalid',name:'Local internal trial'};
  const prepared=prepareEngineOrder(profile.input,owner,options),orderId=g.approvalReference;
+ const parent=g.continuation?loadLocalParentEnvelope(g,localEngineGrantSchema.parse(JSON.parse(readFile(g.continuation.parentGrant.file).toString('utf8')))):undefined;
+ if(parent&&(parent.authority.requestSha256!==prepared.inputSha256||parent.authority.optionsSha256!==options.fingerprint||parent.checkpoint.ownerId!==prepared.snapshot.ownerId||parent.checkpoint.draftId!==prepared.snapshot.request.draftId||
+  localEngineMasterClaimFile(g)!==localEngineMasterClaimFile(parent.parent)||canonicalHash(prepareLocalEngineTrial(parent.parent).authority)!==canonicalHash(parent.authority)))engineSiteFail('local_parent_authority');
+ const steps=engineRecipeSteps(parent?{initialStoryboardRecovery:true}:undefined).filter(s=>!parent?.results.has(s.id));
  const authority=engineOrderAuthoritySchema.parse({version:'engine-site/v1',orderId,requestSha256:prepared.inputSha256,optionsSha256:options.fingerprint,
   offer:{id:ENGINE_SITE_LAUNCH_OFFER.id,revisionSha256:canonicalHash(ENGINE_SITE_LAUNCH_OFFER)},engine:'native-cde-book/v1',sourceRevision:g.source.head,
-  policySha256:canonicalHash({version:'engine-local-trial-policy/v1',recipe:ENGINE_RECIPE_VERSION,ownerApproval:g.ownerApproval,maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,steps:engineRecipeSteps()}),
-  purpose:'test',imageQuality:'low',narrativePages:8,entitlements:{narration:true,pdf:true},budget:{maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,steps:engineRecipeSteps()}});
- return {grant:g,prepared,authority};
+  policySha256:canonicalHash({version:'engine-local-trial-policy/v1',recipe:ENGINE_RECIPE_VERSION,ownerApproval:g.ownerApproval,maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,steps,...(parent?{continuation:g.continuation,carried:parent.carried}:{})}),
+  purpose:'test',imageQuality:'low',narrativePages:8,entitlements:{narration:true,pdf:true},budget:{maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,steps}});
+ return {grant:g,prepared,authority,parent};
 }
 export function assertLocalEngineGrant(g:LocalEngineGrant,grantFile:string,grantSha:string){
  if(path.resolve(process.cwd())!==g.source.root||realpathSync(g.source.root)!==g.source.root||sha(readFile(grantFile))!==grantSha)engineSiteFail('local_book_grant_changed');
@@ -61,6 +67,7 @@ export function assertLocalEngineGrant(g:LocalEngineGrant,grantFile:string,grant
  localReaderId(g.readerId);
  for(const row of [g.profile,g.ownerApproval,g.credentials])if(sha(readFile(row.file))!==row.sha256)engineSiteFail('local_book_input_changed');
  activation(g);
+ if(g.continuation)assertLocalParentEvidence(g.continuation);
  if(git(g.source.root,'rev-parse','HEAD')!==g.source.head||git(g.source.root,'status','--porcelain','--untracked-files=no')||
   git(g.source.root,'ls-files','--others','--exclude-standard','--','app','lib','backend','scripts','config'))engineSiteFail('local_book_source_not_frozen');
  for(const row of g.source.pins){const file=path.resolve(g.source.root,row.path);if(!file.startsWith(g.source.root+path.sep)||/(^|[\\/])(?:\.env(?:\.|$)|\.git(?:[\\/]|$)|node_modules(?:[\\/]|$))/.test(row.path))engineSiteFail('local_book_pin_path');const bytes=readFile(file);if(bytes.length!==row.bytes||sha(bytes)!==row.sha256)engineSiteFail('local_book_source_changed');}
@@ -72,16 +79,26 @@ export function localEngineSecret(g:LocalEngineGrant,name:'OPENAI_API_KEY'|'ANTH
  if(!value||/\s/.test(value))engineSiteFail('local_book_credential_unavailable');return value;
 }
 function exclusive(file:string,value:unknown){writeFileSync(file,JSON.stringify(value,null,2)+'\n',{flag:'wx',mode:0o600});}
+/** One root consent and at most ONE child. An existing record is never rewritten or treated as a new approval. */
+export function claimLocalEngineExecution(masterFile:string,binding:unknown,resume:boolean,parentBinding?:unknown){
+ const executionClaim=parentBinding?masterFile+'.continuation.json':masterFile;
+ if(parentBinding&&(!existsSync(masterFile)||canonicalHash(JSON.parse(readFile(masterFile).toString('utf8')))!==canonicalHash(parentBinding)))engineSiteFail('local_parent_master_claim');
+ if(existsSync(executionClaim)){if(!resume||canonicalHash(JSON.parse(readFile(executionClaim).toString('utf8')))!==canonicalHash(binding))engineSiteFail('local_book_already_claimed');}
+ else {if(resume)engineSiteFail('local_book_resume_without_claim');exclusive(executionClaim,binding);}
+ return executionClaim;
+}
 export async function localEngineBookCLI(argv:string[]){
  const parsed=z.tuple([z.literal('--grant'),absolute,z.literal('--grant-sha'),digest]).parse(argv.slice(0,4));
  const execute=argv.includes('--execute'),resume=argv.includes('--resume');if(argv.length!==4+Number(execute)+Number(resume)||resume&&!execute)engineSiteFail('local_book_arguments');
- const grantFile=path.resolve(parsed[1]),grantSha=parsed[3],{grant:g,prepared,authority}=prepareLocalEngineTrial(localEngineGrantSchema.parse(JSON.parse(readFile(grantFile).toString('utf8'))));
+ const grantFile=path.resolve(parsed[1]),grantSha=parsed[3],{grant:g,prepared,authority,parent}=prepareLocalEngineTrial(localEngineGrantSchema.parse(JSON.parse(readFile(grantFile).toString('utf8'))));
  assertLocalEngineGrant(g,grantFile,grantSha);
- if(!execute){console.log(JSON.stringify({status:'local_book_plan',authoritySha256:canonicalHash(authority),maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,fictional:true,providerCalls:0}));return 0;}
+ const initialPreparation=parent?await replayLocalInitialPreparation(parent,prepared.snapshot):undefined;
+ assertLocalEngineGrant(g,grantFile,grantSha);
+ if(!execute){console.log(JSON.stringify({status:'local_book_plan',authoritySha256:canonicalHash(authority),maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,...(parent?{carried:parent.carried}:{}),fictional:true,providerCalls:0}));return 0;}
  const masterFile=localEngineMasterClaimFile(g),masterDirectory=path.dirname(masterFile);mkdirSync(masterDirectory,{recursive:true});
- const binding={version:'engine-local-book-claim/v1',grantFile,grantSha256:grantSha,authoritySha256:canonicalHash(authority),directory:g.directory,sourceRoot:g.source.root};
- if(existsSync(masterFile)){if(!resume||canonicalHash(JSON.parse(readFile(masterFile).toString('utf8')))!==canonicalHash(binding))engineSiteFail('local_book_already_claimed');}
- else {if(resume)engineSiteFail('local_book_resume_without_claim');exclusive(masterFile,binding);}
+ const binding={version:'engine-local-book-claim/v1',grantFile,grantSha256:grantSha,authoritySha256:canonicalHash(authority),directory:g.directory,sourceRoot:g.source.root,...(parent?{parentGrantSha256:g.continuation!.parentGrant.sha256,carried:parent.carried}:{})};
+ const parentBinding=parent?{version:'engine-local-book-claim/v1',grantFile:g.continuation!.parentGrant.file,grantSha256:g.continuation!.parentGrant.sha256,authoritySha256:canonicalHash(parent.authority),directory:parent.parent.directory,sourceRoot:parent.parent.source.root}:undefined;
+ claimLocalEngineExecution(masterFile,binding,resume,parentBinding);
  mkdirSync(g.directory,{recursive:true,mode:0o700});
  const terminal=path.join(g.directory,'OUTCOME.json');if(existsSync(terminal)){console.log(JSON.stringify({status:'already_terminal',outcomeSha256:sha(readFile(terminal))}));return 0;}
  const liveFile=path.join(g.directory,'RUNNING.json');
@@ -92,12 +109,12 @@ export async function localEngineBookCLI(argv:string[]){
  const original={log:console.log,warn:console.warn,error:console.error};for(const name of ['log','warn','error'] as const)console[name]=(...args:unknown[])=>{
   let text=args.map(a=>typeof a==='string'?a:a instanceof Error?safeError(a):JSON.stringify(a)).join(' ');for(const secret of keys.values())text=text.split(secret).join('[REDACTED]');original[name](text);};
  const assertCurrent=()=>assertLocalEngineGrant(g,grantFile,grantSha);
- const runtime=new LocalEngineTrialRuntime({root:path.join(g.directory,'journal'),authority,ownerId:prepared.snapshot.ownerId,draftId:prepared.snapshot.request.draftId,snapshotSha256:prepared.inputSha256,assertCurrent});
+ const runtime=new LocalEngineTrialRuntime({root:path.join(g.directory,'journal'),authority,ownerId:prepared.snapshot.ownerId,draftId:prepared.snapshot.request.draftId,snapshotSha256:prepared.inputSha256,assertCurrent,...(parent?{carried:parent.carried}:{})});
  let beating=false;const beat=setInterval(()=>{if(beating)return;beating=true;void runtime.meter().then(m=>{
   const value={at:new Date().toISOString(),pid:process.pid,phase:runtime.checkpoint.phase,calls:Object.keys(runtime.checkpoint.calls),meter:m},temp=path.join(g.directory,'live.tmp');writeFileSync(temp,JSON.stringify(value,null,2));renameSync(temp,path.join(g.directory,'live.json'));
  }).catch(()=>{}).finally(()=>{beating=false;});},15000);beat.unref();
  try{
-  const result=await runLocalEngineTrialBook({runtime,directory:g.directory,snapshot:prepared.snapshot,provider:{fetch,openAIKey:()=>key('OPENAI_API_KEY'),anthropicKey:()=>key('ANTHROPIC_API_KEY')},narration:{fetch,key:()=>key('ELEVENLABS_API_KEY')}});
+  const result=await runLocalEngineTrialBook({runtime,directory:g.directory,snapshot:prepared.snapshot,...(initialPreparation?{initialPreparation}:{}),provider:{fetch,openAIKey:()=>key('OPENAI_API_KEY'),anthropicKey:()=>key('ANTHROPIC_API_KEY')},narration:{fetch,key:()=>key('ELEVENLABS_API_KEY')}});
   assertCurrent();const staging=path.join(g.directory,'reader-staging'),bundle=localTrialReaderBundle(staging,g.readerId,result),root=path.join(g.source.root,'outputs','local-reader-previews'),destination=path.join(root,g.readerId);
   mkdirSync(root,{recursive:true});if(path.dirname(path.resolve(bundle.directory))!==path.resolve(staging)||path.dirname(path.resolve(destination))!==path.resolve(root)||existsSync(destination))engineSiteFail('local_book_reader_destination');
   renameSync(bundle.directory,destination);
