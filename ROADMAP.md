@@ -1,3 +1,9 @@
+## M22 standard-null source contract — local complete, manual QA next (2026-11-08)
+
+- Approved USD0 implementation preserves the eight-page manuscript and all paid evidence. A versioned explicit test authority/activation selects standard nullable primitive JSON Schema and Responses wirev2; absent policy retains exact old wirev1. No output coercion, shared SDK edit, new continuation, paid activation or production default change.
+- Final1400/1400 in79 relevant specs, bothTS0; independent local Draft7 oracle180/180 and exact seven-call old-authority replay, with original compiler HOLD preserved. Full repository Vitest stage is bounded/incomplete after300s, not a full-check PASS.
+- Next: focused read-only Claude review on the fresh687113ba..M22 commit range, manual through Guy. Only after that consider the separate exact execution envelope/staging gates; existing USD10/121 is not reset, current spent852724/7 stays immutable, and neither old grant can run again. No spending, push or deploy in M22.
+
 > 2026-11-05 M18: verified R4 HOLD; general R4-1 stable staging alias, R4-3 global dispatch preflight/no order mutation, R4-2 precise proof notices/all-sale cleanup/nonblocking review/audited dismiss are implemented for manual re-gate. Final1267/1267/73 files and bothTS0; actual Linux build/check/native media0. M17 Windows build is baseline, not a new M18 claim. Archived native ENOENT recovery and prepared drain/long-host/inbox instructions included. Independent QA, actual Vercel/private target/browser/paid/product/launch qualification remain separate. USD0; no real env/key/service/SQL/book/server/push/deploy/automatic handoff. Package _review/engine-site-launch/m18-r4-corrections/.
 
 ## M20/M21 outcome — book held, schema correction next (2026-11-06)

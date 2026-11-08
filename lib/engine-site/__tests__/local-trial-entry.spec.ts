@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {localEngineGrantSchema,prepareLocalEngineTrial,localEngineSecret,assertLocalEngineGrant,localEngineMasterClaimFile,claimLocalEngineExecution,type LocalEngineGrant} from '@/scripts/engine-local-book';
 import {syntheticEngineOrderInput} from './synthetic-order';
 import {engineRecipeSteps} from '../platform-policy';
+import {ENGINE_RESPONSE_SCHEMA_POLICY} from '../response-schema';
 const roots:string[]=[];
 afterEach(()=>{vi.restoreAllMocks();for(const root of roots.splice(0)){if(path.dirname(root)!==path.resolve(tmpdir())||!path.basename(root).startsWith('sh_trial_entry_'))throw Error('owned_test_only');rmSync(root,{recursive:true,force:true});}});
 const sha=(b:string)=>createHash('sha256').update(b).digest('hex');
@@ -16,12 +17,22 @@ function setup(){const dir=mkdtempSync(path.join(tmpdir(),'sh_trial_entry_'));ro
  return {dir,grant,profile,credentials,secret};}
 function activate(g:LocalEngineGrant,dir:string,ownerFile?:string){
  const owner=ownerFile??path.join(dir,'owner-consent.json');if(!ownerFile)writeFileSync(owner,JSON.stringify({version:'engine-one-local-book-owner-authority/v1',maximumMicroUsd:10_000_000,maximumLogicalCalls:121,additionalBudgetAllowed:false,newPublicLaunchAllowed:false,realPaymeChargeAllowed:false}));
- const row={version:'engine-local-one-book-activation/v1',ownerAuthority:{file:owner,sha256:sha(requireRead(owner))},approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,approvalTimeKind:'local_record_of_received_owner_authority',maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,sourceRoot:g.source.root,sourceHead:g.source.head,profileSha256:g.profile.sha256,directory:g.directory,readerId:g.readerId,fictional:true,publicDelivery:false,realPayment:false};
+ const row={version:'engine-local-one-book-activation/v1',ownerAuthority:{file:owner,sha256:sha(requireRead(owner))},approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,approvalTimeKind:'local_record_of_received_owner_authority',maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,sourceRoot:g.source.root,sourceHead:g.source.head,profileSha256:g.profile.sha256,directory:g.directory,readerId:g.readerId,fictional:true,publicDelivery:false,realPayment:false,...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{})};
  const file=path.join(dir,'activation-'+g.approvalReference+'.json'),bytes=JSON.stringify(row);writeFileSync(file,bytes);return {...g,ownerApproval:{file,sha256:sha(bytes)}};
 }
 import {readFileSync} from 'node:fs';
 const requireRead=(f:string)=>readFileSync(f,'utf8');
 describe('explicit local entry authority, no provider or fake payment',()=>{
+ it('binds the optional schema policy to authority and activation while retaining the same consent-wide consumption key',()=>{
+  const s=setup(),legacy=activate(s.grant,s.dir),oldMaster=localEngineMasterClaimFile(legacy),old=prepareLocalEngineTrial(legacy);
+  expect(()=>localEngineMasterClaimFile({...legacy,responseSchemaPolicy:ENGINE_RESPONSE_SCHEMA_POLICY})).toThrow('local_book_approval_changed');
+  const selected=activate({...s.grant,responseSchemaPolicy:ENGINE_RESPONSE_SCHEMA_POLICY},s.dir),fixed=prepareLocalEngineTrial(selected);
+  expect(fixed.authority.responseSchemaPolicy).toBe(ENGINE_RESPONSE_SCHEMA_POLICY);expect(fixed.authority.requestSha256).toBe(old.authority.requestSha256);
+  expect(fixed.authority.budget).toEqual(old.authority.budget);expect(fixed.authority.policySha256).not.toBe(old.authority.policySha256);
+  expect(localEngineMasterClaimFile(selected)).toBe(oldMaster);
+  expect(()=>localEngineMasterClaimFile({...selected,responseSchemaPolicy:undefined})).toThrow('local_book_approval_changed');
+  expect(()=>localEngineGrantSchema.parse({...selected,responseSchemaPolicy:'other'})).toThrow();
+ });
  it('builds the real engine authority as test-only with the full unchanged recipe and all deliverables',()=>{const s=setup(),p=prepareLocalEngineTrial(s.grant);expect(p.authority).toMatchObject({purpose:'test',imageQuality:'low',narrativePages:8,entitlements:{narration:true,pdf:true},budget:{maximumMicroUsd:10_000_000,maximumCalls:121}});expect(p.authority.budget.steps).toEqual(engineRecipeSteps());expect(p.authority.requestSha256).toBe(p.prepared.inputSha256);});
  it.each([{maximumMicroUsd:10_000_001},{maximumCalls:122},{fictional:false},{realPayment:true},{publicDelivery:true},{independentQA:'PASS'}])('refuses cap/public/payment/fictional/QA promotions %j',change=>{expect(()=>localEngineGrantSchema.parse({...setup().grant,...change})).toThrow();});
  it('refuses a photo or a missing fictional label before producing trial authority',()=>{const s=setup();for(const raw of [{input:syntheticEngineOrderInput()},{fictional:true,input:{...syntheticEngineOrderInput(),appearance:{kind:'private_photo',assetId:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'}}}]){writeFileSync(s.profile,JSON.stringify(raw));expect(()=>prepareLocalEngineTrial(s.grant)).toThrow('local_book_fictional_description_required');}});

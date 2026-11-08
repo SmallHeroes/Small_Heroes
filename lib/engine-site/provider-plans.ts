@@ -10,6 +10,7 @@ import { assetBytesSha256 } from './private-assets';
 import { planAnthropicAuthor, anthropicAuthorCost } from './anthropic-author';
 import type { CausalDispatch } from '@/lib/personal-wizard/story-causal-experiment-runner';
 import type { PreparedEngineCall, EngineProviderResult } from './durable-worker';
+import { standardEngineResponseSchema } from './response-schema';
 
 export type EngineProviderPorts = {
   fetch: typeof fetch; openAIKey: () => string; anthropicKey: () => string;
@@ -71,20 +72,29 @@ export function prepareEngineAnthropic(a: EngineOrderAuthority, dispatch: Causal
 /** Responses background id is a checkpoint of THIS claim, never authority for another POST. */
 export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bodyInput: Record<string, any>,
   decode: (value: unknown) => unknown, ports: EngineProviderPorts): PreparedEngineCall {
+  const authority = engineOrderAuthoritySchema.parse(a), schemaPolicy = authority.responseSchemaPolicy;
   const allowed = new Set(['model', 'store', 'service_tier', 'reasoning', 'instructions', 'input', 'max_output_tokens', 'text', 'metadata']);
   if (Object.keys(bodyInput).some(k => !allowed.has(k)) || !['gpt-6.1-sol', 'gpt-6-astra'].includes(bodyInput.model) ||
       bodyInput.service_tier !== 'default' || bodyInput.reasoning?.effort !== 'medium' ||
       !Number.isInteger(bodyInput.max_output_tokens) || bodyInput.max_output_tokens < 1 || bodyInput.max_output_tokens > 55_000)
     engineSiteFail('engine_responses_plan_invalid');
   const body: Record<string, any> = structuredClone({ ...bodyInput, background: true, store: false });
+  if (schemaPolicy) {
+    if (body.text?.format?.type !== 'json_schema' || body.text.format.strict !== true) engineSiteFail('engine_response_schema_format');
+    const originalBytes = Buffer.byteLength(JSON.stringify(body));
+    body.text.format.schema = standardEngineResponseSchema(body.text.format.schema);
+    if (Buffer.byteLength(JSON.stringify(body)) > originalBytes) engineSiteFail('engine_response_schema_expanded');
+  }
   const textParts = typeof body.input === 'string' ? body.input : JSON.stringify(body.input,
     (key, value) => key === 'image_url' ? '[private-image-bytes]' : value);
   const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) ? 208_000 : 104_000;
   if (Buffer.byteLength(String(body.instructions) + textParts) > ceiling || Buffer.byteLength(JSON.stringify(body)) > 64 * 1024 * 1024)
     engineSiteFail('engine_responses_input_limit');
-  const wire = { version: 'engine-site-responses/v1', authoritySha256: authorityDigest(a), step, body,
+  const wire = { version: schemaPolicy ? 'engine-site-responses/v2' : 'engine-site-responses/v1',
+    ...(schemaPolicy ? { responseSchemaPolicy: schemaPolicy } : {}), authoritySha256: authorityDigest(authority), step, body,
     endpoint: 'https://api.openai.com/v1/responses', maxRetries: 0 };
-  const call = slotCall(a, step, wire);
+  const call = slotCall(authority, step, wire);
+  const assertWire = () => { if (canonicalHash(wire) !== call.wireSha256) engineSiteFail('engine_provider_plan_changed'); };
   const decodeOutput = (raw: any) => {
     try { return decode(JSON.parse(responseText(raw))); }
     catch (error) {
@@ -96,16 +106,18 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
   };
   return { call, wire, requiredMs: 20_000, completionDeadlineMs: generationTimeoutMs(body.max_output_tokens),
     admitSaved(answer) {
+      if (schemaPolicy) assertWire();
       const raw = answer.raw as any, cost = raw.model === body.model && raw.service_tier === 'default'
         ? auditionUsageCost(raw.usage, body.model === 'gpt-6.1-sol' ? 'sol' : 'astra') : null;
       if (answer.usable !== true || raw.status !== 'completed' || !/^resp_[A-Za-z0-9_-]+$/.test(raw.id) ||
           raw.usage?.output_tokens > body.max_output_tokens || cost === null || cost !== answer.estimatedMicroUsd ||
           canonicalHash(decodeOutput(raw)) !== canonicalHash(answer.output)) engineSiteFail('engine_saved_response_invalid');
     },
-    revalidate() { if (canonicalHash(wire) !== call.wireSha256) engineSiteFail('engine_provider_plan_changed'); },
+    revalidate: assertWire,
     async execute(pendingId, signal, assertDispatch) {
       if (pendingId && !/^resp_[A-Za-z0-9_-]+$/.test(pendingId)) engineSiteFail('engine_response_id_invalid');
       await assertDispatch();
+      if (schemaPolicy) assertWire();
       let response: Response, raw: any;
       try {
       response = await ports.fetch(pendingId ? `${wire.endpoint}/${encodeURIComponent(pendingId)}` : wire.endpoint, {

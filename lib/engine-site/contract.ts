@@ -3,6 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 import { canonicalHash } from '@/lib/canonical-json';
 import { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
+import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 
 export const ENGINE_SITE_PROTOCOL = 'engine-site/v1' as const;
 export const ENGINE_SITE_FRAMES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8]);
@@ -21,6 +22,8 @@ export const engineOrderAuthoritySchema = z.object({
   optionsSha256: digestSchema,
   offer: z.object({ id: identifierSchema, revisionSha256: digestSchema }).strict(),
   engine: z.literal('native-cde-book/v1'),
+  /** New explicitly bound local-test wires only; absent preserves historical authorities and receipts. */
+  responseSchemaPolicy: z.literal(ENGINE_RESPONSE_SCHEMA_POLICY).optional(),
   sourceRevision: z.string().regex(/^[a-f0-9]{40}$/),
   policySha256: digestSchema,
   purpose: z.enum(['customer', 'test']),
@@ -40,6 +43,9 @@ export const engineOrderAuthoritySchema = z.object({
     }).strict()).min(1).max(1000),
   }).strict(),
 }).strict().superRefine((value, ctx) => {
+  if (value.responseSchemaPolicy !== undefined && value.purpose !== 'test') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['responseSchemaPolicy'], message: 'schema_policy_test_only' });
+  }
   if (value.imageQuality !== ENGINE_SITE_LAUNCH_OFFER.imageQuality) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['imageQuality'], message: 'launch_quality_mismatch' });
   }
