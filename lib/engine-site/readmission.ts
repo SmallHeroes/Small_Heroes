@@ -18,6 +18,7 @@ import { prepareEngineNarration } from './narration';
 import { narrationVoice, prepareNarrationWire } from '@/scripts/personal-book-narration';
 import { assetBytesSha256 } from './private-assets';
 import type {AdmittedEngineInitialPreparation} from './story-preparation';
+import type {AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 
 /** Rebuild the entire producer through its real compilers, raw saved provider answers and native resume gates.
  * No grant, lease, provider execute(), key, mutation or replacement answer is available in this runtime. */
@@ -45,7 +46,7 @@ export async function admitEngineBookEvidence(db: PrismaClient, storage: EngineP
  * explicit local test journals. It neither grants a paid Order nor substitutes a database privacy check. */
 export async function replayEngineRecordedBook(context: Pick<EngineReaderContext, 'checkpoint' | 'snapshot' | 'book'>,
   evidence: { readJson: (id: string) => Promise<any>; result: (step: string) => Promise<EngineProviderResult> },
-  privatePhoto?: { db: PrismaClient; storage: EnginePrivateStorage },initialPreparation?:AdmittedEngineInitialPreparation) {
+  privatePhoto?: { db: PrismaClient; storage: EnginePrivateStorage },initialPreparation?:AdmittedEngineInitialPreparation,childBindingPreparation?:AdmittedEngineChildBindingPreparation) {
   const checkpoint = structuredClone(context.checkpoint); checkpoint.phase = 'story';
   const denied = (): never => engineSiteFail('engine_readmission_dispatch_forbidden');
   if (!privatePhoto && context.snapshot.appearance.kind !== 'description') engineSiteFail('engine_readmission_private_photo_required');
@@ -78,7 +79,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
     },
     async advance(phase) { checkpoint.phase = phase; },
   };
-  await createEngineNativeRecipe({ db, storage, snapshot: context.snapshot,initialPreparation,
+  await createEngineNativeRecipe({ db, storage, snapshot: context.snapshot,initialPreparation,childBindingPreparation,
     ports: { fetch: denied, openAIKey: denied, anthropicKey: denied, image: denied } })(runtime);
   if (!final || (final as SavedPage[]).length !== 9) engineSiteFail('engine_readmission_incomplete');
   const prepared = await load('prepared_source') as any, childUrl = `data:image/png;base64,${prepared.childB64}`;

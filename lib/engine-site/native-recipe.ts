@@ -39,6 +39,7 @@ import { engineImageDataUrl } from './image-data-url';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld } from './storyboard-binding';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
+import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
 const dataURL = engineImageDataUrl;
@@ -65,6 +66,7 @@ export type EngineNativeChildPreparation={source:unknown;readings:unknown;initia
  appearance:ReturnType<typeof existingChildAppearanceData>;adoption:unknown;child:AuditionImage;childB64:string};
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
+  childBindingPreparation?:AdmittedEngineChildBindingPreparation;
   /** Read-only observation seam for provider-denied complete raw replay. Receives a detached copy; never supplies approval/state. */
   observeChildPreparation?:(value:EngineNativeChildPreparation,appearance:ExistingChildAppearance)=>void;
   materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
@@ -122,7 +124,27 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     let prepared: any = await runtime.load('prepared_source');
+    if(args.childBindingPreparation){
+      assertEngineChildBindingPreparation(args.childBindingPreparation,authority,runtime.checkpoint,prepared,snapshot);
+      if(args.initialPreparation!==args.childBindingPreparation.initialPreparation)engineSiteFail('local_child_binding_preparation_changed');
+      if(prepared){const ref=companionIdentityReference(snapshot.request.companion.id);
+        if(prepared.companion?.imageSha!==ref.sha256||prepared.companion.imageName!=='reference_companion.png'||assetBytesSha256(Buffer.from(prepared.companionB64,'base64'))!==ref.sha256)engineSiteFail('local_child_binding_companion_changed');}
+    }else if(prepared?.childBindingParent!==undefined)engineSiteFail('local_child_binding_preparation_required');
     if(args.initialPreparation&&'initialRepair' in args.initialPreparation)assertEngineSupportedPreparationCache(args.initialPreparation,authority,runtime.checkpoint,prepared);
+    if(!prepared&&args.childBindingPreparation){
+      const cap=args.childBindingPreparation,data=structuredClone(cap.data);
+      assertEngineInitialPreparation(cap.initialPreparation,authority,runtime.checkpoint);
+      const existing=admitExistingChildAppearance(data.appearance,data.adoption,data.child.imageSha);
+      const parent=admitEngineBindingParent(runtime,snapshot,data.source,cap.initialPreparation.initial,data.initialRepair);
+      const final=await prepareEngineBoundStoryboard(runtime,snapshot,data.source,ports,parent,existing);
+      assertEngineChildBindingPreparation(cap,authority,runtime.checkpoint,undefined,snapshot);
+      if(!engineStoryboardSupported(final.diagnostic.status))engineSiteFail('engine_storyboard_held');
+      const companion=companionIdentityReference(snapshot.request.companion.id),companionBytes=readFileSync(companion.file);
+      const companionImage={imageName:'reference_companion.png',imageSha:companion.sha256};put(companionImage,companionBytes);
+      prepared={...data,childBindingParent:cap.origin,bindingParent:final.bindingParent,draft:final.draft,review:final.diagnostic.rawReview,
+        sourceDigest:final.diagnostic.sourceDigest,storyboardDigest:final.diagnostic.storyboardDigest,companion:companionImage,companionB64:companionBytes.toString('base64')};
+      await runtime.save('prepared_source',prepared);await runtime.advance('native');
+    }
     if (!prepared) {
       if(args.initialPreparation)assertEngineInitialPreparation(args.initialPreparation,authority,runtime.checkpoint);
       const {source,readings}=args.initialPreparation??await prepareEngineStorySource(runtime,snapshot,ports);
