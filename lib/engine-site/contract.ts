@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { canonicalHash } from '@/lib/canonical-json';
 import { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
+import { ENGINE_STORYBOARD_BINDING } from './storyboard-binding-policy';
 
 export const ENGINE_SITE_PROTOCOL = 'engine-site/v1' as const;
 export const ENGINE_SITE_FRAMES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8]);
@@ -24,6 +25,8 @@ export const engineOrderAuthoritySchema = z.object({
   engine: z.literal('native-cde-book/v1'),
   /** New explicitly bound local-test wires only; absent preserves historical authorities and receipts. */
   responseSchemaPolicy: z.literal(ENGINE_RESPONSE_SCHEMA_POLICY).optional(),
+  /** Explicit mechanical accepted-world child binding; absent retains historical producer/wire semantics. */
+  storyboardBindingPolicy: z.literal(ENGINE_STORYBOARD_BINDING).optional(),
   sourceRevision: z.string().regex(/^[a-f0-9]{40}$/),
   policySha256: digestSchema,
   purpose: z.enum(['customer', 'test']),
@@ -45,6 +48,9 @@ export const engineOrderAuthoritySchema = z.object({
 }).strict().superRefine((value, ctx) => {
   if (value.responseSchemaPolicy !== undefined && value.purpose !== 'test') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['responseSchemaPolicy'], message: 'schema_policy_test_only' });
+  }
+  if(value.storyboardBindingPolicy!==undefined&&value.purpose!=='test'){
+    ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardBindingPolicy'],message:'storyboard_binding_test_only'});
   }
   if (value.imageQuality !== ENGINE_SITE_LAUNCH_OFFER.imageQuality) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['imageQuality'], message: 'launch_quality_mismatch' });

@@ -1,11 +1,12 @@
 import { SCALE_REVIEW_ADDENDUM } from './companion-scale';
+import { createHash } from 'node:crypto';
 import type { EngineContinuityOptions } from './engine-continuity-contracts';
 import { MATERIAL_REVIEW_ADDENDUM } from './storyboard-material-function';
 import 'server-only';
 import {existingChildAppearanceData,type ExistingChildAppearance} from './existing-child-appearance';
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
-import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema,
+import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema,
   calibrationStoryboardReviewSchema, personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions,
   storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
@@ -69,7 +70,7 @@ const fail = (code: string): never => { throw new SimpleStoryboardDiagnosticErro
  * Injected diagnostic only. No default transport, key, network, reservation, retry or image authority.
  * A future paid caller must enforce its own approved transport/accounting before supplying generate.
  */
-export async function runSimpleStoryboardDiagnostic(args: {
+export type SimpleStoryboardDiagnosticArgs = {
   request: unknown; writerResult: unknown; options: PersonalWizardOptions; signal: AbortSignal;
   generate: (call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<unknown>;
   inputByteLimit?: number;
@@ -112,7 +113,23 @@ export async function runSimpleStoryboardDiagnostic(args: {
   stateParityContract?: true;
   /** Opt-in instance distinction (instance-distinction/v1: needs the landmark-kind contract; the planner's schema/instruction/compile and the review's rule); absent keeps the exact existing calls. */
   instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions; existingChildAppearance?: ExistingChildAppearance;
-}) {
+};
+
+/** Legacy author + review path. No change in its calls, source or returned fields. */
+export function runSimpleStoryboardDiagnostic(args: SimpleStoryboardDiagnosticArgs) {
+  return runStoryboardDiagnostic(args);
+}
+
+/** Compile the supplied draft byte-for-byte, then request a NEW review of the resulting source/digest.
+ * This injected library grants no draft/identity/spend authority: the engine caller must first admit the parent.
+ * No planner invocation or synthetic paid planner result exists on this path. */
+export function reviewSimpleStoryboardDraft(args: SimpleStoryboardDiagnosticArgs, draft: unknown) {
+  if (args.repair !== undefined || args.preservation !== undefined) fail('review_only_scope');
+  return runStoryboardDiagnostic(args, { draft });
+}
+
+async function runStoryboardDiagnostic(args: SimpleStoryboardDiagnosticArgs, supplied?: { draft: unknown }) {
+  const suppliedCanonical = supplied ? canonicalJson(supplied.draft) : undefined;
   if (args.selfCheckSourceSpans !== undefined && (args.selfCheckSourceSpans !== true || args.selfCheckContract !== true)) fail('self_check_source_spans_policy');
   if (args.stagingFields !== undefined && (args.stagingFields !== true || args.claimBasisContract !== true)) fail('staging_fields_policy');
   if (args.calibrationContract !== undefined && (args.calibrationContract !== true || args.claimBasisContract !== true)) fail('calibration_policy');
@@ -134,6 +151,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
   const assertCurrent = () => {
     if (args.signal.aborted) fail('cancelled');
+    if (supplied && canonicalJson(supplied.draft) !== suppliedCanonical) fail('draft_changed');
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
         args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract, args.visibleMomentContract,
@@ -162,9 +180,13 @@ export async function runSimpleStoryboardDiagnostic(args: {
     return output;
   };
   // Preflight outside authorPersonalStoryboard's callback-error wrapper, before any injected invocation.
-  measure(instructions, canonicalJson(source.planningInput));
+  if (!supplied) measure(instructions, canonicalJson(source.planningInput));
   assertCurrent();
-  const storyboard = await authorPersonalStoryboard(source, call => dispatch({ stage: 'storyboard',
+  const compileOptions = args.selfCheckNames || args.stagingFields || args.selfCheckSourceSpans
+    ? { ...(args.selfCheckNames ? { selfCheckNames: true as const } : {}), ...(args.stagingFields ? { stagingFields: true as const } : {}),
+      ...(args.selfCheckSourceSpans ? { selfCheckSourceSpans: true as const } : {}) } : undefined;
+  const storyboard = supplied ? compilePersonalStoryboard(source, supplied.draft, compileOptions)
+    : await authorPersonalStoryboard(source, call => dispatch({ stage: 'storyboard',
     instructions: call.instructions, input: canonicalJson(call.input), schema: call.schema,
     maxOutputTokens: caps.storyboardOutputTokens,
     context: { narrativeSpreads: source.story.pages.length, sourceDigest: source.sourceDigest,
@@ -206,6 +228,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
       { request: args.request, writerResult: args.writerResult, options: args.options })) : [];
   assertCurrent();
   return { version: SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION, status: review.disposition,
+    ...(supplied ? { draftOrigin: { version: 'unchanged-compiled-draft/v1' as const,
+      canonicalSha256: createHash('sha256').update(suppliedCanonical!).digest('hex'), plannerInvoked: false as const } } : {}),
     sourceDigest: source.sourceDigest, storyboardDigest: storyboard.storyboardDigest,
     writerResult: source.result, storyboard, rawReview, review, framePackets, calls,
     measurementScope: 'instruction_and_input_utf8_content_not_wire_tokens_or_output_adequacy' as const,

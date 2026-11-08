@@ -12,6 +12,7 @@ import { resolveEngineWizardOptions } from '../personal-orders';
 import { syntheticEngineOrderInput } from './synthetic-order';
 import { admitCurrentSimpleStorySource, ANTHROPIC_SIMPLE_SOURCE_VERSION } from '@/lib/personal-wizard/simple-story-source';
 import { engineImageDataUrl } from '../image-data-url';
+import { ENGINE_STORYBOARD_BINDING,ENGINE_BOUND_REVIEW_STEP } from '../storyboard-binding-policy';
 
 const allowed = () => ({ ...authority(), budget: { ...authority().budget, maximumMicroUsd: 10_000_000, maximumCalls: 200, steps: engineRecipeSteps() } });
 const fence = async () => {};
@@ -21,6 +22,16 @@ const schema = z.object({ answer: z.string() }).strict();
 const body = { model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' },
   instructions: 'Synthetic only', input: 'Synthetic data', max_output_tokens: 12000, text: { format: { type: 'json_object' } } };
 describe('new production provider seams, no live provider or environment credential', () => {
+  it('keeps the existing full-review ceiling only for the exact explicit child-binding policy and slot',()=>{
+    const base=allowed(),a={...base,purpose:'test' as const,storyboardBindingPolicy:ENGINE_STORYBOARD_BINDING,
+      budget:{...base.budget,steps:[...base.budget.steps,{id:ENGINE_BOUND_REVIEW_STEP,maximumMicroUsd:1200000}]}},
+      large={...body,input:'x'.repeat(150000)};
+    expect(()=>prepareEngineResponse(a,ENGINE_BOUND_REVIEW_STEP,large,x=>x,ports())).not.toThrow();
+    expect(()=>prepareEngineResponse({...a,storyboardBindingPolicy:undefined},ENGINE_BOUND_REVIEW_STEP,large,x=>x,ports())).toThrow('engine_responses_input_limit');
+    expect(()=>prepareEngineResponse(a,'story_editor',large,x=>x,ports())).toThrow('engine_responses_input_limit');
+    expect(()=>prepareEngineResponse(a,ENGINE_BOUND_REVIEW_STEP,{...large,input:'x'.repeat(208001)},x=>x,ports())).toThrow('engine_responses_input_limit');
+    expect(()=>prepareEngineResponse({...a,purpose:'customer'},ENGINE_BOUND_REVIEW_STEP,large,x=>x,ports())).toThrow();
+  });
   it.each([429, 503, 200])('Q2 preserves the original background id on a transient poll HTTP%s / bad JSON', async status => {
     const fetch = vi.fn(async () => new Response('temporary-unparseable', { status }));
     const plan = prepareEngineResponse(allowed(), 'page_0_0_qa', body, x => x, ports(fetch));

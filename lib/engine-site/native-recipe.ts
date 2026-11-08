@@ -37,6 +37,7 @@ import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
+import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld } from './storyboard-binding';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
@@ -60,8 +61,12 @@ async function fiveViews(bytes: Buffer) {
 }
 
 /** Production glue for the existing simple story/source/compiler/native loops. No local grants, directories or CLI. */
+export type EngineNativeChildPreparation={source:unknown;readings:unknown;initialRepair?:StoryboardRepair;initialDraft:unknown;initialReview:unknown;
+ appearance:ReturnType<typeof existingChildAppearanceData>;adoption:unknown;child:AuditionImage;childB64:string};
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
+  /** Read-only observation seam for provider-denied complete raw replay. Receives a detached copy; never supplies approval/state. */
+  observeChildPreparation?:(value:EngineNativeChildPreparation,appearance:ExistingChildAppearance)=>void;
   materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
   return async runtime => {
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
@@ -179,12 +184,18 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       const existing = deriveExistingChildAppearance({ requestId: source.requestId, sourceDigest: initial.diagnostic.sourceDigest,
         storyboardDigest: initial.diagnostic.storyboardDigest, clothing }, { age: childData.age, gender: childData.gender,
         design, acceptance: context.version, pose: CHILD_ANCHOR_POSE_VERSION }, adoption, anchor.candidate.imageSha);
-      const final = await prepareEngineStoryboard(runtime,snapshot,source,ports,'prep',existing);
+      args.observeChildPreparation?.(structuredClone({source,readings,...(initialRepair?{initialRepair}:{}),initialDraft:initial.draft,
+        initialReview:initial.diagnostic.rawReview,appearance:existingChildAppearanceData(existing),adoption,child:anchor.candidate,
+        childB64:bytesOf(anchor.candidate).toString('base64')}),existing);
+      const parent=authority.storyboardBindingPolicy?admitEngineBindingParent(runtime,snapshot,source,initial,initialRepair):undefined;
+      const final = parent?await prepareEngineBoundStoryboard(runtime,snapshot,source,ports,parent,existing)
+        :await prepareEngineStoryboard(runtime,snapshot,source,ports,'prep',existing);
       if(!engineStoryboardSupported(final.diagnostic.status))engineSiteFail('engine_storyboard_held');
       const companion = companionIdentityReference(snapshot.request.companion.id);
       const companionImage = { imageName: 'reference_companion.png', imageSha: companion.sha256 };
       const companionBytes = readFileSync(companion.file); put(companionImage, companionBytes);
       prepared = { source, readings, ...(initialRepair?{initialRepair}:{}), initialDraft: initial.draft, initialReview: initial.diagnostic.rawReview,
+        ...('bindingParent' in final?{bindingParent:final.bindingParent}:{}),
         draft: final.draft, review: final.diagnostic.rawReview, sourceDigest: final.diagnostic.sourceDigest,
         storyboardDigest: final.diagnostic.storyboardDigest, appearance: existingChildAppearanceData(existing), adoption,
         child: anchor.candidate, childB64: bytesOf(anchor.candidate).toString('base64'),
@@ -198,6 +209,13 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     if (appearance.originalSourceDigest !== initial.book.sourceDigest || appearance.originalStoryboardDigest !== initial.book.storyboardDigest ||
         canonicalJson(appearance.child.clothing) !== canonicalJson(initial.book.plan.actorAppearance!.child.clothing)) engineSiteFail('engine_child_origin_changed');
     const restored = restoreBoard(snapshot, prepared.source, prepared.draft, prepared.review, appearance), book = restored.book;
+    if(authority.storyboardBindingPolicy){
+      const parent=admitEngineBindingParent(runtime,snapshot,prepared.source,{draft:prepared.initialDraft,diagnostic:{
+        sourceDigest:initial.book.sourceDigest,storyboardDigest:initial.book.storyboardDigest,rawReview:prepared.initialReview}},prepared.initialRepair);
+      if(canonicalHash(prepared.bindingParent)!==canonicalHash(engineBindingOrigin(parent,appearance))||
+        canonicalHash(prepared.draft)!==parent.draftSha256)engineSiteFail('engine_binding_cached_origin_changed');
+      assertEngineBoundWorld(parent,book);
+    }else if(prepared.bindingParent!==undefined)engineSiteFail('engine_binding_policy_required');
     if (book.sourceDigest !== prepared.sourceDigest || book.storyboardDigest !== prepared.storyboardDigest) engineSiteFail('engine_prepared_source_changed');
     const texts = prepared.source.manuscript.pages.map((p: { text: string }) => p.text);
     if (runtime.checkpoint.phase === 'native') {

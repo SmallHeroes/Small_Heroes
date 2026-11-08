@@ -11,6 +11,7 @@ import { planAnthropicAuthor, anthropicAuthorCost } from './anthropic-author';
 import type { CausalDispatch } from '@/lib/personal-wizard/story-causal-experiment-runner';
 import type { PreparedEngineCall, EngineProviderResult } from './durable-worker';
 import { standardEngineResponseSchema } from './response-schema';
+import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
 
 export type EngineProviderPorts = {
   fetch: typeof fetch; openAIKey: () => string; anthropicKey: () => string;
@@ -88,7 +89,8 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
   const textParts = typeof body.input === 'string' ? body.input : JSON.stringify(body.input,
     (key, value) => key === 'image_url' ? '[private-image-bytes]' : value);
   const planRecoveryReview = step === 'initial_storyboard_repair_2_review' && authority.purpose === 'test' && !!schemaPolicy;
-  const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview ? 208_000 : 104_000;
+  const boundReview = step === ENGINE_BOUND_REVIEW_STEP && authority.purpose === 'test' && authority.storyboardBindingPolicy === ENGINE_STORYBOARD_BINDING;
+  const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview || boundReview ? 208_000 : 104_000;
   if (Buffer.byteLength(String(body.instructions) + textParts) > ceiling || Buffer.byteLength(JSON.stringify(body)) > 64 * 1024 * 1024)
     engineSiteFail('engine_responses_input_limit');
   const wire = { version: schemaPolicy ? 'engine-site-responses/v2' : 'engine-site-responses/v1',

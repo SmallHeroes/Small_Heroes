@@ -16,7 +16,7 @@ import { simpleWizardVisualPayload } from '../../../scripts/personal-simple-wiza
 import { decodePersonalBookProviderOutput } from '../book-openai';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION } from '../book-runner';
 import { personalBookOutputLimits } from '../book-config';
-import { runSimpleStoryboardDiagnostic, SIMPLE_STORYBOARD_INPUT_LIMIT, type SimpleStoryboardDiagnosticCall } from '../simple-storyboard-diagnostic';
+import { runSimpleStoryboardDiagnostic, reviewSimpleStoryboardDraft, SIMPLE_STORYBOARD_INPUT_LIMIT, type SimpleStoryboardDiagnosticCall } from '../simple-storyboard-diagnostic';
 import { textCanonOptions } from '../../../scripts/personal-simple-story';
 import { main, loadSimpleStoryboardSource } from '../../../scripts/personal-simple-storyboard';
 
@@ -75,6 +75,55 @@ async function files(length = 'short') {
     '--storyboard', path.join(root, 'planner.json'), '--review', path.join(root, 'reviewer.json'), '--out', output];
   return { ...f, root, sourceDir, output, argv, deps: { root, options: baseOptions, log: vi.fn() } };
 }
+
+describe('unchanged supplied storyboard compile and fresh review', () => {
+  it('sends only the identical fresh review, with no planner or paid planner result', async () => {
+    const f = await fixture(), before = canonicalJson(f.draft), legacy = await runSimpleStoryboardDiagnostic(f.args);
+    f.generate.mockClear();
+    const bound = await reviewSimpleStoryboardDraft(f.args, f.draft);
+    expect(f.generate).toHaveBeenCalledTimes(1);
+    expect(f.generate.mock.calls[0][0].stage).toBe('review');
+    expect(bound.calls.map(c => c.stage)).toEqual(['review']);
+    expect(bound.calls[0]).toEqual(legacy.calls[1]);
+    expect(bound.storyboard).toEqual(legacy.storyboard);
+    expect(bound.rawReview).toEqual(legacy.rawReview);
+    expect(bound.framePackets).toEqual(legacy.framePackets);
+    expect(bound.draftOrigin).toEqual({ version: 'unchanged-compiled-draft/v1', canonicalSha256: sha(before), plannerInvoked: false });
+    expect(legacy).not.toHaveProperty('draftOrigin');
+    expect(canonicalJson(f.draft)).toBe(before);
+  });
+  it('refuses an invalid supplied draft before any review', async () => {
+    const f = await fixture();
+    await expect(reviewSimpleStoryboardDraft(f.args, { ...f.draft, plan: null })).rejects.toThrow();
+    expect(f.generate).not.toHaveBeenCalled();
+  });
+  it('never treats an old or other-source review as authority', async () => {
+    const f = await fixture();
+    f.generate.mockImplementation(async () => ({ ...f.review, sourceDigest: 'f'.repeat(64) }));
+    await expect(reviewSimpleStoryboardDraft(f.args, f.draft)).rejects.toThrow('review_binding');
+    expect(f.generate).toHaveBeenCalledTimes(1);
+  });
+  it('revalidates the entire unchanged draft after awaiting review', async () => {
+    const f = await fixture();
+    f.generate.mockImplementation(async () => {
+      f.draft.plan.visualLanguage += ' changed while waiting';
+      return f.review;
+    });
+    await expect(reviewSimpleStoryboardDraft(f.args, f.draft)).rejects.toThrow('draft_changed');
+    expect(f.generate).toHaveBeenCalledTimes(1);
+  });
+  it('refuses repair/preservation mixing without buying a review', async () => {
+    const f = await fixture();
+    expect(() => reviewSimpleStoryboardDraft({ ...f.args, repair: {} as any }, f.draft)).toThrow('review_only_scope');
+    expect(() => reviewSimpleStoryboardDraft({ ...f.args, preservation: {} as any }, f.draft)).toThrow('review_only_scope');
+    expect(f.generate).not.toHaveBeenCalled();
+  });
+  it('measures the review input before invoking its injected transport', async () => {
+    const f = await fixture();
+    await expect(reviewSimpleStoryboardDraft({ ...f.args, inputByteLimit: 1 }, f.draft)).rejects.toThrow('input_limit');
+    expect(f.generate).not.toHaveBeenCalled();
+  });
+});
 
 describe('simple storyboard diagnostic over existing current seams', () => {
   it.each(['short', 'medium', 'long'])('binds actor-owned appearance separately from unchanged canon for %s, across every actual frame', async length => {

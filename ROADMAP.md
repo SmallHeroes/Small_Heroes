@@ -1,4 +1,10 @@
-## M25 same-book supported-plan media admission — independent code QA next (2026-11-08)
+## M27 accepted-world child binding — USD0 implementation, no new paid execution (2026-11-08)
+
+- M25/M26 code/envelope and actual held outcome independently verified. M26 is consumed:14 settled cumulative calls1567650 microUSD, no UNKNOWN, child anchor passed, no book-page images/audio/PDF/Reader. Final planning resampled and lost already-approved material/population state; retain the truthful hold and original paid bytes.
+- General versioned mechanical binding recompiles the same accepted raw world with the accepted child, refuses world/contract loss before paid review, and requests only a NEW semantic review. It exposes no blind planner, source rewrite, child regeneration or additional repair attempt. Default legacy producer/wires/caches stay unchanged; current policy is test-only.
+- Complete the core/cached/raw-readmission checks, then strict held-M26 lineage/carry/anchor admission and an exact oneuse review+remaining-media envelope inside remaining8432350/107. Same Claude independent QA after actual writer release/green local commits; no paid action before code and exact-envelope PASS/final report seal. No budget reset, second book, manual art/data correction, push/deploy or automatic production activation.
+
+## M25 same-book supported-plan media admission — historical, closed by M26 above (2026-11-08)
 
 - Owner resumed automatic coordination and completion of the ONE existing local illustrated book under cumulative USD10/121. M24's exact original envelope ran once and its sealed terminal outcome passed independent QA: same manuscript, supported third/final initial plan,9 settled calls1171848 microUSD, no UNKNOWN, no media yet. Original grant/claims stay consumed and immutable.
 - General USD0 implementation admits that exact supported lineage through raw original-authority replay and sealed preparation, retains repair context/cached-source provenance, exposes media-only steps and fixed consent-global execution/dispatch witnesses. Old local/production defaults stay unchanged. Local240/240/12 plus20 real-chain controls are green; TypeScript gates precede commit. This is implementation evidence, not independent code PASS or generated-book proof.
