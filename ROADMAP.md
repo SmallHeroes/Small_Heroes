@@ -1,4 +1,10 @@
-## M27 accepted-world child binding — USD0 implementation, no new paid execution (2026-11-08)
+## M28 locations ownership/count and ONE guided repair — approved A+B, USD0 implementation (2026-11-09)
+
+- M27's bound review and entities passed, locations truthfully held; independent terminal PASS06607dbd is an accounting/execution verdict, not product acceptance. Actual cumulative19/1785296, UNKNOWN0; remaining8214704/102. All old outputs and consumed b709e837 remain unchanged.
+- Owner A+B approval is explicit and recorded from his actual message in the authorized same Claude session. General/test-only projection names excluded entity-owned IDs/kinds and every separate location view. A fresh fixed-claim locations-only continuation carries all19 raw receipts and reuses passed plan/child/entities; exactly one LOW edit+fresh QA (2/1400000 reserve) inside original10m/121, then original book stages. Fresh HOLD stops; no R3 or another repair/new book.
+- Final relevant348/348 in16 actual specs, bothTS0 and26 actual19/cached/readmission controls, with clearly synthetic future replies and no provider/key access. Preserve two initial fixture failures and one corrected wire-probe assertion. Local commit/freeze, independent SAME Claude code+exact-envelope QA and final exit/hash seal are required before spending. No quality waiver, manual art, budget expansion, push or deployment.
+
+## M27 accepted-world child binding — historical USD0 implementation (2026-11-08)
 
 - M25/M26 code/envelope and actual held outcome independently verified. M26 is consumed:14 settled cumulative calls1567650 microUSD, no UNKNOWN, child anchor passed, no book-page images/audio/PDF/Reader. Final planning resampled and lost already-approved material/population state; retain the truthful hold and original paid bytes.
 - General versioned mechanical binding recompiles the same accepted raw world with the accepted child, refuses world/contract loss before paid review, and requests only a NEW semantic review. It exposes no blind planner, source rewrite, child regeneration or additional repair attempt. Default legacy producer/wires/caches stay unchanged; current policy is test-only.

@@ -19,7 +19,7 @@ import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_A
   CHILD_ANCHOR_CORRECTION_ROLES } from '@/lib/personal-wizard/child-anchor-style';
 import { companionIdentityReference } from '@/lib/personal-wizard/companion-identity';
 import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, assessAuditionReview, attemptStatus,
-  selectAuditionAttempt, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+  selectAuditionAttempt, sameSheetContext, sheetRepairPrompt, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-payload';
 import { runNativeBookFrames } from '@/lib/personal-wizard/native-page-proof-frames';
 import { NATIVE_BOOK_FRAMES } from '@/lib/personal-wizard/native-page-proof';
@@ -40,6 +40,7 @@ import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSuppor
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld } from './storyboard-binding';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
+import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
 const dataURL = engineImageDataUrl;
@@ -64,11 +65,15 @@ async function fiveViews(bytes: Buffer) {
 /** Production glue for the existing simple story/source/compiler/native loops. No local grants, directories or CLI. */
 export type EngineNativeChildPreparation={source:unknown;readings:unknown;initialRepair?:StoryboardRepair;initialDraft:unknown;initialReview:unknown;
  appearance:ReturnType<typeof existingChildAppearanceData>;adoption:unknown;child:AuditionImage;childB64:string};
+export type EngineNativeSheetObservation = ReturnType<typeof auditionSheetContext> & { role: 'entities' | 'locations'; attempt: AuditionAttempt; candidateB64: string };
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
   childBindingPreparation?:AdmittedEngineChildBindingPreparation;
+  locationsRepairPreparation?:AdmittedEngineLocationRepairPreparation;
   /** Read-only observation seam for provider-denied complete raw replay. Receives a detached copy; never supplies approval/state. */
   observeChildPreparation?:(value:EngineNativeChildPreparation,appearance:ExistingChildAppearance)=>void;
+  /** Detached raw-replay observation only; cannot supply or modify sheet approval. */
+  observeReferenceSheet?:(value:EngineNativeSheetObservation)=>void;
   materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
   return async runtime => {
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
@@ -124,12 +129,18 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     let prepared: any = await runtime.load('prepared_source');
+    if(args.locationsRepairPreparation){
+      const cap=args.locationsRepairPreparation;
+      assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+      if(args.childBindingPreparation||args.initialPreparation!==cap.initialPreparation)engineSiteFail('local_locations_preparation_changed');
+      if(!prepared){prepared=structuredClone(cap.prepared);await runtime.save('prepared_source',prepared);await runtime.advance('native');}
+    }
     if(args.childBindingPreparation){
       assertEngineChildBindingPreparation(args.childBindingPreparation,authority,runtime.checkpoint,prepared,snapshot);
       if(args.initialPreparation!==args.childBindingPreparation.initialPreparation)engineSiteFail('local_child_binding_preparation_changed');
       if(prepared){const ref=companionIdentityReference(snapshot.request.companion.id);
         if(prepared.companion?.imageSha!==ref.sha256||prepared.companion.imageName!=='reference_companion.png'||assetBytesSha256(Buffer.from(prepared.companionB64,'base64'))!==ref.sha256)engineSiteFail('local_child_binding_companion_changed');}
-    }else if(prepared?.childBindingParent!==undefined)engineSiteFail('local_child_binding_preparation_required');
+    }else if(prepared?.childBindingParent!==undefined&&!args.locationsRepairPreparation)engineSiteFail('local_child_binding_preparation_required');
     if(args.initialPreparation&&'initialRepair' in args.initialPreparation)assertEngineSupportedPreparationCache(args.initialPreparation,authority,runtime.checkpoint,prepared);
     if(!prepared&&args.childBindingPreparation){
       const cap=args.childBindingPreparation,data=structuredClone(cap.data);
@@ -244,13 +255,33 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       const designs = auditionSheetDesigns(book, texts), sheets = {} as Record<'entities' | 'locations', SavedSheet>;
       for (const role of ['entities', 'locations'] as const) {
         const context = auditionSheetContext(role, designs[role]);
-        const candidate = await render(`sheet_${role}_0`, auditionSheetPrompt(role, designs[role]), [child, companion], 'book_design', ['child_design_authority', 'companion_design_authority']);
-        const raw = await judged(`sheet_${role}_0_qa`, candidate, context.context, context.contextSha, [child, companion], null, 'sheet');
+        const cap=args.locationsRepairPreparation, prior=cap?.[role];
+        if(cap){
+          assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+          if(!prior||!sameSheetContext(prior,context)||canonicalHash(prior.requirementIds)!==canonicalHash(context.requirementIds))engineSiteFail('local_locations_context_changed');
+          const old=prior.attempt.candidate;
+          if(!old)engineSiteFail('local_locations_preparation_changed');
+          put(old,Buffer.from(prior.candidateB64,'base64'));
+          if(role==='entities'){
+            const chosen=selectAuditionAttempt('sheet',[prior.attempt]);
+            if(!chosen||chosen.status!=='qa_supported')engineSiteFail('local_locations_entities_changed');
+            sheets.entities={...context,chosen,attempts:[structuredClone(prior.attempt)],status:chosen.status};continue;
+          }
+        }
+        const repair=cap&&role==='locations'?prior:undefined, step=repair?'sheet_locations_1':`sheet_${role}_0`;
+        const prompt=repair?sheetRepairPrompt(role,designs[role],locationRepairFindings(repair.attempt),authority.locationSheetPolicy):auditionSheetPrompt(role,designs[role],authority.locationSheetPolicy);
+        const candidate = await render(step, prompt, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
+          repair?['rejected_edit_target','child_design_authority','companion_design_authority']:['child_design_authority', 'companion_design_authority']);
+        if(cap)assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+        if(repair&&candidate.imageSha===repair.attempt.candidate!.imageSha)engineSiteFail('engine_locations_repair_unchanged');
+        const raw = await judged(`${step}_qa`, candidate, context.context, context.contextSha, [child, companion], null, 'sheet');
+        if(cap)assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
         const assessed = assessAuditionReview(raw, candidate.imageSha, context.contextSha, context.requirementIds);
-        const attempt: AuditionAttempt = { attempt: 0, candidate, review: assessed.review, assessment: assessed.assessment, status: 'unavailable' };
+        const attempt: AuditionAttempt = { attempt: repair?1:0, candidate, review: assessed.review, assessment: assessed.assessment, status: 'unavailable' };
         attempt.status = attemptStatus('sheet', attempt); const chosen = selectAuditionAttempt('sheet', [attempt]);
+        args.observeReferenceSheet?.(structuredClone({...context,role,attempt,candidateB64:bytesOf(candidate).toString('base64')}));
         if (!chosen || attempt.status !== 'qa_supported') engineSiteFail('engine_reference_sheet_held');
-        sheets[role] = { ...context, chosen, attempts: [attempt], status: attempt.status };
+        sheets[role] = { ...context, chosen, attempts: repair?[structuredClone(repair.attempt),attempt]:[attempt], status: attempt.status };
       }
       const saved: Record<string, unknown> = {};
       const resumePages: Partial<Record<number, SavedPage>> = {};

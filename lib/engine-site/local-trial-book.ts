@@ -17,11 +17,12 @@ import type {LocalEngineTrialRuntime} from './local-trial-runtime';
 import type {prepareEngineOrder} from './personal-orders';
 import type {AdmittedEngineInitialPreparation} from './story-preparation';
 import type {AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
+import type {AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
 
 export type LocalTrialSnapshot=ReturnType<typeof prepareEngineOrder>['snapshot'];
 /** Same native producer, materializer and raw re-admission. No fake paid Order/private DB/customer delivery. */
 export async function runLocalEngineTrialBook(o:{runtime:LocalEngineTrialRuntime;directory:string;snapshot:LocalTrialSnapshot;
- provider:EngineProviderPorts;narration:EngineNarrationPorts;pdf?:typeof buildEngineBookPdf;initialPreparation?:AdmittedEngineInitialPreparation;childBindingPreparation?:AdmittedEngineChildBindingPreparation}){
+ provider:EngineProviderPorts;narration:EngineNarrationPorts;pdf?:typeof buildEngineBookPdf;initialPreparation?:AdmittedEngineInitialPreparation;childBindingPreparation?:AdmittedEngineChildBindingPreparation;locationsRepairPreparation?:AdmittedEngineLocationRepairPreparation}){
  const r=o.runtime,dir=path.resolve(o.directory),files=path.join(dir,'deliverables');mkdirSync(files,{recursive:true,mode:0o700});
  if(lstatSync(files).isSymbolicLink()||realpathSync(files)!==files)engineSiteFail('local_trial_deliverable_path');
  const denied=():never=>engineSiteFail('local_trial_external_database_forbidden');
@@ -32,9 +33,9 @@ export async function runLocalEngineTrialBook(o:{runtime:LocalEngineTrialRuntime
   async read(ref,kind){if(!/^[a-f0-9-]{36}$/.test(ref.assetId))engineSiteFail('local_trial_deliverable_id');const file=path.join(files,ref.assetId+'.'+extension[kind]);if(lstatSync(file).isSymbolicLink()||realpathSync(file)!==file)engineSiteFail('local_trial_deliverable_path');const bytes=readFileSync(file);if(assetBytesSha256(bytes)!==ref.sha256)engineSiteFail('local_trial_deliverable_changed');return bytes;},
  };
  const materialize=createEngineMaterializer({db,storage,snapshot:o.snapshot,narration:o.narration,pdf:o.pdf,assets});
- await createEngineNativeRecipe({db,storage,snapshot:o.snapshot,ports:o.provider,materialize,initialPreparation:o.initialPreparation,childBindingPreparation:o.childBindingPreparation})(r);
+ await createEngineNativeRecipe({db,storage,snapshot:o.snapshot,ports:o.provider,materialize,initialPreparation:o.initialPreparation,childBindingPreparation:o.childBindingPreparation,locationsRepairPreparation:o.locationsRepairPreparation})(r);
  const book=validateEngineMaterializedBook(r,await r.load('materialized_book'));
- const admitted=await replayEngineRecordedBook({checkpoint:r.checkpoint,snapshot:o.snapshot,book},{readJson:id=>r.readJson(id),result:step=>r.result(step)},undefined,o.initialPreparation,o.childBindingPreparation);
+ const admitted=await replayEngineRecordedBook({checkpoint:r.checkpoint,snapshot:o.snapshot,book},{readJson:id=>r.readJson(id),result:step=>r.result(step)},undefined,o.initialPreparation,o.childBindingPreparation,o.locationsRepairPreparation);
  if(admitted.length!==9)engineSiteFail('local_trial_readmission_incomplete');
  for(const p of book.pages){await assets.read(p.image,'page');await assets.read(p.audio,'audio');}
  await assets.read(book.pdf,'pdf');

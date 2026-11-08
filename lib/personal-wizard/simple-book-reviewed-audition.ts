@@ -18,6 +18,7 @@ import { drawnStates } from './storyboard-moments';
 import { LANDMARK_KIND_CONTRACT_VERSION, LANDMARK_KIND_ATTRIBUTE } from './storyboard-landmark-kind';
 import { INSTANCE_DISTINCTION_VERSION, DISTINCTION_ATTRIBUTE } from './storyboard-instance-distinction';
 import { simpleReferenceDesigns, referenceOwnershipSchema, simpleReferenceStateSchema } from './simple-reference-designs';
+import { LOCATION_SHEET_PROJECTION, locationSheetProjection } from './location-sheet-projection';
 import type { AuditionImage } from './simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
 import type { BookDesignReferenceRole } from '../generate-image';
@@ -182,7 +183,8 @@ export function auditionSheetDesigns(book: Pick<PersonalStoryboard, 'plan' | 'se
 /** The opt-in lineup's drawing rules, added to the entities sheet prompt only when its design carries the lineup. */
 const SCALE_LINEUP_SHEET_RULES = `SCALE LINEUP (design.scaleLineup), in addition to the tiles: one full-width band along the bottom of the sheet with ONE straight, shared ground line. On it, from left to right: a plain vertical measuring post exactly one child height tall (label ${SCALE_LINEUP_POST}; a neutral post, never a child figure: no head, face, clothes or limbs), each design.scaleLineup.members ID once, then the companion outline (design.scaleLineup.companionOutline). Every lineup figure is a flat single-tone silhouette with its short ID label, standing on the ground line: a member keeps the outline of its own tile, and the companion outline keeps the companion reference's characteristic outline (head, ears or horns, wing count). These silhouettes are size marks, not second designs: every listed ID is still drawn exactly once as its tile. The whole lineup uses ONE common scale: each member's height in post heights follows the size its written design states relative to the child (where a design states no such size, the natural size of what it is), and the companion outline is exactly companionOutline.standingHeightInChildHeights post heights tall. A group member (a flock, herd or crowd) stands as a few representative silhouettes. Choose the scale so the tallest figure fits the band; never enlarge or shrink one figure alone. Tiles keep their independent magnification: the lineup is the only place on the sheet where sizes are compared.`;
 
-export function auditionSheetPrompt(role: 'entities' | 'locations', design: unknown) {
+export function auditionSheetPrompt(role: 'entities' | 'locations', design: unknown, projection?: typeof LOCATION_SHEET_PROJECTION) {
+  if (projection !== undefined && projection !== LOCATION_SHEET_PROJECTION) fail('location_sheet_projection_policy');
   const lineup = sheetScaleLineup(role, design);
   return role === 'entities' ? `${STYLE_01_SHARED}
 Canonical PROP AND SUPPORTING CAST design sheet for one picture book. One clearly separated tile per listed ID, each with only its short Latin ID label; no captions, paragraphs or other words.
@@ -192,15 +194,15 @@ Keep every visible fixed design: identity, colours, materials, structure and cou
 AUTHORITATIVE DESIGN DATA: ${canonicalJson(design)}` : `${STYLE_01_SHARED}
 Canonical LOCATION design sheet for one picture book: FIXED GEOGRAPHY ONLY. One roomy establishing view per listed location, each with only its short Latin ID label; no captions or other words.
 Show each listed landmark exactly once, with its materials, shape, counted parts and its place relative to the other landmarks. No characters, no story objects, no tracks, marks or clues: story content is drawn on the pages.
-Reference images 1 and 2 only set the watercolour technique; do not draw them.
+${projection ? locationSheetProjection(design, projection) : 'Reference images 1 and 2 only set the watercolour technique; do not draw them.'}
 AUTHORITATIVE DESIGN DATA: ${canonicalJson(design)}`;
 }
 
 /** A repair edits the chosen sheet in place: keep what is correct, fix only the cited findings. */
-export const sheetRepairPrompt = (role: 'entities' | 'locations', design: unknown, findings: readonly AuditionFinding[]) =>
-  `${auditionSheetPrompt(role, design)}
+export const sheetRepairPrompt = (role: 'entities' | 'locations', design: unknown, findings: readonly AuditionFinding[], projection?: typeof LOCATION_SHEET_PROJECTION) =>
+  `${auditionSheetPrompt(role, design, projection)}
 Image 1 is the previous sheet: an EDIT TARGET, not an approved reference. Keep every tile, label and design that is already correct.
-Fix ONLY these reviewed findings. Reviewer notes can be wrong: resolve each against the design data above.
+${projection ? 'Images 2 and 3 are the approved child and companion design/style authorities, never characters to draw in this sheet. The edit target is not a style or identity authority.\n' : ''}Fix ONLY these reviewed findings. Reviewer notes can be wrong: resolve each against the design data above.
 ${findings.map(f => `- [${f.impact}] ${f.requirement}: ${f.note}`).join('\n')}`;
 
 const ISSUE_RULES = `For EVERY defect or uncertain check, list its issues (max 4). Each issue has:
