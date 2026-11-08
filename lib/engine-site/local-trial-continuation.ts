@@ -57,7 +57,7 @@ export function readLocalSettledJournal(root:string,checkpoint:EngineCheckpoint,
 }
 /** Strictly ONE root initial-plan HOLD. No recursive continuation, UNKNOWN, failed call, changed request or new book. */
 export function loadLocalParentEnvelope(g:LocalEngineGrant,parent:LocalEngineGrant){
- if(!g.continuation||g.planningRecovery||parent.continuation||parent.planningRecovery)engineSiteFail('local_parent_scope');
+ if(!g.continuation||g.planningRecovery||g.mediaContinuation||parent.continuation||parent.planningRecovery||parent.mediaContinuation)engineSiteFail('local_parent_scope');
  const {root}=assertLocalParentEvidence(g.continuation);
  if(root!==parent.directory||parent.directory===g.directory||g.approvalReference!==parent.approvalReference||g.approvedBy!==parent.approvedBy||g.approvedAt!==parent.approvedAt||
   g.profile.sha256!==parent.profile.sha256||g.profile.file!==parent.profile.file||g.readerId!==parent.readerId||g.source.root!==parent.source.root||

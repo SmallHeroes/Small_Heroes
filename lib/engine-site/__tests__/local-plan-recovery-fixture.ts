@@ -56,5 +56,5 @@ export function syntheticPlanRecovery(){
  const nextAuthority={...rootAuthority,responseSchemaPolicy:'json-schema-null/v1' as const,sourceRevision:grant.source.head,policySha256:'f'.repeat(64),budget:{...rootAuthority.budget,steps:localPlanRecoverySteps()}};
  const reseal=()=>{seal(child,childIndex);grant.planningRecovery!.parentEvidence=pin(childIndex);grant.planningRecovery!.parentStop=pin(stopFile);grant.planningRecovery!.parentExit=pin(childExit);};
  const load=()=>loadLocalPlanRecovery(grant,childGrant,parent,childAuthority,master);
- return {dir,root,child,master,rootBinding,childBinding,rootGrant,childGrant,childFile,grant,parent,childAuthority,nextAuthority,childJournal:c,rootJournal:r,stopFile,stop,childExit,childIndex,load,reseal};
+ return {dir,root,child,master,rootBinding,childBinding,rootGrant,childGrant,childFile,grant,parent,childAuthority,nextAuthority,childJournal:c,rootJournal:r,stopFile,stop,childExit,childIndex,load,reseal,journal,seal};
 }

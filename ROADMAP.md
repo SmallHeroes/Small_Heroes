@@ -1,4 +1,10 @@
-## M24 exact two-call envelope — preparation only; M23 technical PASS verified (2026-11-08)
+## M25 same-book supported-plan media admission — independent code QA next (2026-11-08)
+
+- Owner resumed automatic coordination and completion of the ONE existing local illustrated book under cumulative USD10/121. M24's exact original envelope ran once and its sealed terminal outcome passed independent QA: same manuscript, supported third/final initial plan,9 settled calls1171848 microUSD, no UNKNOWN, no media yet. Original grant/claims stay consumed and immutable.
+- General USD0 implementation admits that exact supported lineage through raw original-authority replay and sealed preparation, retains repair context/cached-source provenance, exposes media-only steps and fixed consent-global execution/dispatch witnesses. Old local/production defaults stay unchanged. Local240/240/12 plus20 real-chain controls are green; TypeScript gates precede commit. This is implementation evidence, not independent code PASS or generated-book proof.
+- Next: Claude independent code review, exact remaining-capacity media envelope and its review, then the existing producer's LOW illustrations/identity, Dad audio, PDF and working local Reader. Preserve all9 costs, unchanged text, source/quality/attempt/UNKNOWN gates and explicit time basis. No second book, manual art/data repair, budget expansion, push/deploy or public launch.
+
+## M24 exact two-call envelope — historical preparation; execution/outcome closed above (2026-11-08)
 
 - Received/verified final Claude M23 PASS,27 reviewer/79 writer/3922 source pins and actual exits;581/581 in51 specs,bothTS0,20/20 raw-chain controls. Four minor notes retained without source changes. PASS covers implementation only, no paid/model/product/release authority.
 - Prepare a NON-ACTIVE exact one-planner/one-review proposal inside the same USD10/121: prior852724/7, max new2400000/2, attempt3/3, stop before images. Grant/activation bytes remain wrapped until independent envelope review and a fresh explicit owner Go. Bind clean source/ancestors/first wire/operator; no credentials read or old-grant restart.

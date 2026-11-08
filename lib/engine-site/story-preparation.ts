@@ -78,8 +78,11 @@ export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:Sto
   }});
  return {diagnostic,draft};
 }
-const admitted=new WeakSet<object>();
-export type AdmittedEngineInitialPreparation=Awaited<ReturnType<typeof admitEngineInitialPreparation>>;
+const admitted=new WeakSet<object>(),supportedAdmissions=new WeakSet<object>();
+export type AdmittedEngineInitialPreparation=Awaited<ReturnType<typeof admitEngineInitialPreparation>>|Awaited<ReturnType<typeof admitEngineSupportedInitialPreparation>>;
+function sealPreparation<T extends object>(value:T):T{
+ const freeze=(v:unknown):void=>{if(!v||typeof v!=='object'||Object.isFrozen(v))return;for(const x of Object.values(v))freeze(x);Object.freeze(v);};freeze(value);admitted.add(value);return value;
+}
 /** Only a complete provider-DENIED raw replay can create this in-memory capability. No supplied source/draft becomes approved. */
 export async function admitEngineInitialPreparation(runtime:EngineRuntime,snapshot:StorySnapshot){
  if(runtime.checkpoint.authority.purpose!=='test')engineSiteFail('engine_preparation_parent_authority');
@@ -87,8 +90,28 @@ export async function admitEngineInitialPreparation(runtime:EngineRuntime,snapsh
  const prepared=await prepareEngineStorySource(runtime,snapshot,ports),initial=await prepareEngineStoryboard(runtime,snapshot,prepared.source,ports,'initial');
  if(engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_preparation_parent_not_held');
  const value={...prepared,initial,requestSha256:runtime.checkpoint.authority.requestSha256,optionsSha256:runtime.checkpoint.authority.optionsSha256,orderId:runtime.checkpoint.authority.orderId,ownerId:runtime.checkpoint.ownerId,draftId:runtime.checkpoint.draftId};
- const freeze=(v:unknown):void=>{if(!v||typeof v!=='object'||Object.isFrozen(v))return;for(const x of Object.values(v))freeze(x);Object.freeze(v);};freeze(value);admitted.add(value);return value;
+ return sealPreparation(value);
+}
+/** Replays the final repaired plan and fresh review, never accepts a supplied diagnostic or dispatches. */
+export async function admitEngineSupportedInitialPreparation(runtime:EngineRuntime,snapshot:StorySnapshot,
+ previous:Awaited<ReturnType<typeof admitEngineInitialPreparation>>,repair:StoryboardRepair){
+ assertEngineInitialPreparation(previous,runtime.checkpoint.authority,runtime.checkpoint);
+ const expected={parentStoryboardDigest:previous.initial.diagnostic.storyboardDigest,draft:previous.initial.draft,review:previous.initial.diagnostic.rawReview,
+  parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
+ if(supportedAdmissions.has(previous)||canonicalHash(repair)!==canonicalHash(expected))engineSiteFail('engine_supported_preparation_parent_changed');
+ const denied=():never=>engineSiteFail('engine_preparation_replay_dispatch_forbidden');
+ const initial=await prepareEngineStoryboard(runtime,snapshot,previous.source,{fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied},'initial_repair_2',undefined,repair);
+ if(!engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_supported_preparation_held');
+ const value=sealPreparation({...previous,initial,initialRepair:repair});supportedAdmissions.add(value);return value;
 }
 export function assertEngineInitialPreparation(value:AdmittedEngineInitialPreparation,authority:EngineOrderAuthority,scope?:{ownerId:string;draftId:string}){
- if(!admitted.has(value)||authority.purpose!=='test'||!scope||value.ownerId!==scope.ownerId||value.draftId!==scope.draftId||value.orderId!==authority.orderId||value.requestSha256!==authority.requestSha256||value.optionsSha256!==authority.optionsSha256||engineStoryboardSupported(value.initial.diagnostic.status))engineSiteFail('engine_preparation_parent_changed');
+ if(!admitted.has(value)||authority.purpose!=='test'||!scope||value.ownerId!==scope.ownerId||value.draftId!==scope.draftId||value.orderId!==authority.orderId||value.requestSha256!==authority.requestSha256||value.optionsSha256!==authority.optionsSha256||engineStoryboardSupported(value.initial.diagnostic.status)!==supportedAdmissions.has(value))engineSiteFail('engine_preparation_parent_changed');
+}
+/** A cached native preparation cannot replace the admitted paid source/initial plan during resume or readmission. */
+export function assertEngineSupportedPreparationCache(value:AdmittedEngineInitialPreparation,authority:EngineOrderAuthority,scope:{ownerId:string;draftId:string},cached:unknown){
+ assertEngineInitialPreparation(value,authority,scope);
+ if(!supportedAdmissions.has(value)||!('initialRepair' in value))engineSiteFail('engine_supported_preparation_parent_changed');
+ if(cached===null)return;
+ const c=cached as Record<string,unknown>|null,expected={source:value.source,readings:value.readings,initialDraft:value.initial.draft,initialReview:value.initial.diagnostic.rawReview,initialRepair:value.initialRepair};
+ if(!c||typeof c!=='object'||Object.entries(expected).some(([key,v])=>!Object.prototype.hasOwnProperty.call(c,key)||c[key]===undefined||canonicalHash(c[key])!==canonicalHash(v)))engineSiteFail('engine_supported_preparation_cache_changed');
 }

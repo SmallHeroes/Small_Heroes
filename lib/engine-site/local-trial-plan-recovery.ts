@@ -44,7 +44,7 @@ function claimBindings(failed:LocalEngineGrant,parent:LocalParentEnvelope,author
 /** Caller has recomputed the old root and v1-child authorities. This function never writes/claims/reads credentials. */
 export function loadLocalPlanRecovery(g:LocalEngineGrant,failed:LocalEngineGrant,parent:LocalParentEnvelope,failedAuthority:EngineOrderAuthority,masterFile:string){
  const spec=localPlanRecoverySchema.parse(g.planningRecovery);
- if(g.continuation||!failed.continuation||failed.planningRecovery||failed.responseSchemaPolicy!==undefined||failedAuthority.responseSchemaPolicy!==undefined||g.responseSchemaPolicy!==ENGINE_RESPONSE_SCHEMA_POLICY||
+ if(g.continuation||g.mediaContinuation||!failed.continuation||failed.planningRecovery||failed.mediaContinuation||failed.responseSchemaPolicy!==undefined||failedAuthority.responseSchemaPolicy!==undefined||g.responseSchemaPolicy!==ENGINE_RESPONSE_SCHEMA_POLICY||
   canonicalHash(json(spec.parentGrant.file))!==canonicalHash(failed)||g.directory===failed.directory||g.directory===parent.parent.directory||
   g.approvalReference!==failed.approvalReference||g.approvedBy!==failed.approvedBy||g.approvedAt!==failed.approvedAt||
   canonicalHash(g.profile)!==canonicalHash(failed.profile)||g.readerId!==failed.readerId||g.source.root!==failed.source.root||

@@ -36,7 +36,7 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,type AdmittedEngineInitialPreparation } from './story-preparation';
+import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
@@ -117,11 +117,12 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     let prepared: any = await runtime.load('prepared_source');
+    if(args.initialPreparation&&'initialRepair' in args.initialPreparation)assertEngineSupportedPreparationCache(args.initialPreparation,authority,runtime.checkpoint,prepared);
     if (!prepared) {
       if(args.initialPreparation)assertEngineInitialPreparation(args.initialPreparation,authority,runtime.checkpoint);
       const {source,readings}=args.initialPreparation??await prepareEngineStorySource(runtime,snapshot,ports);
       let initial=args.initialPreparation?.initial??await prepareEngineStoryboard(runtime,snapshot,source,ports,'initial');
-      let initialRepair:StoryboardRepair|undefined;
+      let initialRepair:StoryboardRepair|undefined=args.initialPreparation&&'initialRepair' in args.initialPreparation?args.initialPreparation.initialRepair:undefined;
       if(!engineStoryboardSupported(initial.diagnostic.status)&&args.initialPreparation){
         initialRepair={parentStoryboardDigest:initial.diagnostic.storyboardDigest,draft:initial.draft,review:initial.diagnostic.rawReview,
           parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
