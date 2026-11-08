@@ -1,4 +1,10 @@
-## M23 bounded same-book planning recovery — implementation, independent QA pending (2026-11-08)
+## M24 exact two-call envelope — preparation only; M23 technical PASS verified (2026-11-08)
+
+- Received/verified final Claude M23 PASS,27 reviewer/79 writer/3922 source pins and actual exits;581/581 in51 specs,bothTS0,20/20 raw-chain controls. Four minor notes retained without source changes. PASS covers implementation only, no paid/model/product/release authority.
+- Prepare a NON-ACTIVE exact one-planner/one-review proposal inside the same USD10/121: prior852724/7, max new2400000/2, attempt3/3, stop before images. Grant/activation bytes remain wrapped until independent envelope review and a fresh explicit owner Go. Bind clean source/ancestors/first wire/operator; no credentials read or old-grant restart.
+- Clarify native review caps from code:39K output,208KB content/240KB payload, not12K; keep the existing code/caps. Proposed fresh90-minute window is not the old expired supervisor window. Manual Claude review then Guy's paid decision remains next; current work USD0/no active grant/claim/provider/server/push/deploy.
+
+## M23 bounded same-book planning recovery — independent technical PASS received (2026-11-08)
 
 - Approved USD0 scope: preserve the same manuscript and all seven settled receipts, implement one general final planning attempt plus a fresh full review, validate locally, commit, hand off manually to Claude. No paid activation, media/full book, server, push/deploy or automatic reviewer dispatch.
 - New explicit old-schema compiler-HOLD recovery validates both consumed ancestors and their actual root/child claims, derives852724/7 carry, and counts the invalid paid draft as attempt2 within the unchanged3-attempt ceiling. A fixed consent-global append record cannot be forked by a new grant/source parent. Only planner_2/review slots; success stops at plan-only outcome, HOLD/UNKNOWN preserve history.
