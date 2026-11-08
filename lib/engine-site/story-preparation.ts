@@ -28,8 +28,8 @@ import type {SimpleStoryboardDiagnosticCall} from '@/lib/personal-wizard/simple-
 export type StorySnapshot={request:ReviewedPersonalBookRequest;options:PersonalWizardOptions};
 export const engineStoryboardSupported=(status:string)=>['review_supported','review_supported_with_notes'].includes(status);
 /** Complete untruncated schema/source, bounded only for the explicit owner-test repair slot. */
-export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined){
- if(!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||authority.purpose!=='test'||authority.budget.steps.find(s=>s.id==='initial_storyboard_repair_1')?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
+export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined,step='initial_storyboard_repair_1'){
+ if(!['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||authority.purpose!=='test'||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
  const body=personalBookProviderPayload(call,'gpt-6.1-sol');body.text.format.schema=compactSchemaDefinitions(body.text.format.schema);
  if(Buffer.byteLength(JSON.stringify({...body,background:true,store:false}))>LOCAL_INITIAL_REPAIR_WIRE_BYTES)engineSiteFail('engine_initial_repair_wire_limit');return body;
 }
@@ -60,18 +60,19 @@ export async function prepareEngineStorySource(runtime:EngineRuntime,snapshot:St
  return {source,readings};
 }
 export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:StorySnapshot,source:Awaited<ReturnType<typeof prepareEngineStorySource>>['source'],
- ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
+ ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1'|'initial_repair_2',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
  let draft:unknown=null;
  const diagnostic=await runSimpleStoryboardDiagnostic({request:snapshot.request,writerResult:source,options:snapshot.options,signal:runtime.signal,
   ...PREPARATION_CONTRACTS,existingChildAppearance,...(repair?{repair}:{}),reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
   generate:async call=>{
    let body;
-   if(call.stage==='storyboard'&&prefix==='initial_repair_1'){
-    body=localInitialRepairBody(runtime.checkpoint.authority,call,repair);
+   if(call.stage==='storyboard'&&(prefix==='initial_repair_1'||prefix==='initial_repair_2')){
+    body=localInitialRepairBody(runtime.checkpoint.authority,call,repair,prefix==='initial_repair_1'?'initial_storyboard_repair_1':'initial_storyboard_repair_2');
    }else body=call.stage==='storyboard'?prepareSolWritingWire(call).payload:personalBookProviderPayload(call,'gpt-6.1-sol');
+   const repairStep=prefix==='initial_repair_2'?'initial_storyboard_repair_2':'initial_storyboard_repair_1';
    const step=prefix==='initial'?(call.stage==='storyboard'?'initial_storyboard':'initial_storyboard_review'):
     prefix==='prep'?(call.stage==='storyboard'?'prep_storyboard_0':'prep_storyboard_0_review'):
-     (call.stage==='storyboard'?'initial_storyboard_repair_1':'initial_storyboard_repair_1_review');
+     (call.stage==='storyboard'?repairStep:`${repairStep}_review`);
    const answer=await runtime.call(prepareEngineResponse(runtime.checkpoint.authority,step,body,x=>decodePersonalBookProviderOutput(call,x),ports));
    if(call.stage==='storyboard')draft=answer.output;return answer.output;
   }});

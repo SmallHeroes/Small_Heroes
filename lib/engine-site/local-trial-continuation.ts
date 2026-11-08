@@ -6,7 +6,7 @@ import {z} from 'zod';
 import {canonicalHash} from '@/lib/canonical-json';
 import type {LocalEngineGrant} from '@/scripts/engine-local-book';
 import {engineOrderAuthoritySchema,engineSiteFail} from './contract';
-import {parseEngineCheckpoint,type EngineRuntime,type EngineProviderResult} from './durable-worker';
+import {parseEngineCheckpoint,type EngineCheckpoint,type EngineRuntime,type EngineProviderResult} from './durable-worker';
 import {anthropicAuthorCost} from './anthropic-author';
 import {auditionUsageCost} from '@/scripts/personal-simple-book-illustrator';
 import {admitEngineInitialPreparation,type StorySnapshot} from './story-preparation';
@@ -36,9 +36,28 @@ export function assertLocalParentEvidence(spec:LocalContinuation){
 }
 export const INITIAL_PARENT_STEPS=Object.freeze(['story_author','story_editor','story_final_review','story_comparison','initial_storyboard','initial_storyboard_review']);
 const allowed=new Set([...INITIAL_PARENT_STEPS,'story_final_review_citation','story_comparison_citation']);
+/** Sealed terminal journals only. Costs come from raw receipts, never from a caller-supplied carry. */
+export function readLocalSettledJournal(root:string,checkpoint:EngineCheckpoint,required:readonly string[],permitted:ReadonlySet<string>){
+ const authority=checkpoint.authority;
+ const asset=(id:string)=>{if(!/^[a-f0-9-]{36}$/.test(id))engineSiteFail('local_parent_asset');const record=json(path.join(root,'journal/assets',id+'.json'));if(record.id!==id||record.version!=='engine-local-asset/v1'||record.sha256!==canonicalHash(record.value))engineSiteFail('local_parent_asset');return record.value;};
+ const claims=new Map<string,any>(),results=new Map<string,EngineProviderResult>();let known=0;
+ const steps=readdirSync(path.join(root,'journal/calls'));
+ if(required.some(s=>!steps.includes(s))||steps.some(s=>!permitted.has(s))||canonicalHash([...steps].sort())!==canonicalHash(Object.keys(checkpoint.calls).sort()))engineSiteFail('local_parent_scope');
+ for(const step of steps){const dir=path.join(root,'journal/calls',step),claim=json(path.join(dir,'claim.json')),settled=json(path.join(dir,'result.json')),request=asset(claim.requestAssetId),saved=asset(settled.assetId),r=settled.result as EngineProviderResult;
+  const slot=authority.budget.steps.find(s=>s.id===step),c=checkpoint.calls[step];
+  if(claim.version!=='engine-local-claim/v1'||claim.authoritySha256!==canonicalHash(authority)||claim.call.step!==step||!slot||slot.maximumMicroUsd!==claim.call.maximumMicroUsd||
+   !c?.settled||c.requestAssetId!==claim.requestAssetId||c.resultAssetId!==settled.assetId||c.wireSha256!==claim.call.wireSha256||request.authoritySha256!==canonicalHash(authority)||canonicalHash(request.call)!==canonicalHash(claim.call)||canonicalHash(request.wire)!==claim.call.wireSha256||
+   settled.version!=='engine-local-result/v1'||settled.claimSha256!==canonicalHash(claim)||settled.assetSha256!==canonicalHash(saved)||saved.wireSha256!==claim.call.wireSha256||saved.completed!==true||canonicalHash(saved.result)!==canonicalHash(r))engineSiteFail('local_parent_receipt');
+  const raw=r.raw as any,cost=step==='story_author'?anthropicAuthorCost(raw):raw.model==='gpt-6.1-sol'&&raw.service_tier==='default'?auditionUsageCost(raw.usage,'sol'):null;
+  if(r.usable!==true||cost===null||cost!==r.estimatedMicroUsd||cost>slot.maximumMicroUsd)engineSiteFail('local_parent_unsettled');
+  known+=cost;claims.set(step,{claim,request});results.set(step,r);
+ }
+ if(!Number.isSafeInteger(known))engineSiteFail('local_parent_meter');
+ return {asset,claims,results,known};
+}
 /** Strictly ONE root initial-plan HOLD. No recursive continuation, UNKNOWN, failed call, changed request or new book. */
 export function loadLocalParentEnvelope(g:LocalEngineGrant,parent:LocalEngineGrant){
- if(!g.continuation||parent.continuation)engineSiteFail('local_parent_scope');
+ if(!g.continuation||g.planningRecovery||parent.continuation||parent.planningRecovery)engineSiteFail('local_parent_scope');
  const {root}=assertLocalParentEvidence(g.continuation);
  if(root!==parent.directory||parent.directory===g.directory||g.approvalReference!==parent.approvalReference||g.approvedBy!==parent.approvedBy||g.approvedAt!==parent.approvedAt||
   g.profile.sha256!==parent.profile.sha256||g.profile.file!==parent.profile.file||g.readerId!==parent.readerId||g.source.root!==parent.source.root||
@@ -48,19 +67,7 @@ export function loadLocalParentEnvelope(g:LocalEngineGrant,parent:LocalEngineGra
  try {process.kill(exit.childPid,0);engineSiteFail('local_parent_process_alive');} catch(error){if((error as NodeJS.ErrnoException).code!=='ESRCH')throw error;}
  const checkpoint=parseEngineCheckpoint({engineSite:json(path.join(root,'journal/checkpoint.json'))}),authority=engineOrderAuthoritySchema.parse(checkpoint.authority);
  if(authority.purpose!=='test'||authority.orderId!==parent.approvalReference||authority.sourceRevision!==parent.source.head||authority.budget.maximumMicroUsd!==parent.maximumMicroUsd||authority.budget.maximumCalls!==parent.maximumCalls||checkpoint.phase!=='story'||checkpoint.snapshotSha256!==authority.requestSha256||Object.keys(checkpoint.outputs).length)engineSiteFail('local_parent_authority');
- const asset=(id:string)=>{if(!/^[a-f0-9-]{36}$/.test(id))engineSiteFail('local_parent_asset');const record=json(path.join(root,'journal/assets',id+'.json'));if(record.id!==id||record.version!=='engine-local-asset/v1'||record.sha256!==canonicalHash(record.value))engineSiteFail('local_parent_asset');return record.value;};
- const claims=new Map<string,any>(),results=new Map<string,EngineProviderResult>();let known=0;
- const steps=readdirSync(path.join(root,'journal/calls'));
- if(INITIAL_PARENT_STEPS.some(s=>!steps.includes(s))||steps.some(s=>!allowed.has(s))||canonicalHash([...steps].sort())!==canonicalHash(Object.keys(checkpoint.calls).sort()))engineSiteFail('local_parent_scope');
- for(const step of steps){const dir=path.join(root,'journal/calls',step),claim=json(path.join(dir,'claim.json')),settled=json(path.join(dir,'result.json')),request=asset(claim.requestAssetId),saved=asset(settled.assetId),r=settled.result as EngineProviderResult;
-  const slot=authority.budget.steps.find(s=>s.id===step),c=checkpoint.calls[step];
-  if(claim.version!=='engine-local-claim/v1'||claim.authoritySha256!==canonicalHash(authority)||claim.call.step!==step||!slot||slot.maximumMicroUsd!==claim.call.maximumMicroUsd||
-   !c?.settled||c.resultAssetId!==settled.assetId||c.wireSha256!==claim.call.wireSha256||request.authoritySha256!==canonicalHash(authority)||canonicalHash(request.call)!==canonicalHash(claim.call)||canonicalHash(request.wire)!==claim.call.wireSha256||
-   settled.version!=='engine-local-result/v1'||settled.claimSha256!==canonicalHash(claim)||settled.assetSha256!==canonicalHash(saved)||saved.wireSha256!==claim.call.wireSha256||saved.completed!==true||canonicalHash(saved.result)!==canonicalHash(r))engineSiteFail('local_parent_receipt');
-  const raw=r.raw as any,cost=step==='story_author'?anthropicAuthorCost(raw):raw.model==='gpt-6.1-sol'&&raw.service_tier==='default'?auditionUsageCost(raw.usage,'sol'):null;
-  if(r.usable!==true||cost===null||cost!==r.estimatedMicroUsd||cost>slot.maximumMicroUsd)engineSiteFail('local_parent_unsettled');
-  known+=cost;claims.set(step,{claim,request});results.set(step,r);
- }
+ const {asset,claims,results,known}=readLocalSettledJournal(root,checkpoint,INITIAL_PARENT_STEPS,allowed),steps=[...results.keys()];
  if(!Number.isSafeInteger(known)||known!==stop.meter?.knownEstimateMicroUsd||known!==stop.meter?.accountedMicroUsd||steps.length!==stop.meter?.logicalCalls||stop.meter?.pendingCalls!==0||stop.meter?.unknownCalls!==0||stop.meter?.failedCalls!==0||stop.meter?.overReservedCalls!==0||known>=g.maximumMicroUsd||steps.length>=g.maximumCalls)engineSiteFail('local_parent_meter');
  const carried:LocalTrialCarry=Object.freeze({accountedMicroUsd:known,logicalCalls:steps.length,evidenceSha256:g.continuation.parentEvidence.sha256});
  return {parent,checkpoint,authority,carried,claims,results,asset};

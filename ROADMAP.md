@@ -1,3 +1,10 @@
+## M23 bounded same-book planning recovery — implementation, independent QA pending (2026-11-08)
+
+- Approved USD0 scope: preserve the same manuscript and all seven settled receipts, implement one general final planning attempt plus a fresh full review, validate locally, commit, hand off manually to Claude. No paid activation, media/full book, server, push/deploy or automatic reviewer dispatch.
+- New explicit old-schema compiler-HOLD recovery validates both consumed ancestors and their actual root/child claims, derives852724/7 carry, and counts the invalid paid draft as attempt2 within the unchanged3-attempt ceiling. A fixed consent-global append record cannot be forked by a new grant/source parent. Only planner_2/review slots; success stops at plan-only outcome, HOLD/UNKNOWN preserve history.
+- Existing original-source replay, full body/schema, after-await/source/receipt guards, all quality/0.70 rules and USD10/121 remain. M22 schema opt-in is required; an already corrected-dialect failure is outside this narrow recovery. No stored response is edited. Final1473/1473 in83 specs and both nonincrementalTS0; the red journal-loss second-POST control is closed by mandatory consent-global per-slot witnesses and no fresh-journal resume. Exact freeze/manual Claude QA is next; these local gates are not independent PASS, model efficacy, full-repository qualification or paid authority.
+- Next after technical QA: prepare an exact two-call planning envelope for separate owner approval. Even a supported new plan does not authorize drawing or complete the book. R17/old media/costs/claims remain immutable; site staging/release/product qualification stays separate.
+
 ## M22 standard-null source contract — focused independent PASS recorded (2026-11-08)
 
 - Approved USD0 implementation preserves the eight-page manuscript and all paid evidence. A versioned explicit test authority/activation selects standard nullable primitive JSON Schema and Responses wirev2; absent policy retains exact old wirev1. No output coercion, shared SDK edit, new continuation, paid activation or production default change.
