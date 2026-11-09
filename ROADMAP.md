@@ -103,6 +103,12 @@
 
 # SmallHeroes — Roadmap
 
+## M33 image-model diagnostic — local implementation, independent code/exact-envelope QA pending (2026-11-09)
+
+- Original plan HOLD acc1cb78 is addressed by per-frame applicable/N/A pair criteria, with only native per-frame scale measurements and all existing identity/quality gates. New opt-in comparison runner, consent-global witnesses/shared campaign namespace, exact14 jobs/four LOW images and durable truthful supervision are locally validated at USD0 (555/24, bothTS0,20 VM,3 native lifetime). Full npm check is5min INCOMPLETE, not green.
+- Prepare/manual Claude review the frozen new source + corrected rubric + exact NON-ACTIVE comparison envelope. Proposed2.5M/14 is INCLUDED in original new-book10M/121, not an enlargement; remaining book allowance must subtract actual comparison costs/calls. No new image/API/key/expense/GO/claim now. New2.6 input ceilings require explicit independent reserve qualification; optional response model provenance is honest. Same official unit prices do not mean cheaper per image.
+- After actual outcome/visible model selection: reviewed new-book model/campaign transition, corrected full-book window/grace and exact new remaining authority. Original M32 code passed but90min envelope remains HOLD/unused; M30 old FULL600000 UNKNOWN remains immutable. No automatic extra experiment, book, retry, reset, push/deploy or computer control. Guy separately requested a safe project cleanup AFTER this milestone; that is a separate audit, not deletion authority inside M33.
+
 ## Engine-to-site launch ? final scope (2026-11-04)
 
 - FINAL owner policy: 59 ILS inclusive, cover + eight story pages + narration + PDF; no add-ons/coupons. Customer gpt-image-2 LOW, no HIGH; paid MEDIUM measurement cancelled. Identity0.70 and existing attempts/review gates unchanged. New live-written engine only; bank retired for new orders. Launch2026-11-30.
