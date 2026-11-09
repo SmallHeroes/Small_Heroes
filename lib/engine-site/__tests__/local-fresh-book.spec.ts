@@ -3,7 +3,8 @@ import {mkdtempSync,readFileSync,writeFileSync,rmSync,existsSync,realpathSync} f
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
-import {localEngineGrantSchema,prepareLocalEngineTrial,localEngineMasterClaimFile,type LocalEngineGrant} from '@/scripts/engine-local-book';
+import {localEngineGrantSchema,prepareLocalEngineTrial,localEngineMasterClaimFile,localEngineBookCLI,type LocalEngineGrant} from '@/scripts/engine-local-book';
+import {ENGINE_IMAGE26_POLICY} from '../image-model-policy';
 import {syntheticEngineOrderInput} from './synthetic-order';
 import {engineRecipeSteps} from '../platform-policy';
 import {ENGINE_RESPONSE_SCHEMA_POLICY} from '../response-schema';
@@ -21,10 +22,36 @@ function setup(){const dir=mkdtempSync(path.join(realpathSync(tmpdir()),'sh_fres
 function activate(g:LocalEngineGrant,dir:string,consent='owner.json'){
  const file=path.join(dir,consent);if(!existsSync(file))writeFileSync(file,JSON.stringify({version:'engine-one-local-book-owner-authority/v1',maximumMicroUsd:10000000,maximumLogicalCalls:121,additionalBudgetAllowed:false,newPublicLaunchAllowed:false,realPaymeChargeAllowed:false,distinctConsent:consent}));
  const value={version:'engine-local-one-book-activation/v1',ownerAuthority:{file,sha256:sha(readFileSync(file,'utf8'))},approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,approvalTimeKind:'local_record_of_received_owner_authority',maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,sourceRoot:g.source.root,sourceHead:g.source.head,profileSha256:g.profile.sha256,directory:g.directory,readerId:g.readerId,fictional:true,publicDelivery:false,realPayment:false,
-  ...('freshBookPolicy' in g?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{})};
+  ...('freshBookPolicy' in g?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{})};
  const out=path.join(dir,'activation-'+g.approvalReference+'.json'),text=JSON.stringify(value);writeFileSync(out,text);return{...g,ownerApproval:{file:out,sha256:sha(text)}};
 }
 describe('one explicit fresh book uses the current reviewed policies without reopening old consent',()=>{
+ function extended(){
+  const s=setup(),old=activate(s.fresh,s.dir),rootAuthority=JSON.parse(readFileSync(old.ownerApproval.file,'utf8')).ownerAuthority;
+  const imageModelPolicy={version:ENGINE_IMAGE26_POLICY,model:'gpt-image-2.6-sunburst' as const,complexity:'high' as const};
+  const file=path.join(s.dir,'owner-v2.json');writeFileSync(file,JSON.stringify({version:'engine-one-local-book-owner-authority/v2',maximumMicroUsd:12000000,maximumLogicalCalls:121,additionalBudgetAllowed:false,newPublicLaunchAllowed:false,realPaymeChargeAllowed:false,rootAuthority,imageModelPolicy}));
+  const g=activate({...s.fresh,approvalReference:'fresh_image26',maximumMicroUsd:12000000,imageModelPolicy},s.dir,'owner-v2.json');return{...s,g,old,file,rootAuthority};
+ }
+ it('extends only the same unexecuted book campaign to 12USD and binds model into authority/activation',()=>{
+  const s=extended(),r=prepareLocalEngineTrial(s.g);expect(localEngineGrantSchema.safeParse(s.g).success).toBe(true);
+  expect(r.authority).toMatchObject({imageModelPolicy:s.g.imageModelPolicy,budget:{maximumMicroUsd:12000000,maximumCalls:121}});
+  expect(localEngineMasterClaimFile(s.g)).toBe(localEngineMasterClaimFile(s.old));expect(existsSync(s.g.directory)).toBe(false);expect(existsSync(s.g.credentials.file)).toBe(false);
+ });
+ it('cannot authorize Image2.6 through a legacy owner or increase the legacy cap',()=>{
+  const s=setup(),g=activate({...s.fresh,imageModelPolicy:{version:ENGINE_IMAGE26_POLICY,model:'gpt-image-2.6-sunburst',complexity:'high'}},s.dir);
+  expect(()=>localEngineMasterClaimFile(g)).toThrow('extended_owner_required');expect(localEngineGrantSchema.safeParse({...s.fresh,maximumMicroUsd:12000000}).success).toBe(false);
+ });
+ it('refuses a swapped model, changed root pin and over-12USD grant',()=>{
+  const s=extended();expect(()=>localEngineMasterClaimFile({...s.g,imageModelPolicy:{...s.g.imageModelPolicy!,model:'gpt-image-2.6-flare'}})).toThrow('extended_owner_invalid');
+  expect(localEngineGrantSchema.safeParse({...s.g,maximumMicroUsd:12000001}).success).toBe(false);
+  const owner=JSON.parse(readFileSync(s.file,'utf8'));owner.rootAuthority.sha256='0'.repeat(64);writeFileSync(s.file,JSON.stringify(owner));
+  expect(()=>localEngineMasterClaimFile(s.g)).toThrow();
+ });
+ it('refuses Image2.6 resume before source/credential/claim/provider activation, including lost journals',async()=>{
+  const s=extended(),file=path.join(s.dir,'grant.json'),text=JSON.stringify(s.g);writeFileSync(file,text);
+  await expect(localEngineBookCLI(['--grant',file,'--grant-sha',sha(text),'--execute','--resume'])).rejects.toThrow('local_image26_no_resume');
+  expect(existsSync(s.g.directory)).toBe(false);expect(existsSync(s.g.credentials.file)).toBe(false);
+ });
  it('admits a fresh grant with the complete opt-in policy set',()=>{const s=setup();expect(localEngineGrantSchema.safeParse(s.fresh).success).toBe(true);});
  it.each(['freshBookPolicy','responseSchemaPolicy','storyboardBindingPolicy','locationSheetPolicy'] as const)('refuses missing %s before any state, credential or provider use',key=>{const s=setup();expect(localEngineGrantSchema.safeParse({...s.fresh,[key]:undefined}).success).toBe(false);expect(existsSync(s.g.directory)).toBe(false);expect(existsSync(s.g.credentials.file)).toBe(false);});
  it.each([{freshBookPolicy:'other'},{locationSheetPolicy:LOCATION_SHEET_PROJECTION},{responseSchemaPolicy:'other'},{storyboardBindingPolicy:'other'},{maximumMicroUsd:10000001},{maximumCalls:122},{fictional:false},{publicDelivery:true},{realPayment:true}])('refuses policy/scope/cap drift %j',patch=>{expect(localEngineGrantSchema.safeParse({...setup().fresh,...patch}).success).toBe(false);});

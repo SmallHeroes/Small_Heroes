@@ -42,6 +42,22 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     delete process.env.GPT_IMAGE_EDIT_MAX_REFERENCES;
   });
 
+  it.each([
+    { model: 'gpt-image-2.6-sunburst', edit: false },
+    { model: 'gpt-image-2.6-sunburst', edit: true },
+    { model: 'gpt-image-2.6-flare', edit: false },
+    { model: 'gpt-image-2.6-flare', edit: true },
+  ])('sends explicit 2.6 model/complexity through the real SDK boundary %j', async ({model,edit}) => {
+    const spy=edit?editSpy:generateSpy;spy.mockResolvedValue(OK_RESPONSE);
+    const controller=new AbortController();
+    await generateGPTImage({finalPrompt:'Synthetic transport only',modelOverride:model,complexity:'high',quality:'low',
+      apiKey:'SYNTHETIC_EXPLICIT_ONLY',signal:controller.signal,requestTimeoutMs:180000,
+      ...(edit?{referenceImages:['unused-synthetic.png'],exactReferenceBytes:[Buffer.from('synthetic reference')]}:{})});
+    expect(spy).toHaveBeenCalledTimes(1);expect(spy.mock.calls[0][0]).toMatchObject({model,complexity:'high',quality:'low',n:1});
+    expect(spy.mock.calls[0][1]).toEqual({maxRetries:0,timeout:180000,signal:controller.signal});
+    expect(edit?generateSpy:editSpy).not.toHaveBeenCalled();
+  });
+
   it('images.generate forwards maxRetries:0 + signal + explicit timeout in RequestOptions', async () => {
     generateSpy.mockResolvedValue(OK_RESPONSE);
     const controller = new AbortController();
@@ -374,6 +390,8 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
   it('an abort reaches the OpenAI call and fires its abort handler — cancellation is REAL, not abandoned', async () => {
     const controller = new AbortController();
     let handlerFired = false;
+    let markStarted!: () => void;
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
     generateSpy.mockImplementation((_body: unknown, opts: { signal?: AbortSignal; timeout?: number }) =>
       new Promise((_resolve, reject) => {
         expect(hasOwn(opts, 'timeout')).toBe(false);
@@ -381,9 +399,11 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
           handlerFired = true;
           reject(new DOMException('The operation was aborted', 'AbortError'));
         });
+        markStarted();
       }),
     );
     const p = generateGPTImage({ finalPrompt: 'x', size: '1024x1536', quality: 'low', signal: controller.signal });
+    await started;
     controller.abort(new Error('page soft timeout'));
     await expect(p).rejects.toThrow();
     expect(handlerFired).toBe(true); // the signal threaded all the way down to openai.images.generate

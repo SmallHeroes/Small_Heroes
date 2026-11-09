@@ -20,6 +20,7 @@ import {localSupportedPlanSchema,assertLocalSupportedPlanEvidence,loadLocalSuppo
 import type {EngineOrderAuthority} from '../lib/engine-site/contract';
 import {ENGINE_BOUND_REVIEW_STEP,ENGINE_STORYBOARD_BINDING} from '../lib/engine-site/storyboard-binding-policy';
 import {PREPARATION_SLOTS} from '../lib/personal-wizard/source-preparation-policy';
+import {engineImageModelPolicySchema} from '../lib/engine-site/image-model-policy';
 import {localChildBindingSchema,assertLocalChildBindingEvidence,loadLocalChildBinding,localChildBindingSteps,replayLocalChildBinding,preflightLocalChildBinding,claimLocalChildBindingExecution,assertLocalChildBindingResumeState,localChildBindingDispatchWitness,assertLocalChildBindingRuntime,type LocalChildBindingEnvelope} from '../lib/engine-site/local-trial-child-binding';
 import {LOCATION_SHEET_PROJECTION,LOCATION_SHEET_PROJECTION_V2,locationSheetPolicySchema} from '../lib/personal-wizard/location-sheet-projection';
 import {localLocationRepairSchema,assertLocalLocationRepairEvidence,loadLocalLocationRepair,localLocationRepairSteps,replayLocalLocationRepair,preflightLocalLocationRepair,claimLocalLocationRepairExecution,assertLocalLocationRepairResumeState,localLocationRepairDispatchWitness,assertLocalLocationRepairRuntime,type LocalLocationRepairEnvelope} from '../lib/engine-site/local-trial-location-repair';
@@ -32,7 +33,7 @@ export const localEngineGrantSchema=z.object({version:z.literal('engine-local-bo
  profile:z.object({file:absolute,sha256:digest}).strict(),ownerApproval:z.object({file:absolute,sha256:digest}).strict(),
  credentials:z.object({file:absolute,sha256:digest}).strict(),directory:absolute,readerId:z.string(),
  approvalReference:identifierSchema,approvedBy:identifierSchema,approvedAt:z.string().datetime({precision:3}),
- maximumMicroUsd:z.number().int().positive().max(10_000_000),maximumCalls:z.number().int().positive().max(121),
+ maximumMicroUsd:z.number().int().positive().max(12_000_000),maximumCalls:z.number().int().positive().max(121),
  independentQA:z.literal('pending_owner_authorized_internal_trial'),publicDelivery:z.literal(false),realPayment:z.literal(false),
  continuation:localContinuationSchema.optional(),
  planningRecovery:localPlanRecoverySchema.optional(),
@@ -41,10 +42,12 @@ export const localEngineGrantSchema=z.object({version:z.literal('engine-local-bo
  locationsRepairContinuation:localLocationRepairSchema.optional(),
  locationsV2RepairContinuation:localLocationV2RepairSchema.optional(),
  freshBookPolicy:z.literal(LOCAL_FRESH_BOOK_POLICY).optional(),
+ imageModelPolicy:engineImageModelPolicySchema.optional(),
  storyboardBindingPolicy:z.literal(ENGINE_STORYBOARD_BINDING).optional(),
  locationSheetPolicy:locationSheetPolicySchema.optional(),
  responseSchemaPolicy:z.literal(ENGINE_RESPONSE_SCHEMA_POLICY).optional(),
 }).strict().superRefine((g,ctx)=>{
+ if(g.imageModelPolicy&&!g.freshBookPolicy||g.maximumMicroUsd>10_000_000&&!g.imageModelPolicy)ctx.addIssue({code:z.ZodIssueCode.custom,message:'local_image26_fresh_authority_required'});
  const modes=[g.continuation,g.planningRecovery,g.mediaContinuation,g.childBindingContinuation,g.locationsRepairContinuation,g.locationsV2RepairContinuation].filter(Boolean);
  if(modes.length>1||g.freshBookPolicy&&modes.length>0)ctx.addIssue({code:z.ZodIssueCode.custom,message:'local_book_recovery_modes_conflict'});
  if((g.freshBookPolicy||g.planningRecovery||g.mediaContinuation||g.childBindingContinuation||g.locationsRepairContinuation||g.locationsV2RepairContinuation)&&g.responseSchemaPolicy!==ENGINE_RESPONSE_SCHEMA_POLICY)ctx.addIssue({code:z.ZodIssueCode.custom,message:'local_plan_recovery_schema_required'});
@@ -54,8 +57,8 @@ export const localEngineGrantSchema=z.object({version:z.literal('engine-local-bo
 export type LocalEngineGrant=z.infer<typeof localEngineGrantSchema>;
 const activationSchema=z.object({version:z.literal('engine-local-one-book-activation/v1'),ownerAuthority:z.object({file:absolute,sha256:digest}).strict(),
  approvalReference:identifierSchema,approvedBy:identifierSchema,approvedAt:z.string().datetime({precision:3}),approvalTimeKind:z.literal('local_record_of_received_owner_authority'),
- maximumMicroUsd:z.number().int().positive().max(10_000_000),maximumCalls:z.number().int().positive().max(121),sourceRoot:absolute,sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
- profileSha256:digest,directory:absolute,readerId:z.string(),fictional:z.literal(true),publicDelivery:z.literal(false),realPayment:z.literal(false),parentGrantSha256:digest.optional(),planningRecoverySha256:digest.optional(),mediaContinuationSha256:digest.optional(),childBindingContinuationSha256:digest.optional(),locationsRepairContinuationSha256:digest.optional(),locationsV2RepairContinuationSha256:digest.optional(),freshBookPolicy:z.literal(LOCAL_FRESH_BOOK_POLICY).optional(),locationSheetPolicy:locationSheetPolicySchema.optional(),storyboardBindingPolicy:z.literal(ENGINE_STORYBOARD_BINDING).optional(),responseSchemaPolicy:z.literal(ENGINE_RESPONSE_SCHEMA_POLICY).optional()}).strict();
+ maximumMicroUsd:z.number().int().positive().max(12_000_000),maximumCalls:z.number().int().positive().max(121),sourceRoot:absolute,sourceHead:z.string().regex(/^[a-f0-9]{40}$/),
+ profileSha256:digest,directory:absolute,readerId:z.string(),fictional:z.literal(true),publicDelivery:z.literal(false),realPayment:z.literal(false),parentGrantSha256:digest.optional(),planningRecoverySha256:digest.optional(),mediaContinuationSha256:digest.optional(),childBindingContinuationSha256:digest.optional(),locationsRepairContinuationSha256:digest.optional(),locationsV2RepairContinuationSha256:digest.optional(),freshBookPolicy:z.literal(LOCAL_FRESH_BOOK_POLICY).optional(),imageModelPolicy:engineImageModelPolicySchema.optional(),locationSheetPolicy:locationSheetPolicySchema.optional(),storyboardBindingPolicy:z.literal(ENGINE_STORYBOARD_BINDING).optional(),responseSchemaPolicy:z.literal(ENGINE_RESPONSE_SCHEMA_POLICY).optional()}).strict();
 const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
 function readFile(file:string){if(lstatSync(file).isSymbolicLink()||realpathSync(file)!==file)engineSiteFail('local_book_file_path');return readFileSync(file);}
 const safeError=(error:unknown)=>{const x=error&&typeof error==='object'?error as {code?:unknown;message?:unknown}:{};return typeof x.code==='string'&&/^[a-z][a-z0-9_]{1,100}$/.test(x.code)?x.code:typeof x.message==='string'&&/^[a-z][a-z0-9_]{1,100}$/.test(x.message)?x.message:'local_book_stopped';};
@@ -63,14 +66,24 @@ const git=(root:string,...args:string[])=>execFileSync('git',['-c','safe.directo
 function activation(g:LocalEngineGrant){
  if(sha(readFile(g.ownerApproval.file))!==g.ownerApproval.sha256)engineSiteFail('local_book_approval_changed');
  const record=activationSchema.parse(JSON.parse(readFile(g.ownerApproval.file).toString('utf8')));
- const owner=z.object({version:z.literal('engine-one-local-book-owner-authority/v1'),maximumMicroUsd:z.literal(10_000_000),maximumLogicalCalls:z.literal(121),additionalBudgetAllowed:z.literal(false),newPublicLaunchAllowed:z.literal(false),realPaymeChargeAllowed:z.literal(false)}).passthrough().parse(JSON.parse(readFile(record.ownerAuthority.file).toString('utf8')));
+ const legacyOwnerSchema=z.object({version:z.literal('engine-one-local-book-owner-authority/v1'),maximumMicroUsd:z.literal(10_000_000),maximumLogicalCalls:z.literal(121),additionalBudgetAllowed:z.literal(false),newPublicLaunchAllowed:z.literal(false),realPaymeChargeAllowed:z.literal(false)}).passthrough();
+ const ownerRaw=JSON.parse(readFile(record.ownerAuthority.file).toString('utf8'));
+ let owner: {maximumMicroUsd:number},campaignOwnerAuthoritySha256=record.ownerAuthority.sha256;
+ if(ownerRaw.version==='engine-one-local-book-owner-authority/v2'){
+  const extended=z.object({version:z.literal('engine-one-local-book-owner-authority/v2'),maximumMicroUsd:z.literal(12_000_000),maximumLogicalCalls:z.literal(121),additionalBudgetAllowed:z.literal(false),newPublicLaunchAllowed:z.literal(false),realPaymeChargeAllowed:z.literal(false),imageModelPolicy:engineImageModelPolicySchema,rootAuthority:z.object({file:absolute,sha256:digest}).strict()}).passthrough().parse(ownerRaw);
+  const original=readFile(extended.rootAuthority.file);
+  if(sha(original)!==extended.rootAuthority.sha256||!g.freshBookPolicy||!g.imageModelPolicy||canonicalHash(extended.imageModelPolicy)!==canonicalHash(g.imageModelPolicy))engineSiteFail('local_book_extended_owner_invalid');
+  legacyOwnerSchema.parse(JSON.parse(original.toString('utf8')));
+  campaignOwnerAuthoritySha256=extended.rootAuthority.sha256;owner=extended;
+ }else{owner=legacyOwnerSchema.parse(ownerRaw);if(g.imageModelPolicy)engineSiteFail('local_book_extended_owner_required');}
  if(sha(readFile(record.ownerAuthority.file))!==record.ownerAuthority.sha256||record.maximumMicroUsd!==g.maximumMicroUsd||record.maximumCalls!==g.maximumCalls||
   record.approvalReference!==g.approvalReference||record.approvedBy!==g.approvedBy||record.approvedAt!==g.approvedAt||record.sourceRoot!==g.source.root||record.sourceHead!==g.source.head||
   record.profileSha256!==g.profile.sha256||record.directory!==g.directory||record.readerId!==g.readerId||record.parentGrantSha256!==g.continuation?.parentGrant.sha256||record.planningRecoverySha256!==(g.planningRecovery?canonicalHash(g.planningRecovery):undefined)||record.mediaContinuationSha256!==(g.mediaContinuation?canonicalHash(g.mediaContinuation):undefined)||record.childBindingContinuationSha256!==(g.childBindingContinuation?canonicalHash(g.childBindingContinuation):undefined)||record.locationsRepairContinuationSha256!==(g.locationsRepairContinuation?canonicalHash(g.locationsRepairContinuation):undefined)||record.locationsV2RepairContinuationSha256!==(g.locationsV2RepairContinuation?canonicalHash(g.locationsV2RepairContinuation):undefined)||record.freshBookPolicy!==g.freshBookPolicy||record.locationSheetPolicy!==g.locationSheetPolicy||record.storyboardBindingPolicy!==g.storyboardBindingPolicy||record.responseSchemaPolicy!==g.responseSchemaPolicy||owner.maximumMicroUsd<g.maximumMicroUsd)engineSiteFail('local_book_approval_changed');
- return record;
+ if(canonicalHash(record.imageModelPolicy??null)!==canonicalHash(g.imageModelPolicy??null))engineSiteFail('local_book_approval_changed');
+ return {...record,campaignOwnerAuthoritySha256};
 }
 /** All copied grants/source parents from the SAME owner consent share ONE global consumption key. */
-export function localEngineMasterClaimFile(g:LocalEngineGrant){return path.join('C:\\GNart\\Work\\book-authority',activation(g).ownerAuthority.sha256+'.local-engine.claim.json');}
+export function localEngineMasterClaimFile(g:LocalEngineGrant){return path.join('C:\\GNart\\Work\\book-authority',activation(g).campaignOwnerAuthoritySha256+'.local-engine.claim.json');}
 type PreparedLocalEngineTrial={grant:LocalEngineGrant;prepared:ReturnType<typeof prepareEngineOrder>;authority:EngineOrderAuthority;parent:LocalParentEnvelope|undefined;recovery:LocalPlanRecoveryEnvelope|undefined;media:LocalSupportedPlanEnvelope|undefined;childBinding:LocalChildBindingEnvelope|undefined;locationsRepair:LocalLocationRepairEnvelope|undefined;locationsV2Repair:LocalLocationV2RepairEnvelope|undefined};
 export function prepareLocalEngineTrial(grant:LocalEngineGrant):PreparedLocalEngineTrial{
  const g=localEngineGrantSchema.parse(grant),profile=JSON.parse(readFile(g.profile.file).toString('utf8'));
@@ -128,8 +141,8 @@ export function prepareLocalEngineTrial(grant:LocalEngineGrant):PreparedLocalEng
  const steps=g.freshBookPolicy?[...engineRecipeSteps().filter(s=>!s.id.startsWith('prep_storyboard_')),{id:ENGINE_BOUND_REVIEW_STEP,maximumMicroUsd:PREPARATION_SLOTS[1]}]:locationsV2Repair?localLocationV2RepairSteps():locationsRepair?localLocationRepairSteps():childBinding?localChildBindingSteps():media?localSupportedMediaSteps():recovery?localPlanRecoverySteps():engineRecipeSteps(parent?{initialStoryboardRecovery:true}:undefined).filter(s=>!parent?.results.has(s.id));
  const authority=engineOrderAuthoritySchema.parse({version:'engine-site/v1',orderId,requestSha256:prepared.inputSha256,optionsSha256:options.fingerprint,
   offer:{id:ENGINE_SITE_LAUNCH_OFFER.id,revisionSha256:canonicalHash(ENGINE_SITE_LAUNCH_OFFER)},engine:'native-cde-book/v1',sourceRevision:g.source.head,
-  policySha256:canonicalHash({version:'engine-local-trial-policy/v1',recipe:ENGINE_RECIPE_VERSION,ownerApproval:g.ownerApproval,maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,steps,...(g.freshBookPolicy?{freshBookPolicy:g.freshBookPolicy}:{}),...(parent?{continuation:g.continuation,carried:parent.carried}:{}),...(recovery?{planningRecovery:g.planningRecovery,carried:recovery.carried,attempt:recovery.nextAttempt,maximumAttempts:recovery.maximumAttempts}:{}),...(media?{mediaContinuation:g.mediaContinuation,carried:media.carried,boundary:'media_only'}:{}),...(childBinding?{childBindingContinuation:g.childBindingContinuation,carried:childBinding.carried,boundary:'bound_media_only',storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(locationsRepair?{locationsRepairContinuation:g.locationsRepairContinuation,carried:locationsRepair.carried,boundary:'one_locations_repair_then_media',storyboardBindingPolicy:g.storyboardBindingPolicy,locationSheetPolicy:g.locationSheetPolicy}:{}),...(locationsV2Repair?{locationsV2RepairContinuation:g.locationsV2RepairContinuation,carried:locationsV2Repair.carried,boundary:'one_locations_v2_repair_then_media',storyboardBindingPolicy:g.storyboardBindingPolicy,locationSheetPolicy:g.locationSheetPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{})}),
-  purpose:'test',...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{}),imageQuality:'low',narrativePages:8,entitlements:{narration:true,pdf:true},budget:{maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,steps}});
+  policySha256:canonicalHash({version:'engine-local-trial-policy/v1',recipe:ENGINE_RECIPE_VERSION,ownerApproval:g.ownerApproval,maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,steps,...(g.freshBookPolicy?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),...(parent?{continuation:g.continuation,carried:parent.carried}:{}),...(recovery?{planningRecovery:g.planningRecovery,carried:recovery.carried,attempt:recovery.nextAttempt,maximumAttempts:recovery.maximumAttempts}:{}),...(media?{mediaContinuation:g.mediaContinuation,carried:media.carried,boundary:'media_only'}:{}),...(childBinding?{childBindingContinuation:g.childBindingContinuation,carried:childBinding.carried,boundary:'bound_media_only',storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(locationsRepair?{locationsRepairContinuation:g.locationsRepairContinuation,carried:locationsRepair.carried,boundary:'one_locations_repair_then_media',storyboardBindingPolicy:g.storyboardBindingPolicy,locationSheetPolicy:g.locationSheetPolicy}:{}),...(locationsV2Repair?{locationsV2RepairContinuation:g.locationsV2RepairContinuation,carried:locationsV2Repair.carried,boundary:'one_locations_v2_repair_then_media',storyboardBindingPolicy:g.storyboardBindingPolicy,locationSheetPolicy:g.locationSheetPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{})}),
+  purpose:'test',...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),imageQuality:'low',narrativePages:8,entitlements:{narration:true,pdf:true},budget:{maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,steps}});
  return {grant:g,prepared,authority,parent,recovery,media,childBinding,locationsRepair,locationsV2Repair};
 }
 export function assertLocalEngineGrant(g:LocalEngineGrant,grantFile:string,grantSha:string){
@@ -168,6 +181,7 @@ export async function localEngineBookCLI(argv:string[]){
  const parsed=z.tuple([z.literal('--grant'),absolute,z.literal('--grant-sha'),digest]).parse(argv.slice(0,4));
  const execute=argv.includes('--execute'),resume=argv.includes('--resume');if(argv.length!==4+Number(execute)+Number(resume)||resume&&!execute)engineSiteFail('local_book_arguments');
  const grantFile=path.resolve(parsed[1]),grantSha=parsed[3],{grant:g,prepared,authority,parent,recovery,media,childBinding,locationsRepair,locationsV2Repair}=prepareLocalEngineTrial(localEngineGrantSchema.parse(JSON.parse(readFile(grantFile).toString('utf8'))));
+ if(g.imageModelPolicy&&resume)engineSiteFail('local_image26_no_resume');
  assertLocalEngineGrant(g,grantFile,grantSha);
  const childBindingPreparation=childBinding?await replayLocalChildBinding(childBinding,prepared.snapshot,authority):undefined;
  const locationsRepairPreparation=locationsRepair?await replayLocalLocationRepair(locationsRepair,prepared.snapshot,authority):undefined;

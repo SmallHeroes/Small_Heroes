@@ -317,6 +317,8 @@ export interface GenerateGPTImageInput {
   requireReferenceEdit?: boolean;
   /** Override GPT_IMAGE_MODEL for this call (e.g. gpt-image-2). */
   modelOverride?: string;
+  /** Explicit Image2.6 planning effort; no field is sent on historical requests. */
+  complexity?: 'low' | 'medium' | 'high';
   /** (render-loop Phase 1, 3a) AbortSignal from the per-page soft-timeout — aborts the in-flight OpenAI HTTP request. */
   signal?: AbortSignal;
   /** (render-loop Phase 1, 3a) Explicit per-request timeout (ms), derived from the remaining page budget. */
@@ -358,6 +360,7 @@ export interface GPTImageRequestPlan {
     size: '1024x1024' | '1024x1536' | '1536x1536';
     quality: 'low' | 'medium' | 'high';
     n: 1;
+    complexity?: 'low' | 'medium' | 'high';
   };
   requestOptions: {
     signal?: AbortSignal;
@@ -634,6 +637,11 @@ export function planGPTImageRequest(
     input.modelOverride ??
     resolved.defaultModel
   ).trim();
+  if (input.complexity !== undefined &&
+      (!['gpt-image-2.6-sunburst', 'gpt-image-2.6-flare'].includes(model) ||
+       !['low', 'medium', 'high'].includes(input.complexity))) {
+    throw new Error('Image complexity requires an explicit supported Image2.6 model and level.');
+  }
   const requestOptions: GPTImageRequestPlan['requestOptions'] = {
     maxRetries: 0,
   };
@@ -671,6 +679,7 @@ export function planGPTImageRequest(
       size,
       quality,
       n: 1,
+      ...(input.complexity !== undefined ? { complexity: input.complexity } : {}),
     },
     requestOptions,
   };

@@ -152,31 +152,49 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
 /** Reference and native-page rendering share the order's single explicit quality. Exact reference bytes are frozen and revalidated. */
 export function prepareEngineImage(a: EngineOrderAuthority, step: string, rawInput: GenerateGPTImageInput, ports: EngineProviderPorts): PreparedEngineCall {
   const authority = engineOrderAuthoritySchema.parse(a);
-  const input: GenerateGPTImageInput = { ...rawInput, quality: authority.imageQuality, modelOverride: 'gpt-image-2', requestTimeoutMs: 180_000 };
+  const modelPolicy = authority.imageModelPolicy, model = modelPolicy?.model ?? 'gpt-image-2';
+  if (rawInput.complexity !== undefined && rawInput.complexity !== modelPolicy?.complexity) engineSiteFail('engine_image_authority_mismatch');
+  const input: GenerateGPTImageInput = { ...rawInput, quality: authority.imageQuality, modelOverride: model,
+    ...(modelPolicy ? { complexity: modelPolicy.complexity } : {}), requestTimeoutMs: 180_000 };
   if (rawInput.quality && rawInput.quality !== authority.imageQuality || rawInput.apiKey || rawInput.referenceImages?.some(s => !s.startsWith('data:image/')))
     engineSiteFail('engine_image_authority_mismatch');
   input.exactReferenceBytes = rawInput.exactReferenceBytes?.map(b => Buffer.from(b));
-  const plan = planGPTImageRequest(input, { defaultModel: 'gpt-image-2', defaultQuality: authority.imageQuality, maxReferences: 4 });
-  const wire = { version: 'engine-site-image/v1', step, authoritySha256: authorityDigest(authority), mode: plan.apiMode,
+  const plan = planGPTImageRequest(input, { defaultModel: model, defaultQuality: authority.imageQuality, maxReferences: 4 });
+  const wire = { version: modelPolicy ? 'engine-site-image/v2' : 'engine-site-image/v1', step, authoritySha256: authorityDigest(authority), mode: plan.apiMode,
     body: plan.bodyWithoutBinaryImage, references: input.exactReferenceBytes?.map(assetBytesSha256) ?? [], maxRetries: 0 };
-  if (plan.quality !== authority.imageQuality || plan.model !== 'gpt-image-2' || plan.requestOptions.maxRetries !== 0 ||
+  if (plan.quality !== authority.imageQuality || plan.model !== model || plan.requestOptions.maxRetries !== 0 ||
       plan.referenceCountPassed !== (input.exactReferenceBytes?.length ?? 0) ||
       (input.exactReferenceBytes?.length ?? 0) !== (input.referenceImages?.length ?? 0)) engineSiteFail('engine_image_plan_invalid');
   const call = slotCall(authority, step, wire);
-  if (renderMaximum(input.finalPrompt, plan.referenceCountPassed) > call.maximumMicroUsd) engineSiteFail('engine_image_reserve_insufficient');
+  if (renderMaximum(modelPolicy ? plan.finalPrompt : input.finalPrompt, plan.referenceCountPassed) > call.maximumMicroUsd) engineSiteFail('engine_image_reserve_insufficient');
   const revalidate = () => {
-    const next = planGPTImageRequest(input, { defaultModel: 'gpt-image-2', defaultQuality: authority.imageQuality, maxReferences: 4 });
+    if (modelPolicy && canonicalHash(wire) !== call.wireSha256) engineSiteFail('engine_image_plan_changed');
+    const next = planGPTImageRequest(input, { defaultModel: model, defaultQuality: authority.imageQuality, maxReferences: 4 });
     if (canonicalHash({ ...wire, mode: next.apiMode, body: next.bodyWithoutBinaryImage,
       references: input.exactReferenceBytes?.map(assetBytesSha256) ?? [] }) !== call.wireSha256 ||
-      input.quality !== authority.imageQuality || input.modelOverride !== 'gpt-image-2') engineSiteFail('engine_image_plan_changed');
+      input.quality !== authority.imageQuality || input.modelOverride !== model ||
+      modelPolicy && input.complexity !== modelPolicy.complexity) engineSiteFail('engine_image_plan_changed');
+  };
+  const modelMatches = (raw: any) => !modelPolicy || [raw?.model, raw?.usage?.model].every(m => m == null || m === model);
+  const metadata = (raw: any) => ({ requestedModel: model,
+    reportedModel: typeof raw?.model === 'string' ? raw.model : typeof raw?.usage?.model === 'string' ? raw.usage.model : null,
+    modelEvidence: typeof raw?.model === 'string' || typeof raw?.usage?.model === 'string' ? 'response_reported' : 'request_bound_only' });
+  const imageMatches = (raw: any, buffer: Buffer) => {
+    if (!modelPolicy) return true;
+    const [width, height] = plan.bodyWithoutBinaryImage.size.split('x').map(Number);
+    return raw?.data?.length === 1 && raw.data[0].b64_json === buffer.toString('base64') && buffer.length >= 24 && buffer.length <= 20_000_000 &&
+      buffer.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) &&
+      buffer.readUInt32BE(16) === width && buffer.readUInt32BE(20) === height;
   };
   return { call, wire, requiredMs: 180_000, revalidate,
     admitSaved(answer) {
       const raw = answer.raw as any, output = answer.output as any;
-      if (answer.usable !== true || answer.model !== 'gpt-image-2' || !Array.isArray(raw.data) || raw.data.length !== 1 ||
+      if (answer.usable !== true || answer.model !== model || !modelMatches(raw) || !Array.isArray(raw.data) || raw.data.length !== 1 ||
           typeof raw.data[0].b64_json !== 'string' || raw.data[0].b64_json !== output?.b64 ||
           assetBytesSha256(Buffer.from(output.b64, 'base64')) !== output.imageSha ||
-          auditionUsageCost(raw.usage, 'image') !== answer.estimatedMicroUsd) engineSiteFail('engine_saved_image_invalid');
+          auditionUsageCost(raw.usage, 'image') !== answer.estimatedMicroUsd ||
+          !imageMatches(raw, Buffer.from(output.b64, 'base64')) || modelPolicy &&
+          canonicalHash(metadata(raw)) !== canonicalHash({ requestedModel: output.requestedModel, reportedModel: output.reportedModel, modelEvidence: output.modelEvidence })) engineSiteFail('engine_saved_image_invalid');
     },
     async execute(pendingId, signal, assertDispatch) {
       if (pendingId || signal.aborted) engineSiteFail('engine_image_dispatch_invalid'); revalidate();
@@ -188,13 +206,13 @@ export function prepareEngineImage(a: EngineOrderAuthority, step: string, rawInp
         assertBeforeProviderDispatch: async () => { if (signal.aborted) engineSiteFail('engine_image_cancelled'); revalidate(); await assertDispatch(); } }); }
       catch (error) {
         if (!observed) throw error;
-        return { kind: 'completed', result: { output: null, raw: observed, estimatedMicroUsd: auditionUsageCost(observed.usage, 'image'), usable: false } };
+        return { kind: 'completed', result: { output: null, raw: observed, estimatedMicroUsd: modelMatches(observed) ? auditionUsageCost(observed.usage, 'image') : null, usable: false } };
       }
-      const cost = auditionUsageCost(answer.usage, 'image');
-      const output = { b64: answer.buffer.toString('base64'), imageSha: assetBytesSha256(answer.buffer) };
+      const cost = modelMatches(observed) ? auditionUsageCost(modelPolicy ? observed?.usage : answer.usage, 'image') : null;
+      const output = { b64: answer.buffer.toString('base64'), imageSha: assetBytesSha256(answer.buffer), ...(modelPolicy ? metadata(observed) : {}) };
       return { kind: 'completed', result: { output, raw: observed ?? { model: answer.model, usage: answer.usage ?? null,
         responseMeta: answer.responseMeta ?? null }, estimatedMicroUsd: cost,
-        usable: answer.model === 'gpt-image-2' && !answer.fallbackUsed && cost !== null, model: answer.model } };
+        usable: answer.model === model && !answer.fallbackUsed && cost !== null && imageMatches(observed, answer.buffer), model: answer.model } };
     },
   };
 }

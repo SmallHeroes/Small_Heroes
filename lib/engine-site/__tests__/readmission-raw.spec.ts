@@ -11,7 +11,8 @@ import { planPageChildResemblanceVisionRequest, evaluatePageChildResemblanceVisi
 vi.mock('@/lib/engine-site/native-recipe', () => ({ createEngineNativeRecipe: () => async (r: any) => {
   await r.save('native_book', await r.load('native_book'));
 } }));
-import { admitEngineBookEvidence } from '../readmission';
+import { admitEngineBookEvidence, replayEngineRecordedBook } from '../readmission';
+import { ENGINE_IMAGE26_POLICY } from '../image-model-policy';
 import { engineTestDb } from './engine-test-db';
 import { startEnginePersonalJob } from '../personal-jobs';
 import { syntheticEngineActivationEnv } from './synthetic-order';
@@ -25,9 +26,12 @@ async function fixture(blocked: boolean | 'citation', whitespace: boolean) {
   const s = await engineTestDb(); stores.push(s); await startEnginePersonalJob(s.db, 'synthetic_order', JSON.parse(syntheticEngineActivationEnv().ENGINE_SITE_SPEND_POLICY!));
   const cp = parseEngineCheckpoint((await s.db.generationJob.findUnique({ where: { orderId: 'synthetic_order' } }))!.pipelineCache);
   const objects = new Map<string, Buffer>(), storage = { put: async (k: string,b: Buffer) => { objects.set(k,b); }, read: async (k: string) => objects.get(k)!, sign: async () => '' };
-  const save = async (value: unknown) => (await persistEnginePrivateAsset(s.db, storage, { ownerId: cp.ownerId, draftId: cp.draftId,
+  const jsonRecords = new Map<string, any>(), resultRecords = new Map<string, EngineProviderResult>();
+  const save = async (value: unknown) => { const id = (await persistEnginePrivateAsset(s.db, storage, { ownerId: cp.ownerId, draftId: cp.draftId,
     orderId: 'synthetic_order', kind: 'receipt', contentType: 'application/json' }, Buffer.from(JSON.stringify(value)))).assetId;
+    jsonRecords.set(id,structuredClone(value));return id; };
   const record = async (step: string, result: EngineProviderResult, wire: unknown = { step }) => {
+    resultRecords.set(step,structuredClone(result));
     const wireSha256 = canonicalHash(wire), call = { step, wireSha256, maximumMicroUsd: cp.authority.budget.steps.find(s => s.id === step)!.maximumMicroUsd };
     await reserveEngineCall(s.db, { authority: cp.authority, call });
     const saved = { wireSha256, completed: true, result }, id = await save(saved);
@@ -70,9 +74,28 @@ async function fixture(blocked: boolean | 'citation', whitespace: boolean) {
     bookPages.push({ text, image: { sha256: imageSha }, audio: { sha256: audioSha256 } });
   }
   cp.outputs.native_book = await save({ pages }); cp.outputs.prepared_source = await save({ childB64: b64, source: { manuscript: { title: text, pages: texts.slice(1).map(text => ({text})) } } });
-  return { ...s, cp, storage, context: { order: { id: 'synthetic_order' }, checkpoint: cp, snapshot: s.prepared.snapshot, book: { title: text, voiceId: voice.id, pages: bookPages } } as any };
+  return { ...s, cp, storage, jsonRecords, resultRecords, context: { order: { id: 'synthetic_order' }, checkpoint: cp, snapshot: s.prepared.snapshot, book: { title: text, voiceId: voice.id, pages: bookPages } } as any };
 }
 describe('Q5/Q11 actual raw-evidence admission (producer/compiler boundary isolated)', () => {
+  it.each(['gpt-image-2.6-sunburst','gpt-image-2.6-flare'] as const)('admits all nine synthetic %s frames and Dad bindings only under the exact selected-model authority',async model=>{
+    const s=await fixture(false,false),context=structuredClone(s.context),cp=context.checkpoint;
+    cp.authority={...cp.authority,purpose:'test',imageModelPolicy:{version:ENGINE_IMAGE26_POLICY,model,complexity:'high'}};
+    const authoritySha256=canonicalHash(cp.authority);
+    // These are newly constructed synthetic records, never transformations of paid evidence.
+    // The native producer is isolated by this spec; real provider planning/admission has its own tests.
+    for(const [step,result] of s.resultRecords){
+      const claim=cp.calls[step],request=s.jsonRecords.get(claim.requestAssetId);
+      request.authoritySha256=authoritySha256;
+      if(request.wire.authoritySha256)request.wire.authoritySha256=authoritySha256;
+      claim.wireSha256=canonicalHash(request.wire);request.call.wireSha256=claim.wireSha256;
+      if(/^page_[0-8]_0$/.test(step)){result.model=model;Object.assign(result.output as any,{requestedModel:model,reportedModel:null,modelEvidence:'request_bound_only'});}
+      if(/^narration_/.test(step))(result.raw as any).wireSha256=claim.wireSha256;
+    }
+    const evidence={readJson:async(id:string)=>s.jsonRecords.get(id),result:async(step:string)=>s.resultRecords.get(step)!};
+    await expect(replayEngineRecordedBook(context,evidence)).resolves.toHaveLength(9);
+    s.resultRecords.get('page_0_0')!.model=model==='gpt-image-2.6-sunburst'?'gpt-image-2.6-flare':'gpt-image-2.6-sunburst';
+    await expect(replayEngineRecordedBook(context,evidence)).rejects.toThrow('engine_readmission_image_changed');
+  },120_000);
   it('R2 P3 derives the identity exception from verified raw review rather than a saved safety flag',async()=>{
     const s=await fixture(false,false),asset=await import('../private-assets').then(m=>m.loadEnginePrivateAsset(s.db,s.cp.outputs.native_book));
     const native=JSON.parse((await s.storage.read(asset.key)).toString('utf8'));native.pages[0].attempts[0].assessment.safetyBlocked=true;

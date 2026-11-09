@@ -96,7 +96,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       const step = attempt.candidate.imageName.replace(/\.png$/, '');
       if (!(new RegExp(`^page_${page.pageNumber}_[0-2]$`)).test(step)) engineSiteFail('engine_readmission_frame_changed');
       const image = await result(step), rawImage = image.raw as any, output = image.output as any;
-      if (!image.usable || image.model !== 'gpt-image-2' || typeof rawImage.data?.[0]?.b64_json !== 'string' ||
+      if (!image.usable || image.model !== (checkpoint.authority.imageModelPolicy?.model ?? 'gpt-image-2') || typeof rawImage.data?.[0]?.b64_json !== 'string' ||
           rawImage.data[0].b64_json !== output.b64 || assetBytesSha256(Buffer.from(output.b64, 'base64')) !== attempt.candidate.imageSha ||
           auditionUsageCost(rawImage.usage, 'image') !== image.estimatedMicroUsd) engineSiteFail('engine_readmission_image_changed');
       const qaStep = `${step}_${attempt.reviewReask ? 'qa2' : 'qa'}`;
