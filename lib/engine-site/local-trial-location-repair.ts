@@ -48,7 +48,7 @@ export function assertLocalLocationRepairEvidence(spec: z.infer<typeof localLoca
 const envelopes = new WeakSet<object>();
 export function loadLocalLocationRepair(g: LocalEngineGrant, parent: LocalEngineGrant, child: LocalChildBindingEnvelope, parentAuthority: EngineOrderAuthority, masterFile: string) {
   const spec = localLocationRepairSchema.parse(g.locationsRepairContinuation);
-  if (g.continuation || g.planningRecovery || g.mediaContinuation || g.childBindingContinuation || !parent.childBindingContinuation || parent.locationsRepairContinuation || parent.locationSheetPolicy !== undefined ||
+  if (g.continuation || g.planningRecovery || g.mediaContinuation || g.childBindingContinuation || g.locationsV2RepairContinuation || !parent.childBindingContinuation || parent.locationsRepairContinuation || parent.locationSheetPolicy !== undefined ||
       g.locationSheetPolicy !== LOCATION_SHEET_PROJECTION || g.storyboardBindingPolicy !== ENGINE_STORYBOARD_BINDING || g.responseSchemaPolicy !== ENGINE_RESPONSE_SCHEMA_POLICY ||
       canonicalHash(json(spec.parentGrant.file)) !== canonicalHash(parent) || g.approvalReference !== parent.approvalReference || g.approvedBy !== parent.approvedBy || g.approvedAt !== parent.approvedAt ||
       canonicalHash(g.profile) !== canonicalHash(parent.profile) || canonicalHash(g.credentials) !== canonicalHash(parent.credentials) || g.readerId !== parent.readerId || g.source.root !== parent.source.root ||

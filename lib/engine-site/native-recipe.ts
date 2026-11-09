@@ -41,6 +41,7 @@ import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrig
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
+import {assertEngineLocationV2RepairPreparation,locationV2RepairFindings,type AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
 const dataURL = engineImageDataUrl;
@@ -70,6 +71,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
   childBindingPreparation?:AdmittedEngineChildBindingPreparation;
   locationsRepairPreparation?:AdmittedEngineLocationRepairPreparation;
+  locationsV2RepairPreparation?:AdmittedEngineLocationV2RepairPreparation;
   /** Read-only observation seam for provider-denied complete raw replay. Receives a detached copy; never supplies approval/state. */
   observeChildPreparation?:(value:EngineNativeChildPreparation,appearance:ExistingChildAppearance)=>void;
   /** Detached raw-replay observation only; cannot supply or modify sheet approval. */
@@ -128,10 +130,14 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         refs: refs.map(bytesOf), predecessor: previous ? bytesOf(previous) : null, kind });
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
+    if(args.locationsRepairPreparation&&args.locationsV2RepairPreparation)engineSiteFail('local_locations_v2_preparation_changed');
     let prepared: any = await runtime.load('prepared_source');
-    if(args.locationsRepairPreparation){
-      const cap=args.locationsRepairPreparation;
-      assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+    const locationCap=args.locationsV2RepairPreparation??args.locationsRepairPreparation;
+    const checkLocationCap=()=>{if(args.locationsV2RepairPreparation)assertEngineLocationV2RepairPreparation(args.locationsV2RepairPreparation,authority,runtime.checkpoint,prepared,snapshot);
+      else if(args.locationsRepairPreparation)assertEngineLocationRepairPreparation(args.locationsRepairPreparation,authority,runtime.checkpoint,prepared,snapshot);};
+    if(locationCap){
+      const cap=locationCap;
+      checkLocationCap();
       if(args.childBindingPreparation||args.initialPreparation!==cap.initialPreparation)engineSiteFail('local_locations_preparation_changed');
       if(!prepared){prepared=structuredClone(cap.prepared);await runtime.save('prepared_source',prepared);await runtime.advance('native');}
     }
@@ -140,7 +146,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       if(args.initialPreparation!==args.childBindingPreparation.initialPreparation)engineSiteFail('local_child_binding_preparation_changed');
       if(prepared){const ref=companionIdentityReference(snapshot.request.companion.id);
         if(prepared.companion?.imageSha!==ref.sha256||prepared.companion.imageName!=='reference_companion.png'||assetBytesSha256(Buffer.from(prepared.companionB64,'base64'))!==ref.sha256)engineSiteFail('local_child_binding_companion_changed');}
-    }else if(prepared?.childBindingParent!==undefined&&!args.locationsRepairPreparation)engineSiteFail('local_child_binding_preparation_required');
+    }else if(prepared?.childBindingParent!==undefined&&!locationCap)engineSiteFail('local_child_binding_preparation_required');
     if(args.initialPreparation&&'initialRepair' in args.initialPreparation)assertEngineSupportedPreparationCache(args.initialPreparation,authority,runtime.checkpoint,prepared);
     if(!prepared&&args.childBindingPreparation){
       const cap=args.childBindingPreparation,data=structuredClone(cap.data);
@@ -255,9 +261,9 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       const designs = auditionSheetDesigns(book, texts), sheets = {} as Record<'entities' | 'locations', SavedSheet>;
       for (const role of ['entities', 'locations'] as const) {
         const context = auditionSheetContext(role, designs[role]);
-        const cap=args.locationsRepairPreparation, prior=cap?.[role];
+        const cap=locationCap, prior=cap?.[role];
         if(cap){
-          assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+          checkLocationCap();
           if(!prior||!sameSheetContext(prior,context)||canonicalHash(prior.requirementIds)!==canonicalHash(context.requirementIds))engineSiteFail('local_locations_context_changed');
           const old=prior.attempt.candidate;
           if(!old)engineSiteFail('local_locations_preparation_changed');
@@ -268,21 +274,21 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
             sheets.entities={...context,chosen,attempts:[structuredClone(prior.attempt)],status:chosen.status};continue;
           }
         }
-        const repair=cap&&role==='locations'?prior:undefined, step=repair?'sheet_locations_1':`sheet_${role}_0`;
+        const repair=cap&&role==='locations'?prior:undefined, nextAttempt=repair?(args.locationsV2RepairPreparation?2:1):0, step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
         // Both role designs derive from this same admitted book; v2 uses the sibling only as exclusion recognition data.
-        const prompt=repair?sheetRepairPrompt(role,designs[role],locationRepairFindings(repair.attempt),authority.locationSheetPolicy,designs.entities):auditionSheetPrompt(role,designs[role],authority.locationSheetPolicy,designs.entities);
+        const prompt=repair?sheetRepairPrompt(role,designs[role],args.locationsV2RepairPreparation?locationV2RepairFindings(repair.attempt):locationRepairFindings(repair.attempt),authority.locationSheetPolicy,designs.entities):auditionSheetPrompt(role,designs[role],authority.locationSheetPolicy,designs.entities);
         const candidate = await render(step, prompt, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
           repair?['rejected_edit_target','child_design_authority','companion_design_authority']:['child_design_authority', 'companion_design_authority']);
-        if(cap)assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+        if(cap)checkLocationCap();
         if(repair&&candidate.imageSha===repair.attempt.candidate!.imageSha)engineSiteFail('engine_locations_repair_unchanged');
         const raw = await judged(`${step}_qa`, candidate, context.context, context.contextSha, [child, companion], null, 'sheet');
-        if(cap)assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
+        if(cap)checkLocationCap();
         const assessed = assessAuditionReview(raw, candidate.imageSha, context.contextSha, context.requirementIds);
-        const attempt: AuditionAttempt = { attempt: repair?1:0, candidate, review: assessed.review, assessment: assessed.assessment, status: 'unavailable' };
+        const attempt: AuditionAttempt = { attempt: nextAttempt, candidate, review: assessed.review, assessment: assessed.assessment, status: 'unavailable' };
         attempt.status = attemptStatus('sheet', attempt); const chosen = selectAuditionAttempt('sheet', [attempt]);
         args.observeReferenceSheet?.(structuredClone({...context,role,attempt,candidateB64:bytesOf(candidate).toString('base64')}));
         if (!chosen || attempt.status !== 'qa_supported') engineSiteFail('engine_reference_sheet_held');
-        sheets[role] = { ...context, chosen, attempts: repair?[structuredClone(repair.attempt),attempt]:[attempt], status: attempt.status };
+        sheets[role] = { ...context, chosen, attempts: repair?[...structuredClone(args.locationsV2RepairPreparation?.previousLocationAttempts??[repair.attempt]),attempt]:[attempt], status: attempt.status };
       }
       const saved: Record<string, unknown> = {};
       const resumePages: Partial<Record<number, SavedPage>> = {};
