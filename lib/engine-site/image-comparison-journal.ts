@@ -53,10 +53,11 @@ export function verifyComparisonEnvelope(g:ComparisonEnvelope,requireFreshOutput
 }
 export function comparisonAuthority(g:ComparisonEnvelope,base:EngineOrderAuthority,bundleSha:string,pages:readonly number[]){
  const steps=comparisonSchedule(pages).map(s=>({id:s.id,maximumMicroUsd:s.maximumMicroUsd}));
+ const parentRecordedAt=z.string().datetime({precision:3}).parse(comparisonJson(g.ownerAuthority.file).recordedAt);
  return engineOrderAuthoritySchema.parse({...base,orderId:'comparison_'+g.ownerAuthority.sha256.slice(0,24),purpose:'test',sourceRevision:g.source.head,
   requestSha256:bundleSha,policySha256:canonicalHash({policy:g.policy,envelope:g,bundleSha,pages,steps}),entitlements:{narration:false,pdf:false},
   budget:{maximumMicroUsd:COMPARISON_CAP,maximumCalls:COMPARISON_CALLS,approvalReference:'m33_comparison',approvedBy:'Guy',
-   approvedAt:base.budget.approvedAt,steps}});
+   approvedAt:parentRecordedAt,steps}});
 }
 /** EXACT same consent-global namespace as localEngineMasterClaimFile: old full-cap book cannot run beside the comparison. */
 export function comparisonMasterFile(ownerSha:string){digestSchema.parse(ownerSha);return path.join(NATIVE_PAGE_PROOF_AUTHORITY_ROOT,ownerSha+'.local-engine.claim.json');}

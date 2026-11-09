@@ -20,7 +20,7 @@ function fixture(){
  git('init','-q');git('add','--','source.txt');git('-c','user.name=Synthetic Test','-c','user.email=synthetic@example.invalid','commit','-qm','synthetic only');const head=git('rev-parse','HEAD');
  const sourceIndex=path.join(root,'source-pins.json');write(sourceIndex,{rows:[{path:'source.txt',...pin(path.join(source,'source.txt'))}]});
  write(path.join(inputs,'INPUT-PINS.json'),{sourceFiles:[],references:[]});const inputIndex=path.join(root,'input-index.json');write(inputIndex,{files:[{path:'INPUT-PINS.json',...pin(path.join(inputs,'INPUT-PINS.json'))}]});
- const owner=path.join(root,'owner.json');write(owner,{maximumMicroUsd:10000000,maximumLogicalCalls:121,SYNTHETIC_NOT_REAL_AUTHORITY:true});
+ const owner=path.join(root,'owner.json');write(owner,{recordedAt:'2026-11-09T12:00:00.000Z',maximumMicroUsd:10000000,maximumLogicalCalls:121,SYNTHETIC_NOT_REAL_AUTHORITY:true});
  const reserve=path.join(root,'reserve-evidence.json');write(reserve,{SYNTHETIC_NOT_A_RESERVE_PROOF:true});
  const raw={version:'image-comparison-envelope/v1',scope:'diagnostic_four_low_images_only',fictional:true,source:{root:source,head,pins:pin(sourceIndex)},supervisor:pin(reserve),ownerAuthority:pin(owner),inputRoot:inputs,inputIndex:pin(inputIndex),outputDirectory:path.join(root,'run'),
  credentials:{file:path.join(root,'NEVER-READ.env'),sha256:S('a')},policy:'image-model-comparison/v1',maximumMicroUsd:2500000,maximumCalls:14,parentMaximumMicroUsd:10000000,parentMaximumCalls:121,models:[...COMPARISON_MODELS],executionWindowMs:7200000,settlementGraceMs:3645000,
@@ -44,6 +44,6 @@ describe('exact comparison approval, scope and global one-use host',()=>{
  it('changed indexed QA evidence cannot activate',()=>{const s=fixture();writeFileSync(s.evidence,'changed');expect(()=>verifyComparisonReady(s.ready,s.envelopeSha,s.g.source.head)).toThrow();});
  it('the SAME original-owner namespace blocks a copied comparison and old full book grant',()=>{const s=fixture(),base=engineOrderAuthoritySchema.parse({version:'engine-site/v1',orderId:'synthetic',requestSha256:S('a'),optionsSha256:S('b'),offer:{id:'synthetic',revisionSha256:S('c')},engine:'native-cde-book/v1',sourceRevision:s.g.source.head,policySha256:S('d'),purpose:'test',imageQuality:'low',narrativePages:8,entitlements:{narration:false,pdf:false},budget:{maximumMicroUsd:2500000,maximumCalls:14,approvalReference:'synthetic',approvedBy:'SYNTHETIC',approvedAt:'2026-11-09T00:00:00.000Z',steps:comparisonSchedule([0,7]).map(s=>({id:s.id,maximumMicroUsd:s.maximumMicroUsd}))}});
   const a=comparisonAuthority(s.g,base,S('e'),[0,7]),first=claimComparison(s.g,s.envelopeSha,a);expect(first.master).toBe(path.join(host.root,s.g.ownerAuthority.sha256+'.local-engine.claim.json'));
-  expect(()=>claimComparison({...s.g,outputDirectory:path.join(s.root,'copy')},S('f'),a)).toThrow('comparison_consent_consumed');expect(a.budget.maximumMicroUsd).toBe(2500000);expect(a.entitlements).toEqual({narration:false,pdf:false});
+  expect(()=>claimComparison({...s.g,outputDirectory:path.join(s.root,'copy')},S('f'),a)).toThrow('comparison_consent_consumed');expect(a.budget.maximumMicroUsd).toBe(2500000);expect(a.budget.approvedAt).toBe('2026-11-09T12:00:00.000Z');expect(a.entitlements).toEqual({narration:false,pdf:false});
  });
 });
