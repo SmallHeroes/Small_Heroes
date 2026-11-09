@@ -63,7 +63,7 @@ export function readLocalSettledJournal(root:string,checkpoint:EngineCheckpoint,
 /** Strictly ONE root initial-plan HOLD. No recursive continuation, UNKNOWN, failed call, changed request or new book. */
 export function loadLocalParentEnvelope(g:LocalEngineGrant,parent:LocalEngineGrant){
  const spec=localInitialParentSpec(g),current=g.currentContinuation;
- if(!spec||g.planningRecovery||g.mediaContinuation||parent.currentContinuation||parent.continuation||parent.planningRecovery||parent.mediaContinuation||parent.childBindingContinuation||parent.locationsRepairContinuation||parent.locationsV2RepairContinuation||!current&&(parent.startupRecovery||parent.freshBookPolicy))engineSiteFail('local_parent_scope');
+ if(!spec||g.planningRecovery||g.mediaContinuation||parent.currentFinalPlan||parent.currentContinuation||parent.continuation||parent.planningRecovery||parent.mediaContinuation||parent.childBindingContinuation||parent.locationsRepairContinuation||parent.locationsV2RepairContinuation||!current&&(parent.startupRecovery||parent.freshBookPolicy))engineSiteFail('local_parent_scope');
  if(current){
   if(g.freshBookPolicy||g.startupRecovery||!parent.freshBookPolicy||!g.imageModelPolicy||canonicalHash(g.imageModelPolicy)!==canonicalHash(parent.imageModelPolicy)||
    canonicalHash(g.credentials)!==canonicalHash(parent.credentials)||canonicalHash(g.profile)!==canonicalHash(parent.profile)||g.responseSchemaPolicy!==parent.responseSchemaPolicy||

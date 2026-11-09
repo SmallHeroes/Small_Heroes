@@ -24,6 +24,7 @@ export function assertLocalCurrentContinuationEvidence(g:LocalEngineGrant){
  if(prior.startupRecovery)assertLocalStartupRecoveryEvidence(prior.startupRecovery);
 }
 const admitted=new WeakSet<object>();
+export function assertLocalCurrentContinuationEnvelope(value:LocalCurrentContinuationEnvelope){if(!admitted.has(value))engineSiteFail('local_current_capability');}
 export type LocalCurrentContinuationEnvelope={readonly masterFile:string;readonly executionFile:string;readonly parentExecutionFile:string;readonly check:()=>void;readonly claim:(binding:unknown,resume:boolean,masterFile:string)=>string};
 /** The caller has recomputed the OLD authority and compared it to the actual six-receipt checkpoint. */
 export function loadLocalCurrentContinuation(g:LocalEngineGrant,parent:LocalParentEnvelope,masterFile:string):LocalCurrentContinuationEnvelope{
@@ -37,7 +38,7 @@ export function loadLocalCurrentContinuation(g:LocalEngineGrant,parent:LocalPare
  if(s.parentExecutionClaim.file!==parentExecutionFile||canonicalHash(pinned(s.parentExecutionClaim))!==canonicalHash(expected))engineSiteFail('local_current_parent_claim');
  const globalFile=masterFile+'.continuation.json',executionFile=parentExecutionFile+'.continuation.json';
  // Legacy and current-mode children share the original consent's ONE-child consumption key.
- if(existsSync(globalFile)||existsSync(executionFile))engineSiteFail('local_current_already_claimed');
+ // Pure derivation remains available after a run. Actual execution still consumes the fixed keys below.
  const specSha256=canonicalHash(s);
  let claimed:unknown|undefined,globalClaim:unknown|undefined;
  const check=()=>{
@@ -51,7 +52,7 @@ export function loadLocalCurrentContinuation(g:LocalEngineGrant,parent:LocalPare
  const value:LocalCurrentContinuationEnvelope={masterFile,executionFile,parentExecutionFile,check,
   claim(next,resume,actualMaster){
    if(!admitted.has(value)||resume||actualMaster!==masterFile)engineSiteFail('local_current_capability');check();
-   if(existsSync(globalFile)||existsSync(executionFile))engineSiteFail('local_current_already_claimed');
+   if(existsSync(globalFile)||existsSync(executionFile)||existsSync(masterFile+'.current-final-plan-book-v1.json'))engineSiteFail('local_current_already_claimed');
    const write=(file:string,v:unknown)=>writeFileSync(file,JSON.stringify(v,null,2)+'\n',{flag:'wx',mode:0o600});
    // Consume the global key FIRST. A crash/missing child journal cannot free an approval.
    const lock=executionFile===globalFile?next:{version:'engine-local-current-continuation-claim/v1',parentExecutionClaim:s.parentExecutionClaim,executionFile,binding:next};

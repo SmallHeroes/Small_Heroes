@@ -79,7 +79,9 @@ export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:Sto
  return {diagnostic,draft};
 }
 const admitted=new WeakSet<object>(),supportedAdmissions=new WeakSet<object>();
-export type AdmittedEngineInitialPreparation=Awaited<ReturnType<typeof admitEngineInitialPreparation>>|Awaited<ReturnType<typeof admitEngineSupportedInitialPreparation>>;
+type InitialPreparation=Awaited<ReturnType<typeof admitEngineInitialPreparation>>;
+type HeldRepairPreparation=Awaited<ReturnType<typeof admitEngineHeldInitialRepair>>;
+export type AdmittedEngineInitialPreparation=InitialPreparation|HeldRepairPreparation|Awaited<ReturnType<typeof admitEngineSupportedInitialPreparation>>;
 function sealPreparation<T extends object>(value:T):T{
  const freeze=(v:unknown):void=>{if(!v||typeof v!=='object'||Object.isFrozen(v))return;for(const x of Object.values(v))freeze(x);Object.freeze(v);};freeze(value);admitted.add(value);return value;
 }
@@ -92,12 +94,23 @@ export async function admitEngineInitialPreparation(runtime:EngineRuntime,snapsh
  const value={...prepared,initial,requestSha256:runtime.checkpoint.authority.requestSha256,optionsSha256:runtime.checkpoint.authority.optionsSha256,orderId:runtime.checkpoint.authority.orderId,ownerId:runtime.checkpoint.ownerId,draftId:runtime.checkpoint.draftId};
  return sealPreparation(value);
 }
-/** Replays the final repaired plan and fresh review, never accepts a supplied diagnostic or dispatches. */
-export async function admitEngineSupportedInitialPreparation(runtime:EngineRuntime,snapshot:StorySnapshot,
- previous:Awaited<ReturnType<typeof admitEngineInitialPreparation>>,repair:StoryboardRepair){
+/** One complete held repair, admitted only by reproducing BOTH old raw wires with dispatch denied. */
+export async function admitEngineHeldInitialRepair(runtime:EngineRuntime,snapshot:StorySnapshot,previous:InitialPreparation,repair:StoryboardRepair){
  assertEngineInitialPreparation(previous,runtime.checkpoint.authority,runtime.checkpoint);
  const expected={parentStoryboardDigest:previous.initial.diagnostic.storyboardDigest,draft:previous.initial.draft,review:previous.initial.diagnostic.rawReview,
   parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
+ if(supportedAdmissions.has(previous)||'heldRepair' in previous||canonicalHash(repair)!==canonicalHash(expected))engineSiteFail('engine_held_repair_parent_changed');
+ const denied=():never=>engineSiteFail('engine_preparation_replay_dispatch_forbidden');
+ const initial=await prepareEngineStoryboard(runtime,snapshot,previous.source,{fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied},'initial_repair_1',undefined,repair);
+ if(engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_held_repair_not_held');
+ return sealPreparation({...previous,initial,heldRepair:repair});
+}
+/** Replays the final repaired plan and fresh review, never accepts a supplied diagnostic or dispatches. */
+export async function admitEngineSupportedInitialPreparation(runtime:EngineRuntime,snapshot:StorySnapshot,
+ previous:InitialPreparation|HeldRepairPreparation,repair:StoryboardRepair){
+ assertEngineInitialPreparation(previous,runtime.checkpoint.authority,runtime.checkpoint);
+ const expected={parentStoryboardDigest:previous.initial.diagnostic.storyboardDigest,draft:previous.initial.draft,review:previous.initial.diagnostic.rawReview,
+  ...('heldRepair' in previous?{parentRepair:previous.heldRepair}:{}),parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
  if(supportedAdmissions.has(previous)||canonicalHash(repair)!==canonicalHash(expected))engineSiteFail('engine_supported_preparation_parent_changed');
  const denied=():never=>engineSiteFail('engine_preparation_replay_dispatch_forbidden');
  const initial=await prepareEngineStoryboard(runtime,snapshot,previous.source,{fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied},'initial_repair_2',undefined,repair);

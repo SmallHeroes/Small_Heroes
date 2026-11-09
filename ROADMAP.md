@@ -1,3 +1,7 @@
+## 2026-11-10 M37 — final BASE attempt within the same owner12M/121 book
+
+Implementation complete at USD0 over7b68ec32. M36 ended on genuine initial HOLD; all8 calls873284 are retained, remaining11126716/113. Independent diagnosis confirms attempt3/3 fits existing owner authority. New explicit currentFinalPlan replays old wires/costs, uses one fixed final claim plus full external dispatch witnesses, permits only final repair2/review then unchanged native media if supported. No attempt4/waiver/manual book repair. Final250/250 across9 files, bothTS0,61 fake-supervisor controls, actual8-wire/current-authority/body104422 proof. Fresh code+exact-envelope independent Claude QA and root final-exit/hash seal precede execution. No new paid call/claim/key/env/server/merge/deploy. M36 below is historical implementation state; its consumed grant never reruns. See CURRENT and M37_FINAL_BASE_PLAN_CONTINUATION.md.
+
 ## M32 one fresh complete book — owner SEPARATE10M/121, current-policy integration and exact-envelope QA (2026-11-09)
 
 ## 2026-11-09 M36 — continue the same current-policy initial HOLD
