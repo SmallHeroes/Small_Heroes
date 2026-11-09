@@ -1,5 +1,10 @@
 ## M32 one fresh complete book — owner SEPARATE10M/121, current-policy integration and exact-envelope QA (2026-11-09)
 
+## 2026-11-09 M36 — continue the same current-policy initial HOLD
+
+USD0 general integration in progress, basefd916faf. M35 ended on truthful storyboard HOLD at571590/6 before media. Same paid manuscript/receipts remain immutable; no author restart. One native whole-plan repair/review, exact cumulative12M/121 and remaining11428410/115, current Sunburst/Dad policies, global one-child claims and old-authority replay. Fresh independent code/envelope QA precedes any execution. No image efficacy/product PASS or new paid activation yet. Old M30 full600000 reserve is untouched. Details in CURRENT and M36_CURRENT_INITIAL_HOLD_CONTINUATION.md.
+
+
 - M31 independently PASSED and ROOT sealed fe05226c after final report/actual exit; M30 remains HOLD with FULL600000 reserve/31 calls/accounted2916342. User explicitly authorizes ONE NEW book FROM SCRATCH and SEPARATE10M/121; no budget reset/old-grant retry or automatic desktop/Claude routing. Use approved fictional Ido6/Momo/Dad inputs and a new consent/output domain.
 - USD0 general opt-in fresh policy wires existing strict schema/accepted-world child binding/location v2 into the original full native producer, with correct bound-review slot; legacy/customer paths unchanged. Pin/load result checker before launch and keep safe truthful supervisor exit on checker failure. Exact code+new envelope reviewed TOGETHER, manually via Guy, after focused gates/TypeScript/local commit/freeze. Only a final independently verified PASS qualifies the already owner-approved one paid execution; no further book/repair/cap enlargement, push or deploy.
 - Deliver and inspect real story momentum/agency/continuity, all9 image/identity/quality verdicts and asset hashes, Dad audio, PDF and actual local Reader. Technical PASS or exit0 alone is not successful book/product acceptance. Old originals/costs/UNKNOWNs remain immutable.

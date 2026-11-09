@@ -30,7 +30,7 @@ function bytes(file:string){
 }
 function pinned(r:z.infer<typeof ref>){const b=bytes(r.file);if(hash(b)!==r.sha256)engineSiteFail('local_startup_evidence_changed');return b;}
 const json=(r:z.infer<typeof ref>)=>JSON.parse(pinned(r).toString('utf8'));
-function dead(pid:unknown,finishedAt:string){if(!Number.isSafeInteger(pid)||Number(pid)<1)engineSiteFail('local_startup_process');
+export function assertLocalHistoricalProcessGone(pid:unknown,finishedAt:string){if(!Number.isSafeInteger(pid)||Number(pid)<1)engineSiteFail('local_startup_process');
  try{process.kill(Number(pid),0);}catch(e){if((e as NodeJS.ErrnoException).code==='ESRCH')return;throw e;}
  // Windows recycles PIDs. A process born after the sealed exit is not the historical writer.
  const script="$ErrorActionPreference='Stop';$p=Get-CimInstance Win32_Process -Filter 'ProcessId = "+Number(pid)+"';if($null -ne $p){[Console]::Out.Write($p.CreationDate.ToUniversalTime().ToString('o'))}";
@@ -47,7 +47,7 @@ export function assertLocalStartupRecoveryEvidence(spec:LocalStartupRecovery){
  return {root,running:JSON.parse(b.toString('utf8'))};
 }
 const admitted=new WeakSet<object>();
-export type LocalStartupRecoveryEnvelope={readonly claimFile:string;readonly spec:LocalStartupRecovery;readonly parentPid:number;readonly supervisorPid:number;readonly finishedAt:string;readonly check:()=>void};
+export type LocalStartupRecoveryEnvelope={readonly claimFile:string;readonly directory:string;readonly spec:LocalStartupRecovery;readonly parentPid:number;readonly supervisorPid:number;readonly finishedAt:string;readonly check:()=>void};
 export function loadLocalStartupRecovery(g:LocalEngineGrant,prior:LocalEngineGrant,priorAuthority:EngineOrderAuthority,masterFile:string):LocalStartupRecoveryEnvelope{
  const s=localStartupRecoverySchema.parse(g.startupRecovery),{root,running}=assertLocalStartupRecoveryEvidence(s);
  if(!g.freshBookPolicy||!g.imageModelPolicy||!prior.freshBookPolicy||!prior.imageModelPolicy||prior.startupRecovery||
@@ -60,7 +60,7 @@ export function loadLocalStartupRecovery(g:LocalEngineGrant,prior:LocalEngineGra
   canonicalHash(g.imageModelPolicy)!==canonicalHash(prior.imageModelPolicy)||g.responseSchemaPolicy!==prior.responseSchemaPolicy||
   g.storyboardBindingPolicy!==prior.storyboardBindingPolicy||g.locationSheetPolicy!==prior.locationSheetPolicy)engineSiteFail('local_startup_scope');
  const destination=path.resolve(g.directory).toLowerCase(),old=path.resolve(root).toLowerCase();
- if(destination===old||destination.startsWith(old+path.sep)||old.startsWith(destination+path.sep)||existsSync(g.directory))engineSiteFail('local_startup_destination');
+ if(destination===old||destination.startsWith(old+path.sep)||old.startsWith(destination+path.sep))engineSiteFail('local_startup_destination');
  for(const [file,expected] of Object.entries(LEGACY_STARTUP_CAP_CODE)){
   const pins=prior.source.pins.filter(x=>x.path===file);if(pins.length!==1||pins[0].sha256!==expected)engineSiteFail('local_startup_implementation');
   const blob=execFileSync('git',['-c','safe.directory='+g.source.root,'-C',g.source.root,'show',prior.source.head+':'+file],{maxBuffer:2*1024*1024,stdio:['ignore','pipe','pipe']});
@@ -78,14 +78,15 @@ export function loadLocalStartupRecovery(g:LocalEngineGrant,prior:LocalEngineGra
   canonicalHash(error)!==canonicalHash({status:'stopped',code:'local_trial_authority',providerDispatchNotConfirmed:true})||pinned(s.parentStdout).length!==0||
   running.pid!==start.childPid||running.grantSha256!==s.parentGrant.sha256||!Number.isFinite(Date.parse(running.startedAt))||
   !Number.isFinite(Date.parse(exit.at))||Date.parse(exit.at)>Date.now()||Date.parse(exit.at)<Date.parse(running.startedAt))engineSiteFail('local_startup_terminal');
- dead(start.childPid,exit.at);dead(start.pid,exit.at);
+ assertLocalHistoricalProcessGone(start.childPid,exit.at);assertLocalHistoricalProcessGone(start.pid,exit.at);
  for(const r of [s.parentGrant,s.parentClaim,s.parentEnvelope,s.parentStart,s.parentExit,s.parentStderr,s.parentStdout,s.parentBook])Object.freeze(r);Object.freeze(s);
- const value:LocalStartupRecoveryEnvelope=Object.freeze({claimFile:masterFile+'.startup-cap-recovery.json',spec:s,parentPid:start.childPid,supervisorPid:start.pid,finishedAt:exit.at,
+ const value:LocalStartupRecoveryEnvelope=Object.freeze({claimFile:masterFile+'.startup-cap-recovery.json',directory:g.directory,spec:s,parentPid:start.childPid,supervisorPid:start.pid,finishedAt:exit.at,
   check:()=>{assertLocalStartupRecoveryEvidence(s);}});admitted.add(value);return value;
 }
 /** A fixed consent-global namespace; copied grants, lost journals and recursive recovery cannot repurchase. */
 export function claimLocalStartupRecovery(e:LocalStartupRecoveryEnvelope,binding:unknown,resume:boolean,masterFile:string){
- if(!admitted.has(e)||resume||e.claimFile!==masterFile+'.startup-cap-recovery.json')engineSiteFail('local_startup_capability');e.check();dead(e.parentPid,e.finishedAt);dead(e.supervisorPid,e.finishedAt);
+ if(!admitted.has(e)||resume||e.claimFile!==masterFile+'.startup-cap-recovery.json')engineSiteFail('local_startup_capability');e.check();assertLocalHistoricalProcessGone(e.parentPid,e.finishedAt);assertLocalHistoricalProcessGone(e.supervisorPid,e.finishedAt);
+ if(existsSync(e.directory))engineSiteFail('local_startup_destination');
  if(existsSync(e.claimFile))engineSiteFail('local_startup_already_claimed');
  writeFileSync(e.claimFile,JSON.stringify({version:'engine-local-startup-cap-claim/v1',parentClaimSha256:e.spec.parentClaim.sha256,binding},null,2)+'\n',{flag:'wx',mode:0o600});
  return e.claimFile;

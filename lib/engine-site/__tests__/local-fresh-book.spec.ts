@@ -24,7 +24,7 @@ function setup(){const dir=mkdtempSync(path.join(realpathSync(tmpdir()),'sh_fres
 function activate(g:LocalEngineGrant,dir:string,consent='owner.json'){
  const file=path.join(dir,consent);if(!existsSync(file))writeFileSync(file,JSON.stringify({version:'engine-one-local-book-owner-authority/v1',maximumMicroUsd:10000000,maximumLogicalCalls:121,additionalBudgetAllowed:false,newPublicLaunchAllowed:false,realPaymeChargeAllowed:false,distinctConsent:consent}));
  const value={version:'engine-local-one-book-activation/v1',ownerAuthority:{file,sha256:sha(readFileSync(file,'utf8'))},approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,approvalTimeKind:'local_record_of_received_owner_authority',maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,sourceRoot:g.source.root,sourceHead:g.source.head,profileSha256:g.profile.sha256,directory:g.directory,readerId:g.readerId,fictional:true,publicDelivery:false,realPayment:false,
-  ...('freshBookPolicy' in g?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.startupRecovery?{startupRecoverySha256:canonicalHash(g.startupRecovery)}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{})};
+  ...(g.currentContinuation?{parentGrantSha256:g.currentContinuation.parentGrant.sha256,currentContinuationSha256:canonicalHash(g.currentContinuation)}:{}),...('freshBookPolicy' in g?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.startupRecovery?{startupRecoverySha256:canonicalHash(g.startupRecovery)}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{})};
  const out=path.join(dir,'activation-'+g.approvalReference+'.json'),text=JSON.stringify(value);writeFileSync(out,text);return{...g,ownerApproval:{file:out,sha256:sha(text)}};
 }
 describe('one explicit fresh book uses the current reviewed policies without reopening old consent',()=>{
@@ -40,6 +40,16 @@ describe('one explicit fresh book uses the current reviewed policies without reo
   expect(localEngineMasterClaimFile(s.g)).toBe(localEngineMasterClaimFile(s.old));expect(existsSync(s.g.directory)).toBe(false);expect(existsSync(s.g.credentials.file)).toBe(false);
   const runtime=new LocalEngineTrialRuntime({root:path.join(s.dir,'real-runtime'),authority:r.authority,ownerId:r.prepared.snapshot.ownerId,draftId:r.prepared.snapshot.request.draftId,snapshotSha256:r.prepared.inputSha256,assertCurrent:()=>{}});
   expect(await runtime.meter()).toMatchObject({accountedMicroUsd:0,logicalCalls:0,blocked:false});
+ });
+ it('binds the new current-policy mode and exact execution-parent pin to the same owner consent',()=>{
+  const s=extended(),ref={file:s.g.profile.file,sha256:s.g.profile.sha256};
+  const currentContinuation={version:'engine-local-current-initial-hold/v1' as const,parentGrant:ref,parentStop:ref,parentExit:ref,parentEvidence:ref,parentStart:ref,parentExecutionClaim:ref};
+  const g={...s.g,freshBookPolicy:undefined,currentContinuation};
+  expect(localEngineGrantSchema.safeParse(g).success).toBe(true);expect(()=>localEngineMasterClaimFile(g)).toThrow('local_book_approval_changed');
+  const bound=activate(g,s.dir,'owner-v2.json');expect(localEngineMasterClaimFile(bound)).toBe(localEngineMasterClaimFile(s.old));
+  expect(()=>localEngineMasterClaimFile({...bound,currentContinuation:{...currentContinuation,parentExecutionClaim:{...ref,sha256:'0'.repeat(64)}}})).toThrow('local_book_approval_changed');
+  expect(()=>localEngineMasterClaimFile({...bound,currentContinuation:undefined})).toThrow();
+  expect(existsSync(bound.directory)).toBe(false);expect(existsSync(bound.credentials.file)).toBe(false);
  });
  it('cannot authorize Image2.6 through a legacy owner or increase the legacy cap',()=>{
   const s=setup(),g=activate({...s.fresh,imageModelPolicy:{version:ENGINE_IMAGE26_POLICY,model:'gpt-image-2.6-sunburst',complexity:'high'}},s.dir);

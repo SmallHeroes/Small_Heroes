@@ -4,6 +4,7 @@ import {lstatSync,readFileSync,readdirSync,realpathSync} from 'node:fs';
 import path from 'node:path';
 import {z} from 'zod';
 import {canonicalHash} from '@/lib/canonical-json';
+import {assertLocalHistoricalProcessGone} from './local-trial-startup-recovery';
 import type {LocalEngineGrant} from '@/scripts/engine-local-book';
 import {engineOrderAuthoritySchema,engineSiteFail} from './contract';
 import {parseEngineCheckpoint,type EngineCheckpoint,type EngineRuntime,type EngineProviderResult} from './durable-worker';
@@ -17,6 +18,10 @@ const ref=z.object({file:absolute,sha256:digest}).strict();
 export const localContinuationSchema=z.object({version:z.literal('engine-local-initial-hold-continuation/v1'),
  parentGrant:ref,parentStop:ref,parentExit:ref,parentEvidence:ref}).strict();
 export type LocalContinuation=z.infer<typeof localContinuationSchema>;
+export const localCurrentContinuationSchema=localContinuationSchema.extend({version:z.literal('engine-local-current-initial-hold/v1'),parentStart:ref,parentExecutionClaim:ref}).strict();
+export function localInitialParentSpec(g:LocalEngineGrant):LocalContinuation|undefined{
+ const s=g.currentContinuation;return s?{version:'engine-local-initial-hold-continuation/v1',parentGrant:s.parentGrant,parentStop:s.parentStop,parentExit:s.parentExit,parentEvidence:s.parentEvidence}:g.continuation;
+}
 const indexSchema=z.object({version:z.literal('engine-local-parent-evidence/v1'),root:absolute,
  rows:z.array(z.object({path:z.string().min(1),bytes:z.number().int().positive().max(64*1024*1024),sha256:digest}).strict()).min(1).max(2048)}).strict();
 const sha=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex');
@@ -57,19 +62,33 @@ export function readLocalSettledJournal(root:string,checkpoint:EngineCheckpoint,
 }
 /** Strictly ONE root initial-plan HOLD. No recursive continuation, UNKNOWN, failed call, changed request or new book. */
 export function loadLocalParentEnvelope(g:LocalEngineGrant,parent:LocalEngineGrant){
- if(!g.continuation||g.planningRecovery||g.mediaContinuation||parent.continuation||parent.planningRecovery||parent.mediaContinuation)engineSiteFail('local_parent_scope');
- const {root}=assertLocalParentEvidence(g.continuation);
+ const spec=localInitialParentSpec(g),current=g.currentContinuation;
+ if(!spec||g.planningRecovery||g.mediaContinuation||parent.currentContinuation||parent.continuation||parent.planningRecovery||parent.mediaContinuation||parent.childBindingContinuation||parent.locationsRepairContinuation||parent.locationsV2RepairContinuation||!current&&(parent.startupRecovery||parent.freshBookPolicy))engineSiteFail('local_parent_scope');
+ if(current){
+  if(g.freshBookPolicy||g.startupRecovery||!parent.freshBookPolicy||!g.imageModelPolicy||canonicalHash(g.imageModelPolicy)!==canonicalHash(parent.imageModelPolicy)||
+   canonicalHash(g.credentials)!==canonicalHash(parent.credentials)||canonicalHash(g.profile)!==canonicalHash(parent.profile)||g.responseSchemaPolicy!==parent.responseSchemaPolicy||
+   g.storyboardBindingPolicy!==parent.storyboardBindingPolicy||g.locationSheetPolicy!==parent.locationSheetPolicy||g.maximumMicroUsd!==parent.maximumMicroUsd||g.maximumCalls!==parent.maximumCalls)engineSiteFail('local_current_scope');
+  const dest=path.resolve(g.directory).toLowerCase(),old=path.resolve(parent.directory).toLowerCase();
+  if(dest===old||dest.startsWith(old+path.sep)||old.startsWith(dest+path.sep))engineSiteFail('local_current_destination');
+ }
+ const {root}=assertLocalParentEvidence(spec);
  if(root!==parent.directory||parent.directory===g.directory||g.approvalReference!==parent.approvalReference||g.approvedBy!==parent.approvedBy||g.approvedAt!==parent.approvedAt||
   g.profile.sha256!==parent.profile.sha256||g.profile.file!==parent.profile.file||g.readerId!==parent.readerId||g.source.root!==parent.source.root||
   g.maximumMicroUsd>parent.maximumMicroUsd||g.maximumCalls>parent.maximumCalls)engineSiteFail('local_parent_scope');
- const stop=pinned(g.continuation.parentStop),exit=pinned(g.continuation.parentExit);
- if(path.dirname(g.continuation.parentStop.file)!==root||stop.version!=='engine-local-book-stop/v1'||stop.reason!=='engine_storyboard_held'||stop.phase!=='story'||stop.grantSha256!==g.continuation.parentGrant.sha256||exit.code!==1||exit.outcomeExists!==false)engineSiteFail('local_parent_not_terminal_hold');
- try {process.kill(exit.childPid,0);engineSiteFail('local_parent_process_alive');} catch(error){if((error as NodeJS.ErrnoException).code!=='ESRCH')throw error;}
+ const stop=pinned(spec.parentStop),exit=pinned(spec.parentExit);
+ if(path.dirname(spec.parentStop.file)!==root||stop.version!=='engine-local-book-stop/v1'||stop.reason!=='engine_storyboard_held'||stop.phase!=='story'||stop.grantSha256!==spec.parentGrant.sha256||exit.code!==1||exit.outcomeExists!==false)engineSiteFail('local_parent_not_terminal_hold');
+ if(current){
+  const start=pinned(current.parentStart);
+  if(start.childPid!==exit.childPid||start.grantSha256!==spec.parentGrant.sha256||start.sourceHead!==parent.source.head||exit.signal!==null||exit.supervisorExitCode!==1||
+   exit.completionStatus!=='native_failed'||exit.completionReason!=='native_exit_failure'||!Number.isFinite(Date.parse(start.at))||!Number.isFinite(Date.parse(exit.at))||
+   Date.parse(exit.at)>Date.now()||Date.parse(exit.at)<Date.parse(start.at)||!Number.isFinite(Date.parse(stop.at))||Date.parse(stop.at)>Date.parse(exit.at)||Date.parse(stop.at)<Date.parse(start.at))engineSiteFail('local_current_terminal');
+  assertLocalHistoricalProcessGone(exit.childPid,exit.at);assertLocalHistoricalProcessGone(start.pid,exit.at);
+ }else{try {process.kill(exit.childPid,0);engineSiteFail('local_parent_process_alive');} catch(error){if((error as NodeJS.ErrnoException).code!=='ESRCH')throw error;}}
  const checkpoint=parseEngineCheckpoint({engineSite:json(path.join(root,'journal/checkpoint.json'))}),authority=engineOrderAuthoritySchema.parse(checkpoint.authority);
  if(authority.purpose!=='test'||authority.orderId!==parent.approvalReference||authority.sourceRevision!==parent.source.head||authority.budget.maximumMicroUsd!==parent.maximumMicroUsd||authority.budget.maximumCalls!==parent.maximumCalls||checkpoint.phase!=='story'||checkpoint.snapshotSha256!==authority.requestSha256||Object.keys(checkpoint.outputs).length)engineSiteFail('local_parent_authority');
  const {asset,claims,results,known}=readLocalSettledJournal(root,checkpoint,INITIAL_PARENT_STEPS,allowed),steps=[...results.keys()];
  if(!Number.isSafeInteger(known)||known!==stop.meter?.knownEstimateMicroUsd||known!==stop.meter?.accountedMicroUsd||steps.length!==stop.meter?.logicalCalls||stop.meter?.pendingCalls!==0||stop.meter?.unknownCalls!==0||stop.meter?.failedCalls!==0||stop.meter?.overReservedCalls!==0||known>=g.maximumMicroUsd||steps.length>=g.maximumCalls)engineSiteFail('local_parent_meter');
- const carried:LocalTrialCarry=Object.freeze({accountedMicroUsd:known,logicalCalls:steps.length,evidenceSha256:g.continuation.parentEvidence.sha256});
+ const carried:LocalTrialCarry=Object.freeze({accountedMicroUsd:known,logicalCalls:steps.length,evidenceSha256:spec.parentEvidence.sha256});
  return {parent,checkpoint,authority,carried,claims,results,asset};
 }
 export type LocalParentEnvelope=ReturnType<typeof loadLocalParentEnvelope>;
