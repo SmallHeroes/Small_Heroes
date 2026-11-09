@@ -5,6 +5,8 @@ import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import {localEngineGrantSchema,prepareLocalEngineTrial,localEngineMasterClaimFile,localEngineBookCLI,type LocalEngineGrant} from '@/scripts/engine-local-book';
 import {ENGINE_IMAGE26_POLICY} from '../image-model-policy';
+import {LocalEngineTrialRuntime} from '../local-trial-runtime';
+import type {LocalStartupRecovery} from '../local-trial-startup-recovery';
 import {syntheticEngineOrderInput} from './synthetic-order';
 import {engineRecipeSteps} from '../platform-policy';
 import {ENGINE_RESPONSE_SCHEMA_POLICY} from '../response-schema';
@@ -22,7 +24,7 @@ function setup(){const dir=mkdtempSync(path.join(realpathSync(tmpdir()),'sh_fres
 function activate(g:LocalEngineGrant,dir:string,consent='owner.json'){
  const file=path.join(dir,consent);if(!existsSync(file))writeFileSync(file,JSON.stringify({version:'engine-one-local-book-owner-authority/v1',maximumMicroUsd:10000000,maximumLogicalCalls:121,additionalBudgetAllowed:false,newPublicLaunchAllowed:false,realPaymeChargeAllowed:false,distinctConsent:consent}));
  const value={version:'engine-local-one-book-activation/v1',ownerAuthority:{file,sha256:sha(readFileSync(file,'utf8'))},approvalReference:g.approvalReference,approvedBy:g.approvedBy,approvedAt:g.approvedAt,approvalTimeKind:'local_record_of_received_owner_authority',maximumMicroUsd:g.maximumMicroUsd,maximumCalls:g.maximumCalls,sourceRoot:g.source.root,sourceHead:g.source.head,profileSha256:g.profile.sha256,directory:g.directory,readerId:g.readerId,fictional:true,publicDelivery:false,realPayment:false,
-  ...('freshBookPolicy' in g?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{})};
+  ...('freshBookPolicy' in g?{freshBookPolicy:g.freshBookPolicy}:{}),...(g.startupRecovery?{startupRecoverySha256:canonicalHash(g.startupRecovery)}:{}),...(g.imageModelPolicy?{imageModelPolicy:g.imageModelPolicy}:{}),...(g.responseSchemaPolicy?{responseSchemaPolicy:g.responseSchemaPolicy}:{}),...(g.storyboardBindingPolicy?{storyboardBindingPolicy:g.storyboardBindingPolicy}:{}),...(g.locationSheetPolicy?{locationSheetPolicy:g.locationSheetPolicy}:{})};
  const out=path.join(dir,'activation-'+g.approvalReference+'.json'),text=JSON.stringify(value);writeFileSync(out,text);return{...g,ownerApproval:{file:out,sha256:sha(text)}};
 }
 describe('one explicit fresh book uses the current reviewed policies without reopening old consent',()=>{
@@ -32,14 +34,23 @@ describe('one explicit fresh book uses the current reviewed policies without reo
   const file=path.join(s.dir,'owner-v2.json');writeFileSync(file,JSON.stringify({version:'engine-one-local-book-owner-authority/v2',maximumMicroUsd:12000000,maximumLogicalCalls:121,additionalBudgetAllowed:false,newPublicLaunchAllowed:false,realPaymeChargeAllowed:false,rootAuthority,imageModelPolicy}));
   const g=activate({...s.fresh,approvalReference:'fresh_image26',maximumMicroUsd:12000000,imageModelPolicy},s.dir,'owner-v2.json');return{...s,g,old,file,rootAuthority};
  }
- it('extends only the same unexecuted book campaign to 12USD and binds model into authority/activation',()=>{
+ it('extends only the same unexecuted book campaign to 12USD and binds model into authority/activation',async()=>{
   const s=extended(),r=prepareLocalEngineTrial(s.g);expect(localEngineGrantSchema.safeParse(s.g).success).toBe(true);
   expect(r.authority).toMatchObject({imageModelPolicy:s.g.imageModelPolicy,budget:{maximumMicroUsd:12000000,maximumCalls:121}});
   expect(localEngineMasterClaimFile(s.g)).toBe(localEngineMasterClaimFile(s.old));expect(existsSync(s.g.directory)).toBe(false);expect(existsSync(s.g.credentials.file)).toBe(false);
+  const runtime=new LocalEngineTrialRuntime({root:path.join(s.dir,'real-runtime'),authority:r.authority,ownerId:r.prepared.snapshot.ownerId,draftId:r.prepared.snapshot.request.draftId,snapshotSha256:r.prepared.inputSha256,assertCurrent:()=>{}});
+  expect(await runtime.meter()).toMatchObject({accountedMicroUsd:0,logicalCalls:0,blocked:false});
  });
  it('cannot authorize Image2.6 through a legacy owner or increase the legacy cap',()=>{
   const s=setup(),g=activate({...s.fresh,imageModelPolicy:{version:ENGINE_IMAGE26_POLICY,model:'gpt-image-2.6-sunburst',complexity:'high'}},s.dir);
   expect(()=>localEngineMasterClaimFile(g)).toThrow('extended_owner_required');expect(localEngineGrantSchema.safeParse({...s.fresh,maximumMicroUsd:12000000}).success).toBe(false);
+ });
+ it('binds startup recovery into the activation before any claim; missing or changed metadata refuses',()=>{
+  const s=extended(),ref={file:s.g.profile.file,sha256:s.g.profile.sha256},startupRecovery:LocalStartupRecovery={version:'engine-local-startup-cap-recovery/v1',boundary:'known_constructor_refusal_before_provider',parentGrant:ref,parentClaim:ref,parentEnvelope:ref,parentStart:ref,parentExit:ref,parentStderr:ref,parentStdout:ref,parentBook:ref};
+  const g={...s.g,startupRecovery};expect(()=>localEngineMasterClaimFile(g)).toThrow('local_book_approval_changed');
+  const bound=activate(g,s.dir,'owner-v2.json');expect(localEngineMasterClaimFile(bound)).toBe(localEngineMasterClaimFile(s.old));
+  expect(()=>localEngineMasterClaimFile({...bound,startupRecovery:{...startupRecovery,parentExit:{...ref,sha256:'0'.repeat(64)}}})).toThrow('local_book_approval_changed');
+  expect(localEngineGrantSchema.safeParse({...g,imageModelPolicy:undefined}).success).toBe(false);expect(localEngineGrantSchema.safeParse({...g,freshBookPolicy:undefined}).success).toBe(false);expect(existsSync(g.directory)).toBe(false);
  });
  it('refuses a swapped model, changed root pin and over-12USD grant',()=>{
   const s=extended();expect(()=>localEngineMasterClaimFile({...s.g,imageModelPolicy:{...s.g.imageModelPolicy!,model:'gpt-image-2.6-flare'}})).toThrow('extended_owner_invalid');

@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,readFileSync,writeFileSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {canonicalHash} from '@/lib/canonical-json';
@@ -18,6 +18,11 @@ function plan(step='page_0_0',cost:number|null=15,body:unknown={synthetic:true})
  return {p,execute,result};}
 describe('local owner-test runtime: exact durable calls, full reservations and no fake payment state',()=>{
  it('is test-only and bounds the owner cap/calls',()=>{for(const change of [{purpose:'customer'},{budget:{...authority().budget,maximumMicroUsd:10_000_001}},{budget:{...authority().budget,maximumCalls:122}}])expect(()=>setup({authority:{...authority(),purpose:'test',...change} as any})).toThrow('local_trial_authority');});
+ it.each(['gpt-image-2.6-sunburst','gpt-image-2.6-flare'] as const)('constructs the REAL 12M runtime for %s before any provider call',async model=>{
+  const a={...authority(),purpose:'test' as const,imageModelPolicy:{version:'image26-local-book/v1' as const,model,complexity:'high' as const},budget:{...authority().budget,maximumMicroUsd:12_000_000,maximumCalls:121}};
+  const s=setup({authority:a});expect(await s.r.meter()).toMatchObject({accountedMicroUsd:0,logicalCalls:0,pendingCalls:0,unknownCalls:0,blocked:false});
+  const refused=path.join(s.root,'refused');expect(()=>new LocalEngineTrialRuntime({...s.options,root:refused,authority:{...a,budget:{...a.budget,maximumMicroUsd:12_000_001}}})).toThrow('local_trial_authority');expect(existsSync(refused)).toBe(false);
+ });
  it('retains its signal when passed unbound to the native frame engine',()=>{const controller=new AbortController(),s=setup({signal:controller.signal}),check=s.r.check;expect(check).not.toThrow();controller.abort();expect(check).toThrow('local_trial_cancelled');});
  it('settles once, replays the same raw answer and checkpoints across a fresh runtime',async()=>{const s=setup(),q=plan();await s.r.call(q.p);await s.r.save('prepared_source',{synthetic:true});await s.r.advance('native');const resumed=new LocalEngineTrialRuntime(s.options);
   expect(await resumed.call(q.p)).toEqual(q.result);expect(q.execute).toHaveBeenCalledTimes(1);expect(await resumed.load('prepared_source')).toEqual({synthetic:true});expect(resumed.checkpoint.phase).toBe('native');expect(await resumed.meter()).toMatchObject({logicalCalls:1,accountedMicroUsd:15,pendingCalls:0,unknownCalls:0,blocked:false});});

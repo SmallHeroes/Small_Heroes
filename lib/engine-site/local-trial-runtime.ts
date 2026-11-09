@@ -17,6 +17,12 @@ export type LocalTrialCarry={accountedMicroUsd:number;logicalCalls:number;eviden
 /** Optional consent-global write-once dispatch witnesses. Default/legacy runtimes retain their exact journal path. */
 export type LocalTrialDispatchWitness={list:()=>readonly {step:string;claimSha256:string;maximumMicroUsd:number}[];
  check:(step:string,claimSha256:string,dispatched:boolean)=>void;begin:(step:string,claimSha256:string)=>void};
+/** Shared by the real constructor and CLI planning, before any one-use execution claim. */
+export function validateLocalTrialAuthority(value:unknown){
+ const a=engineOrderAuthoritySchema.parse(value),maximum=a.imageModelPolicy?12_000_000:10_000_000;
+ if(a.purpose!=='test'||a.budget.maximumMicroUsd>maximum||a.budget.maximumCalls>121)engineSiteFail('local_trial_authority');
+ return a;
+}
 export class LocalEngineTrialRuntime implements EngineRuntime {
  readonly checkpoint:EngineCheckpoint;
  readonly signal:AbortSignal;
@@ -25,9 +31,8 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
  private busy=false;
  constructor(private readonly options:{root:string;authority:EngineOrderAuthority;ownerId:string;draftId:string;snapshotSha256:string;
    assertCurrent:()=>void|Promise<void>;carried?:LocalTrialCarry;dispatchWitness?:LocalTrialDispatchWitness;signal?:AbortSignal;now?:()=>number;pause?:(ms:number)=>Promise<void>}){
-  const a=engineOrderAuthoritySchema.parse(options.authority);
+  const a=validateLocalTrialAuthority(options.authority);
   this.carried=options.carried?Object.freeze({...options.carried}):null;
-  if(a.purpose!=='test'||a.budget.maximumMicroUsd>10_000_000||a.budget.maximumCalls>121)engineSiteFail('local_trial_authority');
   this.root=path.resolve(options.root);mkdirSync(this.root,{recursive:true,mode:0o700});
   if(lstatSync(this.root).isSymbolicLink()||realpathSync(this.root)!==this.root)engineSiteFail('local_trial_path');
   for(const name of ['assets','calls']){const dir=path.join(this.root,name);mkdirSync(dir,{recursive:true,mode:0o700});if(lstatSync(dir).isSymbolicLink()||realpathSync(dir)!==dir)engineSiteFail('local_trial_path');}
