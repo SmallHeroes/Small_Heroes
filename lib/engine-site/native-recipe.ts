@@ -269,7 +269,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
           }
         }
         const repair=cap&&role==='locations'?prior:undefined, step=repair?'sheet_locations_1':`sheet_${role}_0`;
-        const prompt=repair?sheetRepairPrompt(role,designs[role],locationRepairFindings(repair.attempt),authority.locationSheetPolicy):auditionSheetPrompt(role,designs[role],authority.locationSheetPolicy);
+        // Both role designs derive from this same admitted book; v2 uses the sibling only as exclusion recognition data.
+        const prompt=repair?sheetRepairPrompt(role,designs[role],locationRepairFindings(repair.attempt),authority.locationSheetPolicy,designs.entities):auditionSheetPrompt(role,designs[role],authority.locationSheetPolicy,designs.entities);
         const candidate = await render(step, prompt, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
           repair?['rejected_edit_target','child_design_authority','companion_design_authority']:['child_design_authority', 'companion_design_authority']);
         if(cap)assertEngineLocationRepairPreparation(cap,authority,runtime.checkpoint,prepared,snapshot);
