@@ -2,7 +2,7 @@ import { companionScaleAuthority } from './companion-scale-authority';
 import { COMPANION_SCALE_VERSION, SCALE_STORYBOARD_ADDENDUM, validateCompanionScale, type CompanionScaleAuthority } from './companion-scale';
 import { assertEngineContinuityOptions, type EngineContinuityOptions } from './engine-continuity-contracts';
 import { SOURCE_CONCURRENCY_VERSION, SOURCE_CONCURRENCY_PLANNER_ADDENDUM, SOURCE_CONCURRENCY_DRAWN_RULE, withSourceConcurrency, validateSourceConcurrency,
-  concurrencyKeys, sourceConcurrencyRender, type SourceConcurrency } from './storyboard-source-concurrency';
+  concurrencyKeys, concurrencyClaimRef, sourceConcurrencyRender, type SourceConcurrency } from './storyboard-source-concurrency';
 import { ENTITY_MATERIAL_FUNCTION_VERSION, MATERIAL_STORYBOARD_ADDENDUM, withMaterialFunction, splitMaterialFunction, compileMaterialFunction, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import { resolveSourceQuotes } from './source-quote-resolution';
@@ -715,7 +715,11 @@ export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unkno
     // Claim basis: an evidence issue bound to one verified source span of its claim's page is the reviewer's binding note (structure verified only).
     const citation = book.claimBasis ? citationVerifier(book, previewStoryEvidence(source.story).texts).binds : undefined;
     // Calibration: whether an issue blocks follows the reviewer's own impact and basis (storyboard-review-severity/v1).
-    const severity = book.calibration ? (i: unknown, cited: boolean) => severityMaterial(i as CalibrationIssue, cited) : undefined;
+    // An explicitly declared temporal relationship is never mere staging/inference. A non-supported check's
+    // issue on that exact claim stays material; a truly supported claim has a supported check with no issues.
+    const temporalRefs=book.sourceConcurrency?new Set(book.sourceConcurrency.frames.flatMap((frame,n)=>frame.changes.map(c=>concurrencyClaimRef(n,c)))):undefined;
+    const severity = book.calibration ? (i: unknown, cited: boolean) =>
+      !!temporalRefs?.has((i as CalibrationIssue).ref) || severityMaterial(i as CalibrationIssue, cited) : undefined;
     const impact = storyboardImpactDisposition([
       ...typed.bookChecks.map(check => ({ scope: 'book' as const, check })),
       ...typed.frames.flatMap(frame => frame.checks.map(check => ({ scope: 'page' as const, pageNumber: frame.pageNumber, check }))),

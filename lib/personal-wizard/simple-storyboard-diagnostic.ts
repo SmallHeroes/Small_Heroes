@@ -49,7 +49,7 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
     + (contracts.selfCheckContract ? '\n' + (calibrated ? calibrationSelfCheckReviewAddendum()
       : contracts.claimBasisContract ? claimBasisSelfCheckReviewAddendum() : SELF_CHECK_REVIEW_ADDENDUM) : '')
-    + (contracts.reviewImpactPolicy ? '\n' + (calibrated ? CALIBRATION_REVIEW_IMPACT_ADDENDUM : STORYBOARD_REVIEW_IMPACT_ADDENDUM) : '')
+    + (contracts.reviewImpactPolicy ? '\n' + (calibrated ? concurrencyReviewImpactAddendum(contracts.engineContinuity?.sourceConcurrency) : STORYBOARD_REVIEW_IMPACT_ADDENDUM) : '')
     + (contracts.claimBasisContract ? '\n' + (calibrated ? calibrationClaimBasisReviewAddendum() : CLAIM_BASIS_REVIEW_ADDENDUM) : '')
     + (contracts.claimBasisContract && contracts.stagingFields ? '\n' + CLAIM_BASIS_STAGING_FIELDS_REVIEW_RULE : '')
     + (calibrated ? '\n' + (contracts.stateParityContract ? stateParityReviewerCalibration() : CALIBRATION_REVIEW_ADDENDUM) : '')
@@ -59,6 +59,14 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.companionScale ? '\n' + SCALE_REVIEW_ADDENDUM : '')
     + (contracts.engineContinuity?.sourceConcurrency?'\n'+SOURCE_CONCURRENCY_REVIEW_ADDENDUM:'');
 };
+/** Replace the generic note rule only for the explicitly stricter temporal contract. Legacy bytes remain exact. */
+function concurrencyReviewImpactAddendum(enabled?:true){
+  if(!enabled)return CALIBRATION_REVIEW_IMPACT_ADDENDUM;
+  const ordinary='inference and setting with a positive reason are notes.';
+  if(!CALIBRATION_REVIEW_IMPACT_ADDENDUM.includes(ordinary))throw Error('simple_storyboard_diagnostic_concurrency_severity_rule');
+  return CALIBRATION_REVIEW_IMPACT_ADDENDUM.replace(ordinary,
+    'inference and setting with a positive reason are notes ONLY for ordinary non-concurrency references. ANY issue on p{n}:concurrent:* is material regardless of impact, basis or citation; uncertain temporal support remains HOLD');
+}
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
   const lines = SELF_CHECK_REVIEW_ADDENDUM.split('\n'), at = lines.findIndex(l => l.startsWith('- claims:'));

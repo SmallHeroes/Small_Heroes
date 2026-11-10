@@ -1,5 +1,11 @@
 # M40: source-supported concurrency (USD0)
 
+## R2 independent finding and correction
+
+R1 report568401d3 is HOLD, not PASS: the generic calibration severity could turn an uncertain temporal claim into an inference/setting/detail note. It was sealed after actual reviewer exit and all source/writer/review hashes. R2 makes every issue on an exact declared concurrency ref material regardless of impact/basis/citation; a truly supported temporal claim is represented by a supported check with no issues. The new-mode prompt replaces the generic inference/setting note sentence with this explicit scoped exception. Ordinary references and all default/legacy sources retain their exact previous behavior. Target change evidence must itself occur once, closing the second-occurrence provenance ambiguity (P3-2). Quote presence still does not prove meaning; raw Zod error wording remains cosmetic debt.
+
+R2 provider-denied42/42 targeted and250/250 across14 direct-caller specs, both nonincrementalTS0. The red reproducer failed8 cases before the fix. Removing the severity guard loses7 assertions; removing target-quote uniqueness loses1. No transform/suite failure is counted as a killed mutant. Real paid-chain replay and preservation are repeated in scratch, never an execution or edited book. New exact range/freeze and same independent reviewer re-gate precede any technical PASS. No fifth-attempt route/permission, provider/key/env, source/model/budget change or product acceptance.
+
 The actual fourth plan was correctly held. Its source sentence order forced a later-written concurrent change into an earlier FROM value, while choosing the final state lost the page's meaningful action. Correct the general representation, preserve both failures, and require a new independently judged plan before any illustration. This is not a semantic waiver or a new paid attempt.
 
 ## Explicit prospective contract

@@ -120,6 +120,22 @@ describe('prospective concurrency travels through the real storyboard flow',()=>
       expect(storyboardReviewDisposition(book,r).disposition).toMatch(/^held_/);expect(()=>personalStoryboardFrame(book,r,4,f.current)).toThrow(/held_/);}
     const r=review(f,book);r.sourceDigest='a'.repeat(64);expect(()=>storyboardReviewDisposition(book,r)).toThrow('review_binding');
   });
+  it.each(['evidence','continuity','detail'].flatMap(impact=>['inference','setting'].map(basis=>({impact,basis}))))('cannot downgrade uncertain/contradicted temporal claim $impact/$basis into a note',({impact,basis})=>{
+    const s=prepare(f,true),book=compilePersonalStoryboard(s,draft(f,s,true));
+    for(const verdict of ['uncertain','contradiction']){
+      const r=review(f,book),c=r.frames[4].checks.find((x:any)=>x.category==='physical_state');c.verdict=verdict;c.observation='Synthetic uncertain temporal relationship';
+      c.issues=[{impact,basis,ref:'p4:concurrent:attribute:ribbon:color',note:'Timing is merely inferred',whyNotMaterial:'Synthetic attempted downgrade',citation:''}];
+      expect(storyboardReviewDisposition(book,r).disposition).toMatch(/^held_/);expect(()=>personalStoryboardFrame(book,r,4,f.current)).toThrow(/held_/);
+    }
+  });
+  it('retains ordinary calibrated notes while any issue on a temporal declaration remains material even with a citation',()=>{
+    const s=prepare(f,true),book=compilePersonalStoryboard(s,draft(f,s,true)),r=review(f,book),c=r.frames[4].checks.find((x:any)=>x.category==='physical_state');
+    c.verdict='uncertain';c.issues=[{impact:'detail',basis:'inference',ref:'p4:composition',note:'Synthetic harmless arrangement',whyNotMaterial:'Does not change any source state',citation:''}];
+    expect(storyboardReviewDisposition(book,r).disposition).toBe('review_supported_with_notes');
+    c.issues=[{impact:'evidence',basis:'unsupported',ref:'p4:concurrent:attribute:ribbon:color',note:'Timing not supported',whyNotMaterial:'Attempted citation waiver',citation:'p4:s1+p4:s2'}];
+    expect(storyboardReviewDisposition(book,r).disposition).toBe('held_uncertain');
+    expect(storyboardReviewDisposition(book,review(f,book)).disposition).toBe('review_supported');
+  });
   it('refuses absent opt-in, absent declaration, staged temporal claims and missing self-check coverage',()=>{
     const s=prepare(f,true),d=draft(f,s,true);
     expect(()=>compilePersonalStoryboard(prepare(f),d)).toThrow('source_concurrency_not_enabled');
@@ -152,6 +168,8 @@ describe('prospective concurrency travels through the real storyboard flow',()=>
     expect(()=>storyboardReviewInstructions({engineContinuity:{sourceConcurrency:true}})).toThrow('source_concurrency_policy');
     const old=storyboardReviewInstructions(contracts),next=storyboardReviewInstructions({...contracts,engineContinuity:{sourceConcurrency:true}});
     expect(old).not.toContain(SOURCE_CONCURRENCY_VERSION);expect(next).toContain(SOURCE_CONCURRENCY_VERSION);expect(next).toContain('uncertain');
+    expect(old).toContain('inference and setting with a positive reason are notes.');
+    expect(next).not.toContain('inference and setting with a positive reason are notes.');expect(next).toContain('ordinary non-concurrency references');
   });
   it('the review-only seam buys no planner callback and rechecks policy after await',async()=>{
     const writerResult=await currentSource(f),source=prepare(f,true,undefined,writerResult),d=draft(f,source,true),book=compilePersonalStoryboard(source,d),calls:string[]=[],ec:any={sourceConcurrency:true};

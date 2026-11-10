@@ -37,6 +37,10 @@ describe('concurrency provenance and target fences (not semantic acceptance)',()
   it('refuses duplicate declarations of one target',()=>{const d=declaration();d.frames[2].changes.push({...d.frames[2].changes[0]});expect(()=>validate(d)).toThrow('duplicate');});
   it.each(['not a source quote','The child pulled the lever.','beacon turned blue'])('refuses unsupported/incomplete quotation %s',e=>expect(()=>validate(declaration(e))).toThrow('source_binding'));
   it('refuses an ambiguous duplicate quote',()=>{const x=specimen();x.texts[2]+=' Meanwhile the beacon turned blue.';expect(()=>validate(declaration(),x)).toThrow('source_binding');});
+  it('refuses a unique longer declaration around a different occurrence of the repeated target-change quote',()=>{
+    const x=specimen(),quote='Meanwhile the beacon turned blue.';x.texts[2]+=' Later they looked back. '+quote;
+    expect(()=>validate(declaration('Later they looked back. '+quote),x)).toThrow('source_binding');
+  });
   it('refuses a quote belonging to a different page',()=>{const x=specimen();x.texts[1]+=' The bell rings.';expect(()=>validate(declaration('The bell rings.'),x)).toThrow('source_binding');});
   it('refuses a declaration at page end or on the cover',()=>{
     const x=specimen();x.moments.frames[2].depicted=null;expect(()=>validate(declaration(),x)).toThrow('drawn_instant_required');
