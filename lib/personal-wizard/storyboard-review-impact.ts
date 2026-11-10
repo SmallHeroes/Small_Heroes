@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { PreviewPlan } from '../local-story-preview';
 import type { bookSequenceSchema } from '../local-book-sequence';
 import type { StoryboardMoments } from './storyboard-moments';
+import { concurrencyClaimRef, type SourceConcurrency } from './storyboard-source-concurrency';
 import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
 
 /**
@@ -38,7 +39,7 @@ For EVERY check that is not supported, list its issues (1 to 4). Each issue:
 An issue you cannot positively justify as detail is not detail. Do not inflate detail into story, or the reverse. Uncertain stays uncertain.`;
 
 type Sequence = z.infer<typeof bookSequenceSchema>;
-type Storyboardish = { plan: PreviewPlan; sequence: Sequence; moments?: StoryboardMoments };
+type Storyboardish = { plan: PreviewPlan; sequence: Sequence; moments?: StoryboardMoments; sourceConcurrency?:SourceConcurrency };
 /** A claim and its declared quote; `page` only when that quote lives on another page (a claim-basis withhold requirement: its reveal page). */
 export type StoryboardClaim = { ref: string; evidence: string; page?: number };
 
@@ -69,6 +70,7 @@ export function storyboardFrameClaims(book: Storyboardish, n: number): Storyboar
     page.transitions.forEach(t => claims.push({ ref: `p${n}:transition:${t.entityId}`, evidence: t.evidence }));
     if (page.sceneChangeEvidence) claims.push({ ref: `p${n}:scene`, evidence: page.sceneChangeEvidence });
   }
+  book.sourceConcurrency?.frames[n].changes.forEach(c=>claims.push({ref:concurrencyClaimRef(n,c),evidence:c.evidence}));
   const seen = new Map<string, number>();
   return claims.map(c => { const k = (seen.get(c.ref) ?? 0) + 1; seen.set(c.ref, k); return k === 1 ? c : { ...c, ref: `${c.ref}#${k}` }; });
 }

@@ -1,0 +1,31 @@
+# M40: source-supported concurrency (USD0)
+
+The actual fourth plan was correctly held. Its source sentence order forced a later-written concurrent change into an earlier FROM value, while choosing the final state lost the page's meaningful action. Correct the general representation, preserve both failures, and require a new independently judged plan before any illustration. This is not a semantic waiver or a new paid attempt.
+
+## Explicit prospective contract
+
+`engineContinuity.sourceConcurrency:true` requires the existing presence/state-parity contracts. The authoring draft then includes top-level `concurrency:{version:'storyboard-source-concurrency/v1',frames:[{changes:[]},...]}` with exact cover/body coverage. Each nonempty row names `kind:'relation'|'attribute'`, a known `entityId`, `attribute:null` for relation or the exact attribute name, and an exact same-page `evidence` quote containing the entire target change quote.
+
+Only a visible, later-written, otherwise pending change qualifies. No duplicate, already overridden, hidden, fixed/nonexistent or earlier target. Nonempty declarations need an unambiguous depicted instant and quote. The declaration supplies no invented value: the existing ledger end value remains effective for this target at that instant. Every other chronological gap still needs its normal supported override. The end ledger and later pages never inherit a picture override.
+
+Quotes establish provenance, not simultaneity. Self-check names `pN:concurrent:relation:ID` or `pN:concurrent:attribute:ID:ATTRIBUTE`; these are stated claims, never staging. Their changed section is `pN:moment`. The independent semantic reviewer must find the whole temporal relationship supported; uncertainty or contradiction remains a material HOLD. Empty depicted override arrays are legal under the existing visible-only policy. Background state cannot replace the page's meaningful action, failure or joke; a quiet ending that is itself the meaning remains valid.
+
+## Callers and compatibility
+
+The opt-in binds source contract versions/input, SDK wire schema/decoder, compiler and self-check coverage, storyboard digest, review input and references, frame context, render prompt, native image judge, and local anatomy/material scene-correction projection. The SDK has a separate schema builder; both builders carry the declaration. The native judge refuses missing/different packet declarations. Accepted-world child binding retains the whole compiled world and rechecks authority around awaits. Native recipe restoration uses the same explicit authority. Adding the contract during a repair reconstructs each old parent under that parent's contracts; it never reinterprets old receipts or their reviews.
+
+`storyboardConcurrencyPolicy:'storyboard-source-concurrency/v1'` is prospective test-only EngineOrderAuthority and requires the existing response-schema policy. `enginePreparationContracts` returns the exact existing preparation object when absent. Existing default/native/whole-book constructors do not silently turn it on. No customer default, local CLI grant field, owner activation, financial/attempt ceiling or fifth-attempt execution path is added here.
+
+## Validation and limits
+
+Provider/network/env denied final source gate:718/718 in16 files; missing recovery-tail file33/33; both TypeScript gates exit0. Earlier recovery gate217/217 in6 files exited0. A later6-file recovery rerun reached its5min cap after5 completed files/184 passed cases, with the last file incomplete; retain that capped run and complete only the missing33-case file separately, without another blind loop. Six critical mutants (quote containment, duplicate target, target specificity, removed functionality, digest binding and actual SDK schema) are killed by assertion failures. Positive reviews are explicitly supplied synthetic callbacks, never model or product evidence. Actual combined C/D/E+Momo0.7 compilation, native v7 context, semantic HOLD, opt-out, dependency, after-await, parent/adoption and legacy digest controls are covered.
+
+The historical replay helper is a QA-only memory fixture, not authority. It simulates only the admission-time absence of the two consumed fourth-attempt claims, preserving their actual files, and supplies synthetic future review/registration files only in memory. Native execution, claim creation, key access and transport are denied. It replays ten earlier paid requests under their original authorities, matches the real next request body, and recompiles the unchanged paid fourth draft plus its actual review to their exact old digests and HOLD. Its1465160/12 current accounting is kept distinct from the historical replay carry1163452/10. The memory-only tickle specimen tests one low-level state gap, not an accepted new storyboard. Its first probe incorrectly omitted explicit contract adoption and correctly refused; the corrected probe and original error remain.
+
+The new contract's real model efficacy and future illustration quality remain unproven. A quote may be structurally valid while its claimed simultaneity is wrong; semantic review remains necessary. Full npm check is not green and was not blindly repeated. All red/development/probe failures remain in external evidence. The freeze verifies source bytes against the local commit, historical321/R17 book and prior milestones, current32 book files/14 controls and completed independent reports.
+
+## Current book and next authority
+
+M39 consumed grant `eef4ba7dd20be05e3a83aaba3bb26dfdf06654fe2f188c7f6980d2636c468e1d` ended at2026-11-10T09:33:29Z with genuine `engine_storyboard_held`, native1. New2 calls cost301708; cumulative1465160/12, pending/UNKNOWN0, remaining10534840/109 inside12M/121. No new images, Dad narration, PDF or Reader. Old M30 FULL600000 UNKNOWN is a separate preserved domain.
+
+Codex freezes a clean focused local commit over91d0f524; Claude Code independently reviews read-only. Wait for its actual native/launcher exit, complete report/index/READY, then verify every hash and seal. Code PASS is not a book PASS. Push is authorized for this branch after review; no deployment/merge. A paid fifth plan needs a NEW owner-stage decision and a fresh bounded reviewed execution envelope. No unchanged raw HOLD re-review, new story, manual book edit, budget reset or automatic fifth attempt.

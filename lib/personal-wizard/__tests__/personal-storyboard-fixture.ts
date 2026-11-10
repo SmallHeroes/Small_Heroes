@@ -30,7 +30,8 @@ const prose = [
 ];
 
 /** `fixtureOptions` lets a historical harness accept the request under its own offered menu (the identity binds the options fingerprint). */
-export async function personalStoryboardFixture(lengthId = 'short', companionId = 'dragon_dini', fixtureOptions: PersonalWizardOptions = options) {
+export async function personalStoryboardFixture(lengthId = 'short', companionId = 'dragon_dini', fixtureOptions: PersonalWizardOptions = options,
+  fixtureProse:readonly string[]=prose) {
   const request: ReviewedPersonalBookRequest = {
     kind: 'personal_book_request', version: 'reviewed-personal-book-request/v3', draftId: 'd_storyboard01', draftRevision: 3,
     child: { name: 'נועה', age: 5, address: 'girl', residence: 'אודם', nameSource: 'typed', ageSource: 'typed', addressSource: 'typed', residenceSource: 'typed' },
@@ -50,7 +51,7 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
         beats: Array.from({ length: brief.beats }, (_, i) => ({ pageNumber: i + 1, location: 'הגינה', transitionReason: 'מחפשות רעיון',
           childAction: 'נועה מציעה', companionAction: 'החברה מקשיבה', consequence: 'מנסות דרך אחרת', factIds: ['f_interest0001'], continuity: 'הסרט בידי נועה' })), ending: 'שבות לבקתה',
       } : { requestId: brief.requestId, planDigest, title: 'נועה והסרט האדום',
-        pages: Array.from({ length: brief.beats }, (_, i) => ({ pageNumber: i + 1, text: prose[i] ?? 'נועה and her companion remain inside the same hut and plan their next drawing.' })) };
+        pages: Array.from({ length: brief.beats }, (_, i) => ({ pageNumber: i + 1, text: fixtureProse[i] ?? 'נועה and her companion remain inside the same hut and plan their next drawing.' })) };
       return { output, usage: { inputTokens: 1, outputTokens: 1 } };
     } }),
   });

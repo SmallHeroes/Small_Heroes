@@ -13,7 +13,7 @@ import { canonicalJson } from './request-acceptance';
 export const STORYBOARD_REPAIR_VERSION = 'storyboard-repair/v1' as const;
 /** Opt-in contracts a repair may add on top of its parent's (the parent is then recompiled without them). */
 export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract', 'visibleMomentContract', 'selfCheckContract', 'reviewImpactPolicy', 'claimBasisContract',
-  'calibrationContract', 'presenceContract', 'stateParityContract'] as const;
+  'calibrationContract', 'presenceContract', 'stateParityContract', 'sourceConcurrency'] as const;
 /**
  * An owner's explicit, bounded extension of the storyboard stage's attempt ceiling (storyboard-attempt-extension/v1): exactly one attempt
  * above the base ceiling, only once the base ceiling is spent, bound to the owner's approval record by digest. Never a reset.

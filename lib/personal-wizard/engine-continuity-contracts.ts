@@ -1,6 +1,7 @@
 import { z } from 'zod';
 /** Prospective engine contracts only; existing sources/grants have no such field. */
-export const engineContinuityOptionsSchema = z.object({ materialFunction: z.literal(true).optional(), companionScale: z.literal(true).optional() }).strict().refine(v => Object.keys(v).length > 0);
+export const engineContinuityOptionsSchema = z.object({ materialFunction: z.literal(true).optional(), companionScale: z.literal(true).optional(),
+  sourceConcurrency:z.literal(true).optional() }).strict().refine(v => Object.keys(v).length > 0);
 export type EngineContinuityOptions = z.infer<typeof engineContinuityOptionsSchema>;
 /** Prospective native binding only: no cycle, grant, paid allowance or historical upgrade. */
 export const NATIVE_BOOK_CONTINUITY_VERSION = 'native-book-continuity/v1' as const;
@@ -11,7 +12,7 @@ export const nativeWholeBookContinuitySchema = z.object({version:z.literal(NATIV
 export type NativeBookContinuity = z.infer<typeof nativeBookContinuitySchema>|z.infer<typeof nativeWholeBookContinuitySchema>;
 /** Explicit caller authority, never inferred from a saved marker. All three contracts travel together in the native mode. */
 export const storyboardContinuityAdmissionSchema = z.object({instanceDistinctionContract:z.literal(true),
-  engineContinuity:z.object({materialFunction:z.literal(true),companionScale:z.literal(true)}).strict()}).strict();
+  engineContinuity:z.object({materialFunction:z.literal(true),companionScale:z.literal(true),sourceConcurrency:z.literal(true).optional()}).strict()}).strict();
 export type StoryboardContinuityAdmission = z.infer<typeof storyboardContinuityAdmissionSchema>;
 export function nativeBookContinuityContracts(value?: NativeBookContinuity): StoryboardContinuityAdmission | undefined {
   if(value===undefined)return undefined;

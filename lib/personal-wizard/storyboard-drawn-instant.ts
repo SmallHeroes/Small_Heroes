@@ -14,6 +14,8 @@ import type { bookSequenceSchema } from '../local-book-sequence';
 import type { z } from 'zod';
 
 export const DRAWN_INSTANT_CONTRACT_VERSION = 'storyboard-drawn-instant/v1' as const;
+/** Unambiguous target key shared only with the validated opt-in concurrency contract. */
+export const drawnChangeKey=(n:number,kind:'relation'|'attribute',entityId:string,attribute?:string)=>JSON.stringify([n,kind,entityId,attribute??null]);
 
 export const DRAWN_INSTANT_STORYBOARD_ADDENDUM = `DRAWN INSTANT COMPLETENESS (drawn-instant contract; it extends the moments contract, and the compiler enforces it):
 - A frame's drawn instant is where the first occurrence of its depicted.evidence ends in the page text. A change the same page makes later - a sequence transition whose evidence, or a continuity change whose storyEvidence, first occurs after that point - has not happened yet at the drawn instant: override that entity in depicted.relations (its relation at that instant) or that attribute in depicted.attributes (its value at that instant), with its own exact same-page quote. This holds for every entity, visible, offscreen or cropped out: a crop never removes a state.
@@ -34,7 +36,8 @@ export type DrawnInstantGap = { pageNumber: number; drawnEvidence: string; chang
  * happened by then. Pure: the moments, plan and sequence must already be validated against the same texts. `visibleOnly` (a later opt-in
  * contract): only the entities the frame shows (its visibleCastIds and visibleEntityIds) need an override.
  */
-export function drawnInstantGaps(moments: StoryboardMoments, plan: PreviewPlan, sequence: Sequence, texts: readonly string[], visibleOnly?: true): DrawnInstantGap[] {
+export function drawnInstantGaps(moments: StoryboardMoments, plan: PreviewPlan, sequence: Sequence, texts: readonly string[], visibleOnly?: true,
+  concurrent?:ReadonlySet<string>): DrawnInstantGap[] {
   const gaps: DrawnInstantGap[] = [];
   moments.frames.forEach((frame, n) => {
     const d = frame.depicted;
@@ -45,9 +48,9 @@ export function drawnInstantGaps(moments: StoryboardMoments, plan: PreviewPlan, 
     // An actor the instant lists in depicted.presence (storyboard-presence/v1 only; absent field, nothing added) declares its state then.
     const present = 'presence' in d ? (d as { presence: { actorId: string }[] }).presence.map(p => p.actorId) : [];
     const relations = new Set([...d.relations.map(o => o.entityId), ...present]), attributes = new Set(d.attributes.map(a => `${a.entityId}:${a.attribute}`));
-    for (const t of page.transitions) if (later(t.evidence) && !relations.has(t.entityId) && drawn(t.entityId))
+    for (const t of page.transitions) if (later(t.evidence) && !relations.has(t.entityId) && drawn(t.entityId) && !concurrent?.has(drawnChangeKey(n,'relation',t.entityId)))
       gaps.push({ pageNumber: n, drawnEvidence: d.evidence, changeEvidence: t.evidence, kind: 'relation', entityId: t.entityId, to: t.to });
-    for (const c of plan.continuity!.pages[n].changes) if (later(c.storyEvidence) && !attributes.has(`${c.entityId}:${c.attribute}`) && drawn(c.entityId))
+    for (const c of plan.continuity!.pages[n].changes) if (later(c.storyEvidence) && !attributes.has(`${c.entityId}:${c.attribute}`) && drawn(c.entityId) && !concurrent?.has(drawnChangeKey(n,'attribute',c.entityId,c.attribute)))
       gaps.push({ pageNumber: n, drawnEvidence: d.evidence, changeEvidence: c.storyEvidence, kind: 'attribute', entityId: c.entityId,
         attribute: c.attribute, value: c.value });
   });

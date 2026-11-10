@@ -11,7 +11,6 @@ import { simpleStoryReadingPackets,simpleStoryFindingIsMaterial } from '@/lib/pe
 import { causalSourceReviewPacket,compileCausalSourceReadingWithCorrection } from '@/lib/personal-wizard/story-causal-experiment';
 import { runSimpleStoryboardDiagnostic } from '@/lib/personal-wizard/simple-storyboard-diagnostic';
 import { personalBookProviderPayload,decodePersonalBookProviderOutput } from '@/lib/personal-wizard/book-openai';
-import { PREPARATION_CONTRACTS } from '@/lib/personal-wizard/source-preparation-contracts';
 import { STORYBOARD_REVIEW_CAPACITY } from '@/lib/personal-wizard/storyboard-review-capacity';
 import type { ExistingChildAppearance } from '@/lib/personal-wizard/existing-child-appearance';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
@@ -24,6 +23,7 @@ import { engineSiteFail } from './contract';
 import {compactSchemaDefinitions} from '@/scripts/personal-opus-storyboard-transport';
 import {LOCAL_INITIAL_REPAIR_WIRE_BYTES,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
 import type {SimpleStoryboardDiagnosticCall} from '@/lib/personal-wizard/simple-storyboard-diagnostic';
+import { enginePreparationContracts } from './storyboard-concurrency-policy';
 
 export type StorySnapshot={request:ReviewedPersonalBookRequest;options:PersonalWizardOptions};
 export const engineStoryboardSupported=(status:string)=>['review_supported','review_supported_with_notes'].includes(status);
@@ -65,7 +65,7 @@ export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:Sto
  if(prefix==='initial_repair_3'&&(!runtime.checkpoint.authority.storyboardAttemptExtension||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_extension_authority');
  let draft:unknown=null;
  const diagnostic=await runSimpleStoryboardDiagnostic({request:snapshot.request,writerResult:source,options:snapshot.options,signal:runtime.signal,
-  ...PREPARATION_CONTRACTS,existingChildAppearance,...(repair?{repair}:{}),reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
+  ...enginePreparationContracts(runtime.checkpoint.authority),existingChildAppearance,...(repair?{repair}:{}),reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
   generate:async call=>{
    let body;
    if(call.stage==='storyboard'&&prefix.startsWith('initial_repair_')){

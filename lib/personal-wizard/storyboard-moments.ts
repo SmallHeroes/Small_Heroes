@@ -72,7 +72,7 @@ this page. A requirement that bans something the data requires, or demands somet
  * once the compiler dropped the overrides of entities its frame does not show). Absent, exactly the existing validation.
  */
 export type MomentsPolicy = { schema: z.ZodTypeAny; requirementPages: (requirement: { kind: string; revealPage?: number | null }, n: number) => number[];
-  visibleOnly: true; presence?: true };
+  visibleOnly: true; presence?: true; concurrentChanges?:ReadonlySet<string> };
 /**
  * Deterministic validation against the compiled plan/sequence and the exact page texts. With the opt-in drawn-instant contract, every depicted
  * instant also lists actorStates (a temporary look of a visible child or companion, quoted on its page), an instant may consist of those alone,
@@ -130,7 +130,7 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
   });
   // Drawn-instant contract: a change the page makes after its drawn instant must be overridden, offscreen or not (under a visible-only
   // policy: for the entities its frame shows).
-  const gap = drawnInstant ? drawnInstantGaps(m, plan, sequence, texts, policy?.visibleOnly)[0] : undefined;
+  const gap = drawnInstant ? drawnInstantGaps(m, plan, sequence, texts, policy?.visibleOnly,policy?.concurrentChanges)[0] : undefined;
   if (gap) fail(gap.kind === 'relation' ? 'drawn_instant_relation' : 'drawn_instant_attribute');
   return m;
 }

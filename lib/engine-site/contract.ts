@@ -8,6 +8,7 @@ import { ENGINE_STORYBOARD_BINDING } from './storyboard-binding-policy';
 import { locationSheetPolicySchema } from '@/lib/personal-wizard/location-sheet-projection';
 import { engineImageModelPolicySchema } from './image-model-policy';
 import {localAttemptExtensionPolicySchema} from './local-attempt-extension-policy';
+import { SOURCE_CONCURRENCY_VERSION } from '@/lib/personal-wizard/storyboard-source-concurrency';
 
 export const ENGINE_SITE_PROTOCOL = 'engine-site/v1' as const;
 export const ENGINE_SITE_FRAMES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8]);
@@ -33,6 +34,8 @@ export const engineOrderAuthoritySchema = z.object({
   locationSheetPolicy: locationSheetPolicySchema.optional(),
   imageModelPolicy: engineImageModelPolicySchema.optional(),
   storyboardAttemptExtension: localAttemptExtensionPolicySchema.optional(),
+  /** Prospective source-supported temporal interpretation. No old grant is upgraded or spend allowance added. */
+  storyboardConcurrencyPolicy:z.literal(SOURCE_CONCURRENCY_VERSION).optional(),
   sourceRevision: z.string().regex(/^[a-f0-9]{40}$/),
   policySha256: digestSchema,
   purpose: z.enum(['customer', 'test']),
@@ -52,6 +55,7 @@ export const engineOrderAuthoritySchema = z.object({
     }).strict()).min(1).max(1000),
   }).strict(),
 }).strict().superRefine((value, ctx) => {
+  if(value.storyboardConcurrencyPolicy!==undefined&&(value.purpose!=='test'||value.responseSchemaPolicy===undefined))ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardConcurrencyPolicy'],message:'concurrency_policy_current_test_only'});
   if(value.storyboardAttemptExtension && (value.purpose!=='test'||!value.imageModelPolicy||!value.responseSchemaPolicy||!value.storyboardBindingPolicy||!value.locationSheetPolicy)) {
     ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardAttemptExtension'],message:'attempt_extension_current_test_only'});
   }

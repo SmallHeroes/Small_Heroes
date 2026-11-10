@@ -159,7 +159,7 @@ export function validateClaimBasis(frames: readonly { requirements: ClaimBasisRe
     const claims = new Set(frameClaimRefs(n)), withheld = new Set(frame.requirements.flatMap((r, i) => r.kind === 'withhold' ? [`p${n}:requirement:${i}`] : []));
     const fields = options?.stagingFields ? planFieldRefs(n) : null;
     if (new Set(frame.staging.map(s => s.ref)).size !== frame.staging.length) fail('staging_duplicate');
-    for (const s of frame.staging) if (!(claims.has(s.ref) || fields?.has(s.ref)) || withheld.has(s.ref) || /^p\d+:(instant|scene)(#\d+)?$/.test(s.ref))
+    for (const s of frame.staging) if (!(claims.has(s.ref) || fields?.has(s.ref)) || withheld.has(s.ref) || /^p\d+:(instant|scene)(#\d+)?$/.test(s.ref) || /^p\d+:concurrent:/.test(s.ref))
       fail('staging_ref');
   });
 }

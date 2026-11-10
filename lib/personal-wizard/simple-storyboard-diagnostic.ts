@@ -23,6 +23,7 @@ import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
 import { stateParityReviewerCalibration, STATE_PARITY_REVIEW_ADDENDUM } from './storyboard-state-parity';
+import { SOURCE_CONCURRENCY_REVIEW_ADDENDUM } from './storyboard-source-concurrency';
 import { storyboardReviewCapacity, type StoryboardReviewCapacity } from './storyboard-review-capacity';
 
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
@@ -41,6 +42,8 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
   instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions }) => {
   if (contracts.stateParityContract !== undefined && (contracts.stateParityContract !== true || contracts.calibrationContract !== true || contracts.claimBasisContract !== true))
     throw Error('simple_storyboard_diagnostic_state_parity_policy');
+  if(contracts.engineContinuity?.sourceConcurrency!==undefined&&(contracts.engineContinuity.sourceConcurrency!==true||contracts.presenceContract!==true||contracts.stateParityContract!==true))
+    throw Error('simple_storyboard_diagnostic_source_concurrency_policy');
   const calibrated = contracts.calibrationContract && contracts.claimBasisContract;
   return PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
     + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
@@ -53,7 +56,8 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (calibrated && contracts.presenceContract ? '\n' + PRESENCE_REVIEW_ADDENDUM : '')
     + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '')
     + (contracts.stateParityContract ? '\n' + STATE_PARITY_REVIEW_ADDENDUM : '')
-    + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.companionScale ? '\n' + SCALE_REVIEW_ADDENDUM : '');
+    + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.companionScale ? '\n' + SCALE_REVIEW_ADDENDUM : '')
+    + (contracts.engineContinuity?.sourceConcurrency?'\n'+SOURCE_CONCURRENCY_REVIEW_ADDENDUM:'');
 };
 /** The self-check review addendum under the claim basis: its claims rule admits a cited span and reads staged claims (replaced, never contradicted). */
 function claimBasisSelfCheckReviewAddendum() {
@@ -211,6 +215,7 @@ async function runStoryboardDiagnostic(args: SimpleStoryboardDiagnosticArgs, sup
       : args.claimBasisContract ? claimBasisStoryboardReviewSchema : args.reviewImpactPolicy ? impactStoryboardReviewSchema : personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,
+      ...(args.engineContinuity?.sourceConcurrency&&args.presenceContract?{presenceContract:true as const}:{}),
       ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
       ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
       ...(args.reviewImpactPolicy ? { reviewImpactPolicy: true as const } : {}),

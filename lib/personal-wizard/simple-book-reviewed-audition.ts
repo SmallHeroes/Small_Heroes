@@ -1,4 +1,5 @@
 import { companionScaleFromContext, withCompanionScaleReview, assessCompanionScale, scaleRenderAppendix, scaleCoverage, SCALE_IMAGE_RULES, COMPANION_SCALE_SAMPLE_GATE, type CompanionScaleAuthority, type ScaleEvidence } from './companion-scale';
+import { sourceConcurrencyFromContext, SOURCE_CONCURRENCY_IMAGE_RULES, SOURCE_CONCURRENCY_VERSION } from './storyboard-source-concurrency';
 import { materialFunctionFromContext, materialRenderAppendix, MATERIAL_IMAGE_RULES, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import { z } from 'zod';
@@ -933,7 +934,8 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
     return base + (marker ? `\nLANDMARK DESIGN HEAD v1: decisive features are source-bound whole-object cues, not a reason to treat every shared colour as a copy. Compare each feature ONLY on its own aspect. A clearly different object must have its actually contradicted decisive feature recorded as contradicted AND association different_object. Do not write a size contradiction only in prose while marking that same size matches/not_visible. Conversely, hidden or unreadable size is not_visible and possible_copy; do not invent a contradiction to dismiss it. Perspective alone is not a size contradiction: compare geography and apparent depth. A real second full match remains a duplicate. All safety, visible identity, story and uncertainty gates are unchanged.` : '') +
       (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '') +
       (auditionAnatomyCast(context) ? `\n${ANATOMY_JUDGE_RULES}` : '') + (auditionInstanceDistinction(context) ? `\n${INSTANCE_JUDGE_RULES}` : '') +
-      readerFramingJudgeInstruction(context) + (materialFunctionFromContext(context) ? '\n'+MATERIAL_IMAGE_RULES : '') + (companionScaleFromContext(context) ? '\n'+SCALE_IMAGE_RULES : '');
+      readerFramingJudgeInstruction(context) + (materialFunctionFromContext(context) ? '\n'+MATERIAL_IMAGE_RULES : '') + (companionScaleFromContext(context) ? '\n'+SCALE_IMAGE_RULES : '')
+      + (sourceConcurrencyFromContext(context)?'\n'+SOURCE_CONCURRENCY_IMAGE_RULES:'');
   }
   if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
@@ -1117,6 +1119,7 @@ function currentSceneRenderSource(context: unknown) {
   if (marked && !instances) fail('audition_instance_contract');
   return { sourceDigest: packet.sourceDigest, storyboardDigest: packet.storyboardDigest, pageNumber: packet.pageNumber,
     text: packet.text, visual: packet.visual, sequence: packet.sequence, moment: packet.moment,
+    ...(packet.sourceConcurrency!==undefined?{sourceConcurrency:sourceConcurrencyFromContext(context)}:{}),
     castIdentity: c.checks?.castIdentity, referenceStatus: c.referenceStatus,
     ...(instances ? { instances: { version: instances.version, populations: instances.populations,
       entities: instances.entities.filter(e => e.state === 'visible') },
@@ -1221,6 +1224,9 @@ export function auditionPageContext(book: PersonalStoryboard, packetContext: unk
   references: AuditionImage[], refs: ReferenceStatus, predecessor: AuditionImage | null, designHead?: typeof LANDMARK_DESIGN_HEAD_VERSION,
   topology?: LandmarkTopologyVersion, structuralAnatomy?: true,
   scene?: { record: ScenePreservationRecord; referenceRoles: { role: string; imageSha: string }[] }) {
+  const concurrency=sourceConcurrencyFromContext({packet:packetContext});
+  const expectedConcurrency=book.sourceConcurrency?{version:SOURCE_CONCURRENCY_VERSION,changes:book.sourceConcurrency.frames[pageNumber]?.changes}:undefined;
+  if(canonicalJson(concurrency??null)!==canonicalJson(expectedConcurrency??null))fail('audition_source_concurrency_binding');
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
   if (scene && (!structuralAnatomy || topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION)) fail('scene_preservation_scope');
   const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);

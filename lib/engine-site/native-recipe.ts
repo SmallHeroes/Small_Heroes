@@ -10,6 +10,8 @@ import { normalizeText, type ReviewedPersonalBookRequest } from '@/lib/personal-
 import type { PersonalWizardOptions } from '@/lib/personal-wizard/options';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, type PersonalStoryboard } from '@/lib/personal-wizard/storyboard';
 import { PREPARATION_CONTRACTS } from '@/lib/personal-wizard/source-preparation-contracts';
+import { enginePreparationContracts } from './storyboard-concurrency-policy';
+import type { EngineOrderAuthority } from './contract';
 import { deriveExistingChildAppearance, admitExistingChildAppearance, existingChildAppearanceData, type ExistingChildAppearance } from '@/lib/personal-wizard/existing-child-appearance';
 import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_ANCHOR_POSE_VERSION,
   childAnchorInspectionContext, CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorInspectionContextSha,
@@ -49,10 +51,10 @@ const supported = (status: string) => ['review_supported', 'review_supported_wit
 type OrderSnapshot = { ownerId: string; request: ReviewedPersonalBookRequest; options: PersonalWizardOptions;
   appearance: { kind: 'description'; description: string } | { kind: 'private_photo'; assetId: string };
   photoBytes?: { sha256: string; bytes: number } };
-function restoreBoard(snapshot: OrderSnapshot, sourceResult: unknown, rawDraft: unknown, rawReview: unknown, existing?: ExistingChildAppearance,repair?:StoryboardRepair) {
+function restoreBoard(snapshot: OrderSnapshot, sourceResult: unknown, rawDraft: unknown, rawReview: unknown, existing?: ExistingChildAppearance,repair?:StoryboardRepair,authority?:EngineOrderAuthority) {
   const source = prepareCurrentPersonalStoryboard(snapshot.request, sourceResult, snapshot.options,
     true, true, true, undefined, true, true, repair, true, true, true, true, true, true, true, true, true,
-    PREPARATION_CONTRACTS.engineContinuity, existing);
+    (authority?enginePreparationContracts(authority):PREPARATION_CONTRACTS).engineContinuity, existing);
   const book = compilePersonalStoryboard(source, rawDraft, { selfCheckNames: true, stagingFields: true, selfCheckSourceSpans: true });
   if (!supported(storyboardReviewDisposition(book, rawReview).disposition)) engineSiteFail('engine_storyboard_held');
   return { book, source };
@@ -243,11 +245,11 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     }
     const child = put(prepared.child, Buffer.from(prepared.childB64, 'base64'));
     const companion = put(prepared.companion, Buffer.from(prepared.companionB64, 'base64'));
-    const initial = restoreBoard(snapshot, prepared.source, prepared.initialDraft, prepared.initialReview,undefined,prepared.initialRepair);
+    const initial = restoreBoard(snapshot, prepared.source, prepared.initialDraft, prepared.initialReview,undefined,prepared.initialRepair,runtime.checkpoint.authority);
     const appearance = admitExistingChildAppearance(prepared.appearance, prepared.adoption, child.imageSha);
     if (appearance.originalSourceDigest !== initial.book.sourceDigest || appearance.originalStoryboardDigest !== initial.book.storyboardDigest ||
         canonicalJson(appearance.child.clothing) !== canonicalJson(initial.book.plan.actorAppearance!.child.clothing)) engineSiteFail('engine_child_origin_changed');
-    const restored = restoreBoard(snapshot, prepared.source, prepared.draft, prepared.review, appearance), book = restored.book;
+    const restored = restoreBoard(snapshot, prepared.source, prepared.draft, prepared.review, appearance,undefined,runtime.checkpoint.authority), book = restored.book;
     if(authority.storyboardBindingPolicy){
       const parent=admitEngineBindingParent(runtime,snapshot,prepared.source,{draft:prepared.initialDraft,diagnostic:{
         sourceDigest:initial.book.sourceDigest,storyboardDigest:initial.book.storyboardDigest,rawReview:prepared.initialReview}},prepared.initialRepair);

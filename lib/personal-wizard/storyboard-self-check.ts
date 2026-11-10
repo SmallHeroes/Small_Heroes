@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { PreviewPlan } from '../local-story-preview';
 import type { bookSequenceSchema } from '../local-book-sequence';
 import type { StoryboardMoments } from './storyboard-moments';
+import type { SourceConcurrency } from './storyboard-source-concurrency';
 import { STORYBOARD_REVIEW_IMPACTS, storyboardFrameClaims } from './storyboard-review-impact';
 import { DIAGNOSIS_CAUSES, changedSections, draftSections, type StoryboardDiagnosis } from './storyboard-diagnosis';
 
@@ -139,7 +140,7 @@ export function resolveSelfCheckSections(names: readonly string[], sections: Rea
  * Deterministic validation of the self-check against the compiled plan, sequence and moments, the exact page texts and (for a diagnosed
  * repair) the diagnosis and the parent draft. Structure and quotes only: whether a quote semantically establishes its part is the review's.
  */
-export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewPlan; sequence: Sequence; moments: StoryboardMoments }, texts: readonly string[],
+export function validateStoryboardSelfCheck(raw: unknown, book: { plan: PreviewPlan; sequence: Sequence; moments: StoryboardMoments; sourceConcurrency?:SourceConcurrency }, texts: readonly string[],
   repair?: { diagnosis: StoryboardDiagnosis | null; parentDraft: unknown; candidateDraft: unknown },
   options?: { sectionNames?: true; sourceSpans?: true; ignoredRefs?: ReadonlySet<string>; alsoChanged?: readonly string[] }): StoryboardSelfCheck {
   if (options !== undefined && (Object.keys(options).some(k => k !== 'sectionNames' && k !== 'sourceSpans' && k !== 'ignoredRefs' && k !== 'alsoChanged') ||

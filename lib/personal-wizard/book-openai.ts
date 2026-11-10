@@ -5,6 +5,7 @@ import {existingChildAppearanceSchema,withExistingChildAppearanceSchema} from '.
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
+import { withSourceConcurrency } from './storyboard-source-concurrency';
 import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema, calibrationStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS,
   STORYBOARD_FRAME_CHECKS } from './storyboard';
@@ -59,10 +60,12 @@ export function personalBookProviderSchema(call: BookVisualCall) {
     throw new BookProviderError('book_provider_context');
   if(call.context.existingChildAppearance!==undefined){existingChildAppearanceSchema.parse(call.context.existingChildAppearance);if(call.context.actorOwnedAppearance!==true)throw new BookProviderError('book_provider_context');}
   const engine = assertEngineContinuityOptions(call.context.engineContinuity, call.context.instanceDistinctionContract);
+  if(engine?.sourceConcurrency&&(call.context.presenceContract!==true||call.context.stateParityContract!==true))throw new BookProviderError('book_provider_context');
   const located = <T extends z.AnyZodObject>(draft: T): T => {
     const schema = call.context.instanceDistinctionContract ? withLocationPopulations(draft) : draft;
     const material=engine?.materialFunction?withMaterialFunction(schema):schema;
-    return withExistingChildAppearanceSchema(material,call.context.existingChildAppearance);
+    const concurrent=engine?.sourceConcurrency?withSourceConcurrency(material,call.context.narrativeSpreads+1):material;
+    return withExistingChildAppearanceSchema(concurrent,call.context.existingChildAppearance) as unknown as T;
   };
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||

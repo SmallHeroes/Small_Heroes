@@ -15,6 +15,8 @@ import type { StorySnapshot } from './story-preparation';
 import { engineSiteFail } from './contract';
 import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
+import { enginePreparationContracts } from './storyboard-concurrency-policy';
+import type { EngineOrderAuthority } from './contract';
 
 export { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
 const supported = (s:string) => ['review_supported','review_supported_with_notes'].includes(s);
@@ -22,16 +24,17 @@ const flags = {selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}
 const parents = new WeakMap<object,string>();
 const freeze = <T>(v:T):T => { if(v&&typeof v==='object'&&!Object.isFrozen(v)){for(const x of Object.values(v))freeze(x);Object.freeze(v);}return v; };
 
-function input(snapshot:StorySnapshot, source:unknown, repair?:StoryboardRepair, existing?:ExistingChildAppearance){
+function input(snapshot:StorySnapshot, source:unknown, repair?:StoryboardRepair, existing?:ExistingChildAppearance,authority?:EngineOrderAuthority){
  return prepareCurrentPersonalStoryboard(snapshot.request,source,snapshot.options,true,true,true,undefined,true,true,repair,
-  true,true,true,true,true,true,true,true,true,PREPARATION_CONTRACTS.engineContinuity,existing);
+  true,true,true,true,true,true,true,true,true,(authority?enginePreparationContracts(authority):PREPARATION_CONTRACTS).engineContinuity,existing);
 }
-function scope(runtime:EngineRuntime){const c=runtime.checkpoint,a=c.authority;return {orderId:a.orderId,requestSha256:a.requestSha256,optionsSha256:a.optionsSha256,ownerId:c.ownerId,draftId:c.draftId};}
+function scope(runtime:EngineRuntime){const c=runtime.checkpoint,a=c.authority;return {orderId:a.orderId,requestSha256:a.requestSha256,optionsSha256:a.optionsSha256,ownerId:c.ownerId,draftId:c.draftId,
+ ...(a.storyboardConcurrencyPolicy?{storyboardConcurrencyPolicy:a.storyboardConcurrencyPolicy}:{})};}
 /** The caller must have obtained source/initial through its live runtime or complete raw receipt replay.
  * This compiler rechecks the actual draft + bound review; a supplied diagnostic alone is never authority. */
 export function admitEngineBindingParent(runtime:EngineRuntime,snapshot:StorySnapshot,source:unknown,
  initial:{draft:unknown;diagnostic:{sourceDigest:string;storyboardDigest:string;rawReview:unknown}},repair?:StoryboardRepair){
- const original=input(snapshot,source,repair),book=compilePersonalStoryboard(original,initial.draft,flags),review=storyboardReviewDisposition(book,initial.diagnostic.rawReview);
+ const original=input(snapshot,source,repair,undefined,runtime.checkpoint.authority),book=compilePersonalStoryboard(original,initial.draft,flags),review=storyboardReviewDisposition(book,initial.diagnostic.rawReview);
  if(!supported(review.disposition)||book.sourceDigest!==initial.diagnostic.sourceDigest||book.storyboardDigest!==initial.diagnostic.storyboardDigest)engineSiteFail('engine_binding_parent_not_supported');
  const parent=freeze({version:ENGINE_STORYBOARD_BINDING,scope:scope(runtime),source,sourceSha256:canonicalHash(source),draft:initial.draft,
   draftSha256:canonicalHash(initial.draft),review:initial.diagnostic.rawReview,reviewSha256:canonicalHash(initial.diagnostic.rawReview),book});
@@ -65,9 +68,9 @@ export async function prepareEngineBoundStoryboard(runtime:EngineRuntime,snapsho
  if(authority.storyboardBindingPolicy!==ENGINE_STORYBOARD_BINDING||authority.responseSchemaPolicy!==ENGINE_RESPONSE_SCHEMA_POLICY||
   !authority.budget.steps.some(s=>s.id===ENGINE_BOUND_REVIEW_STEP))engineSiteFail('engine_binding_policy_required');
  // Compile and compare BEFORE buying a review. The raw accepted draft is never changed or "fixed".
- const bound=compilePersonalStoryboard(input(snapshot,source,undefined,existing),parent.draft,flags);assertEngineBoundWorld(parent,bound);
+ const bound=compilePersonalStoryboard(input(snapshot,source,undefined,existing,authority),parent.draft,flags);assertEngineBoundWorld(parent,bound);
  const diagnostic=await reviewSimpleStoryboardDraft({request:snapshot.request,writerResult:source,options:snapshot.options,signal:runtime.signal,
-  ...PREPARATION_CONTRACTS,existingChildAppearance:existing,reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
+  ...enginePreparationContracts(authority),existingChildAppearance:existing,reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
   generate:async call=>{
    check();if(call.stage!=='review'||call.context.sourceDigest!==bound.sourceDigest||call.context.storyboardDigest!==bound.storyboardDigest)engineSiteFail('engine_binding_review_changed');
    const answer=await runtime.call(prepareEngineResponse(authority,ENGINE_BOUND_REVIEW_STEP,personalBookProviderPayload(call,'gpt-6.1-sol'),x=>decodePersonalBookProviderOutput(call,x),ports));

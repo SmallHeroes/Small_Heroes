@@ -24,7 +24,7 @@ describe('accepted compiled world capability and exact carry-forward',()=>{
   expect(()=>assertEngineBoundWorld(f.parent,bound)).not.toThrow();
   expect(f.parent.draftSha256).toBe(canonicalHash(f.initial.draft));expect(Object.isFrozen(f.parent.draft)).toBe(true);
  });
- it.each(['location','entity','population','material','moments','sequence','scale','wardrobe','future_contract'])('rejects lost or changed %s state',kind=>{
+ it.each(['location','entity','population','material','moments','sequence','scale','wardrobe','concurrency','future_contract'])('rejects lost or changed %s state',kind=>{
   const f=fixture(),bound:any=structuredClone(f.parent.book);
   if(kind==='location')bound.plan.locations=[];
   if(kind==='entity')bound.plan.continuity.entities=[];
@@ -34,6 +34,7 @@ describe('accepted compiled world capability and exact carry-forward',()=>{
   if(kind==='sequence')bound.sequence.state='changed';
   if(kind==='scale')bound.companionScale.ratio=1.4;
   if(kind==='wardrobe')bound.plan.actorAppearance.child.clothing.reverse();
+  if(kind==='concurrency')bound.sourceConcurrency={version:'storyboard-source-concurrency/v1',frames:[]};
   if(kind==='future_contract')bound.futureContract={introduced:'without parent authority'};
   expect(()=>assertEngineBoundWorld(f.parent,bound)).toThrow('engine_binding_world_changed');
  });
