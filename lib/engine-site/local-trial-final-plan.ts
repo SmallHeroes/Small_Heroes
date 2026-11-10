@@ -44,8 +44,8 @@ const envelopes=new WeakSet<object>();
 /** Caller recomputed the failed current child's OLD authority; no claim or credential access occurs here. */
 export function loadLocalCurrentFinalPlan(g:LocalEngineGrant,failed:LocalEngineGrant,parent:LocalParentEnvelope,failedAuthority:EngineOrderAuthority,current:LocalCurrentContinuationEnvelope){
  const s=localCurrentFinalPlanSchema.parse(g.currentFinalPlan);assertLocalCurrentContinuationEnvelope(current);
- if(!failed.currentContinuation||failed.currentFinalPlan||failed.freshBookPolicy||failed.startupRecovery||failed.continuation||failed.planningRecovery||failed.mediaContinuation||failed.childBindingContinuation||failed.locationsRepairContinuation||failed.locationsV2RepairContinuation||
-  g.currentContinuation||g.freshBookPolicy||g.startupRecovery||g.continuation||g.planningRecovery||g.mediaContinuation||g.childBindingContinuation||g.locationsRepairContinuation||g.locationsV2RepairContinuation||
+ if(!failed.currentContinuation||failed.currentFinalPlan||failed.currentAttemptExtension||failed.freshBookPolicy||failed.startupRecovery||failed.continuation||failed.planningRecovery||failed.mediaContinuation||failed.childBindingContinuation||failed.locationsRepairContinuation||failed.locationsV2RepairContinuation||
+  g.currentAttemptExtension||g.currentContinuation||g.freshBookPolicy||g.startupRecovery||g.continuation||g.planningRecovery||g.mediaContinuation||g.childBindingContinuation||g.locationsRepairContinuation||g.locationsV2RepairContinuation||
   canonicalHash(pinned(s.parentGrant))!==canonicalHash(failed)||!g.imageModelPolicy||canonicalHash(g.imageModelPolicy)!==canonicalHash(failed.imageModelPolicy)||
   canonicalHash(g.profile)!==canonicalHash(failed.profile)||canonicalHash(g.credentials)!==canonicalHash(failed.credentials)||g.readerId!==failed.readerId||g.source.root!==failed.source.root||
   g.approvalReference!==failed.approvalReference||g.approvedBy!==failed.approvedBy||g.approvedAt!==failed.approvedAt||g.maximumMicroUsd!==failed.maximumMicroUsd||g.maximumCalls!==failed.maximumCalls||
@@ -78,8 +78,9 @@ export function loadLocalCurrentFinalPlan(g:LocalEngineGrant,failed:LocalEngineG
  const value=Object.freeze({spec:s,failed,parent,checkpoint,journal,carried,checkChain,masterFile,executionFile:current.executionFile+'.continuation.json',globalFile:masterFile+'.current-final-plan-book-v1.json',previousAttempts:2 as const,nextAttempt:3 as const,maximumAttempts:3 as const});envelopes.add(value);return value;
 }
 export type LocalCurrentFinalPlanEnvelope=ReturnType<typeof loadLocalCurrentFinalPlan>;
+export function assertLocalCurrentFinalPlanEnvelope(e:LocalCurrentFinalPlanEnvelope){if(!envelopes.has(e))engineSiteFail('local_final_envelope');e.checkChain();}
 const preparations=new WeakSet<object>(),denied=():never=>engineSiteFail('local_final_replay_dispatch_forbidden');
-function assertAuthority(a:EngineOrderAuthority){if(a.purpose!=='test'||!a.imageModelPolicy||a.responseSchemaPolicy!==ENGINE_RESPONSE_SCHEMA_POLICY||a.storyboardBindingPolicy!==ENGINE_STORYBOARD_BINDING||a.locationSheetPolicy!==LOCATION_SHEET_PROJECTION_V2||canonicalHash(a.budget.steps)!==canonicalHash(localCurrentFinalPlanSteps()))engineSiteFail('local_final_execution_scope');}
+function assertAuthority(a:EngineOrderAuthority){if(a.purpose!=='test'||a.storyboardAttemptExtension||!a.imageModelPolicy||a.responseSchemaPolicy!==ENGINE_RESPONSE_SCHEMA_POLICY||a.storyboardBindingPolicy!==ENGINE_STORYBOARD_BINDING||a.locationSheetPolicy!==LOCATION_SHEET_PROJECTION_V2||canonicalHash(a.budget.steps)!==canonicalHash(localCurrentFinalPlanSteps()))engineSiteFail('local_final_execution_scope');}
 /** Six old initial wires, then both old repair wires, under their original authorities. */
 export async function replayLocalCurrentFinalPlan(e:LocalCurrentFinalPlanEnvelope,snapshot:StorySnapshot,authority:EngineOrderAuthority){
  if(!envelopes.has(e))engineSiteFail('local_final_envelope');assertAuthority(authority);e.checkChain();const snapshotSha256=canonicalHash(snapshot);

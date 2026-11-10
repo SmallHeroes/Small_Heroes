@@ -13,7 +13,7 @@ const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
 export const finalRead=(f:string)=>JSON.parse(readFileSync(f,'utf8'));
 export const finalWrite=(f:string,v:unknown)=>writeFileSync(f,JSON.stringify(v));
 const read=finalRead,write=finalWrite;
-function first(startup=false){
+function first(startup=false,consentMaster=false){
  const dir=mkdtempSync(path.join(realpathSync(tmpdir()),'sh_current_parent_'));
  const root=path.join(dir,'parent','book'),journal=path.join(root,'journal');mkdirSync(path.join(journal,'assets'),{recursive:true});mkdirSync(path.join(journal,'calls'));
  const pin=(file:string)=>({file,sha256:sha(readFileSync(file))});
@@ -22,7 +22,7 @@ function first(startup=false){
  const a={...authority('synthetic_current_book'),purpose:'test' as const,imageModelPolicy,budget:{...authority().budget,maximumMicroUsd:12000000,maximumCalls:121,steps:INITIAL_PARENT_STEPS.map(id=>({id,maximumMicroUsd:100000}))}};
  const prior:LocalEngineGrant={version:'engine-local-book-grant/v1',fictional:true,source:{root:realpathSync(process.cwd()),head:a.sourceRevision,pins:[{path:'synthetic.ts',bytes:1,sha256:'f'.repeat(64)}]},profile:{file:path.join(dir,'profile.json'),sha256:'a'.repeat(64)},ownerApproval:{file:path.join(dir,'activation.json'),sha256:'b'.repeat(64)},credentials:{file:path.join(dir,'never-read.txt'),sha256:'c'.repeat(64)},directory:root,readerId:'synthetic-current-book',approvalReference:a.orderId,approvedBy:'synthetic_owner',approvedAt:'2026-11-09T10:00:00.000Z',maximumMicroUsd:12000000,maximumCalls:121,independentQA:'pending_owner_authorized_internal_trial',publicDelivery:false,realPayment:false,freshBookPolicy:'fresh-current-policies/v1',imageModelPolicy,responseSchemaPolicy:'json-schema-null/v1',storyboardBindingPolicy:'accepted-board-child-binding/v1',locationSheetPolicy:'location-ownership-and-views/v2'};
  prior.ownerApproval=record('activation.json',{synthetic:'old activation'});
- const master=path.join(dir,'master.json');
+ const master=path.join(dir,consentMaster?'a'.repeat(64)+'.local-engine.claim.json':'master.json');
  if(startup){
   const old=path.join(dir,'zero-call-book');mkdirSync(old);write(path.join(old,'RUNNING.json'),{synthetic:true});
   const oldRef=record('old-record.json',{synthetic:true}),oldBook=record('old-tree.json',{root:old,rows:[{path:'RUNNING.json',bytes:readFileSync(path.join(old,'RUNNING.json')).length,sha256:sha(readFileSync(path.join(old,'RUNNING.json')))}]});
@@ -52,8 +52,8 @@ function first(startup=false){
  return{dir,root,g,prior,master,execution,start,exit,stop,stopFile,journal,seal,pin,load};
 }
 
-export function syntheticCurrentFinalPlan(startup=true){
- const s=first(startup),{parent,current}=s.load(),failed=s.g,root=failed.directory,j=path.join(root,'journal');
+export function syntheticCurrentFinalPlan(startup=true,consentMaster=false){
+ const s=first(startup,consentMaster),{parent,current}=s.load(),failed=s.g,root=failed.directory,j=path.join(root,'journal');
  mkdirSync(path.join(j,'assets'),{recursive:true});mkdirSync(path.join(j,'calls'));
  const a={...parent.authority,sourceRevision:failed.source.head,responseSchemaPolicy:failed.responseSchemaPolicy,storyboardBindingPolicy:failed.storyboardBindingPolicy,locationSheetPolicy:failed.locationSheetPolicy,
   budget:{...parent.authority.budget,steps:['initial_storyboard_repair_1','initial_storyboard_repair_1_review'].map(id=>({id,maximumMicroUsd:1200000}))}};
