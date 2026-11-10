@@ -1,5 +1,11 @@
 # M40: source-supported concurrency (USD0)
 
+## Final independent result
+
+Claude Code technical PASS of the whole feature91d0f524..5303a9d3: reportdd7a85a8126b58144cbf2edb22ef01ab72aa13e6957db9d582cdc5d46e9ca996, index17778e443ac80bfb66d7e7706a2f7f5a43429b508bdec2f5a67b696a42fe208c.153 independent cases in9 files (8 new own adversarial cases), tsc0, all3993 source hashes including4 auth-route code files,36 writer/19 reviewer evidence files. Native62648/launcher61924 actually exited11:25:00Z; ROOT sealed after full verification at11:25:43Z. No P0/P1/P2, R1 P1/P3-2 closed. This code PASS does not approve model/visual efficacy, a book, paid execution or a fifth attempt.
+
+Remaining P3 limits are deliberate repeated-change-sentence refusal, ordinary severity for an issue bound to a non-temporal reference, provenance-only quote validity and cosmetic raw-Zod wording. The old Vitest cache disclosure remains, not a paid-data change. Historical setup failures and capped run are retained. Current book remains1465160/12 fully settled/HOLD, no new images/audio/PDF/Reader, old M30 FULL600000 UNKNOWN separate. NEW owner stage5 decision plus exact independently reviewed continuation envelope remains necessary; no new grant/permission exists. Subsequent closure docs do not change code5303a9d3, its freeze or report.
+
 ## R2 independent finding and correction
 
 R1 report568401d3 is HOLD, not PASS: the generic calibration severity could turn an uncertain temporal claim into an inference/setting/detail note. It was sealed after actual reviewer exit and all source/writer/review hashes. R2 makes every issue on an exact declared concurrency ref material regardless of impact/basis/citation; a truly supported temporal claim is represented by a supported check with no issues. The new-mode prompt replaces the generic inference/setting note sentence with this explicit scoped exception. Ordinary references and all default/legacy sources retain their exact previous behavior. Target change evidence must itself occur once, closing the second-occurrence provenance ambiguity (P3-2). Quote presence still does not prove meaning; raw Zod error wording remains cosmetic debt.
