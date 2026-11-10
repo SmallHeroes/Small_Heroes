@@ -12,6 +12,7 @@ import type { CausalDispatch } from '@/lib/personal-wizard/story-causal-experime
 import type { PreparedEngineCall, EngineProviderResult } from './durable-worker';
 import { standardEngineResponseSchema } from './response-schema';
 import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
+import {responseQueueTiming} from './responses-queue-policy';
 
 export type EngineProviderPorts = {
   fetch: typeof fetch; openAIKey: () => string; anthropicKey: () => string;
@@ -34,6 +35,13 @@ async function jsonResponse(response: Response) {
   const body = await response.text();
   if (Buffer.byteLength(body) > 64 * 1024 * 1024) throw Error('engine_provider_response_limit');
   return JSON.parse(body);
+}
+const responsePlans=new WeakMap<object,{snapshot:()=>string;sha:string;rebind:(ports:EngineProviderPorts)=>PreparedEngineCall}>();
+/** Existing source decoder/body only. Cannot turn a JSON receipt or a forged plan into a new transport. */
+export function rebindEnginePendingResponse(plan:PreparedEngineCall,ports:EngineProviderPorts){
+ const origin=responsePlans.get(plan);if(!origin||origin.snapshot()!==origin.sha)engineSiteFail('engine_pending_plan_changed');
+ plan.revalidate?.();const next=origin.rebind(ports);
+ if(canonicalHash(next.call)!==canonicalHash(plan.call)||canonicalHash(next.wire)!==canonicalHash(plan.wire))engineSiteFail('engine_pending_plan_changed');return next;
 }
 
 export function prepareEngineAnthropic(a: EngineOrderAuthority, dispatch: CausalDispatch, ports: EngineProviderPorts): PreparedEngineCall {
@@ -73,6 +81,7 @@ export function prepareEngineAnthropic(a: EngineOrderAuthority, dispatch: Causal
 /** Responses background id is a checkpoint of THIS claim, never authority for another POST. */
 export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bodyInput: Record<string, any>,
   decode: (value: unknown) => unknown, ports: EngineProviderPorts): PreparedEngineCall {
+  const originalBody=structuredClone(bodyInput);
   const authority = engineOrderAuthoritySchema.parse(a), schemaPolicy = authority.responseSchemaPolicy;
   const allowed = new Set(['model', 'store', 'service_tier', 'reasoning', 'instructions', 'input', 'max_output_tokens', 'text', 'metadata']);
   if (Object.keys(bodyInput).some(k => !allowed.has(k)) || !['gpt-6.1-sol', 'gpt-6-astra'].includes(bodyInput.model) ||
@@ -95,7 +104,9 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
   const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview || boundReview ? 208_000 : 104_000;
   if (Buffer.byteLength(String(body.instructions) + textParts) > ceiling || Buffer.byteLength(JSON.stringify(body)) > 64 * 1024 * 1024)
     engineSiteFail('engine_responses_input_limit');
-  const wire = { version: schemaPolicy ? 'engine-site-responses/v2' : 'engine-site-responses/v1',
+  const queueTiming=authority.responsesQueuePolicy?responseQueueTiming(generationTimeoutMs(body.max_output_tokens)):undefined;
+  const wire = { version: queueTiming?'engine-site-responses/v3':schemaPolicy ? 'engine-site-responses/v2' : 'engine-site-responses/v1',
+    ...(queueTiming?{responseQueueTiming:queueTiming}:{}),
     ...(schemaPolicy ? { responseSchemaPolicy: schemaPolicy } : {}), authoritySha256: authorityDigest(authority), step, body,
     endpoint: 'https://api.openai.com/v1/responses', maxRetries: 0 };
   const call = slotCall(authority, step, wire);
@@ -109,7 +120,8 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
       throw error;
     }
   };
-  return { call, wire, requiredMs: 20_000, completionDeadlineMs: generationTimeoutMs(body.max_output_tokens),
+  const plan:PreparedEngineCall={ call, wire, requiredMs: 20_000, completionDeadlineMs: generationTimeoutMs(body.max_output_tokens),
+    ...(queueTiming?{responseQueueTiming:queueTiming}:{}),
     admitSaved(answer) {
       if (schemaPolicy) assertWire();
       const raw = answer.raw as any, cost = raw.model === body.model && raw.service_tier === 'default'
@@ -149,6 +161,9 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
         ...(raw.usage ? { usage: { inputTokens: raw.usage.input_tokens, outputTokens: raw.usage.output_tokens } } : {}) } };
     },
   };
+  const execute=plan.execute,admit=plan.admitSaved,revalidate=plan.revalidate;
+  const snapshot=()=>{if(plan.execute!==execute||plan.admitSaved!==admit||plan.revalidate!==revalidate)return 'changed';return canonicalHash({call:plan.call,wire:plan.wire,requiredMs:plan.requiredMs,completionDeadlineMs:plan.completionDeadlineMs,responseQueueTiming:plan.responseQueueTiming??null});};
+  responsePlans.set(plan,{snapshot,sha:snapshot(),rebind:next=>prepareEngineResponse(authority,step,originalBody,decode,next)});return plan;
 }
 
 /** Reference and native-page rendering share the order's single explicit quality. Exact reference bytes are frozen and revalidated. */

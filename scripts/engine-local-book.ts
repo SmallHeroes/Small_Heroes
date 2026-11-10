@@ -138,7 +138,7 @@ export function prepareLocalEngineTrial(grant:LocalEngineGrant,historicalAttempt
   if(!prior.currentAttemptExtension||prior.currentConcurrencyContinuation)engineSiteFail('local_concurrency_parent');
   const old=prepareLocalEngineTrial(prior,true);if(!old.attemptExtension)engineSiteFail('local_concurrency_parent');
   if(old.authority.requestSha256!==prepared.inputSha256||old.authority.optionsSha256!==options.fingerprint)engineSiteFail('local_concurrency_authority');
-  concurrency=loadLocalConcurrencyContinuation(g,prior,old.authority,old.attemptExtension);
+  concurrency=loadLocalConcurrencyContinuation(g,prior,old.authority,old.attemptExtension,historicalAttemptReplay);
  }
  let recovery:LocalPlanRecoveryEnvelope|undefined;
  if(g.planningRecovery){

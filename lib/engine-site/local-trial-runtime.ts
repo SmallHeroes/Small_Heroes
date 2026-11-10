@@ -6,11 +6,12 @@ import path from 'node:path';
 import {canonicalHash} from '@/lib/canonical-json';
 import {engineOrderAuthoritySchema,identifierSchema,engineSiteFail,type EngineOrderAuthority} from './contract';
 import {parseEngineCheckpoint,type EngineCheckpoint,type EngineProviderResult,type EngineRuntime,type PreparedEngineCall} from './durable-worker';
+import {responseQueueTiming,responseQueueTimingSchema,responseQueueDeadline,type ResponseQueueTiming} from './responses-queue-policy';
 
 const MAX_JSON=64*1024*1024;
 const json=(value:unknown)=>JSON.stringify(value,null,2)+'\n';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-type Claim={version:'engine-local-claim/v1';authoritySha256:string;call:PreparedEngineCall['call'];requestAssetId:string;deadlineAt:number};
+type Claim={version:'engine-local-claim/v1'|'engine-local-claim/v2';authoritySha256:string;call:PreparedEngineCall['call'];requestAssetId:string;deadlineAt:number;responseQueueTiming?:ResponseQueueTiming};
 type Settlement={version:'engine-local-result/v1';claimSha256:string;assetId:string;assetSha256:string;result:EngineProviderResult};
 type Poll={id:string;raw:unknown;at:number};
 export type LocalTrialCarry={accountedMicroUsd:number;logicalCalls:number;evidenceSha256:string};
@@ -57,7 +58,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
  private callFile(step:string,name:string){identifierSchema.parse(step);const dir=this.file('calls/'+step);if(existsSync(dir)&&(lstatSync(dir).isSymbolicLink()||realpathSync(dir)!==dir))engineSiteFail('local_trial_path');return this.file('calls/'+step+'/'+name);}
  private claim(step:string){const r=this.read(this.callFile(step,'claim.json')) as Claim;
   const slot=this.checkpoint.authority.budget.steps.find(s=>s.id===step);
-  if(r.version!=='engine-local-claim/v1'||r.authoritySha256!==canonicalHash(this.checkpoint.authority)||r.call.step!==step||!slot||r.call.maximumMicroUsd!==slot.maximumMicroUsd||!Number.isSafeInteger(r.deadlineAt))engineSiteFail('local_trial_claim_changed');return r;}
+  if(!['engine-local-claim/v1','engine-local-claim/v2'].includes(r.version)||r.version==='engine-local-claim/v2'&&(!this.checkpoint.authority.responsesQueuePolicy||!responseQueueTimingSchema.safeParse(r.responseQueueTiming).success)||r.version==='engine-local-claim/v1'&&r.responseQueueTiming!==undefined||r.authoritySha256!==canonicalHash(this.checkpoint.authority)||r.call.step!==step||!slot||r.call.maximumMicroUsd!==slot.maximumMicroUsd||!Number.isSafeInteger(r.deadlineAt))engineSiteFail('local_trial_claim_changed');return r;}
  private async settled(step:string,claim:Claim):Promise<Settlement|null>{const file=this.callFile(step,'result.json');if(!existsSync(file))return null;
   const r=this.read(file) as Settlement,saved=await this.readJson(r.assetId);
   if(r.version!=='engine-local-result/v1'||r.claimSha256!==canonicalHash(claim)||r.assetSha256!==canonicalHash(saved)||saved.wireSha256!==claim.call.wireSha256||saved.completed!==true||canonicalHash(saved.result)!==canonicalHash(r.result))engineSiteFail('local_trial_result_changed');return r;}
@@ -95,32 +96,37 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
    if(!slot||plan.call.maximumMicroUsd!==slot.maximumMicroUsd||plan.call.wireSha256!==canonicalHash(plan.wire)||!plan.admitSaved||
      !Number.isSafeInteger(plan.requiredMs)||plan.requiredMs<1||plan.requiredMs>1_500_000||
      plan.completionDeadlineMs!==undefined&&(!Number.isSafeInteger(plan.completionDeadlineMs)||plan.completionDeadlineMs<1||plan.completionDeadlineMs>3_600_000))engineSiteFail('local_trial_plan_changed');
+   const wire=plan.wire as any,queued=plan.responseQueueTiming;
+   const timingSha=canonicalHash(queued??null);
+   if(queued&&(wire.version!=='engine-site-responses/v3'||!this.checkpoint.authority.responsesQueuePolicy||canonicalHash(queued)!==canonicalHash(responseQueueTiming(plan.completionDeadlineMs!))||canonicalHash(queued)!==canonicalHash(wire.responseQueueTiming))||wire.endpoint==='https://api.openai.com/v1/responses'&&!!this.checkpoint.authority.responsesQueuePolicy!==!!queued)engineSiteFail('local_trial_queue_policy_changed');
    const dir=this.file('calls/'+step),claimFile=this.callFile(step,'claim.json');let claim:Claim;
    if(existsSync(claimFile)){
     claim=this.claim(step);if(canonicalHash(claim.call)!==canonicalHash(plan.call))engineSiteFail('local_trial_wire_changed');
+    if(canonicalHash(claim.responseQueueTiming??null)!==canonicalHash(queued??null))engineSiteFail('local_trial_queue_policy_changed');
     this.options.dispatchWitness?.check(step,canonicalHash(claim),existsSync(this.callFile(step,'dispatch.json')));
     const saved=await this.readJson(claim.requestAssetId);if(saved.authoritySha256!==canonicalHash(this.checkpoint.authority)||canonicalHash(saved.wire)!==plan.call.wireSha256||canonicalHash(saved.call)!==canonicalHash(plan.call))engineSiteFail('local_trial_request_changed');
     const complete=await this.settled(step,claim);if(complete){const m=await this.meter();if(m.blocked||complete.result.estimatedMicroUsd===null)engineSiteFail('local_trial_settled_hold');await plan.admitSaved(complete.result);this.updateCheckpoint(step,claim,complete.assetId,true);return complete.result;}
    }else{
     const m=await this.meter();if(m.blocked||m.pendingCalls||m.logicalCalls>=this.checkpoint.authority.budget.maximumCalls||m.accountedMicroUsd+plan.call.maximumMicroUsd>this.checkpoint.authority.budget.maximumMicroUsd)engineSiteFail('local_trial_budget_or_unknown');
     mkdirSync(dir,{mode:0o700});const requestAssetId=this.blob({authoritySha256:canonicalHash(this.checkpoint.authority),call:plan.call,wire:plan.wire});
-    claim={version:'engine-local-claim/v1',authoritySha256:canonicalHash(this.checkpoint.authority),call:plan.call,requestAssetId,deadlineAt:this.now()+(plan.completionDeadlineMs??plan.requiredMs)+45_000};
+    claim={version:queued?'engine-local-claim/v2':'engine-local-claim/v1',authoritySha256:canonicalHash(this.checkpoint.authority),call:plan.call,requestAssetId,deadlineAt:this.now()+(queued?.absoluteMs??plan.completionDeadlineMs??plan.requiredMs)+45_000,...(queued?{responseQueueTiming:queued}:{})};
     this.exclusive(claimFile,claim);this.updateCheckpoint(step,claim,undefined,false);
    }
    const polls=readdirSync(dir).filter(f=>/^pending-\d{5}\.json$/.test(f)).sort();let pending:string|undefined;
    if(polls.length){const prior=this.read(this.callFile(step,polls[polls.length-1])) as Poll;pending=prior.id;if(!/^resp_[A-Za-z0-9_-]+$/.test(pending))engineSiteFail('local_trial_pending_id');}
    else if(existsSync(this.callFile(step,'dispatch.json')))engineSiteFail('local_trial_unknown_dispatch');
    const meter=await this.meter();if(meter.blocked||meter.pendingCalls!==1)engineSiteFail('local_trial_budget_or_unknown');
-   let n=polls.length;
+   let n=polls.length;const queuePolls:Poll[]=queued?polls.map(f=>this.read(this.callFile(step,f))):[];
+   const queueCheck=()=>{if(!queued)return;const d=this.read(this.callFile(step,'dispatch.json'));if(d.claimSha256!==canonicalHash(claim))engineSiteFail('local_trial_dispatch_changed');responseQueueDeadline(queued,d.at,queuePolls,this.now());};
    for(;;){
-    this.check();if(this.now()>=claim.deadlineAt||n>500)engineSiteFail('local_trial_pending_deadline');
-    const assertDispatch=async()=>{this.check();await this.options.assertCurrent();plan.revalidate?.();if(canonicalHash(plan.wire)!==plan.call.wireSha256)engineSiteFail('local_trial_wire_changed');};
+    this.check();if(this.now()>=claim.deadlineAt||n>(queued?1000:500))engineSiteFail('local_trial_pending_deadline');if(pending)queueCheck();
+    const assertDispatch=async()=>{this.check();await this.options.assertCurrent();plan.revalidate?.();if(canonicalHash(plan.wire)!==plan.call.wireSha256||canonicalHash(plan.responseQueueTiming??null)!==timingSha)engineSiteFail('local_trial_wire_changed');if(queued&&existsSync(this.callFile(step,'dispatch.json')))queueCheck();};
     await assertDispatch();if(!pending){this.options.dispatchWitness?.begin(step,canonicalHash(claim));this.exclusive(this.callFile(step,'dispatch.json'),{at:this.now(),claimSha256:canonicalHash(claim)});}
     // A throw leaves the complete reservation and dispatch marker. It NEVER authorizes another POST.
     const answer=await plan.execute(pending,this.signal,assertDispatch);
     if(answer.kind==='pending'){
      if(!/^resp_[A-Za-z0-9_-]+$/.test(answer.id)||pending&&answer.id!==pending)engineSiteFail('local_trial_pending_id');
-     this.exclusive(this.callFile(step,'pending-'+String(n++).padStart(5,'0')+'.json'),{id:answer.id,raw:answer.raw,at:this.now()});pending=answer.id;
+     const observation={id:answer.id,raw:answer.raw,at:this.now()};this.exclusive(this.callFile(step,'pending-'+String(n++).padStart(5,'0')+'.json'),observation);if(queued)queuePolls.push(observation);pending=answer.id;
      this.checkpoint.calls[step].pendingId=pending;this.checkpoint.calls[step].polls=n;this.persist();
      await (this.options.pause?.(5000)??new Promise<void>(resolve=>setTimeout(resolve,5000)));continue;
     }
@@ -128,7 +134,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
     // Persist/settle charged bytes BEFORE semantic/source revalidation, exactly as the production runtime.
     this.exclusive(this.callFile(step,'result.json'),{version:'engine-local-result/v1',claimSha256:canonicalHash(claim),assetId,assetSha256:canonicalHash(value),result:answer.result} satisfies Settlement);
     this.updateCheckpoint(step,claim,assetId,true);
-    await this.options.assertCurrent();const m=await this.meter();if(m.blocked)engineSiteFail('local_trial_settled_hold');
+    await this.options.assertCurrent();if(canonicalHash(plan.responseQueueTiming??null)!==timingSha)engineSiteFail('local_trial_queue_policy_changed');const m=await this.meter();if(m.blocked)engineSiteFail('local_trial_settled_hold');
     await plan.admitSaved(answer.result);return answer.result;
    }
   }finally{this.busy=false;}

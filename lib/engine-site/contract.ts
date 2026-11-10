@@ -36,6 +36,8 @@ export const engineOrderAuthoritySchema = z.object({
   storyboardAttemptExtension: localAttemptExtensionPolicySchema.optional(),
   /** Prospective source-supported temporal interpretation. No old grant is upgraded or spend allowance added. */
   storyboardConcurrencyPolicy:z.literal(SOURCE_CONCURRENCY_VERSION).optional(),
+  /** Opt-in local-test lifecycle only. Absent keeps all historical authority/wire bytes. */
+  responsesQueuePolicy:z.literal('bounded-responses-queue/v1').optional(),
   sourceRevision: z.string().regex(/^[a-f0-9]{40}$/),
   policySha256: digestSchema,
   purpose: z.enum(['customer', 'test']),
@@ -55,6 +57,7 @@ export const engineOrderAuthoritySchema = z.object({
     }).strict()).min(1).max(1000),
   }).strict(),
 }).strict().superRefine((value, ctx) => {
+  if(value.responsesQueuePolicy!==undefined&&(value.purpose!=='test'||value.responseSchemaPolicy===undefined))ctx.addIssue({code:z.ZodIssueCode.custom,path:['responsesQueuePolicy'],message:'queue_policy_current_test_only'});
   if(value.storyboardConcurrencyPolicy!==undefined&&(value.purpose!=='test'||value.responseSchemaPolicy===undefined))ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardConcurrencyPolicy'],message:'concurrency_policy_current_test_only'});
   if(value.storyboardAttemptExtension && (value.purpose!=='test'||!value.imageModelPolicy||!value.responseSchemaPolicy||!value.storyboardBindingPolicy||!value.locationSheetPolicy)) {
     ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardAttemptExtension'],message:'attempt_extension_current_test_only'});

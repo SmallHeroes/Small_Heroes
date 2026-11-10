@@ -30,6 +30,7 @@ export type EngineProviderResult = { output: unknown; raw: unknown; estimatedMic
 export type PreparedEngineCall = { call: EngineCall; wire: unknown; requiredMs: number;
   admitSaved?: (result: EngineProviderResult) => void | Promise<void>;
   completionDeadlineMs?: number;
+  responseQueueTiming?: import('./responses-queue-policy').ResponseQueueTiming;
   execute: (pendingId: string | undefined, signal: AbortSignal, assertDispatch: () => Promise<void>) => Promise<
     { kind: 'pending'; id: string; raw: unknown } | { kind: 'completed'; result: EngineProviderResult }>;
   revalidate?: () => void };
@@ -75,6 +76,8 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
   if (!initial) engineSiteFail('engine_worker_job_missing');
   const checkpoint = parseCache(initial.pipelineCache), authority = checkpoint.authority;
   if (authority.orderId !== orderId) engineSiteFail('engine_worker_authority_mismatch');
+  // This opt-in clock is implemented by the local journal only. Refuse before claiming a SQL lease.
+  if (authority.responsesQueuePolicy) engineSiteFail('engine_worker_queue_policy_local_only');
   if (options.executor === 'chunk' && checkpoint.waiting && checkpoint.waiting.requiredMs > ENGINE_CHUNK_BUDGET_MS)
     return { kind: 'long_step_required' as const, step: checkpoint.waiting.step };
   // Order first, then job: review/publication and terminal actions share this same fence.
@@ -155,6 +158,7 @@ export async function runEngineDurableInvocation(db: PrismaClient, orderId: stri
       await fence(); plan.revalidate?.();
       const { step, wireSha256 } = plan.call;
       if (valueHash(plan.wire) !== wireSha256) engineSiteFail('engine_worker_wire_changed');
+      if(plan.responseQueueTiming||authority.responsesQueuePolicy)engineSiteFail('engine_worker_queue_policy_local_only');
       const prior = checkpoint.calls[step];
       if (prior && prior.wireSha256 !== wireSha256) engineSiteFail('engine_worker_call_changed');
       const settlement = prior ? await readEngineCallResult(db, authority, step) : null;
