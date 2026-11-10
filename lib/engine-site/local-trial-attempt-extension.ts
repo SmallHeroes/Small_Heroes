@@ -35,7 +35,7 @@ export function assertLocalAttemptExtensionEvidence(spec:z.infer<typeof localAtt
 export function localAttemptExtensionSteps(){return localCurrentFinalPlanSteps().map(s=>({...s,id:s.id.replace('initial_storyboard_repair_2','initial_storyboard_repair_3')}));}
 const envelopes=new WeakSet<object>();
 /** Pure admission still REQUIRES an actual NEW owner-stage GO. A wrapped proposal cannot activate this. */
-export function loadLocalAttemptExtension(g:LocalEngineGrant,failed:LocalEngineGrant,oldAuthority:EngineOrderAuthority,prior:LocalCurrentFinalPlanEnvelope){
+export function loadLocalAttemptExtension(g:LocalEngineGrant,failed:LocalEngineGrant,oldAuthority:EngineOrderAuthority,prior:LocalCurrentFinalPlanEnvelope,historicalReplay?:true){
  const s=localAttemptExtensionSchema.parse(g.currentAttemptExtension);assertLocalCurrentFinalPlanEnvelope(prior);
  const other=(v:LocalEngineGrant)=>!!(v.currentContinuation||v.freshBookPolicy||v.startupRecovery||v.continuation||v.planningRecovery||v.mediaContinuation||v.childBindingContinuation||v.locationsRepairContinuation||v.locationsV2RepairContinuation);
  if(!failed.currentFinalPlan||failed.currentAttemptExtension||other(failed)||g.currentFinalPlan||other(g)||oldAuthority.storyboardAttemptExtension||canonicalHash(pinned(s.parentGrant))!==canonicalHash(failed)||
@@ -61,8 +61,8 @@ export function loadLocalAttemptExtension(g:LocalEngineGrant,failed:LocalEngineG
  if(scope.sourceRoot!==g.source.root||!s.startupRegistrationFile&&(scope.sourceHead!==g.source.head||scope.directory!==g.directory)||scope.parentGrantSha256!==s.parentGrant.sha256||scope.requestSha256!==oldAuthority.requestSha256||scope.optionsSha256!==oldAuthority.optionsSha256||scope.readerId!==g.readerId||path.basename(prior.masterFile)!==scope.rootConsentSha256+'.local-engine.claim.json')engineSiteFail('local_extension_owner_scope');
  // Timestamp freshness applies only at initial admission, not while a legitimately started call settles.
  const goBytes=bytes(scope.ownerGoFile),goSha256=sha(goBytes),go=localAttemptOwnerGoSchema.parse(JSON.parse(goBytes.toString('utf8')));
- if(go.approvalSha256!==s.approval.sha256||go.parentGrantSha256!==s.parentGrant.sha256||go.sourceHead!==scope.sourceHead||Date.parse(go.approvedAt)>Date.now()||!s.startupRegistrationFile&&Date.now()-Date.parse(go.approvedAt)>1200000)engineSiteFail('local_extension_owner_go');
- const startupRegistration=s.startupRegistrationFile?admitLocalAttemptStartupRegistration(g,scope,go,goSha256,prior.masterFile,prior.executionFile+'.attempt-extension-4.json'):undefined;
+ if(go.approvalSha256!==s.approval.sha256||go.parentGrantSha256!==s.parentGrant.sha256||go.sourceHead!==scope.sourceHead||Date.parse(go.approvedAt)>Date.now()||!historicalReplay&&!s.startupRegistrationFile&&Date.now()-Date.parse(go.approvedAt)>1200000)engineSiteFail('local_extension_owner_go');
+ const startupRegistration=s.startupRegistrationFile?admitLocalAttemptStartupRegistration(g,scope,go,goSha256,prior.masterFile,prior.executionFile+'.attempt-extension-4.json',historicalReplay):undefined;
  const parentBinding={version:'engine-local-book-claim/v1',grantFile:s.parentGrant.file,grantSha256:s.parentGrant.sha256,authoritySha256:canonicalHash(oldAuthority),directory:failed.directory,sourceRoot:failed.source.root,
   currentFinalPlanSha256:canonicalHash(failed.currentFinalPlan),parentGrantSha256:failed.currentFinalPlan.parentGrant.sha256,carried:prior.carried,attempt:3,maximumAttempts:3,boundary:'final_base_plan_then_native_book'};
  const expectedGlobal={version:'engine-local-current-final-plan-claim/v1',parentExecutionClaim:prior.spec.parentExecutionClaim,executionFile:prior.executionFile,binding:parentBinding};
@@ -75,7 +75,7 @@ export function loadLocalAttemptExtension(g:LocalEngineGrant,failed:LocalEngineG
   if(canonicalHash(pinned(s.parentExecutionClaim))!==canonicalHash(parentBinding)||canonicalHash(pinned(s.parentGlobalClaim))!==canonicalHash(expectedGlobal))engineSiteFail('local_extension_parent_claim');};checkChain();
  const extension=Object.freeze(localAttemptExtensionPolicySchema.parse({version:'storyboard-attempt-extension/v1',maxAttempts:4,approvalSha256:s.approval.sha256}));
  const carried=Object.freeze({accountedMicroUsd:known,logicalCalls:calls,evidenceSha256:canonicalHash({spec:s,priorCarry:prior.carried,attempt:4,maximumAttempts:4})});
- const value=Object.freeze({spec:s,scope,goSha256,...(startupRegistration?{startupRegistration}:{}),extension,failed,oldAuthority,prior,checkpoint,journal,carried,checkChain,masterFile:prior.masterFile,executionFile:prior.executionFile+'.attempt-extension-4.json',globalFile:prior.masterFile+'.attempt-extension-4-v1.json',nextAttempt:4 as const,maximumAttempts:4 as const});envelopes.add(value);return value;
+ const value=Object.freeze({spec:s,scope,goSha256,...(historicalReplay?{historicalReplay:true as const}:{}),...(startupRegistration?{startupRegistration}:{}),extension,failed,oldAuthority,prior,checkpoint,journal,carried,checkChain,masterFile:prior.masterFile,executionFile:prior.executionFile+'.attempt-extension-4.json',globalFile:prior.masterFile+'.attempt-extension-4-v1.json',nextAttempt:4 as const,maximumAttempts:4 as const});envelopes.add(value);return value;
 }
 export type LocalAttemptExtensionEnvelope=ReturnType<typeof loadLocalAttemptExtension>;
 const preparations=new WeakSet<object>(),denied=():never=>engineSiteFail('local_extension_replay_dispatch_forbidden');
@@ -102,6 +102,7 @@ export async function preflightLocalAttemptExtension(v:AdmittedLocalAttemptExten
  if(plans.length!==1)engineSiteFail(reason||'local_extension_preflight');assertPrepared(v,{checkpoint},snapshot);return plans[0];
 }
 export async function runLocalAttemptExtension(runtime:LocalEngineTrialRuntime,snapshot:StorySnapshot,v:AdmittedLocalAttemptExtension,ports:EngineProviderPorts){
+ if(v.envelope.historicalReplay)engineSiteFail('local_extension_historical_readonly');
  const check=()=>{assertPrepared(v,runtime,snapshot);runtime.check();};check();const m=await runtime.meter();check();
  if(m.carriedMicroUsd!==v.carried.accountedMicroUsd||m.carriedCalls!==v.carried.logicalCalls||m.lostLocalCalls===undefined||m.lostLocalCalls||m.blocked)engineSiteFail('local_extension_runtime_carry');
  const bound:EngineRuntime={checkpoint:runtime.checkpoint,signal:runtime.signal,check,load:n=>runtime.load(n),save:(n,x)=>runtime.save(n,x),advance:p=>runtime.advance(p),result:s=>runtime.result(s),async call(plan){check();const answer=await runtime.call(plan);check();return answer;}};
@@ -110,6 +111,7 @@ export async function runLocalAttemptExtension(runtime:LocalEngineTrialRuntime,s
  const accepted=await admitEngineSupportedInitialPreparation(replay,snapshot,v.held,v.repair);check();return accepted;
 }
 export function claimLocalAttemptExtension(e:LocalAttemptExtensionEnvelope,binding:unknown,resume:boolean,masterFile:string){
+ if(e.historicalReplay)engineSiteFail('local_extension_historical_readonly');
  assertEnvelope(e);if(resume||masterFile!==e.masterFile)engineSiteFail('local_extension_capability');
  if([e.globalFile,e.executionFile].some(existsSync))engineSiteFail('local_extension_already_claimed');
  const write=(f:string,x:unknown)=>writeFileSync(f,JSON.stringify(x,null,2)+'\n',{flag:'wx',mode:0o600});
@@ -117,6 +119,7 @@ export function claimLocalAttemptExtension(e:LocalAttemptExtensionEnvelope,bindi
 }
 /** All new plan AND native media slots use consent-global, external write-once witnesses. */
 export function localAttemptExtensionDispatchWitness(e:LocalAttemptExtensionEnvelope,binding:unknown,authority:EngineOrderAuthority):LocalTrialDispatchWitness{
+ if(e.historicalReplay)engineSiteFail('local_extension_historical_readonly');
  assertEnvelope(e);assertAuthority(e,authority);const bindingSha=canonicalHash(binding),authoritySha256=canonicalHash(authority);
  if((binding as {authoritySha256?:unknown;ownerGoSha256?:unknown})?.authoritySha256!==authoritySha256||(binding as {ownerGoSha256?:unknown}).ownerGoSha256!==e.goSha256)engineSiteFail('local_extension_dispatch_binding');
  const execution=()=>{const expected={version:'engine-local-attempt-extension-claim/v1',parentExecutionClaim:e.spec.parentExecutionClaim,executionFile:e.executionFile,ownerGoSha256:e.goSha256,binding};if(canonicalHash(json(e.globalFile))!==canonicalHash(expected)||canonicalHash(json(e.executionFile))!==bindingSha)engineSiteFail('local_extension_dispatch_binding');};

@@ -59,6 +59,7 @@ export const engineOrderAuthoritySchema = z.object({
   if(value.storyboardAttemptExtension && (value.purpose!=='test'||!value.imageModelPolicy||!value.responseSchemaPolicy||!value.storyboardBindingPolicy||!value.locationSheetPolicy)) {
     ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardAttemptExtension'],message:'attempt_extension_current_test_only'});
   }
+  if(value.storyboardAttemptExtension?.maxAttempts===5&&value.storyboardConcurrencyPolicy===undefined)ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardAttemptExtension'],message:'concurrency_extension_policy_required'});
   if (value.imageModelPolicy !== undefined && value.purpose !== 'test') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['imageModelPolicy'], message: 'image_model_policy_test_only' });
   }

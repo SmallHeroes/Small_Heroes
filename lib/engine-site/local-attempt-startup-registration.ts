@@ -22,11 +22,11 @@ const sha=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
 const json=(f:string)=>JSON.parse(bytes(f).toString('utf8'));
 function pinned(r:z.infer<typeof ref>){const b=bytes(r.file);if(sha(b)!==r.sha256)engineSiteFail('local_registration_pin_changed');return b;}
 /** No grant/claim/journal may have been consumed. The original six-hour book window is NEVER reset. */
-export function admitLocalAttemptStartupRegistration(g:LocalEngineGrant,scope:z.infer<typeof localAttemptApprovalSchema>,go:z.infer<typeof localAttemptOwnerGoSchema>,goSha256:string,masterFile:string,executionFile:string){
+export function admitLocalAttemptStartupRegistration(g:LocalEngineGrant,scope:z.infer<typeof localAttemptApprovalSchema>,go:z.infer<typeof localAttemptOwnerGoSchema>,goSha256:string,masterFile:string,executionFile:string,historicalReplay?:true){
  const file=g.currentAttemptExtension?.startupRegistrationFile;if(!file)engineSiteFail('local_registration_required');
  const raw=bytes(file),registrationSha256=sha(raw),r=localAttemptStartupRegistrationSchema.parse(JSON.parse(raw.toString('utf8')));
  const now=Date.now(),registered=Date.parse(r.registeredAt),ownerAt=Date.parse(go.approvedAt);
- if(r.sourceHead!==g.source.head||r.grantCanonicalSha256!==canonicalHash(g)||r.ownerGo.file!==scope.ownerGoFile||r.ownerGo.sha256!==goSha256||registered>now||now-registered>1200000||registered<ownerAt||ownerAt>now||now-ownerAt>=21600000)engineSiteFail('local_registration_time_or_scope');
+ if(r.sourceHead!==g.source.head||r.grantCanonicalSha256!==canonicalHash(g)||r.ownerGo.file!==scope.ownerGoFile||r.ownerGo.sha256!==goSha256||registered>now||!historicalReplay&&now-registered>1200000||registered<ownerAt||ownerAt>now||!historicalReplay&&now-ownerAt>=21600000)engineSiteFail('local_registration_time_or_scope');
  const original=JSON.parse(pinned(r.originalGrant).toString('utf8')) as LocalEngineGrant;
  if(!original.currentAttemptExtension||original.currentAttemptExtension.startupRegistrationFile||original.source.head!==scope.sourceHead||go.sourceHead!==scope.sourceHead||original.directory!==scope.directory||original.source.root!==g.source.root||original.currentAttemptExtension.approval.sha256!==g.currentAttemptExtension!.approval.sha256)engineSiteFail('local_registration_original_scope');
  const current={...g.currentAttemptExtension};delete current.startupRegistrationFile;
@@ -45,10 +45,16 @@ export function admitLocalAttemptStartupRegistration(g:LocalEngineGrant,scope:z.
  if(!ready.complete||ready.disposition!=='PASS'||ready.scope!==review.scope||ready.sourceHead!==g.source.head||ready.envelopeSha256!==review.envelopeSha256||canonicalHash(ready.report)!==canonicalHash({file:path.basename(review.report.file),sha256:review.report.sha256})||ready.providerCalls!==0||ready.spendMicroUsd!==0)engineSiteFail('local_registration_review');
  pinned(review.report);pinned(review.index);
  const refs=[r.ownerGo,r.originalGrant,r.originalStart,r.originalExit,r.originalStderr,r.originalStdout,r.sourceReviewSeal,original.ownerApproval];
+ // A successor may read a consumed parent's registration forever, but cannot obtain execution authority.
+ // Validate its REAL fixed claims, exact grant and registration; never simulate claim absence.
+ const consumed=()=>{const b=json(executionFile),pointer=json(masterFile+'.attempt-extension-4-v1.json');
+  if(b.version!=='engine-local-book-claim/v1'||b.sourceRoot!==g.source.root||b.directory!==g.directory||b.attempt!==4||b.maximumAttempts!==4||b.ownerGoSha256!==goSha256||b.startupRegistrationSha256!==registrationSha256||b.currentAttemptExtensionSha256!==canonicalHash(g.currentAttemptExtension)||
+    sha(bytes(b.grantFile))!==b.grantSha256||canonicalHash(json(b.grantFile))!==canonicalHash(g)||pointer.version!=='engine-local-attempt-extension-claim/v1'||pointer.executionFile!==executionFile||pointer.ownerGoSha256!==goSha256||canonicalHash(pointer.binding)!==canonicalHash(b))engineSiteFail('local_registration_historical_claim');};
  const check=()=>{if(sha(bytes(file))!==registrationSha256)engineSiteFail('local_registration_changed');for(const x of refs)pinned(x);
-  if(existsSync(original.directory)||existsSync(masterFile+'.attempt-extension-4-v1.json')||existsSync(executionFile))engineSiteFail('local_registration_not_zero_dispatch');
+  if(existsSync(original.directory))engineSiteFail('local_registration_not_zero_dispatch');
+  if(historicalReplay)consumed();else if(existsSync(masterFile+'.attempt-extension-4-v1.json')||existsSync(executionFile))engineSiteFail('local_registration_not_zero_dispatch');
   assertLocalHistoricalProcessGone(exit.childPid,exit.at);assertLocalHistoricalProcessGone(start.pid,exit.at);};check();
  // Claim absence is required at initial registration only. Subsequent source fences preserve all original inputs, not absence of our own claim.
- const revalidate=()=>{if(sha(bytes(file))!==registrationSha256)engineSiteFail('local_registration_changed');for(const x of refs)pinned(x);if(existsSync(original.directory))engineSiteFail('local_registration_not_zero_dispatch');};
+ const revalidate=()=>{if(sha(bytes(file))!==registrationSha256)engineSiteFail('local_registration_changed');for(const x of refs)pinned(x);if(existsSync(original.directory))engineSiteFail('local_registration_not_zero_dispatch');if(historicalReplay)consumed();};
  return Object.freeze({registrationSha256,registeredAt:r.registeredAt,originalApprovedAt:go.approvedAt,originalDeadline:new Date(ownerAt+21600000).toISOString(),check:revalidate});
 }

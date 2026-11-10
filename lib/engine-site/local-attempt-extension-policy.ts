@@ -2,12 +2,13 @@
 import 'server-only';
 import path from 'node:path';
 import {z} from 'zod';
-import {STORYBOARD_ATTEMPT_EXTENSION_VERSION} from '@/lib/personal-wizard/storyboard-repair';
+import {STORYBOARD_ATTEMPT_EXTENSION_VERSION,STORYBOARD_ATTEMPT_EXTENSION_V2} from '@/lib/personal-wizard/storyboard-repair';
 
 const digest=z.string().regex(/^[a-f0-9]{64}$/),absolute=z.string().refine(path.isAbsolute);
-export const localAttemptExtensionPolicySchema=z.object({
+const originalExtension=z.object({
  version:z.literal(STORYBOARD_ATTEMPT_EXTENSION_VERSION),maxAttempts:z.literal(4),approvalSha256:digest,
 }).strict();
+export const localAttemptExtensionPolicySchema=z.union([originalExtension,z.object({version:z.literal(STORYBOARD_ATTEMPT_EXTENSION_V2),maxAttempts:z.literal(5),approvalSha256:digest,previous:originalExtension}).strict()]);
 export const localAttemptApprovalSchema=z.object({
  version:z.literal('engine-local-attempt-approval/v1'),stage:z.literal('initial_storyboard'),
  fromAttempt:z.literal(3),toAttempt:z.literal(4),maximumAttempts:z.literal(4),

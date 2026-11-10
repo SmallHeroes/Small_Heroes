@@ -29,7 +29,7 @@ export type StorySnapshot={request:ReviewedPersonalBookRequest;options:PersonalW
 export const engineStoryboardSupported=(status:string)=>['review_supported','review_supported_with_notes'].includes(status);
 /** Complete untruncated schema/source, bounded only for the explicit owner-test repair slot. */
 export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined,step='initial_storyboard_repair_1'){
- const extended=step==='initial_storyboard_repair_3'&&authority.storyboardAttemptExtension&&repair?.extension&&canonicalHash(authority.storyboardAttemptExtension)===canonicalHash(repair.extension);
+ const extended=(step==='initial_storyboard_repair_3'||step==='initial_storyboard_repair_4'&&authority.storyboardConcurrencyPolicy&&authority.storyboardAttemptExtension?.maxAttempts===5)&&authority.storyboardAttemptExtension&&repair?.extension&&canonicalHash(authority.storyboardAttemptExtension)===canonicalHash(repair.extension);
  if(!(['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)||extended)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||authority.purpose!=='test'||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
  const body=personalBookProviderPayload(call,'gpt-6.1-sol');body.text.format.schema=compactSchemaDefinitions(body.text.format.schema);
  if(Buffer.byteLength(JSON.stringify({...body,background:true,store:false}))>LOCAL_INITIAL_REPAIR_WIRE_BYTES)engineSiteFail('engine_initial_repair_wire_limit');return body;
@@ -61,8 +61,9 @@ export async function prepareEngineStorySource(runtime:EngineRuntime,snapshot:St
  return {source,readings};
 }
 export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:StorySnapshot,source:Awaited<ReturnType<typeof prepareEngineStorySource>>['source'],
- ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1'|'initial_repair_2'|'initial_repair_3',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
+ ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1'|'initial_repair_2'|'initial_repair_3'|'initial_repair_4',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
  if(prefix==='initial_repair_3'&&(!runtime.checkpoint.authority.storyboardAttemptExtension||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_extension_authority');
+ if(prefix==='initial_repair_4'&&(!runtime.checkpoint.authority.storyboardConcurrencyPolicy||runtime.checkpoint.authority.storyboardAttemptExtension?.maxAttempts!==5||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_concurrency_authority');
  let draft:unknown=null;
  const diagnostic=await runSimpleStoryboardDiagnostic({request:snapshot.request,writerResult:source,options:snapshot.options,signal:runtime.signal,
   ...enginePreparationContracts(runtime.checkpoint.authority),existingChildAppearance,...(repair?{repair}:{}),reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version,
@@ -84,7 +85,8 @@ const admitted=new WeakSet<object>(),supportedAdmissions=new WeakSet<object>();
 type InitialPreparation=Awaited<ReturnType<typeof admitEngineInitialPreparation>>;
 type HeldRepairPreparation=Awaited<ReturnType<typeof admitEngineHeldInitialRepair>>;
 type HeldFinalPreparation=Awaited<ReturnType<typeof admitEngineHeldFinalPreparation>>;
-export type AdmittedEngineInitialPreparation=InitialPreparation|HeldRepairPreparation|HeldFinalPreparation|Awaited<ReturnType<typeof admitEngineSupportedInitialPreparation>>;
+type HeldExtendedPreparation=Awaited<ReturnType<typeof admitEngineHeldExtendedPreparation>>;
+export type AdmittedEngineInitialPreparation=InitialPreparation|HeldRepairPreparation|HeldFinalPreparation|HeldExtendedPreparation|Awaited<ReturnType<typeof admitEngineSupportedInitialPreparation>>;
 function sealPreparation<T extends object>(value:T):T{
  const freeze=(v:unknown):void=>{if(!v||typeof v!=='object'||Object.isFrozen(v))return;for(const x of Object.values(v))freeze(x);Object.freeze(v);};freeze(value);admitted.add(value);return value;
 }
@@ -119,16 +121,26 @@ export async function admitEngineHeldFinalPreparation(runtime:EngineRuntime,snap
  if(engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_held_final_not_held');
  return sealPreparation({...previous,initial,heldFinalRepair:repair});
 }
+/** Historical fourth attempt: real old-authority replay only, no new dispatch or implicit upgrade. */
+export async function admitEngineHeldExtendedPreparation(runtime:EngineRuntime,snapshot:StorySnapshot,previous:HeldFinalPreparation,repair:StoryboardRepair){
+ assertEngineInitialPreparation(previous,runtime.checkpoint.authority,runtime.checkpoint);
+ const expected={parentStoryboardDigest:previous.initial.diagnostic.storyboardDigest,draft:previous.initial.draft,review:previous.initial.diagnostic.rawReview,parentRepair:previous.heldFinalRepair,parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true},extension:runtime.checkpoint.authority.storyboardAttemptExtension};
+ if(supportedAdmissions.has(previous)||'heldExtendedRepair' in previous||runtime.checkpoint.authority.storyboardAttemptExtension?.maxAttempts!==4||runtime.checkpoint.authority.storyboardConcurrencyPolicy||canonicalHash(repair)!==canonicalHash(expected))engineSiteFail('engine_held_extended_parent_changed');
+ const denied=():never=>engineSiteFail('engine_preparation_replay_dispatch_forbidden');
+ const initial=await prepareEngineStoryboard(runtime,snapshot,previous.source,{fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied},'initial_repair_3',undefined,repair);
+ if(engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_held_extended_not_held');return sealPreparation({...previous,initial,heldExtendedRepair:repair});
+}
 /** Replays the final repaired plan and fresh review, never accepts a supplied diagnostic or dispatches. */
 export async function admitEngineSupportedInitialPreparation(runtime:EngineRuntime,snapshot:StorySnapshot,
- previous:InitialPreparation|HeldRepairPreparation|HeldFinalPreparation,repair:StoryboardRepair){
+ previous:InitialPreparation|HeldRepairPreparation|HeldFinalPreparation|HeldExtendedPreparation,repair:StoryboardRepair){
  assertEngineInitialPreparation(previous,runtime.checkpoint.authority,runtime.checkpoint);
  const expected={parentStoryboardDigest:previous.initial.diagnostic.storyboardDigest,draft:previous.initial.draft,review:previous.initial.diagnostic.rawReview,
-  ...('heldFinalRepair' in previous?{parentRepair:previous.heldFinalRepair,extension:runtime.checkpoint.authority.storyboardAttemptExtension}:'heldRepair' in previous?{parentRepair:previous.heldRepair}:{}),parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
+  ...('heldExtendedRepair' in previous?{parentRepair:previous.heldExtendedRepair,extension:runtime.checkpoint.authority.storyboardAttemptExtension,addedContracts:['sourceConcurrency']}:'heldFinalRepair' in previous?{parentRepair:previous.heldFinalRepair,extension:runtime.checkpoint.authority.storyboardAttemptExtension}:'heldRepair' in previous?{parentRepair:previous.heldRepair}:{}),parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
+ if('heldExtendedRepair' in previous&&(runtime.checkpoint.authority.storyboardAttemptExtension?.maxAttempts!==5||!runtime.checkpoint.authority.storyboardConcurrencyPolicy))engineSiteFail('engine_initial_concurrency_authority');
  if('heldFinalRepair' in previous&&!runtime.checkpoint.authority.storyboardAttemptExtension)engineSiteFail('engine_initial_extension_authority');
  if(supportedAdmissions.has(previous)||canonicalHash(repair)!==canonicalHash(expected))engineSiteFail('engine_supported_preparation_parent_changed');
  const denied=():never=>engineSiteFail('engine_preparation_replay_dispatch_forbidden');
- const initial=await prepareEngineStoryboard(runtime,snapshot,previous.source,{fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied},'heldFinalRepair' in previous?'initial_repair_3':'initial_repair_2',undefined,repair);
+ const initial=await prepareEngineStoryboard(runtime,snapshot,previous.source,{fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied},'heldExtendedRepair' in previous?'initial_repair_4':'heldFinalRepair' in previous?'initial_repair_3':'initial_repair_2',undefined,repair);
  if(!engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_supported_preparation_held');
  const value=sealPreparation({...previous,initial,initialRepair:repair});supportedAdmissions.add(value);return value;
 }

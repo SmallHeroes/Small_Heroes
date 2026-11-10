@@ -89,7 +89,8 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
   const textParts = typeof body.input === 'string' ? body.input : JSON.stringify(body.input,
     (key, value) => key === 'image_url' ? '[private-image-bytes]' : value);
   const planRecoveryReview = (step === 'initial_storyboard_repair_2_review' ||
-    step === 'initial_storyboard_repair_3_review' && !!authority.storyboardAttemptExtension) && authority.purpose === 'test' && !!schemaPolicy;
+    step === 'initial_storyboard_repair_3_review' && !!authority.storyboardAttemptExtension ||
+    step === 'initial_storyboard_repair_4_review' && authority.storyboardAttemptExtension?.maxAttempts===5 && !!authority.storyboardConcurrencyPolicy) && authority.purpose === 'test' && !!schemaPolicy;
   const boundReview = step === ENGINE_BOUND_REVIEW_STEP && authority.purpose === 'test' && authority.storyboardBindingPolicy === ENGINE_STORYBOARD_BINDING;
   const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview || boundReview ? 208_000 : 104_000;
   if (Buffer.byteLength(String(body.instructions) + textParts) > ceiling || Buffer.byteLength(JSON.stringify(body)) > 64 * 1024 * 1024)

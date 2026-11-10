@@ -1,0 +1,24 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import {existsSync,readFileSync,realpathSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';import path from 'node:path';
+import {canonicalHash} from '@/lib/canonical-json';
+import {localEngineGrantSchema} from '@/scripts/engine-local-book';
+import {engineOrderAuthoritySchema} from '../contract';
+import {syntheticConcurrency} from './local-concurrency-fixture';
+import {finalWrite as write} from './local-final-plan-fixture';
+import {claimLocalConcurrency,localConcurrencyWitness,localConcurrencySteps} from '../local-trial-concurrency-continuation';
+import {claimLocalAttemptExtension,localAttemptExtensionDispatchWitness} from '../local-trial-attempt-extension';
+const roots:string[]=[];const fixture=()=>{const s=syntheticConcurrency();roots.push(s.dir);return s;};
+beforeEach(()=>{vi.spyOn(process,'kill').mockImplementation(()=>{throw Object.assign(Error(),{code:'ESRCH'});});});
+afterEach(()=>{vi.restoreAllMocks();for(const r of roots.splice(0)){if(path.dirname(realpathSync(r))!==realpathSync(tmpdir())||!path.basename(r).startsWith('sh_current_parent_'))throw Error('owned_temp_only');rmSync(r,{recursive:true,force:true});}});
+describe('explicit fifth owner stage and real claims, no provider',()=>{
+ it('carries twelve calls, v2 parent extension, and adds only planner4/review before native media',()=>{const s=fixture(),e=s.load();expect(localEngineGrantSchema.safeParse(s.g).success).toBe(true);expect(engineOrderAuthoritySchema.safeParse(s.nextAuthority).success).toBe(true);expect(e.carried).toMatchObject({accountedMicroUsd:156,logicalCalls:12});expect(e.extension).toEqual(s.nextAuthority.storyboardAttemptExtension);expect(localConcurrencySteps().filter(x=>x.id.startsWith('initial_')).map(x=>x.id)).toEqual(['initial_storyboard_repair_4','initial_storyboard_repair_4_review']);expect(existsSync(e.globalFile)).toBe(false);});
+ it.each(['credentials','readerId','maximumMicroUsd','maximumCalls','imageModelPolicy'])('refuses changed same-book %s',key=>{const s=fixture();(s.g as any)[key]=undefined;expect(s.load).toThrow();});
+ it.each(['attempt','maximumAttempts','approvalSha256','ownerDecisionSha256','parentGrantSha256','approvedAt','maximumPlanningCalls','maximumPlanningMicroUsd'])('refuses bad owner GO %s',key=>{const s=fixture();write(s.goFile,{...s.go,[key]:key==='approvedAt'?'2000-01-01T00:00:00.000Z':typeof(s.go as any)[key]==='number'?6:'forged'});expect(s.load).toThrow();});
+ it.each(['currentAttemptExtension','currentFinalPlan','freshBookPolicy'])('rejects mixed mode %s',key=>{const s=fixture();expect(localEngineGrantSchema.safeParse({...s.g,[key]:(s.failed as any)[key]??{version:'invalid'}}).success).toBe(false);});
+ it('refuses6, a missing concurrency flag, or a different previous extension',()=>{const s=fixture();expect(engineOrderAuthoritySchema.safeParse({...s.nextAuthority,storyboardConcurrencyPolicy:undefined}).success).toBe(false);expect(engineOrderAuthoritySchema.safeParse({...s.nextAuthority,storyboardAttemptExtension:{...s.nextAuthority.storyboardAttemptExtension,maxAttempts:6}}).success).toBe(false);});
+ it('never grants execution/witness authority to historical fourth admission',()=>{const s=fixture();expect(()=>claimLocalAttemptExtension(s.prior,{},false,s.master)).toThrow('historical_readonly');expect(()=>localAttemptExtensionDispatchWitness(s.prior,{},s.failedAuthority)).toThrow('historical_readonly');});
+ it('global one-use prevents copied outputs and records all planning/native witnesses',()=>{const s=fixture(),e=s.load(),binding={authoritySha256:canonicalHash(s.nextAuthority),ownerGoSha256:e.goSha256};claimLocalConcurrency(e,binding,false,s.master);expect(()=>claimLocalConcurrency(e,binding,false,s.master)).toThrow('already_claimed');expect(()=>claimLocalConcurrency(e,binding,true,s.master)).toThrow('capability');const w=localConcurrencyWitness(e,binding,s.nextAuthority);for(const step of ['initial_storyboard_repair_4','page_0_0','narration_0']){w.check(step,'a'.repeat(64),false);w.begin(step,'a'.repeat(64));expect(()=>w.begin(step,'a'.repeat(64))).toThrow('unknown_dispatch');w.check(step,'a'.repeat(64),true);}expect(w.list()).toHaveLength(3);expect(()=>w.begin('initial_storyboard_repair_5','a'.repeat(64))).toThrow('dispatch_slot');});
+ it('changed parent receipt and owner decision are refused after admission',()=>{const s=fixture(),e=s.load();write(s.decision.file,{approvedBy:'forged'});expect(e.checkChain).toThrow();});
+ it('a mutable admitted spec cannot replace the frozen parent evidence',()=>{const s=fixture(),e=s.load();(e.spec.parentEvidence as any).sha256='a'.repeat(64);expect(e.checkChain).toThrow();});
+});
