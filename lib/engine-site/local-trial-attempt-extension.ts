@@ -13,13 +13,14 @@ import {assertLocalParentEvidence,readLocalSettledJournal} from './local-trial-c
 import {assertLocalHistoricalProcessGone} from './local-trial-startup-recovery';
 import {assertLocalCurrentFinalPlanEnvelope,localCurrentFinalPlanSteps,replayLocalCurrentFinalPlan,type LocalCurrentFinalPlanEnvelope} from './local-trial-final-plan';
 import {localAttemptApprovalSchema,localAttemptOwnerGoSchema,localAttemptExtensionPolicySchema} from './local-attempt-extension-policy';
+import {admitLocalAttemptStartupRegistration} from './local-attempt-startup-registration';
 import {admitEngineHeldFinalPreparation,admitEngineSupportedInitialPreparation,assertEngineInitialPreparation,prepareEngineStoryboard,engineStoryboardSupported,type StorySnapshot} from './story-preparation';
 import type {LocalEngineTrialRuntime,LocalTrialDispatchWitness} from './local-trial-runtime';
 import type {EngineProviderPorts} from './provider-plans';
 
 const digest=z.string().regex(/^[a-f0-9]{64}$/),absolute=z.string().refine(path.isAbsolute),ref=z.object({file:absolute,sha256:digest}).strict();
 export const localAttemptExtensionSchema=z.object({version:z.literal('engine-local-current-attempt-extension/v1'),
- parentGrant:ref,parentStop:ref,parentExit:ref,parentStart:ref,parentEvidence:ref,parentExecutionClaim:ref,parentGlobalClaim:ref,approval:ref}).strict();
+ parentGrant:ref,parentStop:ref,parentExit:ref,parentStart:ref,parentEvidence:ref,parentExecutionClaim:ref,parentGlobalClaim:ref,approval:ref,startupRegistrationFile:absolute.optional()}).strict();
 const sha=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
 function bytes(file:string){
  if(!path.isAbsolute(file)||/(^|[\\/])\.env(?:\.|$)/i.test(file))engineSiteFail('local_extension_private_path');
@@ -57,10 +58,11 @@ export function loadLocalAttemptExtension(g:LocalEngineGrant,failed:LocalEngineG
  const known=prior.carried.accountedMicroUsd+journal.known,calls=prior.carried.logicalCalls+journal.results.size,m=stop.meter;
  if(m?.accountedMicroUsd!==known||m.knownEstimateMicroUsd!==known||m.logicalCalls!==calls||m.carriedMicroUsd!==prior.carried.accountedMicroUsd||m.carriedCalls!==prior.carried.logicalCalls||m.pendingCalls!==0||m.unknownCalls!==0||m.failedCalls!==0||m.overReservedCalls!==0||m.blocked!==false||known+2400000>g.maximumMicroUsd||calls+2>g.maximumCalls||prior.nextAttempt!==3||prior.maximumAttempts!==3||journal.results.size!==2)engineSiteFail('local_extension_meter_or_attempt');
  const scope=localAttemptApprovalSchema.parse(pinned(s.approval));
- if(scope.sourceRoot!==g.source.root||scope.sourceHead!==g.source.head||scope.parentGrantSha256!==s.parentGrant.sha256||scope.requestSha256!==oldAuthority.requestSha256||scope.optionsSha256!==oldAuthority.optionsSha256||scope.directory!==g.directory||scope.readerId!==g.readerId||path.basename(prior.masterFile)!==scope.rootConsentSha256+'.local-engine.claim.json')engineSiteFail('local_extension_owner_scope');
+ if(scope.sourceRoot!==g.source.root||!s.startupRegistrationFile&&(scope.sourceHead!==g.source.head||scope.directory!==g.directory)||scope.parentGrantSha256!==s.parentGrant.sha256||scope.requestSha256!==oldAuthority.requestSha256||scope.optionsSha256!==oldAuthority.optionsSha256||scope.readerId!==g.readerId||path.basename(prior.masterFile)!==scope.rootConsentSha256+'.local-engine.claim.json')engineSiteFail('local_extension_owner_scope');
  // Timestamp freshness applies only at initial admission, not while a legitimately started call settles.
  const goBytes=bytes(scope.ownerGoFile),goSha256=sha(goBytes),go=localAttemptOwnerGoSchema.parse(JSON.parse(goBytes.toString('utf8')));
- if(go.approvalSha256!==s.approval.sha256||go.parentGrantSha256!==s.parentGrant.sha256||go.sourceHead!==g.source.head||Date.parse(go.approvedAt)>Date.now()||Date.now()-Date.parse(go.approvedAt)>1200000)engineSiteFail('local_extension_owner_go');
+ if(go.approvalSha256!==s.approval.sha256||go.parentGrantSha256!==s.parentGrant.sha256||go.sourceHead!==scope.sourceHead||Date.parse(go.approvedAt)>Date.now()||!s.startupRegistrationFile&&Date.now()-Date.parse(go.approvedAt)>1200000)engineSiteFail('local_extension_owner_go');
+ const startupRegistration=s.startupRegistrationFile?admitLocalAttemptStartupRegistration(g,scope,go,goSha256,prior.masterFile,prior.executionFile+'.attempt-extension-4.json'):undefined;
  const parentBinding={version:'engine-local-book-claim/v1',grantFile:s.parentGrant.file,grantSha256:s.parentGrant.sha256,authoritySha256:canonicalHash(oldAuthority),directory:failed.directory,sourceRoot:failed.source.root,
   currentFinalPlanSha256:canonicalHash(failed.currentFinalPlan),parentGrantSha256:failed.currentFinalPlan.parentGrant.sha256,carried:prior.carried,attempt:3,maximumAttempts:3,boundary:'final_base_plan_then_native_book'};
  const expectedGlobal={version:'engine-local-current-final-plan-claim/v1',parentExecutionClaim:prior.spec.parentExecutionClaim,executionFile:prior.executionFile,binding:parentBinding};
@@ -68,11 +70,12 @@ export function loadLocalAttemptExtension(g:LocalEngineGrant,failed:LocalEngineG
  const specSha=canonicalHash(s),memory=()=>canonicalHash({failed,oldAuthority,checkpoint,claims:[...journal.claims],results:[...journal.results],scope}),memorySha=memory();
  for(const v of Object.values(s))if(v&&typeof v==='object')Object.freeze(v);Object.freeze(s);Object.freeze(scope);
  const checkChain=()=>{assertLocalCurrentFinalPlanEnvelope(prior);if(canonicalHash(g.currentAttemptExtension)!==specSha||memory()!==memorySha)engineSiteFail('local_extension_state_changed');assertLocalAttemptExtensionEvidence(s);
+  startupRegistration?.check();
   if(sha(bytes(scope.ownerGoFile))!==goSha256)engineSiteFail('local_extension_owner_go_changed');
   if(canonicalHash(pinned(s.parentExecutionClaim))!==canonicalHash(parentBinding)||canonicalHash(pinned(s.parentGlobalClaim))!==canonicalHash(expectedGlobal))engineSiteFail('local_extension_parent_claim');};checkChain();
  const extension=Object.freeze(localAttemptExtensionPolicySchema.parse({version:'storyboard-attempt-extension/v1',maxAttempts:4,approvalSha256:s.approval.sha256}));
  const carried=Object.freeze({accountedMicroUsd:known,logicalCalls:calls,evidenceSha256:canonicalHash({spec:s,priorCarry:prior.carried,attempt:4,maximumAttempts:4})});
- const value=Object.freeze({spec:s,scope,goSha256,extension,failed,oldAuthority,prior,checkpoint,journal,carried,checkChain,masterFile:prior.masterFile,executionFile:prior.executionFile+'.attempt-extension-4.json',globalFile:prior.masterFile+'.attempt-extension-4-v1.json',nextAttempt:4 as const,maximumAttempts:4 as const});envelopes.add(value);return value;
+ const value=Object.freeze({spec:s,scope,goSha256,...(startupRegistration?{startupRegistration}:{}),extension,failed,oldAuthority,prior,checkpoint,journal,carried,checkChain,masterFile:prior.masterFile,executionFile:prior.executionFile+'.attempt-extension-4.json',globalFile:prior.masterFile+'.attempt-extension-4-v1.json',nextAttempt:4 as const,maximumAttempts:4 as const});envelopes.add(value);return value;
 }
 export type LocalAttemptExtensionEnvelope=ReturnType<typeof loadLocalAttemptExtension>;
 const preparations=new WeakSet<object>(),denied=():never=>engineSiteFail('local_extension_replay_dispatch_forbidden');

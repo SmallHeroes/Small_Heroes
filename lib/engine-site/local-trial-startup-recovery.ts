@@ -31,11 +31,12 @@ function bytes(file:string){
 function pinned(r:z.infer<typeof ref>){const b=bytes(r.file);if(hash(b)!==r.sha256)engineSiteFail('local_startup_evidence_changed');return b;}
 const json=(r:z.infer<typeof ref>)=>JSON.parse(pinned(r).toString('utf8'));
 export function assertLocalHistoricalProcessGone(pid:unknown,finishedAt:string){if(!Number.isSafeInteger(pid)||Number(pid)<1)engineSiteFail('local_startup_process');
- try{process.kill(Number(pid),0);}catch(e){if((e as NodeJS.ErrnoException).code==='ESRCH')return;throw e;}
+ let accessDenied=false;
+ try{process.kill(Number(pid),0);}catch(e){const code=(e as NodeJS.ErrnoException).code;if(code==='ESRCH')return;if(code!=='EPERM')throw e;accessDenied=true;}
  // Windows recycles PIDs. A process born after the sealed exit is not the historical writer.
  const script="$ErrorActionPreference='Stop';$p=Get-CimInstance Win32_Process -Filter 'ProcessId = "+Number(pid)+"';if($null -ne $p){[Console]::Out.Write($p.CreationDate.ToUniversalTime().ToString('o'))}";
  const out=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{encoding:'utf8',windowsHide:true,timeout:15000,stdio:['ignore','pipe','pipe']}).trim();
- if(!out||Number.isFinite(Date.parse(out))&&Date.parse(out)>Date.parse(finishedAt))return;engineSiteFail('local_startup_process_alive');
+ if(!out&&!accessDenied||Number.isFinite(Date.parse(out))&&Date.parse(out)>Date.parse(finishedAt))return;engineSiteFail('local_startup_process_alive');
 }
 /** Rechecked before/after every paid await; old evidence is never modified or manufactured here. */
 export function assertLocalStartupRecoveryEvidence(spec:LocalStartupRecovery){
