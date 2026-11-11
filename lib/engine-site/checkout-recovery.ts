@@ -3,6 +3,7 @@ import type { Order,PrismaClient,Prisma } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
 import { PAYME_SALE_TTL_MS,queryPaymeOrderSales,isPaymeStatusPaid } from '@/lib/payme';
 import { recordEngineUnexpectedCapture } from './extra-payment';
+import { engineQaRequired, isPaymeSandboxCheckoutUrl } from './qa-order-policy';
 export const ENGINE_CHECKOUT_RENEWAL_MARGIN_MS=5*60_000;
 const ATTEMPT_LEASE_MS=2*60_000;
 type CheckoutOrder=Pick<Order,'id'|'paymentId'|'paymentProvider'|'checkoutAttemptToken'|'checkoutAttemptAt'|'paymeMetadata'|'totalPrice'|'status'>;
@@ -10,6 +11,7 @@ export function personalCheckoutMetadata(saleId:string,checkoutUrl:string,issued
   return {version:'engine-site-payme-checkout/v2',saleId,checkoutUrl,createdAt:issuedAt.toISOString(),expiresAt:new Date(issuedAt.getTime()+PAYME_SALE_TTL_MS).toISOString()};
 }
 function validUrl(value:unknown,appUrl:string) {
+  if (engineQaRequired() && (typeof value !== 'string' || !isPaymeSandboxCheckoutUrl(value))) return null;
   try{const url=new URL(String(value));return url.protocol==='https:'&&!url.username&&!url.password&&url.origin!==new URL(appUrl).origin?url.href:null;}catch{return null;}
 }
 /** Lookup occurs outside the transaction; its observation is adopted only if the original Order attempt still matches. */

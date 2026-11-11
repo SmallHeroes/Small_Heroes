@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Fredoka, Playpen_Sans_Hebrew } from 'next/font/google';
+import localFont from 'next/font/local';
 import { notFound } from 'next/navigation';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { isPersonalWizardPreviewEnabled } from '@/lib/personal-wizard/flags';
@@ -20,8 +20,12 @@ import './personal-wow.css';
 export const dynamic = 'force-dynamic';
 
 // The preview's type voice (per Guy: childlike, bigger): Fredoka for the page, a hand for the spoken words.
-const fredoka = Fredoka({ subsets: ['hebrew', 'latin'], weight: ['400', '500', '600', '700'], variable: '--font-fredoka', display: 'swap' });
-const playpen = Playpen_Sans_Hebrew({ subsets: ['hebrew'], weight: ['400', '500', '600'], variable: '--font-playpen', display: 'swap' });
+const fredoka = localFont({
+  src: '../../fonts/fredoka/Fredoka-Variable.ttf', weight: '400 700', variable: '--font-fredoka', display: 'swap',
+});
+const playpen = localFont({
+  src: '../../fonts/playpensanshebrew/PlaypenSansHebrew-Variable.ttf', weight: '400 600', variable: '--font-playpen', display: 'swap',
+});
 export const metadata: Metadata = { ...PERSONAL_PRODUCT_METADATA, title: 'הכיוון האישי החדש · תצוגה מקדימה', robots: { index: false, follow: false } };
 export default function PersonalProductPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();

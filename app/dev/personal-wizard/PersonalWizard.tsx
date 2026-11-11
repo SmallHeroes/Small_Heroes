@@ -17,6 +17,7 @@ import {
   setPhotoChoice,
   setCompanion,
   setLength,
+  setVoice,
   startIntakeJob,
 } from '@/lib/personal-wizard/draft';
 import { runFixtureIntake, type FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
@@ -63,11 +64,12 @@ type Props = {
   nativeBookPreview?: boolean;
   simpleBookPreview?: boolean;
   momentumBookPreview?: boolean;
-  launchOrder?: { optionsFingerprint: string; checkoutEnabled: boolean };
+  launchOrder?: { optionsFingerprint: string; checkoutEnabled: boolean; fictionalQa?: boolean };
 };
 
 export function PersonalWizard({ options, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false, launchOrder }: Props) {
   const { draft, update, read } = useDraftStore();
+  const fictionalQa = launchOrder?.fictionalQa === true;
   // Optional, non-authoritative product-preview choices. Unknown/legacy direction hints are ignored.
   const prefilled = useRef(false);
   useEffect(() => {
@@ -81,9 +83,14 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
       if (!next.companionId && companion && options.companions.some((item) => item.id === companion)) next = setCompanion(next, companion);
       if (launchOrder) next = setLength(next, 'short');
       else if (!next.bookOptions.lengthId && options.lengths.some((item) => item.id === length)) next = setLength(next, length);
+      if (fictionalQa) {
+        next = setPhotoChoice(next, 'none');
+        const qaVoice = options.voices[0]?.id;
+        if (qaVoice && next.bookOptions.voiceId !== qaVoice) next = setVoice(next, qaVoice);
+      }
       return next;
     });
-  }, [options.companions, options.lengths, update, launchOrder]);
+  }, [options.companions, options.lengths, options.voices, update, launchOrder, fictionalQa]);
   const recorder = useRecorder();
   const playback = usePlayback();
   const [step, setStep] = useState<Step>(1);
@@ -98,6 +105,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   const photoUrl = useObjectUrl(photoFile);
   const [submission, setSubmission] = useState<Submission>({ state: 'idle' });
   const [appearanceDescription, setAppearanceDescription] = useState('');
+  const [confirmedFictional, setConfirmedFictional] = useState(false);
   const [orderState, setOrderState] = useState<{ busy: boolean; message: string; signIn?: boolean; orderId?: string }>({ busy: false, message: '' });
   const orderInFlight = useRef(false);
   const uploadedPhoto = useRef<{ file: File; draftId: string; assetId: string } | null>(null);
@@ -336,7 +344,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
 
   const submit = async () => {
     if (launchOrder) {
-      if (orderInFlight.current) return;
+      if (orderInFlight.current || (fictionalQa && !confirmedFictional)) return;
       const built = buildReviewedRequest(read());
       if (!built.ok || (!photoFile && normalizeText(appearanceDescription).length < 10)) {
         setOrderState({ busy: false, message: 'יש להשלים את פרטי הספר ותיאור המראה לפני ההמשך.' }); return;
@@ -365,12 +373,15 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
           headers: { 'Content-Type': 'application/json' }, cache: 'no-store', body: JSON.stringify({
             version: 'engine-site-order-input/v1', optionsFingerprint: launchOrder.optionsFingerprint,
             request: built.request, appearance,
+            ...(fictionalQa ? { fictionalQa: true } : {}),
           }) });
         const body = await response.json().catch(() => null);
         if (!response.ok || body?.status !== 'personal_order_created' || typeof body.orderId !== 'string') {
           setOrderState({ busy: false, signIn: response.status === 401,
             message: response.status === 401 ? 'יש להתחבר לחשבון לפני שמירת ההזמנה.' : response.status === 409
-              ? 'פרטי ההזמנה כבר נשמרו. לשינוי ספר שנשמר יש להתחיל הזמנה חדשה.' : 'לא הצלחנו לשמור. הפרטים נשארו כאן ואפשר לנסות שוב.' });
+              ? fictionalQa ? 'הזמנת הבדיקה כבר נשמרה. אפשר להמשיך רק עם הפרטים המקוריים.' : 'פרטי ההזמנה כבר נשמרו. לשינוי ספר שנשמר יש להתחיל הזמנה חדשה.'
+              : response.status === 403 && fictionalQa ? 'יש להתחבר בחשבון ההורה שהוגדר לבדיקה.'
+                : 'לא הצלחנו לשמור. הפרטים נשארו כאן ואפשר לנסות שוב.' });
           return;
         }
         if (launchOrder.checkoutEnabled) {
@@ -462,9 +473,12 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   const acceptedCurrent = submission.state === 'accepted' && submission.revision === draft.revision;
   let continueLabel = returnToSummary ? COMMON.backToSummary : COMMON.next;
   if (step === 1 && !returnToSummary) continueLabel = tellCopy(name, draft.child.address).continue;
-  if (step === 4) continueLabel = launchOrder ? (launchOrder.checkoutEnabled ? `לתשלום · ₪${engineSitePriceIls()}` : 'שמירת פרטי הספר') : summaryCopy(name, draft.child.address).finish;
+  if (step === 4) continueLabel = launchOrder ? (launchOrder.checkoutEnabled
+    ? fictionalQa ? 'לבדיקת תשלום ב־PayMe' : `לתשלום · ₪${engineSitePriceIls()}`
+    : 'שמירת פרטי הספר') : summaryCopy(name, draft.child.address).finish;
   const continueDisabled =
-    step === 4 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent || orderState.busy || Boolean(orderState.orderId));
+    step === 4 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent || orderState.busy ||
+      Boolean(orderState.orderId) || (fictionalQa && !confirmedFictional));
 
   return (
     <div className={styles.page} data-ready={ready || undefined}>
@@ -550,6 +564,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
             onPhoto={onPhoto}
             playback={playback}
             launchOrder={Boolean(launchOrder)}
+            descriptionOnly={fictionalQa}
           />
         ) : null}
         {step === 3 && launchOrder ? <div className={styles.card}>
@@ -574,6 +589,10 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
         ) : null}
         {step === 4 && launchOrder ? <div className={styles.card}>
           <p className={styles.summaryText}>כריכה + {ENGINE_SITE_LAUNCH_OFFER.narrativePages} עמודי סיפור, קריינות ו־PDF · ₪{engineSitePriceIls()}</p>
+          {fictionalQa ? <label>
+            <input type="checkbox" checked={confirmedFictional} onChange={event => setConfirmedFictional(event.target.checked)} />
+            הפרטים מתארים ילד או ילדה בדיוניים. התשלום יתבצע בכרטיס בדיקה של PayMe.
+          </label> : null}
           <p>{photoFile ? 'התמונה תישמר באופן פרטי ותשמש להכנת הספר.' : appearanceDescription}</p>
           <p role="status" aria-live="polite">{orderState.message}</p>
           {orderState.signIn ? <a href="/login?returnTo=/wizard/personal" target="_blank" rel="noreferrer">כניסה לחשבון בחלון נוסף</a> : null}

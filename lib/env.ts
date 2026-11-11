@@ -1,5 +1,6 @@
 import 'server-only';
 import { isVercelProductionRuntime, isProductionLikeRuntime } from './runtime-env';
+import { engineQaScope } from './engine-site/qa-order-policy';
 
 type StoryProvider = 'openai' | 'claude';
 type ImageProvider = 'replicate' | 'dall-e-3' | 'gpt-image';
@@ -174,7 +175,7 @@ export function validateEnv(): AppEnv {
   if (PAYMENT_PROVIDER === 'payme') {
     if (!PAYME_API_BASE_URL) errors.push('PAYME_API_BASE_URL is required when PAYMENT_PROVIDER=payme');
     if (!PAYME_API_KEY) errors.push('PAYME_API_KEY is required when PAYMENT_PROVIDER=payme');
-    if (!PAYME_WEBHOOK_SECRET && !PAYME_WEBHOOK_ALLOWED_IPS) {
+    if (!PAYME_WEBHOOK_SECRET && !PAYME_WEBHOOK_ALLOWED_IPS && !engineQaScope()) {
       errors.push('Set PAYME_WEBHOOK_SECRET or PAYME_WEBHOOK_ALLOWED_IPS for PayMe webhook verification');
     }
   }

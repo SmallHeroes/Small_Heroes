@@ -11,12 +11,14 @@ vi.mock('@/lib/coupon/coupon-service',()=>({reserveCoupon:vi.fn(),releaseCouponF
 vi.mock('@/app/api/generate/trigger',()=>({triggerGeneration:m.trigger}));
 vi.mock('@/lib/human-qa/sync-hold-case',()=>({syncHumanQaHoldCasePostCommit:async()=>{}}));
 import { engineTestDb } from './engine-test-db';
-import { syntheticEngineActivationEnv } from './synthetic-order';
+import { syntheticEngineActivationEnv, syntheticEngineQaEnv, syntheticQaOrigin } from './synthetic-order';
 import { handleCheckoutPost } from '@/app/api/checkout/handler';
 import { POST } from '@/app/api/webhooks/payme/route';
+import { GET as returnFromPayme } from '@/app/api/payme/return/route';
+import { ENGINE_QA_SESSION_ID, PAYME_SANDBOX_API, PAYME_SANDBOX_ORIGIN } from '../qa-order-policy';
 const stores:Awaited<ReturnType<typeof engineTestDb>>[]=[];
 afterEach(async()=>{for(const s of stores.splice(0))await s.pg.close();m.db=null;vi.unstubAllEnvs();vi.unstubAllGlobals();vi.clearAllMocks();});
-async function setup(){
+async function setup(qa = false){
   for(const [k,v] of Object.entries(syntheticEngineActivationEnv()))vi.stubEnv(k,v);
   vi.stubEnv('PAYME_API_BASE_URL','https://payme.example.invalid/api');vi.stubEnv('PAYME_API_KEY','SYNTHETIC');vi.stubEnv('PAYME_WEBHOOK_SECRET','SYNTHETIC');
   const s=await engineTestDb();stores.push(s);m.db=s.db;
@@ -27,12 +29,21 @@ async function setup(){
     ALTER TABLE "Order" ADD COLUMN "couponDiscountPercent" int; ALTER TABLE "Order" ADD COLUMN "couponDiscountAgorot" int;
     ALTER TABLE "Order" ADD COLUMN "stripePaid" boolean DEFAULT false; UPDATE "Order" SET status='draft',"paymeTransactionId"=NULL;`);
   let sales=0,loseReply=false,reject=false;
+  const appOrigin = qa ? syntheticQaOrigin : 'https://app.example.invalid';
+  const saleOrigin = qa ? PAYME_SANDBOX_ORIGIN : 'https://payme.example.invalid';
+  if (qa) {
+    for (const [name, value] of Object.entries(syntheticEngineQaEnv())) vi.stubEnv(name, value);
+    vi.stubEnv('PAYME_WEBHOOK_SECRET', undefined);
+    await s.pg.query('UPDATE "WizardSession" SET "sessionId"=$1 WHERE id=$2', [ENGINE_QA_SESSION_ID, 'synthetic_session']);
+    await s.pg.exec(`ALTER TABLE "Order" ADD COLUMN "userId" text DEFAULT 'synthetic_parent';
+      ALTER TABLE "Order" ADD COLUMN "selectedVoice" text DEFAULT 'dad_v2';`);
+  }
   const items:{sale_payme_id:string;transaction_id:string;sale_price:string;sale_currency:string;sale_status:string;sale_url:string}[]=[];
   const network=vi.fn(async(url:any,init:any)=>{
     const body=JSON.parse(init.body);
     if(String(url).endsWith('/generate-sale')){
       if(reject){reject=false;return new Response(JSON.stringify({status_code:1,status_error_code:'SYNTHETIC_REJECT'}),{status:400});}
-      const sale={sale_payme_id:`sale_${++sales}`,transaction_id:body.transaction_id,sale_price:String(body.sale_price),sale_currency:'ils',sale_status:'created',sale_url:`https://payme.example.invalid/pay/${sales}`};items.push(sale);
+      const sale={sale_payme_id:`sale_${++sales}`,transaction_id:body.transaction_id,sale_price:String(body.sale_price),sale_currency:'ils',sale_status:'created',sale_url:saleOrigin+'/pay/'+sales};items.push(sale);
       if(loseReply){loseReply=false;throw Error('synthetic_lost_reply');}
       return new Response(JSON.stringify({status_code:0,payme_sale_id:sale.sale_payme_id,sale_url:sale.sale_url}));
     }
@@ -40,9 +51,84 @@ async function setup(){
       return new Response(JSON.stringify({status_code:0,items_count:found.length,items:found}));}
     throw Error('unexpected_network_forbidden');
   });vi.stubGlobal('fetch',network);
-  const checkout=()=>handleCheckoutPost(new NextRequest('https://app.example.invalid/api/checkout',{method:'POST',headers:{origin:'https://app.example.invalid','content-type':'application/json'},body:JSON.stringify({orderId:'synthetic_order'})}),{routeProtocol:'legacy-route'});
+  const checkout=()=>handleCheckoutPost(new NextRequest(appOrigin+'/api/checkout',{method:'POST',headers:{origin:appOrigin,'content-type':'application/json'},body:JSON.stringify({orderId:'synthetic_order'})}),{routeProtocol:'legacy-route'});
   return {...s,items,network,checkout,lose(){loseReply=true;},reject(){reject=true;}};
 }
+describe('dedicated QA PayMe Sandbox checkout and payment proof', () => {
+  const callback = (saleId: string, notifyType = 'sale-complete', eventType = 'caller_hint') => POST(new NextRequest(
+    syntheticQaOrigin + '/api/webhooks/payme', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ notify_type: notifyType, transaction_id: 'synthetic_order',
+        payme_sale_id: saleId, sale_status: 'completed', event_type: eventType }).toString(),
+    },
+  ));
+
+  it('reuses one Sandbox sale and marks paid once after exact provider confirmation', async () => {
+    const s = await setup(true);
+    expect((await s.checkout()).status).toBe(200);
+    expect((await s.checkout()).status).toBe(200);
+    expect(s.network).toHaveBeenCalledTimes(1);
+    expect(s.network.mock.calls[0][0]).toBe(PAYME_SANDBOX_API + '/generate-sale');
+    const request = s.network.mock.calls[0][1];
+    expect(request.redirect).toBe('error');
+    expect(JSON.parse(request.body)).toMatchObject({ sale_price: 5900, currency: 'ILS',
+      sale_callback_url: syntheticQaOrigin + '/api/webhooks/payme' });
+    expect((await callback('unbound_sale')).status).toBe(409);
+    expect((await callback('sale_1', 'refund')).status).toBe(200);
+    expect(s.network).toHaveBeenCalledTimes(1);
+    expect((await callback('sale_1')).status).toBe(503);
+    expect(m.trigger).not.toHaveBeenCalled();
+    s.items[0].sale_status = 'completed';
+    expect((await callback('sale_1')).status).toBe(200);
+    expect((await callback('sale_1', 'sale-complete', 'different_hint')).status).toBe(200);
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))?.status).toBe('paid');
+    expect((await s.pg.query('SELECT "eventType" FROM "PaymeWebhookEvent"')).rows).toEqual([{ eventType: 'sale-complete' }]);
+    expect((await s.db.paymentRecord.findUnique({ where: { orderId: 'synthetic_order' } }))?.raw)
+      .toMatchObject({ items: [{ sale_payme_id: 'sale_1', sale_status: 'completed' }] });
+    expect(m.trigger).toHaveBeenCalledTimes(1);
+    expect(s.network.mock.calls.slice(1).every(([url, init]) => url === PAYME_SANDBOX_API + '/get-sales' &&
+      init.redirect === 'error' && JSON.parse(init.body).sale_payme_id === 'sale_1')).toBe(true);
+  });
+
+  it('uses the stored Sandbox sale on browser return, ignoring its caller-supplied sale ID', async () => {
+    const s = await setup(true);
+    expect((await s.checkout()).status).toBe(200);
+    s.items[0].sale_status = 'completed';
+    const response = await returnFromPayme(new NextRequest(syntheticQaOrigin +
+      '/api/payme/return?orderId=synthetic_order&paymentId=unbound&status=paid'));
+    expect(response.headers.get('location')).toBe(syntheticQaOrigin + '/personal/orders/synthetic_order?payment=checking');
+    expect(JSON.parse(s.network.mock.calls[1][1].body).sale_payme_id).toBe('sale_1');
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))?.status).toBe('paid');
+  });
+
+  it('refuses a live provider URL before a checkout attempt can be claimed', async () => {
+    const s = await setup(true);
+    vi.stubEnv('PAYME_API_BASE_URL', 'https://live.example.invalid/api');
+    expect((await s.checkout()).status).toBe(503);
+    expect(s.network).not.toHaveBeenCalled();
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))?.checkoutAttemptToken).toBeNull();
+  });
+
+  it('holds a Sandbox response whose checkout destination points elsewhere', async () => {
+    const s = await setup(true);
+    s.network.mockResolvedValueOnce(Response.json({ status_code: 0, payme_sale_id: 'sale_1',
+      sale_url: 'https://sandbox.payme.io.attacker.invalid/sale' }));
+    const response = await s.checkout();
+    expect(response.status).toBe(500);
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))?.paymentId).toBeNull();
+    expect((await s.db.order.findUnique({ where: { id: 'synthetic_order' } }))?.checkoutAttemptToken).not.toBeNull();
+  });
+
+  it('blocks ordinary engine orders on the staging checkout and payment routes', async () => {
+    const s = await setup(true);
+    await s.pg.query('UPDATE "WizardSession" SET "sessionId"=$1 WHERE id=$2', ['ordinary-order', 'synthetic_session']);
+    expect((await s.checkout()).status).toBe(403);
+    expect((await callback('sale_1')).status).toBe(409);
+    expect((await returnFromPayme(new NextRequest(syntheticQaOrigin + '/api/payme/return?orderId=synthetic_order'))).status).toBe(403);
+    expect(s.network).not.toHaveBeenCalled();
+    expect(m.trigger).not.toHaveBeenCalled();
+  });
+});
+
 describe('R2-5 actual checkout + PayMe adapter + PostgreSQL + late signed capture',()=>{
   it.each([[200,'malformed'],[503,1]] as const)('an unclear provider rejection %s/%s retains the attempt instead of guessing no sale',async(status,statusCode)=>{
     const s=await setup();s.network.mockImplementationOnce(async()=>new Response(JSON.stringify({status_code:statusCode}),{status}));

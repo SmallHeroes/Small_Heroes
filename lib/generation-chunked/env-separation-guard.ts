@@ -44,7 +44,7 @@ export function isProductionRuntime(
  * (Bucket name is identical across envs — `book-images` — so the project is identified by SUPABASE_URL.)
  */
 export function findProdResourceLeak(
-  source: NodeJS.ProcessEnv = process.env,
+  source: Readonly<Record<string, string | undefined>> = process.env,
 ): string | null {
   const appHost = hostOf(source.NEXT_PUBLIC_APP_URL || source.APP_URL);
   if (appHost && PROD_APP_HOSTS.includes(appHost)) {

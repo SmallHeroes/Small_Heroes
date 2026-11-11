@@ -105,10 +105,10 @@ export async function engineTestDb() {
       deliveryOutbox: model('DeliveryOutbox'), exceptionCase: model('ExceptionCase'), exceptionCaseAudit: model('ExceptionCaseAudit'), refundAttempt: model('RefundAttempt'),
       order: {
         ...order,
-        findUnique: async ({ where, include }: any) => {
+        findUnique: async ({ where, include, select }: any) => {
           const row = await one('SELECT * FROM "Order" WHERE id=$1', [where.id]);
           if (!row) return null;
-          return { ...row.data, ...row, ...(include?.wizardSession ? { wizardSession: await one('SELECT * FROM "WizardSession" WHERE id=$1', [row.wizardSessionId]) } : {}) };
+          return { ...row.data, ...row, ...(include?.wizardSession || select?.wizardSession ? { wizardSession: await one('SELECT * FROM "WizardSession" WHERE id=$1', [row.wizardSessionId]) } : {}) };
         },
       },
       generationJob: model('GenerationJob'), atomicOperationReceipt: model('AtomicOperationReceipt'),

@@ -7,6 +7,7 @@ import { ENGINE_SITE_PROTOCOL, engineSiteFail } from './contract';
 import { ENGINE_SITE_LAUNCH_OFFER as offer } from './offer-definition';
 import { engineOrderInputSchema } from './order-input';
 import { assertEnginePrivateDatabase } from './private-assets';
+import { ENGINE_QA_SESSION_ID, ENGINE_QA_VOICE, engineQaRequired, engineQaScope } from './qa-order-policy';
 
 /** Short remains eight engine beats. The UI uses the offer's eight story pages, never the old spread display count. */
 export function resolveEngineWizardOptions(root: string = process.cwd()): PersonalWizardOptions {
@@ -16,7 +17,7 @@ export function resolveEngineWizardOptions(root: string = process.cwd()): Person
     admittedOptions: options.fingerprint, lengths, offer }) };
 }
 export function engineOrderIntakeEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
-  return env.ENGINE_SITE_ORDER_INTAKE_ENABLED === 'true';
+  return env.ENGINE_SITE_ORDER_INTAKE_ENABLED === 'true' && (!engineQaRequired(env) || engineQaScope(env) !== null);
 }
 export type EngineParent = { id: string; email: string; name: string | null };
 
@@ -24,6 +25,11 @@ export function prepareEngineOrder(input: unknown, parent: EngineParent, options
   const parsed = engineOrderInputSchema.safeParse(input);
   if (!parsed.success) engineSiteFail('engine_order_input_invalid');
   const data = parsed.data;
+  const qa = engineQaRequired() ? engineQaScope() : null;
+  if (engineQaRequired() && (!qa || qa.parentId !== parent.id)) engineSiteFail('engine_qa_parent_required');
+  if (qa ? data.fictionalQa !== true || data.appearance.kind !== 'description' ||
+      data.request.appearance.photo !== 'none' || data.request.bookOptions.voiceId !== ENGINE_QA_VOICE : data.fictionalQa === true)
+    engineSiteFail('engine_qa_fictional_description_and_dad_required');
   if (data.optionsFingerprint !== options.fingerprint) engineSiteFail('engine_order_options_changed');
   const accepted = acceptPersonalBookRequest(data.request, options);
   if (!accepted.ok || accepted.containsFixtureData) engineSiteFail('engine_order_request_invalid');
@@ -34,9 +40,10 @@ export function prepareEngineOrder(input: unknown, parent: EngineParent, options
   const snapshot = { version: ENGINE_SITE_PROTOCOL, ownerId: parent.id,
     requestSha256: accepted.requestId, optionsSha256: options.fingerprint,
     request: accepted.canonical, options, appearance: data.appearance,
+    ...(qa ? { fictionalQa: true as const } : {}),
     offer, offerSha256: canonicalHash(offer), imageQuality: offer.imageQuality };
   return { snapshot, inputSha256: canonicalHash(snapshot),
-    sessionId: `engine-site-order/v1/${canonicalHash({ owner: parent.id, draft: data.request.draftId })}` };
+    sessionId: qa ? ENGINE_QA_SESSION_ID : `engine-site-order/v1/${canonicalHash({ owner: parent.id, draft: data.request.draftId })}` };
 }
 
 /** Unique session row + row lock serialize identical retries; the stored snapshot is never overwritten. */
@@ -53,9 +60,13 @@ export async function createEnginePersonalOrder(db: PrismaClient, input: unknown
       snapshot = { ...snapshot, photoBytes: { sha256: photoBytes.sha256, bytes: photoBytes.bytes } };
     }
     const inputSha256 = canonicalHash(snapshot);
-    const session = await tx.wizardSession.upsert({ where: { sessionId }, update: {}, create: {
-      sessionId, data: { ...snapshot, inputSha256 } as unknown as Prisma.InputJsonValue,
-    } });
+    const sessionInput = { sessionId, data: { ...snapshot, inputSha256 } as unknown as Prisma.InputJsonValue };
+    // Use INSERT ON CONFLICT for the shared QA slot even when two different drafts arrive together.
+    if (sessionId === ENGINE_QA_SESSION_ID)
+      await tx.wizardSession.createMany({ data: [sessionInput], skipDuplicates: true });
+    const session = sessionId === ENGINE_QA_SESSION_ID
+      ? await tx.wizardSession.findUniqueOrThrow({ where: { sessionId } })
+      : await tx.wizardSession.upsert({ where: { sessionId }, update: {}, create: sessionInput });
     await tx.$queryRaw`SELECT "id" FROM "WizardSession" WHERE "id" = ${session.id} FOR UPDATE`;
     if (canonicalHash(session.data) !== canonicalHash({ ...snapshot, inputSha256 }))
       engineSiteFail('engine_order_draft_already_bound');

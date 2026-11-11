@@ -12,6 +12,7 @@ import {
   verifyPaymePayment,
 } from '@/lib/payme';
 import { isEngineSiteOrder } from '@/lib/engine-site/offer';
+import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from '@/lib/engine-site/qa-order-policy';
 import { recordEngineUnexpectedCapture } from '@/lib/engine-site/extra-payment';
 import { recordEnginePaymentProofRefusal,clearEnginePaymentProofRefusal } from '@/lib/engine-site/payment-proof-alert';
 import { env } from '@/lib/env';
@@ -22,6 +23,9 @@ import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority'
 const logger = createLogger({ subsystem: 'payme-webhook', route: '/api/webhooks/payme' });
 
 export async function POST(req: NextRequest) {
+  const qa = engineQaScope();
+  if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin))
+    return NextResponse.json({ error: 'engine_qa_webhook_unavailable' }, { status: 503 });
   if (env.PAYMENT_PROVIDER !== 'payme') {
     logger.error('[PayMeWebhook] Rejected: PAYMENT_PROVIDER is not payme');
     return NextResponse.json({ error: 'Payment provider misconfigured' }, { status: 503 });
@@ -42,8 +46,16 @@ export async function POST(req: NextRequest) {
 
   if (contentType.includes('application/x-www-form-urlencoded')) {
     const params = new URLSearchParams(rawBody);
+    if (qa) {
+      const nativeFields = ['notify_type', 'transaction_id', 'payme_sale_id', 'sale_status'];
+      if (nativeFields.some(field => params.getAll(field).length !== 1 || !params.get(field)))
+        return NextResponse.json({ error: 'Invalid Sandbox callback' }, { status: 400 });
+      if (params.get('notify_type') !== 'sale-complete')
+        return NextResponse.json({ received: true, ignored: true });
+    }
     parsedBody = Object.fromEntries(params.entries());
   } else {
+    if (qa) return NextResponse.json({ error: 'Sandbox callback must be form data' }, { status: 415 });
     try {
       parsedBody = JSON.parse(rawBody || '{}') as Record<string, unknown>;
       if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
@@ -57,6 +69,7 @@ export async function POST(req: NextRequest) {
   }
 
   const parsed = parsePaymeWebhookPayload(parsedBody);
+  if (qa) parsed.eventType = 'sale-complete';
 
   if (!parsed.orderId || !parsed.transactionId || !parsed.paymentStatus) {
     logger.warn('[PayMeWebhook] Invalid payload shape', {
@@ -76,7 +89,8 @@ export async function POST(req: NextRequest) {
     ? true
     : (clientIp ? cfg.allowedWebhookIps.includes(clientIp) : false);
 
-  if (cfg.webhookSecret) {
+  // For a Sandbox seller, the callback is a signal to verify the stored sale with PayMe.
+  if (!qa && cfg.webhookSecret) {
     // Signature is primary verification path.
     if (!hasVerifiedSignature) {
       const canUseIpFallback = isAllowedIp && (!isProduction || allowIpFallback);
@@ -95,7 +109,7 @@ export async function POST(req: NextRequest) {
         environment: process.env.NODE_ENV || 'development',
       });
     }
-  } else {
+  } else if (!qa) {
     // No secret configured: only allow trusted IP path.
     if (!isAllowedIp) {
       logger.warn('[PayMeWebhook] Rejected by IP allowlist (no signature secret configured)', {
@@ -120,11 +134,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, ignored: true, reason: 'payment_not_successful' });
   }
 
-  logger.info('[PayMeWebhook] Payment verified', {
+  logger.info('[PayMeWebhook] Payment notification received', {
     orderId: parsed.orderId,
     transactionId: parsed.transactionId,
     paymentStatus: parsed.paymentStatus,
-    verifiedBy: hasVerifiedSignature ? 'signature' : 'ip_allowlist',
+    verification: qa ? 'sandbox_sale_lookup_required' : hasVerifiedSignature ? 'signature' : 'ip_allowlist',
     usedFallbackFields: parsed.usedFallbackFields,
   });
   if (parsed.usedFallbackFields) {
@@ -135,14 +149,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const observed = await prisma.order.findUnique({ where: { id: parsed.orderId! }, select: { id: true, totalPrice: true, frozenProductVersion: true } });
+    let paymentEvidence = parsed.raw as object;
+    const observed = await prisma.order.findUnique({ where: { id: parsed.orderId! },
+      select: { id: true, totalPrice: true, frozenProductVersion: true, paymentProvider: true, paymentId: true,
+        userId: true, selectedVoice: true, wizardSessionId: true, wizardSession: { select: { sessionId: true } } } });
+    if (qa) {
+      if (!observed || !isEngineSiteOrder(observed) || !isEngineQaOrder(qa, observed, observed.wizardSession?.sessionId) ||
+          observed.paymentProvider !== 'payme' || observed.paymentId !== parsed.transactionId)
+        return NextResponse.json({ received: false, reason: 'engine_qa_sale_not_bound' }, { status: 409 });
+    } else if (observed?.wizardSession?.sessionId === ENGINE_QA_SESSION_ID) {
+      return NextResponse.json({ received: false, reason: 'engine_qa_order_scope_required' }, { status: 403 });
+    }
     if (observed && isEngineSiteOrder(observed)) {
       const verified = await verifyPaymePayment({ orderId: observed.id, paymentId: parsed.transactionId!, amountAgorot: observed.totalPrice, currency: 'ILS' });
       if (!verified.verified || verified.status !== 'paid') {
-        logger.warn('[PayMeWebhook] Signed paid event could not be independently verified',{orderId:observed.id,signed:hasVerifiedSignature});
-        if(hasVerifiedSignature&&verified.proofRefused===true)await recordEnginePaymentProofRefusal(prisma,observed.id,parsed.transactionId!,'signed_callback',verified.paidMismatch);
+        logger.warn('[PayMeWebhook] Payment notification could not be independently verified',{orderId:observed.id,signed:hasVerifiedSignature});
+        if (qa && verified.proofRefused === true)
+          await recordEnginePaymentProofRefusal(prisma, observed.id, parsed.transactionId!, 'stored_sale_query', verified.paidMismatch);
+        else if (hasVerifiedSignature && verified.proofRefused === true)
+          await recordEnginePaymentProofRefusal(prisma, observed.id, parsed.transactionId!, 'signed_callback', verified.paidMismatch);
         return NextResponse.json({ received: false, reason: 'payment_proof_unavailable' }, { status: 503 });
       }
+      if (qa) paymentEvidence = verified.raw as object;
     }
     const shouldTriggerGeneration = await prisma.$transaction(async (tx) => {
       // The same Order lock serializes primary adoption, extra captures and checkout persistence.
@@ -161,7 +189,11 @@ export async function POST(req: NextRequest) {
           id: true,
           status: true,
           paymeTransactionId: true,
+          paymentProvider: true,
           paymentId: true,
+          userId: true,
+          selectedVoice: true,
+          wizardSessionId: true,
           totalPrice: true,
           frozenProductVersion: true,
         },
@@ -173,6 +205,11 @@ export async function POST(req: NextRequest) {
         });
         return false;
       }
+
+      if (qa && (!observed || !isEngineSiteOrder(order) || order.paymentId !== observed.paymentId ||
+          order.wizardSessionId !== observed.wizardSessionId || order.userId !== observed.userId ||
+          order.selectedVoice !== observed.selectedVoice || order.paymentProvider !== 'payme'))
+        throw Error('engine_payment_order_changed');
 
       if (isEngineSiteOrder(order)) {
         // Recheck the frozen amount/version after the outside HTTP proof and under the Order lock.
@@ -200,7 +237,7 @@ export async function POST(req: NextRequest) {
           paymentProvider: 'payme',
           paymentId: parsed.transactionId,
           paymeTransactionId: parsed.transactionId,
-          paymeMetadata: parsed.raw as object,
+          paymeMetadata: paymentEvidence,
           stripePaid: false,
         },
       });
@@ -223,7 +260,7 @@ export async function POST(req: NextRequest) {
           paidAt: new Date(),
           amount: order.totalPrice,
           currency: 'ils',
-          raw: parsed.raw as object,
+          raw: paymentEvidence,
         },
         create: {
           orderId: order.id,
@@ -232,7 +269,7 @@ export async function POST(req: NextRequest) {
           currency: 'ils',
           paid: true,
           paidAt: new Date(),
-          raw: parsed.raw as object,
+          raw: paymentEvidence,
         },
       });
 

@@ -12,12 +12,17 @@ import { registerEngineOrderAuthority } from './order-meter';
 import { assertEnginePrivateDatabase } from './private-assets';
 import { engineRecipeSteps, enginePolicyDigest, type EngineSpendPolicy } from './platform-policy';
 import type { EngineCheckpoint } from './durable-worker';
+import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from './qa-order-policy';
 
 export async function loadEngineOrderSnapshot(db: PrismaClient, orderId: string) {
+  const qa = engineQaScope();
+  if (engineQaRequired() && !qa) engineSiteFail('engine_qa_order_scope_required');
   await assertEnginePrivateDatabase(db);
   const order = await db.order.findUnique({ where: { id: orderId }, include: { wizardSession: true } });
   if (!order || order.frozenProductVersion !== ENGINE_SITE_PROTOCOL || !order.userId || !order.wizardSession)
     engineSiteFail('engine_personal_order_required');
+  if (qa ? !isEngineQaOrder(qa, order, order.wizardSession.sessionId)
+    : order.wizardSession.sessionId === ENGINE_QA_SESSION_ID) engineSiteFail('engine_qa_order_scope_required');
   engineSiteCheckoutPricing(order);
   const record = z.object({ version: z.literal(ENGINE_SITE_PROTOCOL), ownerId: z.string(), inputSha256: z.string().length(64),
     requestSha256: z.string().length(64), optionsSha256: z.string().length(64), request: reviewedPersonalBookRequestSchema,
@@ -25,8 +30,12 @@ export async function loadEngineOrderSnapshot(db: PrismaClient, orderId: string)
     appearance: z.discriminatedUnion('kind', [z.object({ kind: z.literal('description'), description: z.string() }).strict(),
       z.object({ kind: z.literal('private_photo'), assetId: z.string().uuid() }).strict()]),
     photoBytes: z.object({ sha256: z.string().length(64), bytes: z.number().int().positive() }).strict().optional(),
+    fictionalQa: z.literal(true).optional(),
   }).strict().parse(order.wizardSession.data);
   const { inputSha256, ...snapshot } = record;
+  if (qa ? snapshot.fictionalQa !== true || snapshot.appearance.kind !== 'description' ||
+      snapshot.request.appearance.photo !== 'none' || snapshot.request.bookOptions.voiceId !== order.selectedVoice
+    : snapshot.fictionalQa === true) engineSiteFail('engine_qa_order_scope_required');
   const options = snapshot.options as PersonalWizardOptions;
   const accepted = acceptPersonalBookRequest(snapshot.request, options);
   if (!accepted.ok || accepted.containsFixtureData || snapshot.ownerId !== order.userId || canonicalHash(snapshot) !== inputSha256 ||

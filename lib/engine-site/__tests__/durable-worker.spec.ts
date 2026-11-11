@@ -6,12 +6,14 @@ import { engineRecipeSteps, assertEnginePolicyCurrent, configuredEngineSpendPoli
 import { parseEngineCheckpoint, runEngineDurableInvocation, ENGINE_CHUNK_BUDGET_MS, ENGINE_LONG_BUDGET_MS, type PreparedEngineCall } from '../durable-worker';
 import { inspectEngineOrderMeter } from '../order-meter';
 import type { EnginePrivateStorage } from '../private-storage';
+import { prepareEngineOrder, resolveEngineWizardOptions } from '../personal-orders';
+import { syntheticEngineOrderInput, syntheticEngineQaEnv } from './synthetic-order';
 import { readEnginePrivateBytes, loadEnginePrivateAsset } from '../private-assets';
 const policy: EngineSpendPolicy = { version: 'engine-site-spend-policy/v1', sourceRevision: 'a'.repeat(40), maximumMicroUsd: 10_000_000,
   maximumCalls: 200, approvalReference: 'SYNTHETIC_TEST_ONLY', approvedBy: 'synthetic_test', approvedAt: '2026-11-04T00:00:00.000Z',
   paidProviderActivation: 'owner_approved_live_personal_orders' };
 const stores: Awaited<ReturnType<typeof engineTestDb>>[] = [];
-afterEach(async () => { for (const s of stores.splice(0)) await s.pg.close(); vi.restoreAllMocks(); });
+afterEach(async () => { for (const s of stores.splice(0)) await s.pg.close(); vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 async function setup(approvedPolicy = policy) {
   const s = await engineTestDb(); stores.push(s);
   const objects = new Map<string, Buffer>();
@@ -29,6 +31,30 @@ async function setup(approvedPolicy = policy) {
 }
 
 describe('same GenerationJob + actual meter/SQL fences, synthetic providers only', () => {
+  it('refuses an invalid QA database binding before reading the database', async () => {
+    const qa = { ...syntheticEngineQaEnv(), DATABASE_URL: 'postgresql://synthetic@other.example.invalid/postgres' };
+    for (const [key, value] of Object.entries(qa)) vi.stubEnv(key, value);
+    expect(() => configuredEngineSpendPolicy(qa)).toThrow('engine_qa_order_scope_required');
+    const db = { $queryRaw: vi.fn() } as unknown as Parameters<typeof loadEngineOrderSnapshot>[0];
+    await expect(loadEngineOrderSnapshot(db, 'synthetic_order')).rejects.toThrow('engine_qa_order_scope_required');
+    expect(db.$queryRaw).not.toHaveBeenCalled();
+  });
+  it('starts and replays only the bound fictional QA order on the existing durable worker', async () => {
+    const s = await engineTestDb();
+    stores.push(s);
+    for (const [key, value] of Object.entries(syntheticEngineQaEnv())) vi.stubEnv(key, value);
+    await expect(startEnginePersonalJob(s.db, 'synthetic_order', policy)).rejects.toThrow('engine_qa_order_scope_required');
+    const qa = prepareEngineOrder({ ...syntheticEngineOrderInput('dad_v2'), fictionalQa: true }, s.parent, resolveEngineWizardOptions());
+    await s.pg.query('UPDATE "WizardSession" SET "sessionId"=$1,data=$2 WHERE id=$3',
+      [qa.sessionId, JSON.stringify({ ...qa.snapshot, inputSha256: qa.inputSha256 }), 'synthetic_session']);
+    await s.pg.query('UPDATE "Order" SET data=data || $1::jsonb WHERE id=$2',
+      [JSON.stringify({ storySourceHash: qa.inputSha256, selectedVoice: 'dad_v2' }), 'synthetic_order']);
+    expect(await startEnginePersonalJob(s.db, 'synthetic_order', policy)).toMatchObject({ started: true, created: true });
+    expect(await startEnginePersonalJob(s.db, 'synthetic_order', policy)).toMatchObject({ started: true, created: false });
+    vi.unstubAllEnvs();
+    await expect(loadEngineOrderSnapshot(s.db, 'synthetic_order')).rejects.toThrow('engine_qa_order_scope_required');
+    expect((await s.pg.query('SELECT id FROM "GenerationJob"')).rows).toHaveLength(1);
+  });
   it('starts once and preserves the job/authority on payment replay without resetting progress or claims', async () => {
     const s = await setup();
     expect(await startEnginePersonalJob(s.db, 'synthetic_order', policy)).toMatchObject({ started: true, created: false });

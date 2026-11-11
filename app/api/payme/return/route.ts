@@ -9,11 +9,15 @@ import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/co
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
 import { isEngineSiteOrder } from '@/lib/engine-site/offer';
+import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from '@/lib/engine-site/qa-order-policy';
 import {recordEnginePaymentProofRefusal,clearEnginePaymentProofRefusal} from '@/lib/engine-site/payment-proof-alert';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
 export async function GET(req: NextRequest) {
+  const qa = engineQaScope();
+  if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin))
+    return NextResponse.json({ error: 'engine_qa_return_unavailable' }, { status: 503 });
   const orderId = req.nextUrl.searchParams.get('orderId')?.trim() || '';
   const paymentIdFromQuery =
     req.nextUrl.searchParams.get('paymentId')?.trim() ||
@@ -33,9 +37,13 @@ export async function GET(req: NextRequest) {
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true, paymentProvider: true, paymentId: true, totalPrice: true, frozenProductVersion: true },
+      select: { id: true, status: true, paymentProvider: true, paymentId: true, totalPrice: true, frozenProductVersion: true,
+        userId: true, selectedVoice: true, wizardSessionId: true, wizardSession: { select: { sessionId: true } } },
     });
     personal = !!order && isEngineSiteOrder(order);
+    if (qa ? !order || !personal || !isEngineQaOrder(qa, order, order.wizardSession?.sessionId)
+      : order?.wizardSession?.sessionId === ENGINE_QA_SESSION_ID)
+      return NextResponse.json({ error: 'engine_qa_order_scope_required' }, { status: 403 });
     if(personal)await clearEnginePaymentProofRefusal(prisma,orderId,'').catch(()=>logger.warn('Payment notice reconciliation pending',{orderId}));
     if (!order || (order.paymentProvider && order.paymentProvider !== 'payme')) {
       const redirectUrl = new URL(target(), req.nextUrl.origin);
@@ -93,7 +101,9 @@ export async function GET(req: NextRequest) {
         // Paid transition — CONDITIONAL so an overlapping success path (e.g. the webhook) that has
         // already advanced or FENCED (needs_human_qa) this order is NEVER demoted back to 'paid'.
         const paidTransition = await tx.order.updateMany({
-          where: { id: order.id, paymentId: resolvedPaymentId, status: { in: ['draft', 'pending_payment'] } },
+          where: { id: order.id, paymentId: resolvedPaymentId, status: { in: ['draft', 'pending_payment'] },
+            ...(qa ? { userId: qa.parentId, selectedVoice: order.selectedVoice, wizardSessionId: order.wizardSessionId,
+              paymentProvider: 'payme', frozenProductVersion: order.frozenProductVersion, totalPrice: order.totalPrice } : {}) },
           data: {
             status: 'paid',
             paymentProvider: 'payme',

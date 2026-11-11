@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PGlite, type Transaction } from '@electric-sql/pglite';
 import { randomUUID } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
@@ -7,8 +7,9 @@ import { createEnginePersonalOrder, engineOrderIntakeEnabled, prepareEngineOrder
 import { handleEngineOrderPost } from '../order-http';
 import { engineSiteCheckoutPricing } from '../offer';
 import { ENGINE_SITE_LAUNCH_OFFER } from '../offer-definition';
-import { syntheticEngineOrderInput } from './synthetic-order';
+import { syntheticEngineOrderInput, syntheticEngineQaEnv, syntheticQaOrigin } from './synthetic-order';
 import { assertEnginePrivateStoragePolicy } from '../private-assets';
+import { ENGINE_QA_SESSION_ID } from '../qa-order-policy';
 
 const parent = { id: 'synthetic_parent', email: 'parent@example.invalid', name: 'Synthetic Parent' };
 const options = resolveEngineWizardOptions();
@@ -18,11 +19,21 @@ function adapter(tx: Transaction) {
   return {
     $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) =>
       (await tx.query(strings.reduce((s, p, i) => s + (i ? `$${i}` : '') + p, ''), values)).rows,
-    wizardSession: { upsert: async ({ create }: { create: { sessionId: string; data: unknown } }) => {
-      await tx.query('INSERT INTO "WizardSession" (id,"sessionId",data) VALUES ($1,$2,$3) ON CONFLICT ("sessionId") DO NOTHING',
-        [randomUUID(), create.sessionId, JSON.stringify(create.data)]);
-      return (await tx.query('SELECT * FROM "WizardSession" WHERE "sessionId"=$1', [create.sessionId])).rows[0];
-    } },
+    wizardSession: {
+      upsert: async ({ create }: { create: { sessionId: string; data: unknown } }) => {
+        await tx.query('INSERT INTO "WizardSession" (id,"sessionId",data) VALUES ($1,$2,$3) ON CONFLICT ("sessionId") DO NOTHING',
+          [randomUUID(), create.sessionId, JSON.stringify(create.data)]);
+        return (await tx.query('SELECT * FROM "WizardSession" WHERE "sessionId"=$1', [create.sessionId])).rows[0];
+      },
+      createMany: async ({ data, skipDuplicates }: { data: [{ sessionId: string; data: unknown }]; skipDuplicates: boolean }) => {
+        if (!skipDuplicates) throw Error('expected_qa_atomic_insert');
+        const [session] = data;
+        await tx.query('INSERT INTO "WizardSession" (id,"sessionId",data) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+          [randomUUID(), session.sessionId, JSON.stringify(session.data)]);
+      },
+      findUniqueOrThrow: async ({ where }: { where: { sessionId: string } }) =>
+        (await tx.query('SELECT * FROM "WizardSession" WHERE "sessionId"=$1', [where.sessionId])).rows[0],
+    },
     order: {
       findUnique: async ({ where }: { where: { wizardSessionId: string } }) =>
         (await tx.query<{ data: object }>('SELECT data FROM "Order" WHERE "wizardSessionId"=$1', [where.wizardSessionId])).rows[0]?.data ?? null,
@@ -42,6 +53,52 @@ beforeAll(async () => {
 });
 beforeEach(async () => { await pg.exec('TRUNCATE "Order", "WizardSession"'); });
 afterAll(async () => { await pg.close(); vi.unstubAllGlobals(); });
+afterEach(() => vi.unstubAllEnvs());
+
+describe('dedicated QA Wizard intake', () => {
+  beforeEach(() => {
+    for (const [name, value] of Object.entries(syntheticEngineQaEnv())) vi.stubEnv(name, value);
+  });
+
+  it('commits one singleton through the HTTP handler and replays only the identical draft', async () => {
+    const send = (input: unknown, actor = parent) => handleEngineOrderPost(new NextRequest(syntheticQaOrigin + '/api/engine-site/v1/orders', {
+      method: 'POST', headers: { origin: syntheticQaOrigin, 'content-type': 'application/json' }, body: JSON.stringify(input),
+    }), { enabled: true, parent: async () => actor, create: (value, owner) => createEnginePersonalOrder(db, value, owner, options) });
+    const input = { ...syntheticEngineOrderInput('dad_v2'), fictionalQa: true };
+    const secondDraft = { ...syntheticEngineOrderInput('dad_v2', 'd_synthetic0002'), fictionalQa: true };
+    expect((await send(input, { ...parent, id: 'other_parent' })).status).toBe(403);
+    const responses = await Promise.all([send(input), send(secondDraft)]);
+    expect(responses.map(response => response.status).sort()).toEqual([201, 409]);
+    const winner = responses.findIndex(response => response.status === 201);
+    const saved = await responses[winner].json();
+    const replay = await send(winner === 0 ? input : secondDraft);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ orderId: saved.orderId, replay: true });
+    expect((await pg.query('SELECT "sessionId" FROM "WizardSession"')).rows).toEqual([{ sessionId: ENGINE_QA_SESSION_ID }]);
+    expect((await pg.query('SELECT id FROM "Order"')).rows).toEqual([{ id: saved.orderId }]);
+  });
+
+  it('refuses missing declaration, wrong voice and photo intake before any write', async () => {
+    const dad = syntheticEngineOrderInput('dad_v2');
+    const invalid = [dad, { ...syntheticEngineOrderInput(), fictionalQa: true },
+      { ...dad, fictionalQa: true, appearance: { kind: 'private_photo', assetId: randomUUID() } }];
+    for (const input of invalid)
+      await expect(createEnginePersonalOrder(db, input, parent, options)).rejects.toThrow('fictional_description_and_dad_required');
+    expect((await pg.query('SELECT id FROM "WizardSession"')).rows).toEqual([]);
+  });
+
+  it.each([{ VERCEL_ENV: 'production' }, { PAYME_API_BASE_URL: 'https://live.example.invalid/api' },
+    { PAYME_CHECKOUT_PAGE_ORIGIN: 'https://sandbox.payme.io.attacker.invalid' },
+    { NEXT_PUBLIC_APP_URL: 'https://different.example.invalid' }, { PAYME_WEBHOOK_ALLOW_IP_FALLBACK: 'true' },
+    { DATABASE_URL: 'postgresql://synthetic@db.abcdefghijklmnopqrst.supabase.co/postgres?host=other.example.invalid' },
+    { SUPABASE_URL: 'https://different.example.invalid' },
+    { ENGINE_SITE_QA_SUPABASE_REF: 'yevwpjxqusyyaxalbvyn', SUPABASE_URL: 'https://yevwpjxqusyyaxalbvyn.supabase.co',
+      DATABASE_URL: 'postgresql://synthetic@db.yevwpjxqusyyaxalbvyn.supabase.co/postgres' }])(
+    'keeps staging intake off with mismatched configuration %j', change => {
+      expect(engineOrderIntakeEnabled({ ...syntheticEngineQaEnv(), ENGINE_SITE_ORDER_INTAKE_ENABLED: 'true' })).toBe(true);
+      expect(engineOrderIntakeEnabled({ ...syntheticEngineQaEnv(), ENGINE_SITE_ORDER_INTAKE_ENABLED: 'true', ...change })).toBe(false);
+    });
+});
 
 describe('personal order: reviewed wizard -> immutable owner-scoped Order', () => {
   it('binds the verified private photo bytes, so even a changed server asset record cannot replay the order', async () => {

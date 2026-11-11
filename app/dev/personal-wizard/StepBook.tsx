@@ -23,9 +23,10 @@ type Props = {
   onPhoto: (file: File | null) => void;
   playback: { playingId: string | null; play: (id: string, url: string) => void; stop: () => void };
   launchOrder?: boolean;
+  descriptionOnly?: boolean;
 };
 
-export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, playback, launchOrder = false }: Props) {
+export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, playback, launchOrder = false, descriptionOnly = false }: Props) {
   const name = normalizeText(draft.child.name);
   const copy = bookCopy(name);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -37,7 +38,7 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
         {copy.title}
       </h1>
 
-      <div className={styles.card}>
+      {descriptionOnly ? null : <div className={styles.card}>
         <h2 className={styles.sectionTitle}>
           {copy.photoTitle} <span className={styles.optional}>{copy.optional}</span>
         </h2>
@@ -90,7 +91,7 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
         <p id="pw-photo-note" className={styles.hint}>
           {launchOrder ? 'התמונה תועלה באופן פרטי רק בשמירת ההזמנה. אפשר להמשיך עם תיאור מראה במקום תמונה.' : photoUrl ? copy.photoLocalNote : `${copy.photoNoPhoto} ${copy.photoLocalNote}`}
         </p>
-      </div>
+      </div>}
 
       <div className={styles.card}>
         <fieldset className={styles.fieldset} aria-describedby="pw-voice-note">

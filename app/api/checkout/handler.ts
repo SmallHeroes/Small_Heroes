@@ -15,6 +15,7 @@ import { createLogger } from '@/lib/logger';
 import { createPaymeCheckout } from '@/lib/payme';
 import { recoverEngineCheckout,personalCheckoutMetadata } from '@/lib/engine-site/checkout-recovery';
 import { assertEnginePrivateDatabase } from '@/lib/engine-site/private-assets';
+import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from '@/lib/engine-site/qa-order-policy';
 import { env, isFakePaymentEnabled, canUseFakePayments, isWaitlistMode } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
 import { evaluatePhotoGate } from '@/lib/resemblance-core';
@@ -238,16 +239,22 @@ export async function handleCheckoutPost(
       wizardProductBinding,
     } = await req.json();
     if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
+    const qa = engineQaScope();
+    if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin || appUrl !== qa.origin))
+      return NextResponse.json({ error: 'engine_qa_checkout_unavailable' }, { status: 503 });
     const releaseV1 = options.routeProtocol === RELEASE_V1_PROTOCOL;
     if (releaseV1) assertReleaseV1OperationalAdmission();
     logger.info('Checkout request received', { orderId });
 
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    const order = await prisma.order.findUnique({ where: { id: orderId },
+      include: { wizardSession: { select: { sessionId: true } } } });
     if (!order) {
       logger.warn('Checkout request order not found', { orderId });
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     const engineSitePricing = engineSiteCheckoutPricing(order);
+    if (qa && !engineSitePricing)
+      return NextResponse.json({ error: 'engine_qa_checkout_unavailable' }, { status: 503 });
     if (engineSitePricing && (!engineSiteCheckoutEnabled() || releaseV1)) {
       return NextResponse.json({ error: 'engine_site_checkout_unavailable' }, { status: 503 });
     }
@@ -260,6 +267,8 @@ export async function handleCheckoutPost(
       if (!parent || !order.userId || parent.user.id !== order.userId) {
         return NextResponse.json({ error: 'engine_site_order_access_denied' }, { status: 403 });
       }
+      if (qa ? !isEngineQaOrder(qa, order, order.wizardSession?.sessionId) : order.wizardSession?.sessionId === ENGINE_QA_SESSION_ID)
+        return NextResponse.json({ error: 'engine_qa_order_scope_required' }, { status: 403 });
     }
     if (engineSitePricing && typeof bodyCouponCode === 'string' && bodyCouponCode.trim()) {
       return NextResponse.json({ error: 'engine_site_launch_has_no_discounts_or_addons' }, { status: 422 });

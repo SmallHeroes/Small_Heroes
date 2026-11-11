@@ -1,5 +1,12 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-11 — Offline build and one fictional Wizard QA order
+
+- Guy approved local implementation at USD0 on `codex/engine-site-launch-20261104` from `0872430a`. The root layout and personal preview now load pinned local font assets, including Heebo, with upstream OFL notices. The exact Windows build and packaging passed offline. All 126 traces, including 23 engine routes, fit the measured limit. The largest engine trace was 215,493,332 bytes. Linux deployment and a hosted QA run are pending.
+- Dedicated staging binds one QA parent and a single atomic WizardSession slot in the exact isolated Supabase project. The real Wizard accepts a fictional description with Dad and replays the identical request. It refuses another draft, a different parent or a photo. Checkout, webhook, browser return and worker admission enforce the same slot. PayMe endpoints and checkout origins are Sandbox-only. Its native callback is confirmed using the stored sale and authenticated `get-sales` before a paid transition.
+- Both TypeScript checks and all 175 focused tests across 16 specs passed. The repository-wide check reached Vitest, logged a story-authoring timeout and was stopped after more than five minutes. Initial failure and retry evidence is retained outside the repo. No remote order, payment, generation, database or email write occurred. No push or deploy.
+- Next is independent manual review through Guy of the exact commit and frozen evidence. Use [the one-order QA checklist](docs/ai-workflow/WIZARD_QA_ONE_ORDER.md) for the later separately approved deployment and test. Existing book receipts and reserves stay in their original domains.
+
 ## M42 — approved USD0 queue lifecycle and existing-response settlement; independent QA pending (2026-11-10)
 
 - Guy approved implementation/automatic SAME Claude independent QA only. Codex is the sole writer on the existing engine-site-launch branch/worktree, base9fb50358. No provider GET/POST/key/env, new GO, reserve release, book resume/media/sixth plan, push/deploy/server/cleanup in this milestone.

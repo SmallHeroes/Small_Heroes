@@ -9,6 +9,7 @@ import { SOL_WRITING } from '@/lib/personal-wizard/sol-writing-route';
 import { NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS } from '@/lib/personal-wizard/native-page-proof';
 import { digestSchema, identifierSchema, microUsdSchema, utcSchema, engineSiteFail, type EngineOrderAuthority } from './contract';
 import {LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
+import { engineQaRequired, engineQaScope } from './qa-order-policy';
 
 export const ENGINE_RECIPE_VERSION = 'engine-site-native-production/v1';
 export const engineSpendPolicySchema = z.object({
@@ -54,6 +55,7 @@ export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true}) {
 }
 export const enginePolicyDigest = (policy: EngineSpendPolicy) => canonicalHash({ recipe: ENGINE_RECIPE_VERSION, policy, steps: engineRecipeSteps() });
 export function configuredEngineSpendPolicy(env: Readonly<Record<string, string | undefined>> = process.env) {
+  if (engineQaRequired(env) && !engineQaScope(env)) engineSiteFail('engine_qa_order_scope_required');
   if (env.ENGINE_SITE_WORKER_ENABLED !== 'true' || env.ENGINE_SITE_PROVIDERS_ENABLED !== 'true') engineSiteFail('engine_runtime_disabled');
   let raw: unknown; try { raw = JSON.parse(env.ENGINE_SITE_SPEND_POLICY ?? ''); } catch { engineSiteFail('engine_spend_policy_required'); }
   const policy = engineSpendPolicySchema.parse(raw);

@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { assertEngineStorageProjectBinding } from './storage-project';
 
 export const ENGINE_PRIVATE_BUCKET = 'engine-site-private';
 export interface EnginePrivateStorage {
@@ -38,20 +39,6 @@ export function enginePrivateStorage(client: SupabaseClient): EnginePrivateStora
       return url.href;
     },
   };
-}
-/** Bind the policy DB used by Prisma (DATABASE_URL in schema.prisma) to the Storage project.
- * Only standard hosted direct/pooler DSNs are admitted; custom domains require an explicit reviewed binding later. */
-export function assertEngineStorageProjectBinding(storageUrl: string | undefined, databaseUrl: string | undefined) {
-  try {
-    const api = new URL(storageUrl ?? ''), db = new URL(databaseUrl ?? '');
-    if([...db.searchParams.keys()].some(key=>['host','hostaddr'].includes(key.toLowerCase())))throw Error('engine_private_project_mismatch');
-    const project = /^([a-z0-9]{20})\.supabase\.co$/.exec(api.hostname)?.[1];
-    const direct = /^db\.([a-z0-9]{20})\.supabase\.co$/.exec(db.hostname)?.[1];
-    const pooler = /(^|\.)pooler\.supabase\.com$/.test(db.hostname)
-      ? /^[A-Za-z0-9_]+\.([a-z0-9]{20})$/.exec(decodeURIComponent(db.username))?.[1] : undefined;
-    if (api.protocol !== 'https:' || !['postgres:', 'postgresql:'].includes(db.protocol) || !project || (direct ?? pooler) !== project)
-      throw Error('engine_private_project_mismatch');
-  } catch { throw Error('engine_private_project_mismatch'); }
 }
 /** Called only by an authorized production request, never at import time. No credential logging. */
 export function productionEnginePrivateStorage() {

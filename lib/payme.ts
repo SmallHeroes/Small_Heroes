@@ -1,5 +1,6 @@
 import 'server-only';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { engineQaRequired, engineQaScope, isPaymeSandboxCheckoutUrl } from './engine-site/qa-order-policy';
 
 /**
  * Canonical PayMe webhook payload contract used by this integration.
@@ -58,8 +59,10 @@ export type ParsedPaymeWebhook = {
 };
 
 export function resolvePaymeConfig() {
+  const sandbox = engineQaRequired();
   return {
-    apiBaseUrl: (process.env.PAYME_API_BASE_URL || '').trim().replace(/\/$/, ''),
+    apiBaseUrl: sandbox && !engineQaScope() ? '' : (process.env.PAYME_API_BASE_URL || '').trim().replace(/\/$/, ''),
+    sandbox,
     /** Optional: host used to turn path-only checkout URLs into absolute PayMe links (when API returns `/pay/...`). */
     checkoutPageOrigin: (process.env.PAYME_CHECKOUT_PAGE_ORIGIN || '').trim().replace(/\/$/, ''),
     /** Stored in PAYME_API_KEY — PayMe seller_payme_id (e.g. MPL…). */
@@ -280,6 +283,7 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
   }
 
   const res = await fetch(endpoint, {
+    ...(cfg.sandbox ? { redirect: 'error' as const } : {}),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -312,6 +316,8 @@ export async function createPaymeCheckout(request: PaymeCheckoutRequest): Promis
     cfg.apiBaseUrl,
     cfg.checkoutPageOrigin || null
   );
+  if (cfg.sandbox && !isPaymeSandboxCheckoutUrl(checkoutUrl))
+    throw new PaymeCheckoutError('PayMe checkout origin is outside Sandbox');
   const checkoutId = pickString(root.payme_sale_id);
   return { checkoutUrl, checkoutId, raw };
 }
@@ -320,7 +326,7 @@ export type PaymeOrderSale={saleId:string;orderId:string;priceAgorot:number;curr
 /** Read-only reconciliation of a lost generate-sale reply. Every item is independently order/amount bound; no first-item fallback. */
 export async function queryPaymeOrderSales(orderId:string,amountAgorot:number,fetchImpl:typeof fetch=fetch):Promise<PaymeOrderSale[]> {
   const cfg=resolvePaymeConfig();if(!cfg.apiBaseUrl||!cfg.apiKey)throw Error('payme_order_query_unavailable');
-  const response=await fetchImpl(`${cfg.apiBaseUrl}/get-sales`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
+  const response=await fetchImpl(`${cfg.apiBaseUrl}/get-sales`,{method:'POST',...(cfg.sandbox ? { redirect: 'error' as const } : {}),headers:{'Content-Type':'application/json',Accept:'application/json'},
     body:JSON.stringify({seller_payme_id:cfg.apiKey,transaction_id:orderId.slice(0,50),page_size:500,page:1}),signal:AbortSignal.timeout(45_000)});
   const raw=await response.json().catch(()=>null) as any;
   if(!response.ok||!raw||Number(raw.status_code??0)!==0||!Array.isArray(raw.items)||raw.items.length>=500||
@@ -373,6 +379,7 @@ export async function verifyPaymePayment(params: {
   try {
     const endpoint = `${cfg.apiBaseUrl}/get-sales`;
     const res = await fetch(endpoint, {
+      ...(cfg.sandbox ? { redirect: 'error' as const, signal: AbortSignal.timeout(3_500) } : {}),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -450,6 +457,7 @@ export async function queryPaymeSale(
     return { state: 'unknown', rawStatus: null };
   }
   const res = await fetchImpl(`${cfg.apiBaseUrl}/get-sales`, {
+    ...(cfg.sandbox ? { redirect: 'error' as const } : {}),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
@@ -492,6 +500,7 @@ export async function refundPaymeSale(
     throw new Error('PayMe refund configuration is missing');
   }
   const res = await fetchImpl(`${cfg.apiBaseUrl}/refund-sale`, {
+    ...(cfg.sandbox ? { redirect: 'error' as const } : {}),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({

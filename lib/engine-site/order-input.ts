@@ -4,6 +4,7 @@ import { reviewedPersonalBookRequestSchema, normalizeText } from '@/lib/personal
 export const engineOrderInputSchema = z.object({
   version: z.literal('engine-site-order-input/v1'),
   optionsFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  fictionalQa: z.literal(true).optional(),
   request: reviewedPersonalBookRequestSchema,
   appearance: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('description'), description: z.string().min(10).max(1200)

@@ -1,11 +1,3 @@
-import {
-  Arimo,
-  David_Libre,
-  Frank_Ruhl_Libre,
-  Heebo,
-  Noto_Serif_Hebrew,
-  Rubik,
-} from 'next/font/google';
 import localFont from 'next/font/local';
 import { COMMON } from '@/content';
 
@@ -24,52 +16,62 @@ const suezOne = localFont({
   display: 'swap',
 });
 
-const heebo = Heebo({
-  subsets: ['hebrew', 'latin'],
-  weight: ['400', '500', '600'],
+const heebo = localFont({
+  src: './fonts/heebo/Heebo-Variable.ttf',
+  weight: '400 600',
   variable: '--font-heebo',
   display: 'swap',
 });
 
-const arimo = Arimo({
-  subsets: ['hebrew', 'latin'],
-  weight: ['400', '500', '700'],
+const arimo = localFont({
+  src: './fonts/arimo/Arimo-Variable.ttf',
+  weight: '400 700',
   variable: '--font-arimo',
   display: 'swap',
+  preload: false,
 });
 
 /* Secondary UI face (chips, tags, numerals); headings belong to Suez One. */
-const rubik = Rubik({
-  subsets: ['hebrew', 'latin'],
-  weight: 'variable',
+const rubik = localFont({
+  src: './fonts/rubik/Rubik-Variable.ttf',
+  weight: '300 900',
   variable: '--font-rubik',
   display: 'swap',
 });
 
 /** Body story prose — weight 400 for narrative; 500 emphasis; not for headings. */
-const frankRuhl = Frank_Ruhl_Libre({
-  subsets: ['hebrew', 'latin'],
-  weight: ['400', '500'],
+const frankRuhl = localFont({
+  src: './fonts/frankruhllibre/FrankRuhlLibre-Variable.ttf',
+  weight: '400 500',
   variable: '--font-frank',
   display: 'swap',
+  preload: false,
+  adjustFontFallback: 'Times New Roman',
 });
 
 /**
  * Display titles / running headers until ABRAHAM (Fontef) is licensed.
  * @see lib/book-layout/typography-tokens.ts
  */
-const davidLibre = David_Libre({
-  subsets: ['hebrew', 'latin'],
-  weight: ['400', '500', '700'],
+const davidLibre = localFont({
+  src: [
+    { path: './fonts/davidlibre/DavidLibre-Regular.ttf', weight: '400' },
+    { path: './fonts/davidlibre/DavidLibre-Medium.ttf', weight: '500' },
+    { path: './fonts/davidlibre/DavidLibre-Bold.ttf', weight: '700' },
+  ],
   variable: '--font-david',
   display: 'swap',
+  preload: false,
+  adjustFontFallback: 'Times New Roman',
 });
 
-const notoSerifHebrew = Noto_Serif_Hebrew({
-  subsets: ['hebrew'],
-  weight: ['400', '500', '700'],
+const notoSerifHebrew = localFont({
+  src: './fonts/notoserifhebrew/NotoSerifHebrew-Variable.ttf',
+  weight: '400 700',
   variable: '--font-noto-serif-hebrew',
   display: 'swap',
+  preload: false,
+  adjustFontFallback: 'Times New Roman',
 });
 
 export const metadata = {
