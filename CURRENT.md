@@ -1,5 +1,12 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-12 — Isolated Wizard Preview blocked on Vercel packaging
+
+- The independently reviewed `c623b911` was pushed to `codex/engine-site-launch-20261104`. Its isolated Vercel Preview compiled successfully on Linux with the vendored Heebo fonts. The post-build trace check held on two oversized legacy routes. The hosted log did not identify those routes. The webhook transport probe did not run.
+- A local Linux reproduction identified five over-limit legacy traces. The packaging correction excludes only root-level site images from those five server traces. Nested Wizard and category assets, public CDN files, native audio, and the 250,000,000-byte cap are preserved. A clean Linux rebuild and package check passed for all 126 measured traces (23 engine routes). The actual packaged filesystem preserved Wizard options and native media on the affected consumers.
+- Both TypeScript checks and 213 focused tests across 17 files passed offline. The initial run with build-only origin and database settings inherited by the tests failed eight cases. The failed run was preserved and the same code passed with the standard isolated test settings. The full repository check remains unqualified.
+- Next is a narrow independent re-gate of this packaging correction. The Claude Code background preflight was refused because its OAuth session could not refresh. The correction is local. The Preview verification settings keep payments, generation and delivery disabled. No hosted retry, webhook opening, QA order or provider spend occurred.
+
 ## 2026-11-11 — Offline build and one fictional Wizard QA order
 
 - Guy approved local implementation at USD0 on `codex/engine-site-launch-20261104` from `0872430a`. The root layout and personal preview now load pinned local font assets, including Heebo, with upstream OFL notices. The exact Windows build and packaging passed offline. All 126 traces, including 23 engine routes, fit the measured limit. The largest engine trace was 215,493,332 bytes. Linux deployment and a hosted QA run are pending.

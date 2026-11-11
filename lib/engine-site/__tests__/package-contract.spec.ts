@@ -6,6 +6,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { afterEach, vi } from 'vitest';
+import { personalWizardPublicAssetPaths } from '@/lib/personal-wizard/options';
 const load = createRequire(resolve('package.json'));
 const config = load(resolve('next.config.js'));
 const picomatch = load('next/dist/compiled/picomatch');
@@ -24,6 +25,20 @@ describe('general server package contract', () => {
       for (const file of ['style-references/01/current.png', 'style-references/01-child-template/child.png',
         'public/companions/any/style01-sheets/front.png', 'backend/assets/fonts/font.ttf', 'node_modules/@ffmpeg-installer/linux-x64/ffmpeg'])
         expect(excluded(route, file), `${route}: ${file}`).toBe(false);
+    });
+  it.each(['/api/dev/personal-wizard/intake/audio', '/api/dev/personal-wizard/intake/status',
+    '/api/dev/personal-wizard/book', '/api/dev/personal-wizard/simple-book', '/api/my-books'])(
+    '%s omits root site images and preserves nested Wizard and native media files', route => {
+      expect(excluded(route, 'public/Images/OpenBook.png')).toBe(true);
+      const required = [
+        ...personalWizardPublicAssetPaths().map(file => 'public' + file),
+        'public/Images/Categories/StartUri.webp',
+        'public/companions/elephant_momo/style01-sheets/front.png',
+        'node_modules/@ffmpeg-installer/linux-x64/ffmpeg',
+        'node_modules/@ffprobe-installer/linux-x64/ffprobe',
+      ];
+      for (const file of required) expect(excluded(route, file), file).toBe(false);
+      if (route.includes('/intake/')) expect(policy.needsMedia(route)).toBe(true);
     });
   it('forbids environment/credential trace paths on engine and legacy routes', () => {
     for (const route of ['/api/engine-site/v1/orders', '/api/generate/worker', '/api/payme/return'])

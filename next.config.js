@@ -223,6 +223,11 @@ const nextConfig = {
         ...(r === '/api/orders' ? [] : ['./story-bank/**/*']),
       ];
     }
+    // These legacy traces pick up root-level site images through broad filesystem tracing.
+    // Their consumers keep nested Wizard options, CDN URLs and native audio dependencies.
+    for (const route of ['/api/dev/personal-wizard/intake/audio', '/api/dev/personal-wizard/intake/status',
+      '/api/dev/personal-wizard/book', '/api/dev/personal-wizard/simple-book', '/api/my-books'])
+      excludes[route] = ['./public/Images/*.*'];
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
     excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE, ...ALL_OUTPUTS];
     // This debug route hard-403s on every Vercel deployment. Keep the restored
