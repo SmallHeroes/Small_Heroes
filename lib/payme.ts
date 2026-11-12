@@ -59,9 +59,10 @@ export type ParsedPaymeWebhook = {
 };
 
 export function resolvePaymeConfig() {
-  const sandbox = engineQaRequired();
+  const sandbox = engineQaRequired(), qa = sandbox ? engineQaScope() : null;
   return {
-    apiBaseUrl: sandbox && !engineQaScope() ? '' : (process.env.PAYME_API_BASE_URL || '').trim().replace(/\/$/, ''),
+    // A QA deployment talks to PayMe only in its valid Sandbox mode; fake-payment QA never calls PayMe.
+    apiBaseUrl: sandbox && (!qa || qa.payment !== 'payme_sandbox') ? '' : (process.env.PAYME_API_BASE_URL || '').trim().replace(/\/$/, ''),
     sandbox,
     /** Optional: host used to turn path-only checkout URLs into absolute PayMe links (when API returns `/pay/...`). */
     checkoutPageOrigin: (process.env.PAYME_CHECKOUT_PAGE_ORIGIN || '').trim().replace(/\/$/, ''),

@@ -10,9 +10,9 @@ import { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 import { engineSiteCheckoutPricing } from './offer';
 import { registerEngineOrderAuthority } from './order-meter';
 import { assertEnginePrivateDatabase } from './private-assets';
-import { engineRecipeSteps, enginePolicyDigest, type EngineSpendPolicy } from './platform-policy';
+import { engineOrderSteps, engineProfileAuthority, enginePolicyDigest, type EngineSpendPolicy } from './platform-policy';
 import type { EngineCheckpoint } from './durable-worker';
-import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from './qa-order-policy';
+import { engineOrderPaymentAccepted, engineQaRequired, engineQaScope, isEngineQaOrder, isEngineQaSessionId } from './qa-order-policy';
 
 export async function loadEngineOrderSnapshot(db: PrismaClient, orderId: string) {
   const qa = engineQaScope();
@@ -22,7 +22,7 @@ export async function loadEngineOrderSnapshot(db: PrismaClient, orderId: string)
   if (!order || order.frozenProductVersion !== ENGINE_SITE_PROTOCOL || !order.userId || !order.wizardSession)
     engineSiteFail('engine_personal_order_required');
   if (qa ? !isEngineQaOrder(qa, order, order.wizardSession.sessionId)
-    : order.wizardSession.sessionId === ENGINE_QA_SESSION_ID) engineSiteFail('engine_qa_order_scope_required');
+    : isEngineQaSessionId(order.wizardSession.sessionId)) engineSiteFail('engine_qa_order_scope_required');
   engineSiteCheckoutPricing(order);
   const record = z.object({ version: z.literal(ENGINE_SITE_PROTOCOL), ownerId: z.string(), inputSha256: z.string().length(64),
     requestSha256: z.string().length(64), optionsSha256: z.string().length(64), request: reviewedPersonalBookRequestSchema,
@@ -47,15 +47,16 @@ export async function loadEngineOrderSnapshot(db: PrismaClient, orderId: string)
 
 export async function startEnginePersonalJob(db: PrismaClient, orderId: string, policy: EngineSpendPolicy) {
   const { order, snapshot, inputSha256 } = await loadEngineOrderSnapshot(db, orderId);
-  if (!['paid', 'generating'].includes(order.status) || order.paymentProvider !== 'payme' || !order.paymeTransactionId ||
+  if (!['paid', 'generating'].includes(order.status) || !engineOrderPaymentAccepted(order, order.wizardSession?.sessionId) ||
       order.deliveryHoldReason !== null || order.manualReviewRequired) engineSiteFail('engine_personal_payment_required');
   const authority: EngineOrderAuthority = engineOrderAuthoritySchema.parse({ version: ENGINE_SITE_PROTOCOL, orderId,
     requestSha256: inputSha256, optionsSha256: snapshot.optionsSha256,
     offer: { id: ENGINE_SITE_LAUNCH_OFFER.id, revisionSha256: snapshot.offerSha256 }, engine: 'native-cde-book/v1',
     sourceRevision: policy.sourceRevision, policySha256: enginePolicyDigest(policy), purpose: 'customer', imageQuality: snapshot.imageQuality,
+    ...engineProfileAuthority(policy),
     narrativePages: ENGINE_SITE_LAUNCH_OFFER.narrativePages, entitlements: { narration: true, pdf: true }, budget: {
       maximumMicroUsd: policy.maximumMicroUsd, maximumCalls: policy.maximumCalls, approvalReference: policy.approvalReference,
-      approvedBy: policy.approvedBy, approvedAt: policy.approvedAt, steps: engineRecipeSteps(),
+      approvedBy: policy.approvedBy, approvedAt: policy.approvedAt, steps: engineOrderSteps(policy),
     } });
   await registerEngineOrderAuthority(db, authority);
   const result = await db.$transaction(async tx => {

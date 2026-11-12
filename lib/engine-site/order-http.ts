@@ -36,7 +36,8 @@ export async function handleEngineOrderPost(req: NextRequest, ports: {
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'engine_qa_parent_required') return NextResponse.json({ error: code }, { status: 403 });
-    const conflict = ['engine_order_draft_already_bound', 'engine_order_existing_binding_mismatch', 'engine_order_options_changed'].includes(code);
+    const conflict = ['engine_order_draft_already_bound', 'engine_order_existing_binding_mismatch', 'engine_order_options_changed',
+      'engine_qa_order_limit_reached'].includes(code);
     return NextResponse.json({ error: conflict ? code : 'engine_order_invalid' }, { status: conflict ? 409 : 422 });
   }
 }

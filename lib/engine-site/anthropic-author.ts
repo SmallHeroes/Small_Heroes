@@ -59,8 +59,18 @@ export function planAnthropicAuthor(authorityInput: EngineOrderAuthority, step: 
     call: { step, wireSha256: canonicalHash(wire), maximumMicroUsd: slot.maximumMicroUsd } };
 }
 
+/** Message Batches usage: the same token fields, billed at the documented 50% batch rate. */
+const batchUsageSchema = usageSchema.extend({ service_tier: z.literal('batch'),
+  speed: z.literal('standard').optional(), inference_geo: z.literal('global').optional() });
+
 /** API standard/global 4/20 + explicit 5m/1h writes and reads. No invented cache discount. */
-export function anthropicAuthorCost(raw: unknown): number | null {
+export function anthropicAuthorCost(raw: unknown, transport: 'messages' | 'batch' = 'messages'): number | null {
+  if (transport === 'batch') {
+    const parsed = z.object({ model: z.literal(ANTHROPIC_PERSONAL_AUTHOR_MODEL), usage: batchUsageSchema }).passthrough().safeParse(raw);
+    if (!parsed.success) return null;
+    const standard = anthropicAuthorCost({ ...parsed.data, usage: { ...parsed.data.usage, service_tier: 'standard', speed: 'standard', inference_geo: 'global' } });
+    return standard === null ? null : Math.ceil(standard / 2);
+  }
   const response = z.object({ model: z.literal(ANTHROPIC_PERSONAL_AUTHOR_MODEL), usage: usageSchema }).passthrough().safeParse(raw);
   if (!response.success) return null;
   const u = response.data.usage;

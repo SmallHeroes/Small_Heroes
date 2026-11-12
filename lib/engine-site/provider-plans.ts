@@ -13,6 +13,7 @@ import type { PreparedEngineCall, EngineProviderResult } from './durable-worker'
 import { standardEngineResponseSchema } from './response-schema';
 import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
 import {responseQueueTiming} from './responses-queue-policy';
+import { isCurrentCustomerEngine, ENGINE_AUTHOR_BATCH } from './current-engine-policy';
 
 export type EngineProviderPorts = {
   fetch: typeof fetch; openAIKey: () => string; anthropicKey: () => string;
@@ -44,7 +45,94 @@ export function rebindEnginePendingResponse(plan:PreparedEngineCall,ports:Engine
  if(canonicalHash(next.call)!==canonicalHash(plan.call)||canonicalHash(next.wire)!==canonicalHash(plan.wire))engineSiteFail('engine_pending_plan_changed');return next;
 }
 
+const BATCH_ENDPOINT = 'https://api.anthropic.com/v1/messages/batches';
+const BATCH_COMPLETION_MS = 3 * 60 * 60_000;
+/** Anthropic answer decoding shared by the direct and batch transports. A failed contract stays a settled unusable answer. */
+function anthropicAnswer(planned: ReturnType<typeof planAnthropicAuthor>, raw: any, ok: boolean, transport: 'messages' | 'batch') {
+  const cost = anthropicAuthorCost(raw, transport);
+  let output: unknown = null, usable = false;
+  try {
+    const blocks = raw?.content?.filter((b: any) => b.type === 'text');
+    if (ok && raw.type === 'message' && raw.model === planned.wire.body.model &&
+        raw.stop_reason === 'end_turn' && /^msg_[A-Za-z0-9_-]+$/.test(raw.id) && blocks?.length === 1 &&
+        raw.content.every((b: any) => ['text', 'thinking', 'redacted_thinking'].includes(b.type)) &&
+        raw.usage?.output_tokens <= planned.wire.body.max_tokens && cost !== null) {
+      output = planned.decode(JSON.parse(blocks[0].text)); usable = true;
+    }
+  } catch { /* Preserve raw, usage and failed contract as a settled unusable answer. */ }
+  return { output, raw, estimatedMicroUsd: cost, usable, model: raw?.model,
+    ...(raw?.usage ? { usage: { inputTokens: raw.usage.input_tokens, outputTokens: raw.usage.output_tokens } } : {}) };
+}
+
+/**
+ * The same author body through Message Batches: one short POST, then short polls in later invocations. No step
+ * outlives a serverless invocation. The batch id is a checkpoint of THIS claim only; nothing is ever resubmitted.
+ */
+function prepareEngineAnthropicBatch(a: EngineOrderAuthority, dispatch: CausalDispatch, ports: EngineProviderPorts): PreparedEngineCall {
+  const planned = planAnthropicAuthor(a, `story_${dispatch.stage}`, dispatch);
+  const customId = planned.call.step;
+  const wire = { version: 'engine-site-anthropic-batch/v1' as const, author: planned.wire, endpoint: BATCH_ENDPOINT, customId,
+    completionDeadlineMs: BATCH_COMPLETION_MS, maxRetries: 0 as const };
+  const call = { ...planned.call, wireSha256: canonicalHash(wire) };
+  const headers = () => ({ Authorization: `Bearer ${ports.anthropicKey()}`, 'anthropic-version': planned.wire.apiVersion, 'content-type': 'application/json' });
+  const assertWire = () => { if (canonicalHash(planAnthropicAuthor(a, planned.call.step, dispatch).wire) !== canonicalHash(planned.wire) ||
+    canonicalHash(wire) !== call.wireSha256) engineSiteFail('engine_provider_plan_changed'); };
+  return { call, wire, requiredMs: 20_000, completionDeadlineMs: BATCH_COMPLETION_MS,
+    admitSaved(answer) {
+      const raw = answer.raw as any, blocks = raw?.content?.filter((b: any) => b.type === 'text'), cost = anthropicAuthorCost(raw, 'batch');
+      if (answer.usable !== true || raw.type !== 'message' || raw.model !== planned.wire.body.model || raw.stop_reason !== 'end_turn' ||
+          !/^msg_[A-Za-z0-9_-]+$/.test(raw.id) || blocks?.length !== 1 || raw.usage?.output_tokens > planned.wire.body.max_tokens ||
+          cost === null || cost !== answer.estimatedMicroUsd || canonicalHash(planned.decode(JSON.parse(blocks[0].text))) !== canonicalHash(answer.output))
+        engineSiteFail('engine_saved_anthropic_invalid');
+    },
+    revalidate: assertWire,
+    async execute(pendingId, signal, assertDispatch) {
+      if (pendingId && !/^msgbatch_[A-Za-z0-9_-]+$/.test(pendingId)) engineSiteFail('engine_anthropic_batch_id_invalid');
+      await assertDispatch(); assertWire();
+      const timed = AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
+      if (!pendingId) {
+        // Any transport ambiguity here throws: the durable worker keeps the full reserve and never resubmits.
+        const response = await ports.fetch(BATCH_ENDPOINT, { method: 'POST', redirect: 'error', headers: headers(), signal: timed,
+          body: JSON.stringify({ requests: [{ custom_id: customId, params: planned.wire.body }] }) });
+        const raw = await jsonResponse(response);
+        if (response.ok && typeof raw.id === 'string' && /^msgbatch_[A-Za-z0-9_-]+$/.test(raw.id)) return { kind: 'pending', id: raw.id, raw };
+        // A definitive validation refusal creates no batch and bills nothing.
+        if ([400, 401, 403, 404, 413, 422].includes(response.status) && raw?.type === 'error')
+          return { kind: 'completed', result: { output: null, raw, estimatedMicroUsd: 0, usable: false } };
+        engineSiteFail('engine_anthropic_batch_create_unknown');
+      }
+      let status: any;
+      try {
+        const response = await ports.fetch(`${BATCH_ENDPOINT}/${encodeURIComponent(pendingId)}`, { method: 'GET', redirect: 'error', headers: headers(), signal: timed });
+        if (response.status === 429 || response.status >= 500) return { kind: 'pending', id: pendingId, raw: { transientPoll: true, status: response.status } };
+        status = await jsonResponse(response);
+        if (!response.ok || status.id !== pendingId) engineSiteFail('engine_anthropic_batch_status_invalid');
+      } catch (error) {
+        if (!signal.aborted && !(error instanceof Error && /engine_anthropic_batch_status_invalid/.test(error.message))) return { kind: 'pending', id: pendingId, raw: { transientPoll: true } };
+        throw error;
+      }
+      if (status.processing_status !== 'ended') return { kind: 'pending', id: pendingId, raw: { processing_status: status.processing_status } };
+      const resultsUrl = String(status.results_url ?? '');
+      if (!resultsUrl.startsWith(`${BATCH_ENDPOINT}/${pendingId}/`)) engineSiteFail('engine_anthropic_batch_results_url');
+      const results = await ports.fetch(resultsUrl, { method: 'GET', redirect: 'error', headers: headers(), signal: timed });
+      if (results.status === 429 || results.status >= 500) return { kind: 'pending', id: pendingId, raw: { transientResults: true, status: results.status } };
+      const text = await results.text();
+      if (!results.ok || Buffer.byteLength(text) > 8 * 1024 * 1024) engineSiteFail('engine_anthropic_batch_results_invalid');
+      const lines = text.split('\n').filter(line => line.trim()).map(line => JSON.parse(line));
+      const mine = lines.filter((line: any) => line?.custom_id === customId);
+      if (lines.length !== 1 || mine.length !== 1) engineSiteFail('engine_anthropic_batch_results_invalid');
+      const result = mine[0].result;
+      if (result?.type === 'succeeded') return { kind: 'completed', result: anthropicAnswer(planned, result.message, true, 'batch') };
+      // errored / canceled / expired requests are not billed.
+      if (['errored', 'canceled', 'expired'].includes(result?.type))
+        return { kind: 'completed', result: { output: null, raw: mine[0], estimatedMicroUsd: 0, usable: false } };
+      engineSiteFail('engine_anthropic_batch_results_invalid');
+    },
+  };
+}
+
 export function prepareEngineAnthropic(a: EngineOrderAuthority, dispatch: CausalDispatch, ports: EngineProviderPorts): PreparedEngineCall {
+  if (engineOrderAuthoritySchema.parse(a).authorTransport === ENGINE_AUTHOR_BATCH) return prepareEngineAnthropicBatch(a, dispatch, ports);
   const planned = planAnthropicAuthor(a, `story_${dispatch.stage}`, dispatch);
   return { call: planned.call, wire: planned.wire, requiredMs: planned.wire.timeoutMs,
     admitSaved(answer) {
@@ -99,8 +187,10 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
     (key, value) => key === 'image_url' ? '[private-image-bytes]' : value);
   const planRecoveryReview = (step === 'initial_storyboard_repair_2_review' ||
     step === 'initial_storyboard_repair_3_review' && !!authority.storyboardAttemptExtension ||
-    step === 'initial_storyboard_repair_4_review' && authority.storyboardAttemptExtension?.maxAttempts===5 && !!authority.storyboardConcurrencyPolicy) && authority.purpose === 'test' && !!schemaPolicy;
-  const boundReview = step === ENGINE_BOUND_REVIEW_STEP && authority.purpose === 'test' && authority.storyboardBindingPolicy === ENGINE_STORYBOARD_BINDING;
+    step === 'initial_storyboard_repair_4_review' && authority.storyboardAttemptExtension?.maxAttempts===5 && !!authority.storyboardConcurrencyPolicy) &&
+    (authority.purpose === 'test' || isCurrentCustomerEngine(authority)) && !!schemaPolicy;
+  const boundReview = step === ENGINE_BOUND_REVIEW_STEP && (authority.purpose === 'test' || isCurrentCustomerEngine(authority)) &&
+    authority.storyboardBindingPolicy === ENGINE_STORYBOARD_BINDING;
   const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview || boundReview ? 208_000 : 104_000;
   if (Buffer.byteLength(String(body.instructions) + textParts) > ceiling || Buffer.byteLength(JSON.stringify(body)) > 64 * 1024 * 1024)
     engineSiteFail('engine_responses_input_limit');

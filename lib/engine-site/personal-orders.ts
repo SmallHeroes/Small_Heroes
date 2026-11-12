@@ -7,7 +7,7 @@ import { ENGINE_SITE_PROTOCOL, engineSiteFail } from './contract';
 import { ENGINE_SITE_LAUNCH_OFFER as offer } from './offer-definition';
 import { engineOrderInputSchema } from './order-input';
 import { assertEnginePrivateDatabase } from './private-assets';
-import { ENGINE_QA_SESSION_ID, ENGINE_QA_VOICE, engineQaRequired, engineQaScope } from './qa-order-policy';
+import { ENGINE_QA_SESSION_ID, ENGINE_QA_SESSION_PREFIX, ENGINE_QA_VOICE, engineQaMaxOrders, engineQaRequired, engineQaScope } from './qa-order-policy';
 
 /** Short remains eight engine beats. The UI uses the offer's eight story pages, never the old spread display count. */
 export function resolveEngineWizardOptions(root: string = process.cwd()): PersonalWizardOptions {
@@ -43,7 +43,7 @@ export function prepareEngineOrder(input: unknown, parent: EngineParent, options
     ...(qa ? { fictionalQa: true as const } : {}),
     offer, offerSha256: canonicalHash(offer), imageQuality: offer.imageQuality };
   return { snapshot, inputSha256: canonicalHash(snapshot),
-    sessionId: qa ? ENGINE_QA_SESSION_ID : `engine-site-order/v1/${canonicalHash({ owner: parent.id, draft: data.request.draftId })}` };
+    sessionId: (qa ? ENGINE_QA_SESSION_PREFIX : 'engine-site-order/v1/') + canonicalHash({ owner: parent.id, draft: data.request.draftId }), qa: qa !== null };
 }
 
 /** Unique session row + row lock serialize identical retries; the stored snapshot is never overwritten. */
@@ -61,12 +61,16 @@ export async function createEnginePersonalOrder(db: PrismaClient, input: unknown
     }
     const inputSha256 = canonicalHash(snapshot);
     const sessionInput = { sessionId, data: { ...snapshot, inputSha256 } as unknown as Prisma.InputJsonValue };
-    // Use INSERT ON CONFLICT for the shared QA slot even when two different drafts arrive together.
-    if (sessionId === ENGINE_QA_SESSION_ID)
-      await tx.wizardSession.createMany({ data: [sessionInput], skipDuplicates: true });
-    const session = sessionId === ENGINE_QA_SESSION_ID
-      ? await tx.wizardSession.findUniqueOrThrow({ where: { sessionId } })
-      : await tx.wizardSession.upsert({ where: { sessionId }, update: {}, create: sessionInput });
+    if (prepared.qa) {
+      // Serialize QA allocation: a new draft may take a slot only while the database holds fewer QA orders than allowed.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('engine-site-qa-order-slots'))::text AS locked`;
+      const own = await tx.wizardSession.findUnique({ where: { sessionId } });
+      if (!own) {
+        const used = await tx.wizardSession.count({ where: { OR: [{ sessionId: ENGINE_QA_SESSION_ID }, { sessionId: { startsWith: ENGINE_QA_SESSION_PREFIX } }] } });
+        if (used >= engineQaMaxOrders()) engineSiteFail('engine_qa_order_limit_reached');
+      }
+    }
+    const session = await tx.wizardSession.upsert({ where: { sessionId }, update: {}, create: sessionInput });
     await tx.$queryRaw`SELECT "id" FROM "WizardSession" WHERE "id" = ${session.id} FOR UPDATE`;
     if (canonicalHash(session.data) !== canonicalHash({ ...snapshot, inputSha256 }))
       engineSiteFail('engine_order_draft_already_bound');

@@ -24,6 +24,7 @@ import { runAtomicOperation, hashOperationPayload } from '@/lib/generation-pipel
 import { readEngineOperatorHistory } from './operator-review-store';
 
 import { ENGINE_BOOK_SCOPE, engineFulfillmentEnabled } from './lifecycle-config';
+import { engineOrderPaymentAccepted } from './qa-order-policy';
 export { ENGINE_BOOK_SCOPE, engineFulfillmentEnabled } from './lifecycle-config';
 export function engineSiteOrigin(value = process.env.NEXT_PUBLIC_APP_URL) {
   if (!value) engineSiteFail('engine_site_origin_required'); const url = new URL(value);
@@ -36,6 +37,12 @@ const evidenceSchema = z.object({ version: z.literal('engine-site-readiness/v1')
   automatic: automaticSchema, gateSha256: digestSchema, policySha256: digestSchema, inputVersion: z.number().int(),
   deliveryFenceVersion: z.number().int() }).strict();
 type Tx = Prisma.TransactionClient;
+/** Verified PayMe sale, or a simulated QA payment inside a valid fake-payment QA scope (never refundable). */
+async function enginePaymentAcceptedInTx(db: Tx | PrismaClient, order: Parameters<typeof engineOrderPaymentAccepted>[0] & { wizardSessionId: string | null }) {
+  if (order.paymentProvider === 'payme') return Boolean(order.paymeTransactionId);
+  const session = order.wizardSessionId ? await db.wizardSession.findUnique({ where: { id: order.wizardSessionId }, select: { sessionId: true } }) : null;
+  return engineOrderPaymentAccepted(order, session?.sessionId);
+}
 const isOwnReviewHold = (reason: string | null) => reason === 'engine_site_hold:operator_review';
 function publicationPayload(context: EngineReaderContext, origin: string): BookReadyPayload {
   const readUrl = `${origin}/personal/orders/${encodeURIComponent(context.order.id)}`;
@@ -56,8 +63,8 @@ async function familyReadyInTx(tx: Tx, c: EngineReaderContext, lockPolicy = true
   const sent = await tx.deliveryOutbox.findFirst({ where: { orderId: c.order.id, scope: ENGINE_BOOK_SCOPE, status: 'sent', sentAt: { not: null } } });
   const policy = sent ? null : await readEngineLaunchPolicy(tx, lockPolicy);
   const { order, job } = await currentBinding(tx, c);
-  if (order.status !== 'ready' || order.manualReviewRequired || order.deliveryHoldReason !== null || order.paymentProvider !== 'payme' ||
-      !order.paymeTransactionId || job.status !== 'done') return null;
+  if (order.status !== 'ready' || order.manualReviewRequired || order.deliveryHoldReason !== null ||
+      !await enginePaymentAcceptedInTx(tx, order) || job.status !== 'done') return null;
   const delivered = await tx.deliveryOutbox.findFirst({ where: { orderId: order.id, scope: ENGINE_BOOK_SCOPE, status: 'sent', sentAt: { not: null } } });
   const readiness = await tx.bookReadiness.findUnique({ where: { orderId_scope: { orderId: order.id, scope: ENGINE_BOOK_SCOPE } } });
   if (readiness?.status !== 'passed' || !readiness.currentManifestId) return null;
@@ -136,7 +143,7 @@ async function admittedAutomatic(db: PrismaClient, c: EngineReaderContext, ports
 export async function recoverEnginePaidJob(db: PrismaClient, orderId: string, start: (id: string) => Promise<unknown>, kick: (id: string) => void) {
   const order = await db.order.findUnique({ where: { id: orderId } });
   if (!order || order.frozenProductVersion !== 'engine-site/v1' || !['paid', 'generating'].includes(order.status) ||
-      order.paymentProvider !== 'payme' || !order.paymeTransactionId || order.deliveryHoldReason !== null || order.manualReviewRequired)
+      !await enginePaymentAcceptedInTx(db, order) || order.deliveryHoldReason !== null || order.manualReviewRequired)
     return { status: 'ineligible' as const };
   if (!await engineRecoveryDue(db,orderId,'paid_job')) return {status:'retry_scheduled' as const};
   if (!await db.generationJob.findUnique({ where: { orderId } })) {

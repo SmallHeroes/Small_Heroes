@@ -14,6 +14,8 @@ export function enforceEngineStagingAccess(request:Request,env:StagingEnv=proces
    !user||!password||user.includes(':')||user.length>128||password.length<20||password.length>256||!/^[-A-Za-z0-9._~]+$/.test(user+password))
   return Response.json({error:'staging_access_configuration_required'},{status:503,headers});
  if(url.pathname==='/api/webhooks/payme'&&request.method==='POST')return null;
+ // Boolean-only wiring report (no values, no writes); still behind the platform's own deployment protection.
+ if(url.pathname==='/api/engine-site/v1/qa/readiness'&&request.method==='GET')return null;
  const authorization=(request.headers.get('authorization')??'').replace(/^basic /i,'Basic '),internal=request.headers.get('x-smallheroes-staging-access')??'',expected='Basic '+btoa(user+':'+password);
  if((authorization.length>1024||!sameSecret(authorization,expected))&&(internal.length>1024||!sameSecret(internal,expected)))return Response.json({error:'staging_access_required'},
   {status:401,headers:{...headers,'WWW-Authenticate':'Basic realm="Small Heroes staging", charset="UTF-8"'}});

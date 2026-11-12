@@ -158,7 +158,11 @@ export function chainGenerationWorker(
   // the automation bypass secret (when configured). Do NOT set the bypass cookie on this server
   // request. Only added when VERCEL_AUTOMATION_BYPASS_SECRET is present.
   const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
-  if (bypassSecret && process.env.ENGINE_SITE_STAGING_ACCESS_ENABLED !== 'true') {
+  // Option A (a dedicated staging project) has no platform protection and never forwards the bypass. A staging
+  // Preview inside the shared project opts in explicitly: its self-call to its own recorded host carries both the
+  // app's staging header (above) and the platform automation bypass.
+  const sharedProjectStaging = process.env.ENGINE_SITE_STAGING_PLATFORM_BYPASS === 'true' && process.env.VERCEL_ENV === 'preview';
+  if (bypassSecret && (process.env.ENGINE_SITE_STAGING_ACCESS_ENABLED !== 'true' || sharedProjectStaging)) {
     headers['x-vercel-protection-bypass'] = bypassSecret;
     headers['x-vercel-set-bypass-cookie'] = 'false';
   }

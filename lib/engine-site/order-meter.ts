@@ -11,6 +11,7 @@ import {
   authorityDigest, digestSchema, engineOrderAuthoritySchema, engineSiteFail, ENGINE_SITE_PROTOCOL,
   identifierSchema, microUsdSchema, type EngineOrderAuthority,
 } from './contract';
+import { ENGINE_QA_FAKE_PROVIDER, engineOrderPaymentAccepted } from './qa-order-policy';
 
 const KINDS = {
   authority: 'engine_site_authority_v1', claim: 'engine_site_call_claim_v1', result: 'engine_site_call_result_v1',
@@ -58,9 +59,17 @@ async function lockOrder(tx: Tx, orderId: string): Promise<LockedOrder> {
   return order;
 }
 
-function assertDispatchable(order: LockedOrder) {
-  if (!['paid', 'generating'].includes(order.status) || order.deliveryHoldReason !== null || order.manualReviewRequired ||
-      order.paymentProvider !== 'payme' || !order.paymeTransactionId?.trim()) engineSiteFail('engine_order_not_dispatchable');
+async function assertDispatchable(tx: Tx, order: LockedOrder) {
+  if (!['paid', 'generating'].includes(order.status) || order.deliveryHoldReason !== null || order.manualReviewRequired)
+    engineSiteFail('engine_order_not_dispatchable');
+  if (order.paymentProvider === 'payme') { if (!order.paymeTransactionId?.trim()) engineSiteFail('engine_order_not_dispatchable'); return; }
+  // Only a valid fake-payment QA scope can admit a non-PayMe order; its fields are read under the same Order lock.
+  if (order.paymentProvider !== ENGINE_QA_FAKE_PROVIDER) engineSiteFail('engine_order_not_dispatchable');
+  const rows = await tx.$queryRaw<Array<{ paymentId: string | null; userId: string | null; selectedVoice: string | null; sessionId: string | null }>>`
+    SELECT o."paymentId", o."userId", o."selectedVoice", s."sessionId" FROM "Order" o LEFT JOIN "WizardSession" s ON s."id" = o."wizardSessionId"
+     WHERE o."id" = ${order.id}`;
+  if (rows.length !== 1 || !engineOrderPaymentAccepted({ ...order, ...rows[0] }, rows[0].sessionId ?? undefined))
+    engineSiteFail('engine_order_not_dispatchable');
 }
 
 async function requireAuthority(tx: Tx, authority: EngineOrderAuthority) {
@@ -175,7 +184,7 @@ export async function reserveEngineCall(db: PrismaClient, input: {
   const claim = await runAtomicOperation(db, {
     operationKey: key, orderId: authority.orderId, kind: KINDS.claim,
     payloadHash: hashOperationPayload({ authoritySha256: digest, ...call }),
-    beforeReceipt: async tx => { assertDispatchable(await lockOrder(tx, authority.orderId)); await requireAuthority(tx, authority); },
+    beforeReceipt: async tx => { await assertDispatchable(tx, await lockOrder(tx, authority.orderId)); await requireAuthority(tx, authority); },
     run: async tx => {
       const state = await snapshot(tx, authority, key);
       if (state.blocked) engineSiteFail('engine_previous_call_unresolved_or_failed');

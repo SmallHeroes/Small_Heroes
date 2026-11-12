@@ -24,13 +24,14 @@ import {compactSchemaDefinitions} from '@/scripts/personal-opus-storyboard-trans
 import {LOCAL_INITIAL_REPAIR_WIRE_BYTES,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
 import type {SimpleStoryboardDiagnosticCall} from '@/lib/personal-wizard/simple-storyboard-diagnostic';
 import { enginePreparationContracts } from './storyboard-concurrency-policy';
+import { isCurrentCustomerEngine } from './current-engine-policy';
 
 export type StorySnapshot={request:ReviewedPersonalBookRequest;options:PersonalWizardOptions};
 export const engineStoryboardSupported=(status:string)=>['review_supported','review_supported_with_notes'].includes(status);
 /** Complete untruncated schema/source, bounded only for the explicit owner-test repair slot. */
 export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined,step='initial_storyboard_repair_1'){
  const extended=(step==='initial_storyboard_repair_3'||step==='initial_storyboard_repair_4'&&authority.storyboardConcurrencyPolicy&&authority.storyboardAttemptExtension?.maxAttempts===5)&&authority.storyboardAttemptExtension&&repair?.extension&&canonicalHash(authority.storyboardAttemptExtension)===canonicalHash(repair.extension);
- if(!(['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)||extended)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||authority.purpose!=='test'||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
+ if(!(['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)||extended)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||(authority.purpose!=='test'&&!isCurrentCustomerEngine(authority))||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
  const body=personalBookProviderPayload(call,'gpt-6.1-sol');body.text.format.schema=compactSchemaDefinitions(body.text.format.schema);
  if(Buffer.byteLength(JSON.stringify({...body,background:true,store:false}))>LOCAL_INITIAL_REPAIR_WIRE_BYTES)engineSiteFail('engine_initial_repair_wire_limit');return body;
 }

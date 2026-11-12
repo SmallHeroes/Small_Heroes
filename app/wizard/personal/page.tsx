@@ -10,8 +10,8 @@ export const metadata = { title: 'הספר האישי | גיבורים קטני�
 export default function EnginePersonalWizardPage() {
   if (!engineOrderIntakeEnabled()) notFound();
   const options = resolveEngineWizardOptions();
-  const fictionalQa = engineQaScope() !== null;
+  const qa = engineQaScope(), fictionalQa = qa !== null;
   const visibleOptions = fictionalQa ? { ...options, voices: options.voices.filter(voice => voice.id === ENGINE_QA_VOICE) } : options;
   return <PersonalWizard options={visibleOptions} launchOrder={{ optionsFingerprint: options.fingerprint,
-    checkoutEnabled: engineSiteCheckoutEnabled(), fictionalQa }} />;
+    checkoutEnabled: engineSiteCheckoutEnabled(), fictionalQa, ...(qa?.payment === 'fake' ? { qaFakePayment: true } : {}) }} />;
 }

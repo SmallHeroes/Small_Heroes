@@ -12,7 +12,7 @@ import {
   verifyPaymePayment,
 } from '@/lib/payme';
 import { isEngineSiteOrder } from '@/lib/engine-site/offer';
-import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from '@/lib/engine-site/qa-order-policy';
+import { engineQaRequired, engineQaScope, isEngineQaOrder, isEngineQaSessionId } from '@/lib/engine-site/qa-order-policy';
 import { recordEngineUnexpectedCapture } from '@/lib/engine-site/extra-payment';
 import { recordEnginePaymentProofRefusal,clearEnginePaymentProofRefusal } from '@/lib/engine-site/payment-proof-alert';
 import { env } from '@/lib/env';
@@ -24,7 +24,7 @@ const logger = createLogger({ subsystem: 'payme-webhook', route: '/api/webhooks/
 
 export async function POST(req: NextRequest) {
   const qa = engineQaScope();
-  if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin))
+  if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin || qa.payment === 'fake'))
     return NextResponse.json({ error: 'engine_qa_webhook_unavailable' }, { status: 503 });
   if (env.PAYMENT_PROVIDER !== 'payme') {
     logger.error('[PayMeWebhook] Rejected: PAYMENT_PROVIDER is not payme');
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
       if (!observed || !isEngineSiteOrder(observed) || !isEngineQaOrder(qa, observed, observed.wizardSession?.sessionId) ||
           observed.paymentProvider !== 'payme' || observed.paymentId !== parsed.transactionId)
         return NextResponse.json({ received: false, reason: 'engine_qa_sale_not_bound' }, { status: 409 });
-    } else if (observed?.wizardSession?.sessionId === ENGINE_QA_SESSION_ID) {
+    } else if (isEngineQaSessionId(observed?.wizardSession?.sessionId)) {
       return NextResponse.json({ received: false, reason: 'engine_qa_order_scope_required' }, { status: 403 });
     }
     if (observed && isEngineSiteOrder(observed)) {

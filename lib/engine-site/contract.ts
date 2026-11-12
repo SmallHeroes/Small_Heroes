@@ -5,7 +5,8 @@ import { canonicalHash } from '@/lib/canonical-json';
 import { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 import { ENGINE_STORYBOARD_BINDING } from './storyboard-binding-policy';
-import { locationSheetPolicySchema } from '@/lib/personal-wizard/location-sheet-projection';
+import { locationSheetPolicySchema, LOCATION_SHEET_PROJECTION_V2 } from '@/lib/personal-wizard/location-sheet-projection';
+import { ENGINE_CURRENT_CUSTOMER, ENGINE_AUTHOR_BATCH } from './current-engine-policy';
 import { engineImageModelPolicySchema } from './image-model-policy';
 import {localAttemptExtensionPolicySchema} from './local-attempt-extension-policy';
 import { SOURCE_CONCURRENCY_VERSION } from '@/lib/personal-wizard/storyboard-source-concurrency';
@@ -38,6 +39,10 @@ export const engineOrderAuthoritySchema = z.object({
   storyboardConcurrencyPolicy:z.literal(SOURCE_CONCURRENCY_VERSION).optional(),
   /** Opt-in local-test lifecycle only. Absent keeps all historical authority/wire bytes. */
   responsesQueuePolicy:z.literal('bounded-responses-queue/v1').optional(),
+  /** Hosted customer bundle of the current proven policies; requires every member below. Absent: historical recipe. */
+  currentEngine: z.literal(ENGINE_CURRENT_CUSTOMER).optional(),
+  /** Opus author through Message Batches (polled across invocations). Only within the current customer bundle. */
+  authorTransport: z.literal(ENGINE_AUTHOR_BATCH).optional(),
   sourceRevision: z.string().regex(/^[a-f0-9]{40}$/),
   policySha256: digestSchema,
   purpose: z.enum(['customer', 'test']),
@@ -57,22 +62,30 @@ export const engineOrderAuthoritySchema = z.object({
     }).strict()).min(1).max(1000),
   }).strict(),
 }).strict().superRefine((value, ctx) => {
+  const current = value.currentEngine === ENGINE_CURRENT_CUSTOMER;
+  if (current && (value.purpose !== 'customer' || value.responseSchemaPolicy !== ENGINE_RESPONSE_SCHEMA_POLICY ||
+      value.storyboardBindingPolicy !== ENGINE_STORYBOARD_BINDING || value.locationSheetPolicy !== LOCATION_SHEET_PROJECTION_V2 ||
+      !value.imageModelPolicy || value.storyboardConcurrencyPolicy !== SOURCE_CONCURRENCY_VERSION || value.authorTransport !== ENGINE_AUTHOR_BATCH ||
+      value.storyboardAttemptExtension !== undefined || value.responsesQueuePolicy !== undefined))
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['currentEngine'], message: 'current_engine_bundle_incomplete' });
+  if (value.authorTransport !== undefined && !current)
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['authorTransport'], message: 'author_transport_current_engine_only' });
   if(value.responsesQueuePolicy!==undefined&&(value.purpose!=='test'||value.responseSchemaPolicy===undefined))ctx.addIssue({code:z.ZodIssueCode.custom,path:['responsesQueuePolicy'],message:'queue_policy_current_test_only'});
-  if(value.storyboardConcurrencyPolicy!==undefined&&(value.purpose!=='test'||value.responseSchemaPolicy===undefined))ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardConcurrencyPolicy'],message:'concurrency_policy_current_test_only'});
+  if(value.storyboardConcurrencyPolicy!==undefined&&((value.purpose!=='test'&&!current)||value.responseSchemaPolicy===undefined))ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardConcurrencyPolicy'],message:'concurrency_policy_current_test_only'});
   if(value.storyboardAttemptExtension && (value.purpose!=='test'||!value.imageModelPolicy||!value.responseSchemaPolicy||!value.storyboardBindingPolicy||!value.locationSheetPolicy)) {
     ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardAttemptExtension'],message:'attempt_extension_current_test_only'});
   }
   if(value.storyboardAttemptExtension?.maxAttempts===5&&value.storyboardConcurrencyPolicy===undefined)ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardAttemptExtension'],message:'concurrency_extension_policy_required'});
-  if (value.imageModelPolicy !== undefined && value.purpose !== 'test') {
+  if (value.imageModelPolicy !== undefined && value.purpose !== 'test' && !current) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['imageModelPolicy'], message: 'image_model_policy_test_only' });
   }
-  if (value.responseSchemaPolicy !== undefined && value.purpose !== 'test') {
+  if (value.responseSchemaPolicy !== undefined && value.purpose !== 'test' && !current) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['responseSchemaPolicy'], message: 'schema_policy_test_only' });
   }
-  if(value.storyboardBindingPolicy!==undefined&&value.purpose!=='test'){
+  if(value.storyboardBindingPolicy!==undefined&&value.purpose!=='test'&&!current){
     ctx.addIssue({code:z.ZodIssueCode.custom,path:['storyboardBindingPolicy'],message:'storyboard_binding_test_only'});
   }
-  if(value.locationSheetPolicy!==undefined&&value.purpose!=='test'){
+  if(value.locationSheetPolicy!==undefined&&value.purpose!=='test'&&!current){
     ctx.addIssue({code:z.ZodIssueCode.custom,path:['locationSheetPolicy'],message:'location_sheet_policy_test_only'});
   }
   if (value.imageQuality !== ENGINE_SITE_LAUNCH_OFFER.imageQuality) {

@@ -38,6 +38,7 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
+import { isCurrentCustomerEngine } from './current-engine-policy';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld } from './storyboard-binding';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
@@ -173,6 +174,14 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         initialRepair={parentStoryboardDigest:initial.diagnostic.storyboardDigest,draft:initial.draft,review:initial.diagnostic.rawReview,
           parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
         initial=await prepareEngineStoryboard(runtime,snapshot,source,ports,'initial_repair_1',undefined,initialRepair);
+      }else if(!args.initialPreparation&&isCurrentCustomerEngine(authority)){
+        // The engine's ordinary base ceiling: each held plan gets one focused repair from its own review, chained, at most two.
+        for(const prefix of ['initial_repair_1','initial_repair_2'] as const){
+          if(engineStoryboardSupported(initial.diagnostic.status))break;
+          initialRepair={parentStoryboardDigest:initial.diagnostic.storyboardDigest,draft:initial.draft,review:initial.diagnostic.rawReview,
+            ...(initialRepair?{parentRepair:initialRepair}:{}),parentCompile:{selfCheckNames:true,stagingFields:true,selfCheckSourceSpans:true}};
+          initial=await prepareEngineStoryboard(runtime,snapshot,source,ports,prefix,undefined,initialRepair);
+        }
       }
       if(!engineStoryboardSupported(initial.diagnostic.status))engineSiteFail('engine_storyboard_held');
       let design: string;

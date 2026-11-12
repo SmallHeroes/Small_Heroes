@@ -9,14 +9,14 @@ import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/co
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { writeOrderHoldFenced } from '@/lib/generation-pipeline/order-authority';
 import { isEngineSiteOrder } from '@/lib/engine-site/offer';
-import { ENGINE_QA_SESSION_ID, engineQaRequired, engineQaScope, isEngineQaOrder } from '@/lib/engine-site/qa-order-policy';
+import { engineQaRequired, engineQaScope, isEngineQaOrder, isEngineQaSessionId } from '@/lib/engine-site/qa-order-policy';
 import {recordEnginePaymentProofRefusal,clearEnginePaymentProofRefusal} from '@/lib/engine-site/payment-proof-alert';
 
 const logger = createLogger({ subsystem: 'payme-return', route: '/api/payme/return' });
 
 export async function GET(req: NextRequest) {
   const qa = engineQaScope();
-  if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin))
+  if (engineQaRequired() && (!qa || req.nextUrl.origin !== qa.origin || qa.payment === 'fake'))
     return NextResponse.json({ error: 'engine_qa_return_unavailable' }, { status: 503 });
   const orderId = req.nextUrl.searchParams.get('orderId')?.trim() || '';
   const paymentIdFromQuery =
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     });
     personal = !!order && isEngineSiteOrder(order);
     if (qa ? !order || !personal || !isEngineQaOrder(qa, order, order.wizardSession?.sessionId)
-      : order?.wizardSession?.sessionId === ENGINE_QA_SESSION_ID)
+      : isEngineQaSessionId(order?.wizardSession?.sessionId))
       return NextResponse.json({ error: 'engine_qa_order_scope_required' }, { status: 403 });
     if(personal)await clearEnginePaymentProofRefusal(prisma,orderId,'').catch(()=>logger.warn('Payment notice reconciliation pending',{orderId}));
     if (!order || (order.paymentProvider && order.paymentProvider !== 'payme')) {

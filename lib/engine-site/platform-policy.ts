@@ -10,6 +10,12 @@ import { NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS } from '@/lib/personal-wi
 import { digestSchema, identifierSchema, microUsdSchema, utcSchema, engineSiteFail, type EngineOrderAuthority } from './contract';
 import {LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
 import { engineQaRequired, engineQaScope } from './qa-order-policy';
+import { ENGINE_CURRENT_CUSTOMER, ENGINE_AUTHOR_BATCH, CUSTOMER_STORYBOARD_REPAIR_STEPS } from './current-engine-policy';
+import { engineImageModelPolicySchema } from './image-model-policy';
+import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
+import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
+import { LOCATION_SHEET_PROJECTION_V2 } from '@/lib/personal-wizard/location-sheet-projection';
+import { SOURCE_CONCURRENCY_VERSION as ENGINE_SOURCE_CONCURRENCY_POLICY } from '@/lib/personal-wizard/storyboard-source-concurrency';
 
 export const ENGINE_RECIPE_VERSION = 'engine-site-native-production/v1';
 export const engineSpendPolicySchema = z.object({
@@ -18,9 +24,19 @@ export const engineSpendPolicySchema = z.object({
   approvalReference: identifierSchema, approvedBy: identifierSchema, approvedAt: utcSchema,
   /** A distinct explicit spend activation, never implied by the checkout flag or a proposed cap. */
   paidProviderActivation: z.literal('owner_approved_live_personal_orders'),
+  /** Optional: run new orders on the current engine bundle with this exact image model. Absent: historical recipe. */
+  engineProfile: z.object({ version: z.literal(ENGINE_CURRENT_CUSTOMER), imageModelPolicy: engineImageModelPolicySchema }).strict().optional(),
 }).strict();
 export type EngineSpendPolicy = z.infer<typeof engineSpendPolicySchema>;
-export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true}) {
+/** Exact authority fields a policy's profile adds to every new order. */
+export function engineProfileAuthority(policy: EngineSpendPolicy) {
+  if (!policy.engineProfile) return {};
+  return { currentEngine: ENGINE_CURRENT_CUSTOMER, authorTransport: ENGINE_AUTHOR_BATCH,
+    responseSchemaPolicy: ENGINE_RESPONSE_SCHEMA_POLICY, storyboardBindingPolicy: ENGINE_STORYBOARD_BINDING,
+    locationSheetPolicy: LOCATION_SHEET_PROJECTION_V2, storyboardConcurrencyPolicy: ENGINE_SOURCE_CONCURRENCY_POLICY,
+    imageModelPolicy: { ...policy.engineProfile.imageModelPolicy } } as const;
+}
+export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true;currentEngine?:true}) {
   const steps: { id: string; maximumMicroUsd: number }[] = [];
   const add = (id: string, maximumMicroUsd: number) => steps.push({ id, maximumMicroUsd });
   for (const stage of ['author', 'editor'] as const) {
@@ -34,6 +50,10 @@ export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true}) {
   }
   PREPARATION_STEPS.forEach((id, i) => add(id, PREPARATION_SLOTS[i]));
   if(options?.initialStoryboardRecovery){add('initial_storyboard_repair_1',LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add('initial_storyboard_repair_1_review',PREPARATION_SLOTS[1]);}
+  if(options?.currentEngine){
+    for(const step of CUSTOMER_STORYBOARD_REPAIR_STEPS){add(step,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add(`${step}_review`,PREPARATION_SLOTS[1]);}
+    add(ENGINE_BOUND_REVIEW_STEP,PREPARATION_SLOTS[1]);
+  }
   for (const name of ['reference_child', 'reference_child_repair']) {
     add(name, renderMaximum('x'.repeat(32_768), 4));
     add(`${name}_style_qa`, SOL_PIXEL_REVIEW_SLOT_MICRO_USD); add(`${name}_qa`, SOL_PIXEL_REVIEW_SLOT_MICRO_USD);
@@ -53,7 +73,8 @@ export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true}) {
   }
   return steps;
 }
-export const enginePolicyDigest = (policy: EngineSpendPolicy) => canonicalHash({ recipe: ENGINE_RECIPE_VERSION, policy, steps: engineRecipeSteps() });
+export const engineOrderSteps = (policy: EngineSpendPolicy) => engineRecipeSteps(policy.engineProfile ? { currentEngine: true } : undefined);
+export const enginePolicyDigest = (policy: EngineSpendPolicy) => canonicalHash({ recipe: ENGINE_RECIPE_VERSION, policy, steps: engineOrderSteps(policy) });
 export function configuredEngineSpendPolicy(env: Readonly<Record<string, string | undefined>> = process.env) {
   if (engineQaRequired(env) && !engineQaScope(env)) engineSiteFail('engine_qa_order_scope_required');
   if (env.ENGINE_SITE_WORKER_ENABLED !== 'true' || env.ENGINE_SITE_PROVIDERS_ENABLED !== 'true') engineSiteFail('engine_runtime_disabled');
@@ -67,5 +88,8 @@ export function assertEnginePolicyCurrent(authority: EngineOrderAuthority, env: 
   const policy = configuredEngineSpendPolicy(env);
   if (authority.policySha256 !== enginePolicyDigest(policy) || authority.sourceRevision !== policy.sourceRevision)
     engineSiteFail('engine_runtime_policy_changed');
+  const profile = engineProfileAuthority(policy) as Record<string, unknown>;
+  for (const key of ['currentEngine', 'authorTransport', 'responseSchemaPolicy', 'storyboardBindingPolicy', 'locationSheetPolicy', 'storyboardConcurrencyPolicy', 'imageModelPolicy'] as const)
+    if (canonicalHash(authority[key] ?? null) !== canonicalHash(profile[key] ?? null)) engineSiteFail('engine_runtime_policy_changed');
   digestSchema.parse(authority.policySha256);
 }

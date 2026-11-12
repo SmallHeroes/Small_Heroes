@@ -64,7 +64,7 @@ type Props = {
   nativeBookPreview?: boolean;
   simpleBookPreview?: boolean;
   momentumBookPreview?: boolean;
-  launchOrder?: { optionsFingerprint: string; checkoutEnabled: boolean; fictionalQa?: boolean };
+  launchOrder?: { optionsFingerprint: string; checkoutEnabled: boolean; fictionalQa?: boolean; qaFakePayment?: boolean };
 };
 
 export function PersonalWizard({ options, nativeBookPreview = false, simpleBookPreview = false, momentumBookPreview = false, launchOrder }: Props) {
@@ -384,6 +384,16 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
                 : 'לא הצלחנו לשמור. הפרטים נשארו כאן ואפשר לנסות שוב.' });
           return;
         }
+        if (launchOrder.checkoutEnabled && fictionalQa && launchOrder.qaFakePayment) {
+          // QA only: simulated payment for the fictional order, then the real status page.
+          setOrderState({ busy: true, message: 'מבצעים תשלום מדומה לבדיקה…' });
+          const payment = await fetch('/api/engine-site/v1/qa/fake-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store', body: JSON.stringify({ orderId: body.orderId }) });
+          const paid = await payment.json().catch(() => null);
+          if (!payment.ok || typeof paid?.next !== 'string' || !paid.next.startsWith('/personal/orders/')) throw Error('qa_fake_payment_failed');
+          window.location.assign(paid.next);
+          return;
+        }
         if (launchOrder.checkoutEnabled) {
           const payment = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ orderId: body.orderId }) });
@@ -474,7 +484,7 @@ export function PersonalWizard({ options, nativeBookPreview = false, simpleBookP
   let continueLabel = returnToSummary ? COMMON.backToSummary : COMMON.next;
   if (step === 1 && !returnToSummary) continueLabel = tellCopy(name, draft.child.address).continue;
   if (step === 4) continueLabel = launchOrder ? (launchOrder.checkoutEnabled
-    ? fictionalQa ? 'לבדיקת תשלום ב־PayMe' : `לתשלום · ₪${engineSitePriceIls()}`
+    ? fictionalQa ? (launchOrder.qaFakePayment ? 'תשלום מדומה ויצירת הספר (בדיקה)' : 'לבדיקת תשלום ב־PayMe') : `לתשלום · ₪${engineSitePriceIls()}`
     : 'שמירת פרטי הספר') : summaryCopy(name, draft.child.address).finish;
   const continueDisabled =
     step === 4 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent || orderState.busy ||

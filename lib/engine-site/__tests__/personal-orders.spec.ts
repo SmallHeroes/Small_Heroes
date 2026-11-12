@@ -9,7 +9,7 @@ import { engineSiteCheckoutPricing } from '../offer';
 import { ENGINE_SITE_LAUNCH_OFFER } from '../offer-definition';
 import { syntheticEngineOrderInput, syntheticEngineQaEnv, syntheticQaOrigin } from './synthetic-order';
 import { assertEnginePrivateStoragePolicy } from '../private-assets';
-import { ENGINE_QA_SESSION_ID } from '../qa-order-policy';
+import { ENGINE_QA_SESSION_ID, isEngineQaSessionId } from '../qa-order-policy';
 
 const parent = { id: 'synthetic_parent', email: 'parent@example.invalid', name: 'Synthetic Parent' };
 const options = resolveEngineWizardOptions();
@@ -19,7 +19,14 @@ function adapter(tx: Transaction) {
   return {
     $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) =>
       (await tx.query(strings.reduce((s, p, i) => s + (i ? `$${i}` : '') + p, ''), values)).rows,
+    $executeRaw: async (strings: TemplateStringsArray, ...values: unknown[]) =>
+      (await tx.query(strings.reduce((s, p, i) => s + (i ? `$${i}` : '') + p, ''), values)).rows.length,
     wizardSession: {
+      findUnique: async ({ where }: { where: { sessionId: string } }) =>
+        (await tx.query('SELECT * FROM "WizardSession" WHERE "sessionId"=$1', [where.sessionId])).rows[0] ?? null,
+      count: async ({ where }: { where: { OR: [{ sessionId: string }, { sessionId: { startsWith: string } }] } }) =>
+        Number((await tx.query<{ n: number }>('SELECT count(*)::int AS n FROM "WizardSession" WHERE "sessionId"=$1 OR starts_with("sessionId",$2)',
+          [where.OR[0].sessionId, where.OR[1].sessionId.startsWith])).rows[0].n),
       upsert: async ({ create }: { create: { sessionId: string; data: unknown } }) => {
         await tx.query('INSERT INTO "WizardSession" (id,"sessionId",data) VALUES ($1,$2,$3) ON CONFLICT ("sessionId") DO NOTHING',
           [randomUUID(), create.sessionId, JSON.stringify(create.data)]);
@@ -60,7 +67,7 @@ describe('dedicated QA Wizard intake', () => {
     for (const [name, value] of Object.entries(syntheticEngineQaEnv())) vi.stubEnv(name, value);
   });
 
-  it('commits one singleton through the HTTP handler and replays only the identical draft', async () => {
+  it('caps QA orders at the configured count through the HTTP handler and replays only the identical draft', async () => {
     const send = (input: unknown, actor = parent) => handleEngineOrderPost(new NextRequest(syntheticQaOrigin + '/api/engine-site/v1/orders', {
       method: 'POST', headers: { origin: syntheticQaOrigin, 'content-type': 'application/json' }, body: JSON.stringify(input),
     }), { enabled: true, parent: async () => actor, create: (value, owner) => createEnginePersonalOrder(db, value, owner, options) });
@@ -74,8 +81,20 @@ describe('dedicated QA Wizard intake', () => {
     const replay = await send(winner === 0 ? input : secondDraft);
     expect(replay.status).toBe(200);
     expect(await replay.json()).toMatchObject({ orderId: saved.orderId, replay: true });
-    expect((await pg.query('SELECT "sessionId" FROM "WizardSession"')).rows).toEqual([{ sessionId: ENGINE_QA_SESSION_ID }]);
+    const sessions = (await pg.query<{ sessionId: string }>('SELECT "sessionId" FROM "WizardSession"')).rows;
+    expect(sessions).toHaveLength(1);
+    expect(isEngineQaSessionId(sessions[0].sessionId)).toBe(true);
+    expect(sessions[0].sessionId).not.toBe(ENGINE_QA_SESSION_ID);
     expect((await pg.query('SELECT id FROM "Order"')).rows).toEqual([{ id: saved.orderId }]);
+  });
+
+  it('admits a second distinct QA draft only when the configured count allows it', async () => {
+    vi.stubEnv('ENGINE_SITE_QA_MAX_ORDERS', '2');
+    const first = await createEnginePersonalOrder(db, { ...syntheticEngineOrderInput('dad_v2'), fictionalQa: true }, parent, options);
+    const second = await createEnginePersonalOrder(db, { ...syntheticEngineOrderInput('dad_v2', 'd_synthetic0002'), fictionalQa: true }, parent, options);
+    expect(first.orderId).not.toBe(second.orderId);
+    await expect(createEnginePersonalOrder(db, { ...syntheticEngineOrderInput('dad_v2', 'd_synthetic0003'), fictionalQa: true }, parent, options))
+      .rejects.toThrow('engine_qa_order_limit_reached');
   });
 
   it('refuses missing declaration, wrong voice and photo intake before any write', async () => {

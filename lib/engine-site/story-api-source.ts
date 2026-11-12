@@ -9,7 +9,11 @@ import type { PersonalWizardOptions } from '@/lib/personal-wizard/options';
 import { simpleAuthorCall, simpleEditorCall, writeSimpleStory, prepareSimpleStory } from '@/lib/personal-wizard/simple-story-engine';
 import { admitCurrentSimpleStorySource, ANTHROPIC_SIMPLE_SOURCE_VERSION, projectSimpleSolReceipt } from '@/lib/personal-wizard/simple-story-source';
 import { SIMPLE_CHILD_MOMENTUM_EXPERIENCE } from '@/lib/personal-wizard/simple-story-experience';
-import { engineResponseText } from './provider-plans';
+import { engineResponseText, prepareEngineAnthropic, type EngineProviderPorts } from './provider-plans';
+import { ENGINE_AUTHOR_BATCH } from './current-engine-policy';
+
+const noPort = (): never => { throw Error('engine_story_receipt_dispatch_forbidden'); };
+const NO_PORTS: EngineProviderPorts = { fetch: noPort, openAIKey: noPort, anthropicKey: noPort };
 import type { SimpleStoryCall } from '@/lib/personal-wizard/simple-story-engine';
 import type { CausalDispatch } from '@/lib/personal-wizard/story-causal-experiment-runner';
 
@@ -19,13 +23,16 @@ export function simpleAnthropicDispatch(call: SimpleStoryCall, orderId: string):
 }
 export function projectEngineStoryApiReceipt(authority: EngineOrderAuthority, call: SimpleStoryCall, answer: EngineProviderResult) {
   const plan = planAnthropicAuthor(authority, `story_${call.stage}`, simpleAnthropicDispatch(call, authority.orderId));
+  const batch = authority.authorTransport === ENGINE_AUTHOR_BATCH;
+  // The batch transport wraps the same author body; its claim binds the batch wire.
+  const wireSha256 = batch ? prepareEngineAnthropic(authority, simpleAnthropicDispatch(call, authority.orderId), NO_PORTS).call.wireSha256 : plan.call.wireSha256;
   const raw = z.object({ id: z.string().regex(/^msg_[A-Za-z0-9_-]+$/), type: z.literal('message'),
     model: z.literal('claude-opus-5-5'), stop_reason: z.literal('end_turn'),
     content: z.array(z.object({ type: z.string(), text: z.string().optional() }).passthrough()),
     usage: z.object({ input_tokens: z.number().int().nonnegative(), output_tokens: z.number().int().nonnegative() }).passthrough(),
   }).passthrough().parse(answer.raw);
   const texts = raw.content.filter(b => b.type === 'text');
-  const cost = anthropicAuthorCost(raw);
+  const cost = anthropicAuthorCost(raw, batch ? 'batch' : 'messages');
   if (texts.length !== 1 || typeof texts[0].text !== 'string' || cost === null || cost !== answer.estimatedMicroUsd ||
       cost > plan.call.maximumMicroUsd || raw.usage.output_tokens > call.maxOutputTokens ||
       hash(plan.decode(JSON.parse(texts[0].text))) !== hash(answer.output)) throw Error('engine_story_api_receipt_invalid');
@@ -34,7 +41,7 @@ export function projectEngineStoryApiReceipt(authority: EngineOrderAuthority, ca
     recordDigest: hash(answer), sessionId: raw.id, model: raw.model,
     completed: true as const, terminationConfirmed: true as const, estimatedMicroUsd: cost,
     usage: { inputTokens: raw.usage.input_tokens, outputTokens: raw.usage.output_tokens },
-    costKind: 'anthropic_api_usage_estimate_not_invoice' as const, wireSha256: plan.call.wireSha256, rawSha256: hash(raw) };
+    costKind: 'anthropic_api_usage_estimate_not_invoice' as const, wireSha256, rawSha256: hash(raw) };
 }
 /** Rebuild through the exact existing source/compiler admission; API records never pretend to be CLI stdout. */
 export function createEngineStoryApiSource(authority: EngineOrderAuthority, request: unknown,
