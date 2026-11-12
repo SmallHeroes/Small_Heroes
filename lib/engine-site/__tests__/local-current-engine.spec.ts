@@ -16,6 +16,10 @@ import {syntheticEngineOrderInput} from './synthetic-order';
 import {authority} from './fixtures';
 import {engineChildAnchorPose} from '../native-recipe';
 import {CHILD_ANCHOR_POSE_V3,CHILD_ANCHOR_POSE_VERSION} from '@/lib/personal-wizard/child-anchor-style';
+import {STORYBOARD_BOUND_REPAIR_VERSION} from '@/lib/personal-wizard/storyboard-repair';
+import {ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP} from '../storyboard-binding-policy';
+import {engineBoundRepairAvailable} from '../storyboard-binding';
+import {localInitialRepairBody,prepareEngineStoryboard} from '../story-preparation';
 
 const roots:string[]=[];
 afterEach(()=>{vi.restoreAllMocks();for(const r of roots.splice(0)){if(path.dirname(r)!==path.resolve(tmpdir())||!path.basename(r).startsWith('sh_local_current_'))throw Error('owned_test_only');rmSync(r,{recursive:true,force:true});}});
@@ -118,6 +122,35 @@ describe('local rehearsal of the current customer engine',()=>{
   const test={...authority(),purpose:'test' as const,responseSchemaPolicy:a.responseSchemaPolicy};
   expect(()=>prepareEngineResponse(test,'initial_storyboard_repair_1_review',body(104_001),x=>x,p)).toThrow('engine_responses_input_limit');
   expect(()=>prepareEngineResponse(test,'initial_storyboard_repair_1_review',body(104_000),x=>x,p)).not.toThrow('engine_responses_input_limit');
+ });
+ it('the current engine owns one bound repair (both slots, 1.2M reserve, 208 KB review); every other authority keeps the old stop',async()=>{
+  const a=current(),p={fetch:vi.fn() as unknown as typeof globalThis.fetch,openAIKey:()=>'unused',anthropicKey:()=>'unused'};
+  expect(a.budget.steps.find(s=>s.id===ENGINE_BOUND_REPAIR_STEP)?.maximumMicroUsd).toBe(1_200_000);
+  expect(a.budget.steps.some(s=>s.id===ENGINE_BOUND_REPAIR_REVIEW_STEP)).toBe(true);
+  expect(engineBoundRepairAvailable(a)).toBe(true);
+  // An authority without the slots (every historical one) and a test authority never get it.
+  expect(engineBoundRepairAvailable({...a,budget:{...a.budget,steps:a.budget.steps.filter(s=>s.id!==ENGINE_BOUND_REPAIR_STEP)}})).toBe(false);
+  expect(engineBoundRepairAvailable({...a,purpose:'test'} as any)).toBe(false);
+  expect(engineBoundRepairAvailable({...authority(),purpose:'customer'})).toBe(false);
+  const body=(bytes:number)=>({model:'gpt-6.1-sol',service_tier:'default',store:false,reasoning:{effort:'medium'},instructions:'',input:'x'.repeat(bytes),
+   max_output_tokens:12000,text:{format:{type:'json_schema',name:'synthetic',strict:true,schema:{type:'object',properties:{},required:[],additionalProperties:false}}}});
+  expect(prepareEngineResponse(a,ENGINE_BOUND_REPAIR_REVIEW_STEP,body(208_000),x=>x,p).call.step).toBe(ENGINE_BOUND_REPAIR_REVIEW_STEP);
+  expect(()=>prepareEngineResponse(a,ENGINE_BOUND_REPAIR_REVIEW_STEP,body(208_001),x=>x,p)).toThrow('engine_responses_input_limit');
+  expect(()=>prepareEngineResponse(a,ENGINE_BOUND_REPAIR_STEP,body(104_001),x=>x,p)).toThrow('engine_responses_input_limit');
+  // The repair wire: only a marked bound repair at its own step on the current engine; never an ordinary repair there or a bound one elsewhere.
+  const call:any={stage:'storyboard',instructions:'',input:'{}',schema:z.object({}).strict(),maxOutputTokens:40_000,context:{narrativeSpreads:8,sourceDigest:'a'.repeat(64)}};
+  const plain={parentStoryboardDigest:'a'.repeat(64),draft:{},review:{}},bound={...plain,binding:STORYBOARD_BOUND_REPAIR_VERSION} as const;
+  expect(()=>localInitialRepairBody(a,call,bound,ENGINE_BOUND_REPAIR_STEP)).not.toThrow('engine_initial_repair_authority');
+  expect(()=>localInitialRepairBody(a,call,plain,ENGINE_BOUND_REPAIR_STEP)).toThrow('engine_initial_repair_authority');
+  expect(()=>localInitialRepairBody(a,call,bound,'initial_storyboard_repair_1')).toThrow('engine_initial_repair_authority');
+  expect(()=>localInitialRepairBody({...authority(),purpose:'test'} as any,call,bound,ENGINE_BOUND_REPAIR_STEP)).toThrow('engine_initial_repair_authority');
+  // The storyboard stage refuses a bound repair without its marker, its appearance or its authority, and a marker on any other prefix.
+  const rt=(x:any)=>({checkpoint:{authority:x}}) as any,existing={} as any;
+  await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'bound_repair')).rejects.toThrow('engine_bound_repair_authority');
+  await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'bound_repair',undefined,bound)).rejects.toThrow('engine_bound_repair_authority');
+  await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'bound_repair',existing,plain)).rejects.toThrow('engine_bound_repair_authority');
+  await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'initial_repair_1',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
+  await expect(prepareEngineStoryboard(rt({...authority(),purpose:'test'}),{} as any,{} as any,p,'bound_repair',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
  });
  it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
   const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();

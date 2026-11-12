@@ -36,8 +36,8 @@ import { INSTANCE_DISTINCTION_VERSION, INSTANCE_STORYBOARD_ADDENDUM, instanceDis
 import { STORYBOARD_PRESERVATION_VERSION, PRESERVATION_STORYBOARD_ADDENDUM, assertStoryboardPreservation, type StoryboardPreservation } from './storyboard-preservation';
 import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } from './storyboard-scene-location';
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from './storyboard-compiler-rules';
-import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_ATTEMPT_EXTENSION_V2, assertStoryboardRepair, storyboardRepairFindings,
-  type StoryboardRepair } from './storyboard-repair';
+import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_ATTEMPT_EXTENSION_V2, STORYBOARD_BOUND_REPAIR_VERSION, assertStoryboardRepair,
+  storyboardRepairFindings, type StoryboardRepair } from './storyboard-repair';
 import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
 import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck,
   type StoryboardSelfCheck } from './storyboard-self-check';
@@ -148,10 +148,13 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   landmarkKindContract?: true, preservation?: StoryboardPreservation, sceneLocationContract?: true, compilerRulesContract?: true, repair?: StoryboardRepair,
   drawnInstantContract?: true, visibleMomentContract?: true, selfCheckContract?: true, reviewImpactPolicy?: true, claimBasisContract?: true,
   calibrationContract?: true, presenceContract?: true, stateParityContract?: true, instanceDistinctionContract?: true, engineContinuity?: EngineContinuityOptions, existingChildAppearance?: ExistingChildAppearance) {
+  // An existing child appearance admits no repair or preservation, except exactly one bound repair (storyboard-bound-repair/v1) of the bound
+  // board that its own bound review held; a bound repair needs that appearance (its parent is the bound board, compiled with it).
+  const boundRepair = repair !== undefined && typeof repair === 'object' && repair !== null && 'binding' in repair;
   if(existingChildAppearance!==undefined){
     assertExistingChildAppearance(existingChildAppearance);
-    if(actorOwnedAppearance!==true||repair!==undefined||preservation!==undefined)fail('existing_child_appearance_scope');
-  }
+    if(actorOwnedAppearance!==true||(repair!==undefined&&!boundRepair)||preservation!==undefined)fail('existing_child_appearance_scope');
+  }else if(boundRepair)fail('existing_child_appearance_scope');
   engineContinuity = assertEngineContinuityOptions(engineContinuity, instanceDistinctionContract);
   if(engineContinuity?.sourceConcurrency && (presenceContract!==true||stateParityContract!==true))fail('source_concurrency_policy');
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
@@ -257,7 +260,9 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
         added.has('reviewImpactPolicy') ? undefined : reviewImpactPolicy, added.has('claimBasisContract') ? undefined : claimBasisContract,
         added.has('calibrationContract') ? undefined : calibrationContract, added.has('presenceContract') ? undefined : presenceContract,
         added.has('stateParityContract') ? undefined : stateParityContract, instanceDistinctionContract,
-        parentContinuity&&Object.keys(parentContinuity).length?parentContinuity as EngineContinuityOptions:undefined);
+        parentContinuity&&Object.keys(parentContinuity).length?parentContinuity as EngineContinuityOptions:undefined,
+        // A bound repair's parent is the bound board: the same appearance, no repair of its own.
+        repair.binding === STORYBOARD_BOUND_REPAIR_VERSION ? existingChildAppearance : undefined);
       // A parent compiled under an opt-in compile option (its own bound marker) recompiles under it; absent, exactly the existing compile.
       parent = repair.parentCompile ? compilePersonalStoryboard(parentSource, structuredClone(repair.draft), repair.parentCompile)
         : compilePersonalStoryboard(parentSource, structuredClone(repair.draft));
@@ -326,7 +331,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       ...(repair.parentRepair ? { parentRepair: structuredClone(repair.parentRepair) } : {}),
       ...(repair.addedContracts ? { addedContracts: [...repair.addedContracts] } : {}), ...(contractFindings ? { contractFindings } : {}),
       ...(repair.parentCompile ? { parentCompile: { ...repair.parentCompile } } : {}), ...(extension ? { extension: { ...extension } } : {}),
-      ...(typedFindings ? { typedFindings } : {}) };
+      ...(repair.binding ? { binding: repair.binding } : {}), ...(typedFindings ? { typedFindings } : {}) };
   })();
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
     request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion, companionVisualAuthority,
@@ -352,7 +357,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(held ? { storyboardRepair: { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: held.parentStoryboardDigest, draft: digest(held.draft),
       review: digest(held.review), ...(held.parentRepair ? { parentRepair: digest(held.parentRepair) } : {}),
       ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}), ...(held.diagnosis ? { diagnosis: diagnosisDigest(held.diagnosis) } : {}),
-      ...(held.parentCompile ? { parentCompile: held.parentCompile } : {}), ...(held.extension ? { extension: held.extension } : {}) } } : {}),
+      ...(held.parentCompile ? { parentCompile: held.parentCompile } : {}), ...(held.extension ? { extension: held.extension } : {}),
+      ...(held.binding ? { binding: held.binding } : {}) } } : {}),
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}),
     ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
@@ -376,7 +382,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     ...(prior ? { preservation: prior } : {}),
     ...(held ? { repair: { parentStoryboardDigest: held.parentStoryboardDigest, draft: held.draft, review: held.review,
       ...(held.parentRepair ? { parentRepair: held.parentRepair } : {}), ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}),
-      ...(held.parentCompile ? { parentCompile: held.parentCompile } : {}), ...(held.extension ? { extension: held.extension } : {}) } } : {}),
+      ...(held.parentCompile ? { parentCompile: held.parentCompile } : {}), ...(held.extension ? { extension: held.extension } : {}),
+      ...(held.binding ? { binding: held.binding } : {}) } } : {}),
     brief: prepared.brief, companionVisualAuthority, companionDescription: companionVisualAuthority.description,
     ...(companionScale ? { companionScale } : {}),
     planningInput: {

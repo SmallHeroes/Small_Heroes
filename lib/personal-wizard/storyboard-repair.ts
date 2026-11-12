@@ -35,7 +35,14 @@ export type StoryboardAttemptExtension = { version: typeof STORYBOARD_ATTEMPT_EX
  */
 export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown; review: unknown; parentRepair?: StoryboardRepair;
   addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][]; parentCompile?: { selfCheckNames: true; stagingFields?: true; selfCheckSourceSpans?: true };
-  extension?: StoryboardAttemptExtension };
+  extension?: StoryboardAttemptExtension; binding?: typeof STORYBOARD_BOUND_REPAIR_VERSION };
+/**
+ * A BOUND repair (storyboard-bound-repair/v1): one focused repair of a BOUND storyboard (an accepted parent draft recompiled, unchanged, with
+ * the admitted existing child appearance) that its own new bound review held. The parent is recompiled with that same appearance, so the child
+ * (identity, design and clothing) stays pinned by the existing-appearance schema and compile; only the findings of the bound review are
+ * repaired. Outermost only: no parent repair, added contracts or extension. Absent: exactly the original shape.
+ */
+export const STORYBOARD_BOUND_REPAIR_VERSION = 'storyboard-bound-repair/v1' as const;
 /** At most this many repairs above the first held storyboard. */
 const MAX_REPAIR_DEPTH = 3;
 
@@ -67,7 +74,7 @@ function extensionShape(value: unknown): value is StoryboardAttemptExtension {
 export function assertStoryboardRepair(repair: unknown, depth = 0, ancestorExtension?: StoryboardAttemptExtension, maxDepth?: number): asserts repair is StoryboardRepair {
   const r = repair as Partial<StoryboardRepair> | null;
   const keys = r && typeof r === 'object' && !Array.isArray(r) ? Object.keys(r).sort() : [];
-  const optional: string[] = keys.filter(k => k === 'parentRepair' || k === 'addedContracts' || k === 'parentCompile' || k === 'extension');
+  const optional: string[] = keys.filter(k => k === 'parentRepair' || k === 'addedContracts' || k === 'parentCompile' || k === 'extension' || k === 'binding');
   const outer = depth === 0 && r && typeof r === 'object' && !Array.isArray(r) && 'extension' in r && extensionShape(r.extension) ? r.extension.maxAttempts - 2 : 0;
   const bound = maxDepth ?? Math.max(MAX_REPAIR_DEPTH, outer);
   if (!r || typeof r !== 'object' || Array.isArray(r) || depth > bound ||
@@ -78,6 +85,9 @@ export function assertStoryboardRepair(repair: unknown, depth = 0, ancestorExten
       new Set(r!.addedContracts).size !== r!.addedContracts.length || r!.addedContracts.some(c => !(REPAIR_ADDABLE_CONTRACTS as readonly string[]).includes(c)))) fail('repair_policy');
   if ('parentCompile' in r! && (!r!.parentCompile || r!.parentCompile.selfCheckNames !== true ||
       Object.entries(r!.parentCompile).some(([k, v]) => !['selfCheckNames', 'stagingFields', 'selfCheckSourceSpans'].includes(k) || v !== true))) fail('repair_policy');
+  // A bound repair is outermost and alone: its parent is the unchanged bound board, compiled with no repair of its own.
+  if ('binding' in r! && (r!.binding !== STORYBOARD_BOUND_REPAIR_VERSION || depth !== 0 || 'parentRepair' in r! || 'addedContracts' in r! ||
+      'extension' in r!)) fail('repair_policy');
   // The extension is the outermost repair's; an ancestor carries one only as the previous extension a v2 extension above names (exactly that
   // one), and a v2 extension's parent is itself a repair carrying it.
   const extension = 'extension' in r! ? r!.extension : undefined;

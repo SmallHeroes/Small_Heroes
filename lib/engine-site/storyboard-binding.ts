@@ -7,13 +7,14 @@ import { existingChildAppearanceData, assertExistingChildAppearance, type Existi
 import { PREPARATION_CONTRACTS } from '@/lib/personal-wizard/source-preparation-contracts';
 import { STORYBOARD_REVIEW_CAPACITY } from '@/lib/personal-wizard/storyboard-review-capacity';
 import { personalBookProviderPayload, decodePersonalBookProviderOutput } from '@/lib/personal-wizard/book-openai';
-import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
+import { STORYBOARD_BOUND_REPAIR_VERSION, assertStoryboardRepair, type StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import type { EngineRuntime } from './durable-worker';
 import type { EngineProviderPorts } from './provider-plans';
 import { prepareEngineResponse } from './provider-plans';
-import type { StorySnapshot } from './story-preparation';
+import { prepareEngineStoryboard, type StorySnapshot } from './story-preparation';
 import { engineSiteFail } from './contract';
-import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
+import { isCurrentCustomerEngine } from './current-engine-policy';
+import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP, ENGINE_BOUND_REPAIR_STEP, ENGINE_BOUND_REPAIR_REVIEW_STEP } from './storyboard-binding-policy';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 import { enginePreparationContracts } from './storyboard-concurrency-policy';
 import type { EngineOrderAuthority } from './contract';
@@ -79,4 +80,51 @@ export async function prepareEngineBoundStoryboard(runtime:EngineRuntime,snapsho
  check();assertEngineBoundWorld(parent,diagnostic.storyboard);
  if(diagnostic.draftOrigin?.canonicalSha256!==parent.draftSha256||canonicalHash(parent.draft)!==parent.draftSha256)engineSiteFail('engine_binding_draft_changed');
  return {diagnostic,draft:parent.draft,bindingParent:origin};
+}
+
+/** Whether this authority owns the bound repair (the current customer engine with both slots); every other authority keeps the old stop. */
+export function engineBoundRepairAvailable(authority:EngineOrderAuthority){
+ return isCurrentCustomerEngine(authority)&&authority.storyboardBindingPolicy===ENGINE_STORYBOARD_BINDING&&authority.responseSchemaPolicy===ENGINE_RESPONSE_SCHEMA_POLICY&&
+  [ENGINE_BOUND_REVIEW_STEP,ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP].every(id=>authority.budget.steps.some(s=>s.id===id));
+}
+/**
+ * The exact bound-repair input: the bound board (the admitted parent draft recompiled UNCHANGED with this appearance, recompiled here and
+ * compared with the parent's world) and the raw bound review that held it. Nothing is supplied as authority: the storyboard engine recompiles
+ * that board again from this input and refuses a review that does not hold it.
+ */
+export function engineBoundRepairInput(snapshot:StorySnapshot,source:unknown,parent:EngineStoryboardBindingParent,existing:ExistingChildAppearance,
+ rawReview:unknown,authority:EngineOrderAuthority):StoryboardRepair{
+ if(!parents.has(parent)||parents.get(parent)!==canonicalHash(parent)||canonicalHash(source)!==parent.sourceSha256)engineSiteFail('engine_binding_parent_changed');
+ engineBindingOrigin(parent,existing);
+ const bound=compilePersonalStoryboard(input(snapshot,source,undefined,existing,authority),parent.draft,flags);assertEngineBoundWorld(parent,bound);
+ if(supported(storyboardReviewDisposition(bound,rawReview).disposition))engineSiteFail('engine_bound_repair_not_held');
+ const repair={parentStoryboardDigest:bound.storyboardDigest,draft:structuredClone(parent.draft),review:structuredClone(rawReview),
+  parentCompile:{...flags},binding:STORYBOARD_BOUND_REPAIR_VERSION};
+ assertStoryboardRepair(repair);return repair;
+}
+/** The provenance of a repaired binding: the unchanged parent origin plus the held bound board and review the one repair replaced. */
+export function engineBoundRepairOrigin(snapshot:StorySnapshot,source:unknown,parent:EngineStoryboardBindingParent,existing:ExistingChildAppearance,
+ repair:StoryboardRepair,authority:EngineOrderAuthority){
+ const expected=engineBoundRepairInput(snapshot,source,parent,existing,repair.review,authority);
+ if(canonicalHash(repair)!==canonicalHash(expected))engineSiteFail('engine_bound_repair_parent_changed');
+ return {...engineBindingOrigin(parent,existing),plannerInvoked:true as const,
+  boundRepair:{version:STORYBOARD_BOUND_REPAIR_VERSION,boundStoryboardDigest:repair.parentStoryboardDigest,boundReviewSha256:canonicalHash(repair.review)}};
+}
+/**
+ * One focused repair of a held bound board (storyboard-bound-repair/v1), then a NEW review of the repaired board. The child stays pinned:
+ * the planner gets the existing appearance as typed identity authority and its schema/compile refuse any other clothing. The world is
+ * allowed to change only through this repair of the bound review's own findings, so the accepted parent stays the recorded origin.
+ */
+export async function prepareEngineBoundRepair(runtime:EngineRuntime,snapshot:StorySnapshot,source:Parameters<typeof prepareEngineStoryboard>[2],
+ ports:EngineProviderPorts,parent:EngineStoryboardBindingParent,existing:ExistingChildAppearance,held:{diagnostic:{status:string;sourceDigest:string;storyboardDigest:string;rawReview:unknown}}){
+ const authority=runtime.checkpoint.authority;
+ if(!engineBoundRepairAvailable(authority))engineSiteFail('engine_bound_repair_authority');
+ assertParent(parent,runtime,source);
+ const repair=engineBoundRepairInput(snapshot,source,parent,existing,held.diagnostic.rawReview,authority);
+ if(supported(held.diagnostic.status)||held.diagnostic.storyboardDigest!==repair.parentStoryboardDigest)engineSiteFail('engine_bound_repair_parent_changed');
+ const result=await prepareEngineStoryboard(runtime,snapshot,source,ports,'bound_repair',existing,repair);
+ assertParent(parent,runtime,source);
+ const bindingParent=engineBoundRepairOrigin(snapshot,source,parent,existing,repair,authority);
+ if(canonicalHash(result.diagnostic.storyboard.existingChildAppearance)!==canonicalHash(existingChildAppearanceData(existing)))engineSiteFail('engine_bound_repair_child_changed');
+ return {diagnostic:result.diagnostic,draft:result.draft,repair,bindingParent};
 }

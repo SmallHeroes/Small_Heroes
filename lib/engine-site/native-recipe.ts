@@ -40,7 +40,8 @@ import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
 import { isCurrentCustomerEngine } from './current-engine-policy';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
-import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld } from './storyboard-binding';
+import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld,engineBoundRepairAvailable,
+  prepareEngineBoundRepair,engineBoundRepairOrigin } from './storyboard-binding';
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
@@ -246,14 +247,21 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         initialReview:initial.diagnostic.rawReview,appearance:existingChildAppearanceData(existing),adoption,child:anchor.candidate,
         childB64:bytesOf(anchor.candidate).toString('base64')}),existing);
       const parent=authority.storyboardBindingPolicy?admitEngineBindingParent(runtime,snapshot,source,initial,initialRepair):undefined;
-      const final = parent?await prepareEngineBoundStoryboard(runtime,snapshot,source,ports,parent,existing)
+      let final:{diagnostic:{status:string;sourceDigest:string;storyboardDigest:string;rawReview:unknown};draft:unknown;bindingParent?:unknown} =
+        parent?await prepareEngineBoundStoryboard(runtime,snapshot,source,ports,parent,existing)
         :await prepareEngineStoryboard(runtime,snapshot,source,ports,'prep',existing);
+      // The current engine's bound board gets one focused repair from its own held bound review (storyboard-bound-repair/v1).
+      let bindingRepair:StoryboardRepair|undefined;
+      if(parent&&!engineStoryboardSupported(final.diagnostic.status)&&engineBoundRepairAvailable(authority)){
+        const repaired=await prepareEngineBoundRepair(runtime,snapshot,source,ports,parent,existing,final);
+        bindingRepair=repaired.repair;final={diagnostic:repaired.diagnostic,draft:repaired.draft,bindingParent:repaired.bindingParent};
+      }
       if(!engineStoryboardSupported(final.diagnostic.status))engineSiteFail('engine_storyboard_held');
       const companion = companionIdentityReference(snapshot.request.companion.id);
       const companionImage = { imageName: 'reference_companion.png', imageSha: companion.sha256 };
       const companionBytes = readFileSync(companion.file); put(companionImage, companionBytes);
       prepared = { source, readings, ...(initialRepair?{initialRepair}:{}), initialDraft: initial.draft, initialReview: initial.diagnostic.rawReview,
-        ...('bindingParent' in final?{bindingParent:final.bindingParent}:{}),
+        ...('bindingParent' in final?{bindingParent:final.bindingParent}:{}),...(bindingRepair?{bindingRepair}:{}),
         draft: final.draft, review: final.diagnostic.rawReview, sourceDigest: final.diagnostic.sourceDigest,
         storyboardDigest: final.diagnostic.storyboardDigest, appearance: existingChildAppearanceData(existing), adoption,
         child: anchor.candidate, childB64: bytesOf(anchor.candidate).toString('base64'),
@@ -266,13 +274,22 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     const appearance = admitExistingChildAppearance(prepared.appearance, prepared.adoption, child.imageSha);
     if (appearance.originalSourceDigest !== initial.book.sourceDigest || appearance.originalStoryboardDigest !== initial.book.storyboardDigest ||
         canonicalJson(appearance.child.clothing) !== canonicalJson(initial.book.plan.actorAppearance!.child.clothing)) engineSiteFail('engine_child_origin_changed');
-    const restored = restoreBoard(snapshot, prepared.source, prepared.draft, prepared.review, appearance,undefined,runtime.checkpoint.authority), book = restored.book;
+    // A bound repair restores only under the authority that owns it; its board recompiles with that exact repair input.
+    if(prepared.bindingRepair!==undefined&&(!authority.storyboardBindingPolicy||!engineBoundRepairAvailable(authority)))engineSiteFail('engine_bound_repair_authority');
+    const restored = restoreBoard(snapshot, prepared.source, prepared.draft, prepared.review, appearance,prepared.bindingRepair,runtime.checkpoint.authority), book = restored.book;
     if(authority.storyboardBindingPolicy){
       const parent=admitEngineBindingParent(runtime,snapshot,prepared.source,{draft:prepared.initialDraft,diagnostic:{
         sourceDigest:initial.book.sourceDigest,storyboardDigest:initial.book.storyboardDigest,rawReview:prepared.initialReview}},prepared.initialRepair);
-      if(canonicalHash(prepared.bindingParent)!==canonicalHash(engineBindingOrigin(parent,appearance))||
-        canonicalHash(prepared.draft)!==parent.draftSha256)engineSiteFail('engine_binding_cached_origin_changed');
-      assertEngineBoundWorld(parent,book);
+      if(prepared.bindingRepair!==undefined){
+        // The repaired board's origin: the same accepted parent, its unchanged bound board and the bound review that held it.
+        if(canonicalHash(prepared.bindingParent)!==canonicalHash(engineBoundRepairOrigin(snapshot,prepared.source,parent,appearance,prepared.bindingRepair,authority)))
+          engineSiteFail('engine_binding_cached_origin_changed');
+        if(canonicalHash(book.existingChildAppearance)!==canonicalHash(prepared.appearance))engineSiteFail('engine_bound_repair_child_changed');
+      }else{
+        if(canonicalHash(prepared.bindingParent)!==canonicalHash(engineBindingOrigin(parent,appearance))||
+          canonicalHash(prepared.draft)!==parent.draftSha256)engineSiteFail('engine_binding_cached_origin_changed');
+        assertEngineBoundWorld(parent,book);
+      }
     }else if(prepared.bindingParent!==undefined)engineSiteFail('engine_binding_policy_required');
     if (book.sourceDigest !== prepared.sourceDigest || book.storyboardDigest !== prepared.storyboardDigest) engineSiteFail('engine_prepared_source_changed');
     const texts = prepared.source.manuscript.pages.map((p: { text: string }) => p.text);

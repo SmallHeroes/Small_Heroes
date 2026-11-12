@@ -13,7 +13,8 @@ import { runSimpleStoryboardDiagnostic } from '@/lib/personal-wizard/simple-stor
 import { personalBookProviderPayload,decodePersonalBookProviderOutput } from '@/lib/personal-wizard/book-openai';
 import { STORYBOARD_REVIEW_CAPACITY } from '@/lib/personal-wizard/storyboard-review-capacity';
 import type { ExistingChildAppearance } from '@/lib/personal-wizard/existing-child-appearance';
-import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
+import { STORYBOARD_BOUND_REPAIR_VERSION, type StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
+import { ENGINE_BOUND_REPAIR_STEP, ENGINE_BOUND_REPAIR_REVIEW_STEP } from './storyboard-binding-policy';
 import { prepareSolWritingWire } from '@/scripts/personal-sol-writing-transport';
 import { createEngineStoryApiSource,simpleAnthropicDispatch } from './story-api-source';
 import { prepareEngineAnthropic,prepareEngineResponse,type EngineProviderPorts } from './provider-plans';
@@ -31,7 +32,9 @@ export const engineStoryboardSupported=(status:string)=>['review_supported','rev
 /** Complete untruncated schema/source, bounded only for the explicit owner-test repair slot. */
 export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined,step='initial_storyboard_repair_1'){
  const extended=(step==='initial_storyboard_repair_3'||step==='initial_storyboard_repair_4'&&authority.storyboardConcurrencyPolicy&&authority.storyboardAttemptExtension?.maxAttempts===5)&&authority.storyboardAttemptExtension&&repair?.extension&&canonicalHash(authority.storyboardAttemptExtension)===canonicalHash(repair.extension);
- if(!(['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)||extended)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||(authority.purpose!=='test'&&!isCurrentCustomerEngine(authority))||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
+ // The current engine's bound repair uses the same complete repair wire and reserve as its base repairs.
+ const bound=step===ENGINE_BOUND_REPAIR_STEP&&isCurrentCustomerEngine(authority)&&repair?.binding===STORYBOARD_BOUND_REPAIR_VERSION;
+ if(!(['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)&&repair?.binding===undefined||extended||bound)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||(authority.purpose!=='test'&&!isCurrentCustomerEngine(authority))||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
  const body=personalBookProviderPayload(call,'gpt-6.1-sol');body.text.format.schema=compactSchemaDefinitions(body.text.format.schema);
  if(Buffer.byteLength(JSON.stringify({...body,background:true,store:false}))>LOCAL_INITIAL_REPAIR_WIRE_BYTES)engineSiteFail('engine_initial_repair_wire_limit');return body;
 }
@@ -62,7 +65,11 @@ export async function prepareEngineStorySource(runtime:EngineRuntime,snapshot:St
  return {source,readings};
 }
 export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:StorySnapshot,source:Awaited<ReturnType<typeof prepareEngineStorySource>>['source'],
- ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1'|'initial_repair_2'|'initial_repair_3'|'initial_repair_4',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
+ ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1'|'initial_repair_2'|'initial_repair_3'|'initial_repair_4'|'bound_repair',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
+ // A bound repair exists only as the current engine's one repair of a held bound board: with its appearance, its marker and both slots.
+ if((prefix==='bound_repair')!==(repair?.binding!==undefined)||prefix==='bound_repair'&&(!existingChildAppearance||repair?.binding!==STORYBOARD_BOUND_REPAIR_VERSION||
+  !isCurrentCustomerEngine(runtime.checkpoint.authority)||![ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP].every(id=>runtime.checkpoint.authority.budget.steps.some(s=>s.id===id))))
+  engineSiteFail('engine_bound_repair_authority');
  if(prefix==='initial_repair_3'&&(!runtime.checkpoint.authority.storyboardAttemptExtension||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_extension_authority');
  if(prefix==='initial_repair_4'&&(!runtime.checkpoint.authority.storyboardConcurrencyPolicy||runtime.checkpoint.authority.storyboardAttemptExtension?.maxAttempts!==5||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_concurrency_authority');
  let draft:unknown=null;
@@ -72,10 +79,12 @@ export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:Sto
    let body;
    if(call.stage==='storyboard'&&prefix.startsWith('initial_repair_')){
     body=localInitialRepairBody(runtime.checkpoint.authority,call,repair,prefix.replace('initial_repair_','initial_storyboard_repair_'));
-   }else body=call.stage==='storyboard'?prepareSolWritingWire(call).payload:personalBookProviderPayload(call,'gpt-6.1-sol');
+   }else if(call.stage==='storyboard'&&prefix==='bound_repair')body=localInitialRepairBody(runtime.checkpoint.authority,call,repair,ENGINE_BOUND_REPAIR_STEP);
+   else body=call.stage==='storyboard'?prepareSolWritingWire(call).payload:personalBookProviderPayload(call,'gpt-6.1-sol');
    const repairStep=prefix.replace('initial_repair_','initial_storyboard_repair_');
    const step=prefix==='initial'?(call.stage==='storyboard'?'initial_storyboard':'initial_storyboard_review'):
     prefix==='prep'?(call.stage==='storyboard'?'prep_storyboard_0':'prep_storyboard_0_review'):
+    prefix==='bound_repair'?(call.stage==='storyboard'?ENGINE_BOUND_REPAIR_STEP:ENGINE_BOUND_REPAIR_REVIEW_STEP):
      (call.stage==='storyboard'?repairStep:`${repairStep}_review`);
    const answer=await runtime.call(prepareEngineResponse(runtime.checkpoint.authority,step,body,x=>decodePersonalBookProviderOutput(call,x),ports));
    if(call.stage==='storyboard')draft=answer.output;return answer.output;

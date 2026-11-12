@@ -13,7 +13,7 @@ import { engineQaRequired, engineQaScope } from './qa-order-policy';
 import { ENGINE_CURRENT_CUSTOMER, ENGINE_AUTHOR_BATCH, CUSTOMER_STORYBOARD_REPAIR_STEPS } from './current-engine-policy';
 import { engineImageModelPolicySchema } from './image-model-policy';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
-import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP } from './storyboard-binding-policy';
+import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP, ENGINE_BOUND_REPAIR_STEP, ENGINE_BOUND_REPAIR_REVIEW_STEP } from './storyboard-binding-policy';
 import { LOCATION_SHEET_PROJECTION_V2 } from '@/lib/personal-wizard/location-sheet-projection';
 import { SOURCE_CONCURRENCY_VERSION as ENGINE_SOURCE_CONCURRENCY_POLICY } from '@/lib/personal-wizard/storyboard-source-concurrency';
 
@@ -53,6 +53,7 @@ export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true;curr
   if(options?.currentEngine){
     for(const step of CUSTOMER_STORYBOARD_REPAIR_STEPS){add(step,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add(`${step}_review`,PREPARATION_SLOTS[1]);}
     add(ENGINE_BOUND_REVIEW_STEP,PREPARATION_SLOTS[1]);
+    add(ENGINE_BOUND_REPAIR_STEP,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add(ENGINE_BOUND_REPAIR_REVIEW_STEP,PREPARATION_SLOTS[1]);
   }
   for (const name of ['reference_child', 'reference_child_repair']) {
     add(name, renderMaximum('x'.repeat(32_768), 4));
