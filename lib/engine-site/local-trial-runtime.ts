@@ -57,8 +57,9 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
   this.root=path.resolve(options.root);mkdirSync(this.root,{recursive:true,mode:0o700});
   if(lstatSync(this.root).isSymbolicLink()||realpathSync(this.root)!==this.root)engineSiteFail('local_trial_path');
   for(const name of ['assets','calls']){const dir=path.join(this.root,name);mkdirSync(dir,{recursive:true,mode:0o700});if(lstatSync(dir).isSymbolicLink()||realpathSync(dir)!==dir)engineSiteFail('local_trial_path');}
-  // The checkpoint is written before any asset, claim or dispatch: without it, saved calls or a witnessed dispatch mean lost state, never a new run.
-  if(!existsSync(this.file('checkpoint.json'))&&(readdirSync(this.file('calls')).length>0||readdirSync(this.file('assets')).length>0||(options.dispatchWitness?.list().length??0)>0))
+  // The checkpoint is written before any asset or claim: without it, saved calls mean lost state, never a new run. (A wholly lost journal
+  // starts empty and its witnessed dispatches keep their full reserves and block in meter().)
+  if(!existsSync(this.file('checkpoint.json'))&&(readdirSync(this.file('calls')).length>0||readdirSync(this.file('assets')).length>0))
    engineSiteFail('local_trial_checkpoint_missing');
   if(this.carried){const c=this.carried;if(!Number.isSafeInteger(c.accountedMicroUsd)||c.accountedMicroUsd<0||c.accountedMicroUsd>a.budget.maximumMicroUsd||!Number.isSafeInteger(c.logicalCalls)||c.logicalCalls<1||c.logicalCalls>=a.budget.maximumCalls||!/^[a-f0-9]{64}$/.test(c.evidenceSha256))engineSiteFail('local_trial_carry_invalid');}
   const carryFile=this.file('carry.json'),carry=this.carried;

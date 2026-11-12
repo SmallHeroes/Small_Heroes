@@ -110,13 +110,14 @@ describe('a lost journal or checkpoint keeps every reserve and refuses before an
    expect(f.posts()).toBe(1);
   }
  });
- it('a missing checkpoint beside saved calls, or a whole missing journal beside a witnessed dispatch, refuses to start',async()=>{
-  const s=claimed(),f=batchFetch();
+ it('a missing checkpoint beside saved calls refuses to start; a whole missing journal keeps the witnessed reserve and refuses the call',async()=>{
+  const s=claimed(),f=batchFetch(),slot=s.a.budget.steps.find(x=>x.id==='story_author')!.maximumMicroUsd;
   await expect(s.runtime().call(prepareEngineAnthropic(s.a,dispatch(),ports(f.fetch)))).rejects.toThrow('synthetic_process_exit');
   unlinkSync(path.join(s.out,'journal','checkpoint.json'));
   expect(()=>s.runtime()).toThrow('local_trial_checkpoint_missing');
   rmSync(path.join(s.out,'journal'),{recursive:true});
-  expect(()=>s.runtime()).toThrow('local_trial_checkpoint_missing');
+  const fresh=s.runtime();expect(await fresh.meter()).toMatchObject({pendingCalls:1,accountedMicroUsd:slot,lostLocalCalls:1,blocked:true});
+  await expect(fresh.call(prepareEngineAnthropic(s.a,dispatch(),ports(f.fetch)))).rejects.toThrow('local_trial_budget_or_unknown');
   expect(f.posts()).toBe(1);
  });
 });

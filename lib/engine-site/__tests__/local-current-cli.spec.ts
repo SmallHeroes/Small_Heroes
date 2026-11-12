@@ -71,7 +71,7 @@ describe('the local current-engine CLI consumes one GO once',()=>{
   expect(await f.cli(a)).toBe(1);expect(g.posts()).toBe(1);
   expect(await f.cli(a,'--resume')).toBe(1);expect(g.posts()).toBe(1);expect(m.book).toHaveBeenCalledTimes(2);
   rmSync(path.join(a,'journal'),{recursive:true});
-  await expect(f.cli(a,'--resume')).rejects.toThrow('local_trial_checkpoint_missing');
+  await expect(f.cli(a,'--resume')).rejects.toThrow('local_current_journal_blocked');
   expect(m.book).toHaveBeenCalledTimes(2);expect(g.posts()).toBe(1);
  },120_000); // the real runtime waits its real 30 s batch poll once
  it('a running holder of the same consent refuses a second process; the lease is released on exit',async()=>{
