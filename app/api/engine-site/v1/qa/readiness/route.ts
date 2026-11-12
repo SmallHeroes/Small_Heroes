@@ -7,6 +7,8 @@ import { configuredEngineSpendPolicy, engineProfileAuthority } from '@/lib/engin
 import { assertEnginePrivateDatabase, assertEnginePrivateStoragePolicy } from '@/lib/engine-site/private-assets';
 import { engineFulfillmentEnabled } from '@/lib/engine-site/lifecycle-config';
 import { findProdResourceLeak } from '@/lib/generation-chunked/env-separation-guard';
+import { createClient } from '@supabase/supabase-js';
+import { ENGINE_PRIVATE_BUCKET } from '@/lib/engine-site/private-storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +33,13 @@ export async function GET() {
     spendPolicy: policy ? { valid: true, revisionMatches: true, maximumUsd: policy.maximumMicroUsd / 1e6, maximumCalls: policy.maximumCalls,
       currentEngine: 'currentEngine' in profile, imageModel: policy.engineProfile?.imageModelPolicy ?? null } : { valid: false },
     database: { private: await ok(() => assertEnginePrivateDatabase(prisma)), storagePolicy: await ok(() => assertEnginePrivateStoragePolicy(prisma)) },
+    // The service-role client can see the private bucket (proves the storage credential belongs to this project).
+    privateBucket: await ok(async () => {
+      const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) throw Error('missing');
+      const result = await createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }).storage.getBucket(ENGINE_PRIVATE_BUCKET);
+      if (result.error || result.data?.public !== false) throw Error('bucket');
+    }),
     credentials: Object.fromEntries(['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ELEVENLABS_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
       'GENERATION_SECRET', 'DATABASE_URL', 'RESEND_API_KEY', 'VERCEL_AUTOMATION_BYPASS_SECRET'].map(name => [name, present(name)])),
   };

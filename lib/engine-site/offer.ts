@@ -32,6 +32,11 @@ export function engineSiteCheckoutPricing(order: CheckoutOrder) {
 export function engineSiteCheckoutEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
   if (env.VERCEL_ENV?.toLowerCase() === 'production' && env.ENABLE_PROD_GENERATION !== 'true') return false;
   if (['ENGINE_SITE_CHECKOUT_ENABLED', 'ENGINE_SITE_ORDER_INTAKE_ENABLED', 'ENGINE_SITE_WORKER_ENABLED', 'ENGINE_SITE_PROVIDERS_ENABLED',
-    'ENGINE_SITE_LONG_WORKER_ENABLED', 'ENGINE_SITE_READER_ENABLED', 'ENGINE_SITE_FULFILLMENT_ENABLED'].some(name => env[name] !== 'true')) return false;
-  try { configuredEngineSpendPolicy(env); return true; } catch { return false; }
+    'ENGINE_SITE_READER_ENABLED', 'ENGINE_SITE_FULFILLMENT_ENABLED'].some(name => env[name] !== 'true')) return false;
+  try {
+    const policy = configuredEngineSpendPolicy(env);
+    // The current-engine profile runs every step inside serverless invocations (batched author); only the
+    // historical recipe still needs the separate long-step executor.
+    return policy.engineProfile !== undefined || env.ENGINE_SITE_LONG_WORKER_ENABLED === 'true';
+  } catch { return false; }
 }
