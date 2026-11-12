@@ -14,6 +14,8 @@ import {engineCustomerAuthority} from '../personal-jobs';
 import {prepareEngineOrder,resolveEngineWizardOptions} from '../personal-orders';
 import {syntheticEngineOrderInput} from './synthetic-order';
 import {authority} from './fixtures';
+import {engineChildAnchorPose} from '../native-recipe';
+import {CHILD_ANCHOR_POSE_V3,CHILD_ANCHOR_POSE_VERSION} from '@/lib/personal-wizard/child-anchor-style';
 
 const roots:string[]=[];
 afterEach(()=>{vi.restoreAllMocks();for(const r of roots.splice(0)){if(path.dirname(r)!==path.resolve(tmpdir())||!path.basename(r).startsWith('sh_local_current_'))throw Error('owned_test_only');rmSync(r,{recursive:true,force:true});}});
@@ -96,6 +98,11 @@ describe('local rehearsal of the current customer engine',()=>{
   // A test authority keeps the historical generation timer.
   const test={...authority(),purpose:'test' as const};now=10_000;const old=responsesPlan(test,null),u=runtime(test as any,{now:()=>now,pause:async()=>{now+=60_000;}});
   await expect(u.r.call(old.plan as any)).rejects.toThrow('local_trial_pending_deadline');expect(now).toBeLessThan(10_000+600_000);
+ });
+ it('the current customer engine draws the child anchor under the wardrobe-safe pose contract; historical recipes keep v1',()=>{
+  expect(engineChildAnchorPose(current())).toBe(CHILD_ANCHOR_POSE_V3);
+  expect(engineChildAnchorPose({...authority(),purpose:'test'})).toBe(CHILD_ANCHOR_POSE_VERSION);
+  expect(engineChildAnchorPose({...authority(),purpose:'customer'})).toBe(CHILD_ANCHOR_POSE_VERSION);
  });
  it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
   const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();

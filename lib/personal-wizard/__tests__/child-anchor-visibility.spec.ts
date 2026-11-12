@@ -13,7 +13,8 @@ import { CHILD_ANCHOR_TECHNIQUE_MANIFEST, CHILD_ANCHOR_REQUIRED_VISIBLE, CHILD_A
   childAnchorInspectedDesignPayload, childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted, assertChildAnchorRenderPlan,
   CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_EYE_SCALE_CLAUSE, CHILD_ANCHOR_OCCLUSION_CONDITION, CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2,
   CHILD_ANCHOR_VIEW_V2_INSTRUCTION, childAnchorInspectedDesignSchemaFor, childAnchorMaterialityDesignReviewSchema,
-  childAnchorMaterialityDesignReviewSchemaV2 } from '../child-anchor-style';
+  childAnchorMaterialityDesignReviewSchemaV2, CHILD_ANCHOR_POSE_V3, CHILD_ANCHOR_POSE_CLAUSE_V3, CHILD_ANCHOR_V3_SKIN_PHRASE,
+  CHILD_ANCHOR_V3_DRESS_RULE, childAnchorPoseVersions } from '../child-anchor-style';
 import { reviewedBookLayoutSchema } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
@@ -116,7 +117,9 @@ describe('child-anchor-visible-pose/v1: one pose source for the request, the cor
     expect(() => reviewedBookLayoutSchema.parse({ ...legacy, childAnchorPose: CHILD_ANCHOR_POSE_VERSION })).toThrow();
     // v2 is a known opt-in version (child-anchor-visible-pose/v2); an unknown version refuses.
     expect(reviewedBookLayoutSchema.parse({ ...layout, childAnchorPose: CHILD_ANCHOR_POSE_V2 }).childAnchorPose).toBe(CHILD_ANCHOR_POSE_V2);
+    // The historical audition admits only v1 and v2: v3 (the current engine's) and an unknown version refuse.
     expect(() => reviewedBookLayoutSchema.parse({ ...layout, childAnchorPose: 'child-anchor-visible-pose/v3' })).toThrow();
+    expect(() => reviewedBookLayoutSchema.parse({ ...layout, childAnchorPose: 'child-anchor-visible-pose/v9' })).toThrow();
     expect(() => reviewedBookLayoutSchema.parse({ ...legacy, childAnchorPose: CHILD_ANCHOR_POSE_V2 })).toThrow();
     // v2 only beside the materiality acceptance (its occlusion record rests on the typed character judgment); v1 beside either.
     expect(() => reviewedBookLayoutSchema.parse({ ...layout, childAnchor: CHILD_ANCHOR_INSPECTION_VERSION, childAnchorPose: CHILD_ANCHOR_POSE_V2 })).toThrow();
@@ -168,7 +171,7 @@ describe('child-anchor-visible-pose/v2: covered-by-declared-wardrobe and the eye
     // A design quoting any contract clause refuses, as does an unknown version.
     for (const quoted of [CHILD_ANCHOR_EYE_SCALE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_PRODUCTION_POSE_LINE])
       expect(() => childAnchorPoseDescriptionRequest({ ...child, design: `${DESIGN} ${quoted}` }, CHILD_ANCHOR_POSE_V2), quoted.slice(0, 20)).toThrow('child_anchor_production_prompt');
-    expect(() => childAnchorPoseDescriptionRequest(child, 'child-anchor-visible-pose/v3' as never)).toThrow('child_anchor_production_prompt');
+    expect(() => childAnchorPoseDescriptionRequest(child, 'child-anchor-visible-pose/v9' as never)).toThrow('child_anchor_production_prompt');
     expect(assertChildAnchorRenderPlan(pose2.prompt, CHILD_ANCHOR_TECHNIQUE_MANIFEST.length, pose2.referenceMode)).toMatchObject({ bodyWithoutBinaryImage: { model: 'gpt-image-2', quality: 'low' } });
   });
   it('the v2 view binds both clauses and v2\'s excluded conditions; only under materiality; requests and views that disagree refuse', () => {
@@ -242,7 +245,7 @@ describe('child-anchor-visible-pose/v2: covered-by-declared-wardrobe and the eye
     expect([r.pose, r.aspects, r.corrections]).toEqual([CHILD_ANCHOR_POSE_V2, ['hands'], [childAnchorVisibilityCorrection('hands')]]);
     // The same answers under the default (the child recovery's v1) name v1: the pose is the correction's contract, the derivation is the same.
     expect(childAnchorVisibilityRecovery(s, d)).toEqual({ ...r, pose: CHILD_ANCHOR_POSE_VERSION });
-    expect(() => childAnchorVisibilityRecovery(s, d, 'child-anchor-visible-pose/v3' as never)).toThrow('child_anchor_correction_scope');
+    expect(() => childAnchorVisibilityRecovery(s, d, 'child-anchor-visible-pose/v9' as never)).toThrow('child_anchor_correction_scope');
     const c = childAnchorPoseCorrectionPrompt(pose2.core, r.corrections);
     expect(c.startsWith(`${pose2.core}\n\n${CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION}\nTARGETED CORRECTIONS:\n${childAnchorVisibilityCorrection('hands')}\n\n[AVOID]\n`)).toBe(true);
     expect([c.split(CHILD_ANCHOR_EYE_SCALE_CLAUSE).length, c.split(CHILD_ANCHOR_POSE_CLAUSE_V2).length]).toEqual([2, 2]);
@@ -342,5 +345,73 @@ describe.skipIf(!existsSync(path.join(HELD, 'reference_child_design_review.json'
       `style: ${styleRecord.review.notes} ${STYLE_TAIL}`, childAnchorVisibilityCorrection('hands')]);
     expect(r.corrections.join('\n')).not.toContain(identity.correction);
     expect(sha(childAnchorPoseCorrectionPrompt(pose.core, r.corrections))).toBe('f456a11c5e3dc2a34e3acaf6deaa395ff3dc3a23215f522ea684357d85a53b90');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// child-anchor-visible-pose/v3 (2026-11-12): the wardrobe-safe skin phrase. The local current-engine rehearsal's fictional girl wore long
+// trousers; under v1 the judge read the covered legs as a scene defect, its correction asked the image model to expose a five-year-old's
+// lower-leg skin and the provider refused the edit (moderation_blocked). v3 never asks to uncover skin; v1/v2 stay byte-identical.
+// ---------------------------------------------------------------------------------------------------------------
+const TROUSERS = 'Mustard-yellow short-sleeved shirt; Dark teal trousers; Cream closed shoes';
+const covered = { ...child, wardrobe: TROUSERS };
+const pose3 = childAnchorPoseDescriptionRequest(covered, CHILD_ANCHOR_POSE_V3), production3 = childAnchorDescriptionRequest(covered);
+const context3 = childAnchorInspectionContext(covered, pose3.prompt, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_POSE_V3);
+const recipe3 = childAnchorAttemptRecipe('reference_child', 'style', technique, pose3.prompt, 5);
+
+describe('child-anchor-visible-pose/v3: the anchor never asks to uncover a child\'s skin', () => {
+  it('v3\'s clause is v1\'s with the one wardrobe-safe skin phrase and the dress rule; no phrase asks for arm or leg skin', () => {
+    expect([...childAnchorPoseVersions]).toEqual([CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_POSE_V3]);
+    expect(CHILD_ANCHOR_POSE_CLAUSE_V3).toBe(`${CHILD_ANCHOR_POSE_CLAUSE.replace(CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V3)
+      .replace(CHILD_ANCHOR_VISIBLE_PHRASES.skin_tone, CHILD_ANCHOR_V3_SKIN_PHRASE)} ${CHILD_ANCHOR_V3_DRESS_RULE}`);
+    expect(CHILD_ANCHOR_VISIBLE_PHRASES.skin_tone).toBe('the skin of the face, arms and legs');
+    expect(CHILD_ANCHOR_POSE_CLAUSE_V3).not.toMatch(/arms and legs|expose|lower-leg|bare legs|bare arms/i);
+    expect(CHILD_ANCHOR_POSE_CLAUSE_V3).toContain('only the skin that the declared wardrobe itself leaves bare');
+    expect(CHILD_ANCHOR_V3_DRESS_RULE).toMatch(/fully dressed exactly as the declared wardrobe describes/);
+    expect(CHILD_ANCHOR_V3_DRESS_RULE).toMatch(/never uncover, shorten, roll up, open or remove any wardrobe item/);
+    expect(CHILD_ANCHOR_V3_DRESS_RULE).toMatch(/covered skin is never a defect/);
+    // v1 and v2 are untouched: their clauses keep their own skin phrase and no dress rule.
+    for (const c of [CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2])
+      expect([c.includes(CHILD_ANCHOR_VISIBLE_PHRASES.skin_tone), c.includes(CHILD_ANCHOR_V3_DRESS_RULE)]).toEqual([true, false]);
+    expect(sha(CHILD_ANCHOR_POSE_CLAUSE)).toBe(CHILD_ANCHOR_POSE_CLAUSE_SHA256);
+  });
+  it('the v3 request replaces production\'s pose line with the v3 clause only (no eye-scale clause, no other version\'s clause)', () => {
+    expect(pose3.pose).toBe(CHILD_ANCHOR_POSE_V3);
+    expect([pose3.prompt.split(CHILD_ANCHOR_POSE_CLAUSE_V3).length, pose3.prompt.includes(CHILD_ANCHOR_POSE_CLAUSE), pose3.prompt.includes(CHILD_ANCHOR_POSE_CLAUSE_V2),
+      pose3.prompt.includes(CHILD_ANCHOR_EYE_SCALE_CLAUSE), pose3.prompt.includes(CHILD_ANCHOR_PRODUCTION_POSE_LINE)]).toEqual([2, false, false, false, false]);
+    expect(pose3.core.replace(CHILD_ANCHOR_POSE_CLAUSE_V3, CHILD_ANCHOR_PRODUCTION_POSE_LINE)).toBe(production3.core);
+    expect(pose3.prompt.replace(CHILD_ANCHOR_POSE_CLAUSE_V3, CHILD_ANCHOR_PRODUCTION_POSE_LINE)).toBe(production3.prompt);
+    expect(pose3.prompt).toContain(TROUSERS);
+    // A design quoting the v3 clause refuses under every version.
+    for (const version of childAnchorPoseVersions)
+      expect(() => childAnchorPoseDescriptionRequest({ ...covered, design: `${DESIGN} ${CHILD_ANCHOR_POSE_CLAUSE_V3}` }, version), version).toThrow('child_anchor_production_prompt');
+    expect(assertChildAnchorRenderPlan(pose3.prompt, CHILD_ANCHOR_TECHNIQUE_MANIFEST.length, pose3.referenceMode)).toMatchObject({ bodyWithoutBinaryImage: { model: 'gpt-image-2', quality: 'low' } });
+  });
+  it('the v3 view binds the v3 clause with v1\'s view rules; prompts and views that disagree refuse', () => {
+    expect(context3.view.poseContract).toEqual({ version: CHILD_ANCHOR_POSE_V3, clause: CHILD_ANCHOR_POSE_CLAUSE_V3, clauseSha256: sha(CHILD_ANCHOR_POSE_CLAUSE_V3) });
+    expect(context3.view.excludedConditions).toEqual(['open_mouth_or_smile']);
+    expect(childAnchorInspectedDesignSchemaFor(context3)).toBe(childAnchorMaterialityDesignReviewSchema);
+    const p3 = childAnchorInspectedDesignPayload({ candidateSha: A, context: context3, recipe: recipe3, imageURLs: IMAGES });
+    const p1 = childAnchorInspectedDesignPayload({ candidateSha: A, context: poseContext, recipe, imageURLs: IMAGES });
+    expect([p3.instructions, (p3.text as any).format.name]).toEqual([p1.instructions, 'child_anchor_design_materiality_v1']);
+    expect(JSON.stringify(p3)).toContain(JSON.stringify(CHILD_ANCHOR_V3_DRESS_RULE).slice(1, -1));
+    expect(new Set([PCTX, CTX2, childAnchorInspectionContextSha(context3)]).size).toBe(3);
+    // A v3 prompt under no pose, v1 or v2, a v1 prompt under v3, a mixed or doubled clause, an eye-scale clause: refused.
+    expect(() => childAnchorInspectionView(pose3.prompt)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(pose3.prompt, CHILD_ANCHOR_POSE_VERSION)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(pose3.prompt, CHILD_ANCHOR_POSE_V2)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(pose.prompt, CHILD_ANCHOR_POSE_V3)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(`${pose3.prompt}\n${CHILD_ANCHOR_POSE_CLAUSE}`, CHILD_ANCHOR_POSE_V3)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(`${pose3.prompt}\n${CHILD_ANCHOR_POSE_CLAUSE_V3}`, CHILD_ANCHOR_POSE_V3)).toThrow('child_anchor_inspection_view');
+    expect(() => childAnchorInspectionView(`${pose3.prompt}\n${CHILD_ANCHOR_EYE_SCALE_CLAUSE}`, CHILD_ANCHOR_POSE_V3)).toThrow('child_anchor_inspection_view');
+    // A v3 contract with another clause, or v2's occlusion condition under v3, is not a valid context.
+    expect(() => childAnchorInspectionContextSha({ ...context3, view: { ...context3.view, poseContract: { ...context3.view.poseContract!, clause: CHILD_ANCHOR_POSE_CLAUSE } } } as never)).toThrow();
+    expect(() => childAnchorInspectionContextSha({ ...context3, view: { ...context3.view, excludedConditions: [...CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2] } } as never)).toThrow();
+  });
+  it('the one correction under v3 carries the v3 clause and the pose-aware instruction; a core with two clauses refuses', () => {
+    const fixed = childAnchorPoseCorrectionPrompt(pose3.core, ['scene: keep the trousers and shoes as declared']);
+    expect([fixed.split(CHILD_ANCHOR_POSE_CLAUSE_V3).length, fixed.includes(CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION), fixed.includes(CHILD_ANCHOR_POSE_CLAUSE)]).toEqual([2, true, false]);
+    expect(() => childAnchorPoseCorrectionPrompt(`${pose3.core}\n\n${CHILD_ANCHOR_POSE_CLAUSE}`, ['x'])).toThrow('child_anchor_correction_scope');
+    expect(() => childAnchorPoseCorrectionPrompt(`${pose3.core}\n\n${CHILD_ANCHOR_POSE_CLAUSE_V3}`, ['x'])).toThrow('child_anchor_correction_scope');
   });
 });

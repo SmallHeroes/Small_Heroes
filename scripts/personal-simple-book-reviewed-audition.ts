@@ -86,7 +86,8 @@ export const reviewedBookLayoutSchema = z.object({ version: z.literal('reviewed-
    * Opt-in (2026-10-21), only with childAnchor: the adopted anchor's context binds the pose contract of child-anchor-visible-pose/v1 or /v2
    * (its request is that version's pose description request). Absent: the context exactly as before.
    */
-  childAnchorPose: z.enum(childAnchorPoseVersions).optional(),
+  // The historical audition admits only the two pose contracts it was built for (v3 is the current engine's).
+  childAnchorPose: z.enum([childAnchorPoseVersions[0], CHILD_ANCHOR_POSE_V2]).optional(),
   /** Explicit prospective scene presentation; a paid run must also name the same marker in its grant. Never changes sheets/anchors. */
   readerFraming: z.enum(READER_SAFE_FRAMING_VERSIONS).optional() }).strict()
   .refine(l => l.childAnchorPose === undefined || l.childAnchor !== undefined, 'audition_layout_child_anchor_pose')

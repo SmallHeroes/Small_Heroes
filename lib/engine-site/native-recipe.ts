@@ -13,7 +13,7 @@ import { PREPARATION_CONTRACTS } from '@/lib/personal-wizard/source-preparation-
 import { enginePreparationContracts } from './storyboard-concurrency-policy';
 import type { EngineOrderAuthority } from './contract';
 import { deriveExistingChildAppearance, admitExistingChildAppearance, existingChildAppearanceData, type ExistingChildAppearance } from '@/lib/personal-wizard/existing-child-appearance';
-import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_ANCHOR_POSE_VERSION,
+import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V3,
   childAnchorInspectionContext, CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorInspectionContextSha,
   childAnchorAttemptRecipe, childAnchorRecipeSha, childAnchorStylePayload, childAnchorStyleDisposition,
   childAnchorInspectedDesignPayload, childAnchorInspectedDesignDisposition, childAnchorDisposition,
@@ -70,6 +70,13 @@ async function fiveViews(bytes: Buffer) {
 export type EngineNativeChildPreparation={source:unknown;readings:unknown;initialRepair?:StoryboardRepair;initialDraft:unknown;initialReview:unknown;
  appearance:ReturnType<typeof existingChildAppearanceData>;adoption:unknown;child:AuditionImage;childB64:string};
 export type EngineNativeSheetObservation = ReturnType<typeof auditionSheetContext> & { role: 'entities' | 'locations'; attempt: AuditionAttempt; candidateB64: string };
+/**
+ * The pose contract of the child's identity anchor. The current customer engine uses the wardrobe-safe contract (child-anchor-visible-pose/v3:
+ * the anchor never asks to uncover a child's skin, so a child the storyboard dresses in trousers or long sleeves no longer gets a correction
+ * the image provider refuses); every historical recipe keeps v1 byte-identical.
+ */
+export const engineChildAnchorPose = (authority: { purpose: string; currentEngine?: string }) =>
+  isCurrentCustomerEngine(authority) ? CHILD_ANCHOR_POSE_V3 : CHILD_ANCHOR_POSE_VERSION;
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
   childBindingPreparation?:AdmittedEngineChildBindingPreparation;
@@ -202,8 +209,9 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       } else design = `A ${snapshot.request.child.age} year old ${snapshot.request.child.address}. Parent description: ${snapshot.appearance.description}. Preserve the described appearance.`;
       const clothing = initial.diagnostic.storyboard.plan.actorAppearance!.child.clothing;
       const childData = { age: snapshot.request.child.age, gender: snapshot.request.child.address, design, wardrobe: clothing.join('; ') };
-      const request = childAnchorPoseDescriptionRequest(childData, CHILD_ANCHOR_POSE_VERSION);
-      const context = childAnchorInspectionContext(childData, request.prompt, CHILD_ANCHOR_MATERIALITY_VERSION, CHILD_ANCHOR_POSE_VERSION);
+      const anchorPose = engineChildAnchorPose(authority);
+      const request = childAnchorPoseDescriptionRequest(childData, anchorPose);
+      const context = childAnchorInspectionContext(childData, request.prompt, CHILD_ANCHOR_MATERIALITY_VERSION, anchorPose);
       const contextSha = childAnchorInspectionContextSha(context), technique = resolveChildAnchorTechnique(process.cwd());
       const refs = technique.map((t, i) => put({ imageName: `style_ref_${i + 1}.png`, imageSha: t.sha256 }, t.bytes));
       const anchorAttempt = async (step: 'reference_child' | 'reference_child_repair', prompt: string, references: AuditionImage[], repair = false) => {
@@ -233,7 +241,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       assertChildAnchorInspectedAccepted(adoption.anchor, anchor.candidate.imageSha, context);
       const existing = deriveExistingChildAppearance({ requestId: source.requestId, sourceDigest: initial.diagnostic.sourceDigest,
         storyboardDigest: initial.diagnostic.storyboardDigest, clothing }, { age: childData.age, gender: childData.gender,
-        design, acceptance: context.version, pose: CHILD_ANCHOR_POSE_VERSION }, adoption, anchor.candidate.imageSha);
+        design, acceptance: context.version, pose: anchorPose }, adoption, anchor.candidate.imageSha);
       args.observeChildPreparation?.(structuredClone({source,readings,...(initialRepair?{initialRepair}:{}),initialDraft:initial.draft,
         initialReview:initial.diagnostic.rawReview,appearance:existingChildAppearanceData(existing),adoption,child:anchor.candidate,
         childB64:bytesOf(anchor.candidate).toString('base64')}),existing);

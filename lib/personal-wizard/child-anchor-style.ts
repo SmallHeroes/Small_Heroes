@@ -307,16 +307,36 @@ export const CHILD_ANCHOR_POSE_CLAUSE_SHA256 = sha(CHILD_ANCHOR_POSE_CLAUSE);
 // schema and digest is byte-identical.
 // ---------------------------------------------------------------------------------------------------------------
 export const CHILD_ANCHOR_POSE_V2 = 'child-anchor-visible-pose/v2' as const;
-export const childAnchorPoseVersions = [CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2] as const;
+// ---------------------------------------------------------------------------------------------------------------
+// child-anchor-visible-pose/v3 (2026-11-12, the local current-engine rehearsal for Guy): v1's one pose source with ONE wardrobe-safe skin
+// phrase. v1/v2 ask for "the skin of the face, arms and legs" whatever the child wears, while the child's wardrobe comes from the storyboard
+// (long trousers, long sleeves, a long dress). The design judge then read covered legs as a scene defect, its correction asked the image
+// model to "expose lower-leg skin" of a five-year-old, and OpenAI's safety system refused the edit (moderation_blocked): the book stopped.
+// Any child dressed in covering clothes could stop the same way. Under v3 the anchor shows the skin of the face and hands plus only what the
+// declared wardrobe already leaves bare, and the child stays fully dressed: no render, judge or correction asks to uncover a child's skin.
+// v3 keeps v1's view rules and excluded conditions exactly. v1 and v2 and every request, view, context and digest under them are byte-identical.
+// ---------------------------------------------------------------------------------------------------------------
+export const CHILD_ANCHOR_POSE_V3 = 'child-anchor-visible-pose/v3' as const;
+export const childAnchorPoseVersions = [CHILD_ANCHOR_POSE_VERSION, CHILD_ANCHOR_POSE_V2, CHILD_ANCHOR_POSE_V3] as const;
 export type ChildAnchorPoseVersion = (typeof childAnchorPoseVersions)[number];
 export const CHILD_ANCHOR_POSE_CLAUSE_V2 = poseClauseOf(CHILD_ANCHOR_POSE_V2);
+/** v3's skin phrase: the skin the wardrobe already shows, never more. */
+export const CHILD_ANCHOR_V3_SKIN_PHRASE = 'the skin of the face and hands, plus only the skin that the declared wardrobe itself leaves bare';
+/** v3's dress rule, the last sentence of its pose clause. */
+export const CHILD_ANCHOR_V3_DRESS_RULE = 'The child stays fully dressed exactly as the declared wardrobe describes: never uncover, shorten, roll up, open or remove any wardrobe item to show skin; covered skin is never a defect.';
+export const CHILD_ANCHOR_POSE_CLAUSE_V3 = `ANCHOR POSE (mandatory, ${CHILD_ANCHOR_POSE_V3}): one child standing, front or 3/4 view, the FULL body inside the frame, clean near-empty background. Visible in the picture: ${CHILD_ANCHOR_REQUIRED_VISIBLE.map(a => a === 'skin_tone' ? CHILD_ANCHOR_V3_SKIN_PHRASE : CHILD_ANCHOR_VISIBLE_PHRASES[a]).join('; ')}. ${CHILD_ANCHOR_V3_DRESS_RULE}`;
+/** The ANCHOR POSE clause of each pose contract version. */
+const poseClauseFor = (version: ChildAnchorPoseVersion) =>
+  version === CHILD_ANCHOR_POSE_V2 ? CHILD_ANCHOR_POSE_CLAUSE_V2 : version === CHILD_ANCHOR_POSE_V3 ? CHILD_ANCHOR_POSE_CLAUSE_V3 : CHILD_ANCHOR_POSE_CLAUSE;
 export const CHILD_ANCHOR_EYE_SCALE_CLAUSE = `EYE SCALE (mandatory, ${CHILD_ANCHOR_POSE_V2}): Style 01 natural eye scale governs the size of the eyes. A written design that calls the eyes "large" or "big" means noticeable, expressive eyes within natural human proportions (ordinary-size eyes with visible eyelids), never enlarged, cartoon, chibi or doll-like eyes; the eye colour and shape the design names stay exact.`;
 export const CHILD_ANCHOR_OCCLUSION_CONDITION = 'covered_by_declared_wardrobe' as const;
 /** v2's excluded conditions: v1's, then a trait covered by a declared wardrobe item. */
 export const CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2 = Object.freeze([...CHILD_ANCHOR_EXCLUDED_CONDITIONS, CHILD_ANCHOR_OCCLUSION_CONDITION] as const);
 /** The block of production's description prompt that carries the child's written design; v2's eye-scale clause follows it. */
 const CHILD_VISUAL_LOCK_PREFIX = 'CHILD VISUAL LOCK: ';
-const poseClauses = [CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_EYE_SCALE_CLAUSE] as const;
+const poseClauses = [CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_POSE_CLAUSE_V3, CHILD_ANCHOR_EYE_SCALE_CLAUSE] as const;
+/** Every version's ANCHOR POSE clause (a prompt carries exactly one, its own). */
+const anchorPoseClauses = [CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2, CHILD_ANCHOR_POSE_CLAUSE_V3] as const;
 /** The correction instruction under the contract: the existing one, except that a named correction may change the pose (a visibility fix). */
 export const CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION = 'Image 1 is the REJECTED edit target, not an approved canonical reference. Make only the named corrections. Preserve identity, face, anatomy, palette, refined Style 01 watercolor treatment and every other design detail; keep the pose except where a named correction changes it, and then follow the ANCHOR POSE clause above. Anatomical left/right belong to the subject: for a front-facing figure, its right is image-left. Do not mirror the whole image.';
 /**
@@ -329,7 +349,7 @@ export function childAnchorPoseDescriptionRequest(child: ChildAnchorChild, versi
   const base = childAnchorDescriptionRequest(child), blocks = base.core.split('\n\n'), at = blocks.indexOf(CHILD_ANCHOR_PRODUCTION_POSE_LINE);
   if (!(childAnchorPoseVersions as readonly string[]).includes(version) || at < 0 || base.core.split(CHILD_ANCHOR_PRODUCTION_POSE_LINE).length !== 2 ||
       poseClauses.some(c => base.core.includes(c))) fail('child_anchor_production_prompt');
-  const v2 = version === CHILD_ANCHOR_POSE_V2, posed = [...blocks.slice(0, at), v2 ? CHILD_ANCHOR_POSE_CLAUSE_V2 : CHILD_ANCHOR_POSE_CLAUSE, ...blocks.slice(at + 1)];
+  const v2 = version === CHILD_ANCHOR_POSE_V2, posed = [...blocks.slice(0, at), poseClauseFor(version), ...blocks.slice(at + 1)];
   const locks = posed.flatMap((b, i) => b.startsWith(CHILD_VISUAL_LOCK_PREFIX) ? [i] : []);
   if (v2 && locks.length !== 1) fail('child_anchor_production_prompt');
   const core = (v2 ? [...posed.slice(0, locks[0] + 1), CHILD_ANCHOR_EYE_SCALE_CLAUSE, ...posed.slice(locks[0] + 1)] : posed).join('\n\n');
@@ -337,7 +357,7 @@ export function childAnchorPoseDescriptionRequest(child: ChildAnchorChild, versi
 }
 /** The one correction under the contract: an edit of the rejected candidate, the pose core, the pose-aware instruction, the corrections, [AVOID]. */
 export const childAnchorPoseCorrectionPrompt = (core: string, corrections: readonly string[]) => {
-  const clauses = [CHILD_ANCHOR_POSE_CLAUSE, CHILD_ANCHOR_POSE_CLAUSE_V2].filter(c => core.includes(c));
+  const clauses = anchorPoseClauses.filter(c => core.includes(c));
   if (!corrections.length || corrections.some(c => !c.trim()) || clauses.length !== 1 || core.split(clauses[0]).length !== 2) fail('child_anchor_correction_scope');
   return `${core}\n\n${CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION}\nTARGETED CORRECTIONS:\n${corrections.join('\n')}${AVOID}`;
 };
@@ -345,7 +365,8 @@ export const childAnchorPoseCorrectionPrompt = (core: string, corrections: reado
 const poseContractSchema = z.union([
   z.object({ version: z.literal(CHILD_ANCHOR_POSE_VERSION), clause: z.literal(CHILD_ANCHOR_POSE_CLAUSE), clauseSha256: z.literal(CHILD_ANCHOR_POSE_CLAUSE_SHA256) }).strict(),
   z.object({ version: z.literal(CHILD_ANCHOR_POSE_V2), clause: z.literal(CHILD_ANCHOR_POSE_CLAUSE_V2), clauseSha256: z.literal(sha(CHILD_ANCHOR_POSE_CLAUSE_V2)),
-    eyeScaleClause: z.literal(CHILD_ANCHOR_EYE_SCALE_CLAUSE), eyeScaleClauseSha256: z.literal(sha(CHILD_ANCHOR_EYE_SCALE_CLAUSE)) }).strict()]);
+    eyeScaleClause: z.literal(CHILD_ANCHOR_EYE_SCALE_CLAUSE), eyeScaleClauseSha256: z.literal(sha(CHILD_ANCHOR_EYE_SCALE_CLAUSE)) }).strict(),
+  z.object({ version: z.literal(CHILD_ANCHOR_POSE_V3), clause: z.literal(CHILD_ANCHOR_POSE_CLAUSE_V3), clauseSha256: z.literal(sha(CHILD_ANCHOR_POSE_CLAUSE_V3)) }).strict()]);
 const inspectionViewSchema = z.object({ version: z.literal(CHILD_ANCHOR_INSPECTION_VERSION), pose: z.literal('single_child_full_body_neutral_anchor'),
   expression: z.string().min(1), expressionSha256: z.literal(CHILD_ANCHOR_VIEW_EXPRESSION_SHA256),
   requiredVisible: z.array(z.enum(CHILD_ANCHOR_REQUIRED_VISIBLE)).length(CHILD_ANCHOR_REQUIRED_VISIBLE.length),
@@ -366,17 +387,19 @@ const isPoseV2 = (view: Pick<ChildAnchorInspectionView, 'poseContract'>) => view
 export function childAnchorInspectionView(prompt: string, pose?: ChildAnchorPoseVersion): ChildAnchorInspectionView {
   if (sha(STAGE0_ANCHOR_NEUTRAL_EXPRESSION) !== CHILD_ANCHOR_VIEW_EXPRESSION_SHA256 || prompt.split(STAGE0_ANCHOR_NEUTRAL_EXPRESSION).length !== 2)
     fail('child_anchor_inspection_view');
-  const v2 = pose === CHILD_ANCHOR_POSE_V2, clause = v2 ? CHILD_ANCHOR_POSE_CLAUSE_V2 : CHILD_ANCHOR_POSE_CLAUSE;
+  const known = pose !== undefined && (childAnchorPoseVersions as readonly string[]).includes(pose);
+  const v2 = pose === CHILD_ANCHOR_POSE_V2, clause = known ? poseClauseFor(pose) : CHILD_ANCHOR_POSE_CLAUSE;
   if (pose === undefined ? poseClauses.some(c => prompt.includes(c))
-    : !(childAnchorPoseVersions as readonly string[]).includes(pose) || prompt.split(clause).length !== 2 || prompt.includes(CHILD_ANCHOR_PRODUCTION_POSE_LINE) ||
-      prompt.includes(v2 ? CHILD_ANCHOR_POSE_CLAUSE : CHILD_ANCHOR_POSE_CLAUSE_V2) ||
+    : !known || prompt.split(clause).length !== 2 || prompt.includes(CHILD_ANCHOR_PRODUCTION_POSE_LINE) ||
+      anchorPoseClauses.some(c => c !== clause && prompt.includes(c)) ||
       (v2 ? prompt.split(CHILD_ANCHOR_EYE_SCALE_CLAUSE).length !== 2 : prompt.includes(CHILD_ANCHOR_EYE_SCALE_CLAUSE)))
     fail('child_anchor_inspection_view');
   return inspectionViewSchema.parse({ version: CHILD_ANCHOR_INSPECTION_VERSION, pose: 'single_child_full_body_neutral_anchor',
     expression: STAGE0_ANCHOR_NEUTRAL_EXPRESSION, expressionSha256: CHILD_ANCHOR_VIEW_EXPRESSION_SHA256,
     requiredVisible: [...CHILD_ANCHOR_REQUIRED_VISIBLE], excludedConditions: [...(v2 ? CHILD_ANCHOR_EXCLUDED_CONDITIONS_V2 : CHILD_ANCHOR_EXCLUDED_CONDITIONS)],
     ...(pose ? { poseContract: v2 ? { version: pose, clause, clauseSha256: sha(clause), eyeScaleClause: CHILD_ANCHOR_EYE_SCALE_CLAUSE,
-      eyeScaleClauseSha256: sha(CHILD_ANCHOR_EYE_SCALE_CLAUSE) } : { version: pose, clause, clauseSha256: CHILD_ANCHOR_POSE_CLAUSE_SHA256 } } : {}) });
+      eyeScaleClauseSha256: sha(CHILD_ANCHOR_EYE_SCALE_CLAUSE) } : pose === CHILD_ANCHOR_POSE_V3 ? { version: pose, clause, clauseSha256: sha(clause) }
+      : { version: pose, clause, clauseSha256: CHILD_ANCHOR_POSE_CLAUSE_SHA256 } } : {}) });
 }
 export const CHILD_ANCHOR_INSPECTION_RULE = 'Judge the written design against actual pixels as this inspection view shows it. Every required visible aspect is judged; a design trait whose visibility depends on a condition this view excludes is recorded as unobserved, never as matched or as a defect. Unreadable required evidence or omitted required design is not pass. Mark unrelated scene/framing categories pass with N/A evidence. This does not grant production qualification.';
 /**
