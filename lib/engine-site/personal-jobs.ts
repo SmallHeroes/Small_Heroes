@@ -45,11 +45,10 @@ export async function loadEngineOrderSnapshot(db: PrismaClient, orderId: string)
   return { order, snapshot: { ...snapshot, options }, inputSha256 };
 }
 
-export async function startEnginePersonalJob(db: PrismaClient, orderId: string, policy: EngineSpendPolicy) {
-  const { order, snapshot, inputSha256 } = await loadEngineOrderSnapshot(db, orderId);
-  if (!['paid', 'generating'].includes(order.status) || !engineOrderPaymentAccepted(order, order.wizardSession?.sessionId) ||
-      order.deliveryHoldReason !== null || order.manualReviewRequired) engineSiteFail('engine_personal_payment_required');
-  const authority: EngineOrderAuthority = engineOrderAuthoritySchema.parse({ version: ENGINE_SITE_PROTOCOL, orderId,
+/** The one customer-authority builder: every paid order and the local rehearsal of the same recipe use exactly this. */
+export function engineCustomerAuthority(orderId: string, snapshot: { optionsSha256: string; offerSha256: string; imageQuality: string },
+  inputSha256: string, policy: EngineSpendPolicy): EngineOrderAuthority {
+  return engineOrderAuthoritySchema.parse({ version: ENGINE_SITE_PROTOCOL, orderId,
     requestSha256: inputSha256, optionsSha256: snapshot.optionsSha256,
     offer: { id: ENGINE_SITE_LAUNCH_OFFER.id, revisionSha256: snapshot.offerSha256 }, engine: 'native-cde-book/v1',
     sourceRevision: policy.sourceRevision, policySha256: enginePolicyDigest(policy), purpose: 'customer', imageQuality: snapshot.imageQuality,
@@ -58,6 +57,13 @@ export async function startEnginePersonalJob(db: PrismaClient, orderId: string, 
       maximumMicroUsd: policy.maximumMicroUsd, maximumCalls: policy.maximumCalls, approvalReference: policy.approvalReference,
       approvedBy: policy.approvedBy, approvedAt: policy.approvedAt, steps: engineOrderSteps(policy),
     } });
+}
+
+export async function startEnginePersonalJob(db: PrismaClient, orderId: string, policy: EngineSpendPolicy) {
+  const { order, snapshot, inputSha256 } = await loadEngineOrderSnapshot(db, orderId);
+  if (!['paid', 'generating'].includes(order.status) || !engineOrderPaymentAccepted(order, order.wizardSession?.sessionId) ||
+      order.deliveryHoldReason !== null || order.manualReviewRequired) engineSiteFail('engine_personal_payment_required');
+  const authority = engineCustomerAuthority(orderId, snapshot, inputSha256, policy);
   await registerEngineOrderAuthority(db, authority);
   const result = await db.$transaction(async tx => {
     const locked = await tx.$queryRaw<Array<{ status: string; deliveryHoldReason: string | null }>>`

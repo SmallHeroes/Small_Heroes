@@ -7,6 +7,7 @@ import {canonicalHash} from '@/lib/canonical-json';
 import {engineOrderAuthoritySchema,identifierSchema,engineSiteFail,type EngineOrderAuthority} from './contract';
 import {parseEngineCheckpoint,type EngineCheckpoint,type EngineProviderResult,type EngineRuntime,type PreparedEngineCall} from './durable-worker';
 import {responseQueueTiming,responseQueueTimingSchema,responseQueueDeadline,type ResponseQueueTiming} from './responses-queue-policy';
+import {isCurrentCustomerEngine,ENGINE_AUTHOR_BATCH} from './current-engine-policy';
 
 const MAX_JSON=64*1024*1024;
 const json=(value:unknown)=>JSON.stringify(value,null,2)+'\n';
@@ -19,11 +20,17 @@ export type LocalTrialCarry={accountedMicroUsd:number;logicalCalls:number;eviden
 export type LocalTrialDispatchWitness={list:()=>readonly {step:string;claimSha256:string;maximumMicroUsd:number}[];
  check:(step:string,claimSha256:string,dispatched:boolean)=>void;begin:(step:string,claimSha256:string)=>void};
 /** Shared by the real constructor and CLI planning, before any one-use execution claim. */
+/** Eligible description-only slots of the current customer recipe (with every re-ask): a full book never stops on count alone. */
+export const LOCAL_CURRENT_ENGINE_MAX_CALLS=124;
 export function validateLocalTrialAuthority(value:unknown){
  const a=engineOrderAuthoritySchema.parse(value),maximum=a.imageModelPolicy?12_000_000:10_000_000;
- if(a.purpose!=='test'||a.budget.maximumMicroUsd>maximum||a.budget.maximumCalls>121)engineSiteFail('local_trial_authority');
+ // A local rehearsal of the paid recipe runs the EXACT current-engine customer authority, against local files only:
+ // no Order, payment, database or delivery exists in this runtime. Every other customer authority stays refused.
+ const current=isCurrentCustomerEngine(a);
+ if(a.purpose!=='test'&&!current||a.budget.maximumMicroUsd>maximum||a.budget.maximumCalls>(current?LOCAL_CURRENT_ENGINE_MAX_CALLS:121))engineSiteFail('local_trial_authority');
  return a;
 }
+const BATCH_WIRE='engine-site-anthropic-batch/v1',BATCH_MAX_DEADLINE_MS=3*60*60*1000,BATCH_POLL_MS=30_000;
 export class LocalEngineTrialRuntime implements EngineRuntime {
  readonly checkpoint:EngineCheckpoint;
  readonly signal:AbortSignal;
@@ -93,9 +100,13 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
   try{
    this.check();await this.options.assertCurrent();plan.revalidate?.();
    const step=identifierSchema.parse(plan.call.step),slot=this.checkpoint.authority.budget.steps.find(s=>s.id===step);
+   // Message Batches exist only on the current-engine authority: a batch id, a 3 h ceiling and slow polls.
+   const batch=(plan.wire as any)?.version===BATCH_WIRE;
+   if(batch&&this.checkpoint.authority.authorTransport!==ENGINE_AUTHOR_BATCH)engineSiteFail('local_trial_plan_changed');
+   const pendingPattern=batch?/^msgbatch_[A-Za-z0-9_-]+$/:/^resp_[A-Za-z0-9_-]+$/;
    if(!slot||plan.call.maximumMicroUsd!==slot.maximumMicroUsd||plan.call.wireSha256!==canonicalHash(plan.wire)||!plan.admitSaved||
      !Number.isSafeInteger(plan.requiredMs)||plan.requiredMs<1||plan.requiredMs>1_500_000||
-     plan.completionDeadlineMs!==undefined&&(!Number.isSafeInteger(plan.completionDeadlineMs)||plan.completionDeadlineMs<1||plan.completionDeadlineMs>3_600_000))engineSiteFail('local_trial_plan_changed');
+     plan.completionDeadlineMs!==undefined&&(!Number.isSafeInteger(plan.completionDeadlineMs)||plan.completionDeadlineMs<1||plan.completionDeadlineMs>(batch?BATCH_MAX_DEADLINE_MS:3_600_000)))engineSiteFail('local_trial_plan_changed');
    const wire=plan.wire as any,queued=plan.responseQueueTiming;
    const timingSha=canonicalHash(queued??null);
    if(queued&&(wire.version!=='engine-site-responses/v3'||!this.checkpoint.authority.responsesQueuePolicy||canonicalHash(queued)!==canonicalHash(responseQueueTiming(plan.completionDeadlineMs!))||canonicalHash(queued)!==canonicalHash(wire.responseQueueTiming))||wire.endpoint==='https://api.openai.com/v1/responses'&&!!this.checkpoint.authority.responsesQueuePolicy!==!!queued)engineSiteFail('local_trial_queue_policy_changed');
@@ -113,7 +124,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
     this.exclusive(claimFile,claim);this.updateCheckpoint(step,claim,undefined,false);
    }
    const polls=readdirSync(dir).filter(f=>/^pending-\d{5}\.json$/.test(f)).sort();let pending:string|undefined;
-   if(polls.length){const prior=this.read(this.callFile(step,polls[polls.length-1])) as Poll;pending=prior.id;if(!/^resp_[A-Za-z0-9_-]+$/.test(pending))engineSiteFail('local_trial_pending_id');}
+   if(polls.length){const prior=this.read(this.callFile(step,polls[polls.length-1])) as Poll;pending=prior.id;if(!pendingPattern.test(pending))engineSiteFail('local_trial_pending_id');}
    else if(existsSync(this.callFile(step,'dispatch.json')))engineSiteFail('local_trial_unknown_dispatch');
    const meter=await this.meter();if(meter.blocked||meter.pendingCalls!==1)engineSiteFail('local_trial_budget_or_unknown');
    let n=polls.length;const queuePolls:Poll[]=queued?polls.map(f=>this.read(this.callFile(step,f))):[];
@@ -125,10 +136,10 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
     // A throw leaves the complete reservation and dispatch marker. It NEVER authorizes another POST.
     const answer=await plan.execute(pending,this.signal,assertDispatch);
     if(answer.kind==='pending'){
-     if(!/^resp_[A-Za-z0-9_-]+$/.test(answer.id)||pending&&answer.id!==pending)engineSiteFail('local_trial_pending_id');
+     if(!pendingPattern.test(answer.id)||pending&&answer.id!==pending)engineSiteFail('local_trial_pending_id');
      const observation={id:answer.id,raw:answer.raw,at:this.now()};this.exclusive(this.callFile(step,'pending-'+String(n++).padStart(5,'0')+'.json'),observation);if(queued)queuePolls.push(observation);pending=answer.id;
      this.checkpoint.calls[step].pendingId=pending;this.checkpoint.calls[step].polls=n;this.persist();
-     await (this.options.pause?.(5000)??new Promise<void>(resolve=>setTimeout(resolve,5000)));continue;
+     const wait=batch?BATCH_POLL_MS:5000;await (this.options.pause?.(wait)??new Promise<void>(resolve=>setTimeout(resolve,wait)));continue;
     }
     const value={wireSha256:claim.call.wireSha256,completed:true,result:answer.result},assetId=this.blob(value);
     // Persist/settle charged bytes BEFORE semantic/source revalidation, exactly as the production runtime.

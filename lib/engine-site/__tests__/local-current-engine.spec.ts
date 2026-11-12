@@ -1,0 +1,90 @@
+/** Local rehearsal of the paid current-engine recipe: the exact customer authority and the real batch author plan, local files only. */
+import {afterEach,describe,expect,it,vi} from 'vitest';
+import {mkdtempSync,readdirSync,rmSync,existsSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {z} from 'zod';
+import {canonicalHash} from '@/lib/canonical-json';
+import type {CausalDispatch} from '@/lib/personal-wizard/story-causal-experiment-runner';
+import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../local-trial-runtime';
+import {ENGINE_AUTHOR_BATCH,ENGINE_CURRENT_CUSTOMER} from '../current-engine-policy';
+import {engineSpendPolicySchema,engineOrderSteps,enginePolicyDigest} from '../platform-policy';
+import {prepareEngineAnthropic} from '../provider-plans';
+import {engineCustomerAuthority} from '../personal-jobs';
+import {prepareEngineOrder,resolveEngineWizardOptions} from '../personal-orders';
+import {syntheticEngineOrderInput} from './synthetic-order';
+import {authority} from './fixtures';
+
+const roots:string[]=[];
+afterEach(()=>{vi.restoreAllMocks();for(const r of roots.splice(0)){if(path.dirname(r)!==path.resolve(tmpdir())||!path.basename(r).startsWith('sh_local_current_'))throw Error('owned_test_only');rmSync(r,{recursive:true,force:true});}});
+const policy=(maximumCalls=LOCAL_CURRENT_ENGINE_MAX_CALLS)=>engineSpendPolicySchema.parse({version:'engine-site-spend-policy/v1',sourceRevision:'a'.repeat(40),
+ maximumMicroUsd:12_000_000,maximumCalls,approvalReference:'SYNTHETIC_LOCAL',approvedBy:'synthetic_owner',approvedAt:'2026-11-12T00:00:00.000Z',
+ paidProviderActivation:'owner_approved_live_personal_orders',
+ engineProfile:{version:ENGINE_CURRENT_CUSTOMER,imageModelPolicy:{version:'image26-local-book/v1',model:'gpt-image-2.6-sunburst',complexity:'high'}}});
+function prepared(){return prepareEngineOrder(syntheticEngineOrderInput(),{id:'local_owner',email:'fixture@example.invalid',name:'Synthetic'},resolveEngineWizardOptions());}
+const current=(maximumCalls?:number)=>{const p=prepared();return engineCustomerAuthority('local_current_synthetic',p.snapshot,p.inputSha256,policy(maximumCalls));};
+const dispatch=():CausalDispatch=>({role:'opus',stage:'author',conversationKey:'synthetic_author',input:'SYNTHETIC brief',
+ instructions:'SYNTHETIC instructions',schema:z.object({text:z.string().min(2)}).strict(),maxOutputTokens:8000});
+const message={id:'msg_synthetic',type:'message',model:'claude-opus-5-5',stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify({text:'Synthetic story'})}],
+ usage:{input_tokens:1000,output_tokens:500,cache_creation_input_tokens:0,cache_read_input_tokens:0,service_tier:'batch'}};
+const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status});
+function runtime(a:ReturnType<typeof current>,extra:Partial<ConstructorParameters<typeof LocalEngineTrialRuntime>[0]>={}){
+ const root=mkdtempSync(path.join(tmpdir(),'sh_local_current_'));roots.push(root);
+ const options={root,authority:a,ownerId:'local_owner',draftId:'d_localcurrent1',snapshotSha256:'a'.repeat(64),assertCurrent:()=>{},pause:async()=>{},...extra};
+ return {root,options,r:new LocalEngineTrialRuntime(options)};
+}
+function batchFetch(endedAfterPolls=2){
+ const calls:{url:string;method:string}[]=[];let polls=0;
+ const fetch=vi.fn(async(input:string|URL|Request,init?:RequestInit)=>{const url=String(input),method=init?.method??'GET';calls.push({url,method});
+  if(method==='POST')return json({id:'msgbatch_local',processing_status:'in_progress'});
+  if(url.endsWith('/results'))return new Response(JSON.stringify({custom_id:'story_author',result:{type:'succeeded',message}})+'\n');
+  polls++;return json({id:'msgbatch_local',processing_status:polls>endedAfterPolls?'ended':'in_progress',results_url:'https://api.anthropic.com/v1/messages/batches/msgbatch_local/results'});
+ }) as unknown as typeof globalThis.fetch;
+ return {fetch,calls};
+}
+const ports=(fetch:typeof globalThis.fetch)=>({fetch,openAIKey:()=>'unused',anthropicKey:()=>'SYNTHETIC_KEY'});
+
+describe('local rehearsal of the current customer engine',()=>{
+ it('the shared builder gives the exact current-engine customer authority and the local runtime admits only that customer shape',()=>{
+  const a=current();
+  expect(a).toMatchObject({purpose:'customer',currentEngine:ENGINE_CURRENT_CUSTOMER,authorTransport:ENGINE_AUTHOR_BATCH,imageQuality:'low',narrativePages:8,
+   entitlements:{narration:true,pdf:true},policySha256:enginePolicyDigest(policy()),budget:{maximumMicroUsd:12_000_000,maximumCalls:LOCAL_CURRENT_ENGINE_MAX_CALLS}});
+  expect(a.budget.steps).toEqual(engineOrderSteps(policy()));
+  expect(validateLocalTrialAuthority(a)).toEqual(a);
+  expect(()=>validateLocalTrialAuthority(current(LOCAL_CURRENT_ENGINE_MAX_CALLS+1))).toThrow('local_trial_authority');
+  // A historical customer authority (no current bundle) stays refused, and test authorities keep the old 121 bound.
+  expect(()=>validateLocalTrialAuthority({...authority(),purpose:'customer'})).toThrow('local_trial_authority');
+  expect(()=>validateLocalTrialAuthority({...authority(),purpose:'test',budget:{...authority().budget,maximumCalls:122}})).toThrow('local_trial_authority');
+ });
+ it('runs the REAL batch author plan: one create, 30 s polls, one settled result at the batch rate',async()=>{
+  const a=current(),pauses:number[]=[],s=runtime(a,{pause:async ms=>{pauses.push(ms);}}),f=batchFetch(2);
+  const plan=prepareEngineAnthropic(a,dispatch(),ports(f.fetch));
+  const result=await s.r.call(plan);
+  expect(result).toMatchObject({usable:true,output:{text:'Synthetic story'},estimatedMicroUsd:Math.ceil((1000*4+500*20)/2)});
+  expect(f.calls.filter(c=>c.method==='POST')).toHaveLength(1);
+  expect(pauses.length).toBeGreaterThanOrEqual(2);expect(pauses.every(ms=>ms===30_000)).toBe(true);
+  expect(s.r.checkpoint.calls.story_author).toMatchObject({settled:true,pendingId:'msgbatch_local'});
+  expect(await s.r.meter()).toMatchObject({logicalCalls:1,pendingCalls:0,unknownCalls:0,blocked:false});
+ });
+ it('a process exit while the batch is pending resumes by the same batch id and never creates a second batch',async()=>{
+  const a=current();let crash=true;const s=runtime(a,{pause:async()=>{if(crash)throw Error('synthetic_process_exit');}}),f=batchFetch(1);
+  await expect(s.r.call(prepareEngineAnthropic(a,dispatch(),ports(f.fetch)))).rejects.toThrow('synthetic_process_exit');
+  crash=false;const resumed=new LocalEngineTrialRuntime(s.options);
+  expect(await resumed.call(prepareEngineAnthropic(a,dispatch(),ports(f.fetch)))).toMatchObject({usable:true});
+  expect(f.calls.filter(c=>c.method==='POST')).toHaveLength(1);
+  expect(readdirSync(path.join(s.root,'calls','story_author')).filter(n=>n.startsWith('pending-')).length).toBeGreaterThanOrEqual(1);
+ });
+ it('an expired batch keeps its full reserve and stops; it never re-sends',async()=>{
+  let now=10_000;const a=current(),s=runtime(a,{now:()=>now,pause:async()=>{now+=60*60*1000;}}),f=batchFetch(1000);
+  await expect(s.r.call(prepareEngineAnthropic(a,dispatch(),ports(f.fetch)))).rejects.toThrow('local_trial_pending_deadline');
+  expect(f.calls.filter(c=>c.method==='POST')).toHaveLength(1);
+  expect(await s.r.meter()).toMatchObject({pendingCalls:1,accountedMicroUsd:a.budget.steps.find(x=>x.id==='story_author')!.maximumMicroUsd});
+ });
+ it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
+  const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();
+  const step=test.budget.steps[0].id;
+  await expect(s.r.call({wire,call:{step,wireSha256:canonicalHash(wire),maximumMicroUsd:test.budget.steps[0].maximumMicroUsd},
+   requiredMs:20_000,completionDeadlineMs:3*60*60*1000,execute,admitSaved:()=>{}})).rejects.toThrow('local_trial_plan_changed');
+  expect(execute).not.toHaveBeenCalled();expect(existsSync(path.join(s.root,'calls',step))).toBe(false);
+ });
+});
