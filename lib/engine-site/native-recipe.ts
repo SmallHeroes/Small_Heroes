@@ -17,11 +17,11 @@ import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_A
   childAnchorInspectionContext, CHILD_ANCHOR_MATERIALITY_VERSION, childAnchorInspectionContextSha,
   childAnchorAttemptRecipe, childAnchorRecipeSha, childAnchorStylePayload, childAnchorStyleDisposition,
   childAnchorInspectedDesignPayload, childAnchorInspectedDesignDisposition, childAnchorDisposition,
-  childAnchorPoseCorrectionPrompt, childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted,
+  childAnchorPoseCorrectionPrompt, childAnchorTypedCorrections, childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted,
   CHILD_ANCHOR_CORRECTION_ROLES } from '@/lib/personal-wizard/child-anchor-style';
 import { companionIdentityReference } from '@/lib/personal-wizard/companion-identity';
 import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, assessAuditionReview, attemptStatus,
-  selectAuditionAttempt, sameSheetContext, sheetRepairPrompt, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+  selectAuditionAttempt, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-payload';
 import { runNativeBookFrames } from '@/lib/personal-wizard/native-page-proof-frames';
 import { NATIVE_BOOK_FRAMES } from '@/lib/personal-wizard/native-page-proof';
@@ -38,7 +38,7 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { isCurrentCustomerEngine } from './current-engine-policy';
+import { isCurrentCustomerEngine, isCurrentCustomerEngineV2 } from './current-engine-policy';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld,engineBoundRepairAvailable,
   prepareEngineBoundRepair,engineBoundRepairOrigin } from './storyboard-binding';
@@ -232,7 +232,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       let anchor = await anchorAttempt('reference_child', request.prompt, refs);
       if (anchor.disposition.disposition === 'repair') {
         const rejected = anchor.candidate;
-        anchor = await anchorAttempt('reference_child_repair', childAnchorPoseCorrectionPrompt(request.core, anchor.disposition.corrections), [rejected], true);
+        anchor = await anchorAttempt('reference_child_repair', childAnchorPoseCorrectionPrompt(request.core, isCurrentCustomerEngineV2(authority)
+          ? childAnchorTypedCorrections(anchor.style, anchor.inspected, clothing) : anchor.disposition.corrections), [rejected], true);
         if (anchor.candidate.imageSha === rejected.imageSha) engineSiteFail('engine_child_repair_unchanged');
       }
       if (anchor.disposition.disposition !== 'passed') engineSiteFail('engine_child_held');
@@ -341,6 +342,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       await runNativeBookFrames({ book, rawReview: prepared.review, texts,
         current: { request: snapshot.request, writerResult: prepared.source, options: snapshot.options, readerFraming: READER_PORTRAIT_FRAMING_VERSION }, child, companion,
         companionDescription: restored.source.companionDescription, pages: NATIVE_BOOK_FRAMES, reuseSheets: sheets,
+        ...(isCurrentCustomerEngineV2(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
         ...(Object.keys(resumePages).length ? { resumePages } : {}),
         check: runtime.check, render: (step, prompt, refs, mode, roles) => {
           if (!['book_identity', 'book_design', 'book_scene_edit'].includes(mode)) engineSiteFail('engine_native_v2_not_enabled');

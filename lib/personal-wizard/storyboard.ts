@@ -37,7 +37,7 @@ import { STORYBOARD_PRESERVATION_VERSION, PRESERVATION_STORYBOARD_ADDENDUM, asse
 import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } from './storyboard-scene-location';
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from './storyboard-compiler-rules';
 import { STORYBOARD_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_ATTEMPT_EXTENSION_V2, STORYBOARD_BOUND_REPAIR_VERSION, assertStoryboardRepair,
-  storyboardRepairFindings, type StoryboardRepair } from './storyboard-repair';
+  storyboardRepairFindings, boundRepairSections, insideBoundScope, BOUND_REPAIR_SCOPE_ADDENDUM, type StoryboardRepair } from './storyboard-repair';
 import { VISIBLE_MOMENT_CONTRACT_VERSION, VISIBLE_MOMENT_STORYBOARD_ADDENDUM } from './storyboard-visible-moment';
 import { STORYBOARD_SELF_CHECK_VERSION, STORYBOARD_SELF_CHECK_NAMES_VERSION, STORYBOARD_SELF_CHECK_SOURCE_SPANS_VERSION, SELF_CHECK_STORYBOARD_ADDENDUM, selfCheckSchema, validateStoryboardSelfCheck,
   type StoryboardSelfCheck } from './storyboard-self-check';
@@ -274,6 +274,9 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     if (parent.storyboardDigest !== repair.parentStoryboardDigest) fail('repair_binding');
     const decision = storyboardReviewDisposition(parent, repair.review);
     if (decision.disposition === 'review_supported' || decision.disposition === 'review_supported_with_notes') fail('repair_not_held');
+    // A bound repair may change only the sections its review's typed blocking findings name; an untyped or child-only finding refuses here,
+    // before the planner is called (storyboard-bound-repair/v1).
+    const boundSections = repair.binding ? boundRepairSections(decision.impact?.blocking ?? fail('repair_unbound_finding'), parent.plan.pages.length) : undefined;
     // Under the typed policy only its blocking checks are findings (its notes stay listed in that review); otherwise every unsupported check.
     const findings = decision.impact ? decision.impact.blocking.map(f => f.scope === 'book'
       ? { scope: 'book' as const, category: f.category, verdict: f.verdict, observation: f.observation }
@@ -331,7 +334,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       ...(repair.parentRepair ? { parentRepair: structuredClone(repair.parentRepair) } : {}),
       ...(repair.addedContracts ? { addedContracts: [...repair.addedContracts] } : {}), ...(contractFindings ? { contractFindings } : {}),
       ...(repair.parentCompile ? { parentCompile: { ...repair.parentCompile } } : {}), ...(extension ? { extension: { ...extension } } : {}),
-      ...(repair.binding ? { binding: repair.binding } : {}), ...(typedFindings ? { typedFindings } : {}) };
+      ...(repair.binding ? { binding: repair.binding } : {}), ...(boundSections ? { boundSections } : {}), ...(typedFindings ? { typedFindings } : {}) };
   })();
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
     request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion, companionVisualAuthority,
@@ -358,7 +361,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       review: digest(held.review), ...(held.parentRepair ? { parentRepair: digest(held.parentRepair) } : {}),
       ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}), ...(held.diagnosis ? { diagnosis: diagnosisDigest(held.diagnosis) } : {}),
       ...(held.parentCompile ? { parentCompile: held.parentCompile } : {}), ...(held.extension ? { extension: held.extension } : {}),
-      ...(held.binding ? { binding: held.binding } : {}) } } : {}),
+      ...(held.binding ? { binding: held.binding } : {}), ...(held.boundSections ? { changeScope: held.boundSections } : {}) } } : {}),
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}),
     ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
@@ -384,6 +387,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       ...(held.parentRepair ? { parentRepair: held.parentRepair } : {}), ...(held.addedContracts ? { addedContracts: held.addedContracts } : {}),
       ...(held.parentCompile ? { parentCompile: held.parentCompile } : {}), ...(held.extension ? { extension: held.extension } : {}),
       ...(held.binding ? { binding: held.binding } : {}) } } : {}),
+    ...(held?.boundSections ? { boundRepairScope: held.boundSections } : {}),
     brief: prepared.brief, companionVisualAuthority, companionDescription: companionVisualAuthority.description,
     ...(companionScale ? { companionScale } : {}),
     planningInput: {
@@ -412,7 +416,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
         reviewFindings: held.typedFindings ?? held.findings, ...(held.groups ? { findingGroups: held.groups } : {}),
         ...(held.repeated ? { repeatedReferences: held.repeated } : {}),
         ...(held.contractFindings ? { contractFindings: held.contractFindings } : {}),
-        ...(held.diagnosis ? { diagnosis: held.diagnosis } : {}) } } : {}),
+        ...(held.diagnosis ? { diagnosis: held.diagnosis } : {}), ...(held.boundSections ? { changeScope: held.boundSections } : {}) } } : {}),
     },
   };
   sources.set(source, canonicalJson(source));
@@ -483,6 +487,8 @@ These roles are distinct from supporting cast and scene props. Preserve the supp
 export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true; stagingFields?: true; selfCheckSourceSpans?: true }): PersonalStoryboard {
   assertSource(source);
   if(source.existingChildAppearance)assertExistingChildClothing(source.existingChildAppearance,rawDraft);
+  // A bound repair changes nothing outside its review's typed scope (the child is pinned above and by the schema).
+  if(source.boundRepairScope&&changedSections(source.repair!.draft,rawDraft).some(s=>!insideBoundScope(source.boundRepairScope!,s)))fail('bound_repair_scope');
   // Whitespace-only quote variants resolve to the page's exact span before every quote gate; exact drafts pass through unchanged.
   rawDraft = resolveSourceQuotes(rawDraft, previewStoryEvidence(source.story).texts);
   if (options?.stagingFields === true && source.claimBasisContract) rawDraft = canonicalStagingRefs(rawDraft);
@@ -833,7 +839,7 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
 export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; preservation?: unknown;
   sceneLocationContract?: true; compilerRulesContract?: true; repair?: unknown; drawnInstantContract?: true; visibleMomentContract?: true;
   selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true; presenceContract?: true; stateParityContract?: true;
-  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions; existingChildAppearance?: ExistingChildAppearance }) => {
+  instanceDistinctionContract?: true; engineContinuity?: EngineContinuityOptions; existingChildAppearance?: ExistingChildAppearance; boundRepairScope?: string[] }) => {
   if (source.stateParityContract !== undefined && (source.stateParityContract !== true || source.calibrationContract !== true ||
     source.claimBasisContract !== true || source.visibleMomentContract !== true)) fail('state_parity_policy');
   if(source.engineContinuity?.sourceConcurrency!==undefined&&(source.engineContinuity.sourceConcurrency!==true||source.stateParityContract!==true||source.presenceContract!==true))fail('source_concurrency_policy');
@@ -852,7 +858,7 @@ export const storyboardInstructions = (source: { actorOwnedAppearance?: true; mo
   + (source.stateParityContract ? '\n' + STATE_PARITY_PLANNER_ADDENDUM : '')
   + (source.engineContinuity?.sourceConcurrency?'\n'+SOURCE_CONCURRENCY_PLANNER_ADDENDUM:'')
   + (source.existingChildAppearance ? '\n' + EXISTING_CHILD_APPEARANCE_INSTRUCTION : '')
-  + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM : '');
+  + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM + (source.boundRepairScope ? '\n' + BOUND_REPAIR_SCOPE_ADDENDUM : '') : '');
 };
 /** The drawn-instant addendum under the claim basis: its completeness rule stated for visible entities (replaced, never contradicted). */
 function claimBasisDrawnInstantAddendum(concurrency?:true) {

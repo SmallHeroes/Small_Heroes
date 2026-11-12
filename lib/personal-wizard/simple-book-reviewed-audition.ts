@@ -684,9 +684,28 @@ export function selectAuditionAttempt(phase: 'sheet' | 'page', attempts: readonl
   return [...eligible].sort((a, b) => compare(selectionKey(phase, a), selectionKey(phase, b)))[0];
 }
 
+/**
+ * typed-page-corrections/v1 (opt-in, customer-current-engine/v2): a page correction names each material finding by its impact and its BOUND
+ * requirement id with one canonical sentence; the reviewer's free-text note is never forwarded to the renderer, so a note can never change the
+ * child's declared wardrobe or appearance or ask for anything the written requirements do not state. Unbound safety findings become one fixed
+ * child-safety sentence. Absent, the existing wording is byte-identical.
+ */
+export const TYPED_PAGE_CORRECTION_VERSION = 'typed-page-corrections/v1' as const;
+const typedPageCorrection = (f: { impact: string; requirement: string; bound?: boolean }) => !f.bound ? '- [safety] keep the picture child-safe: nothing unsafe, harmful or revealing; every person fully dressed as written.'
+  : f.requirement === 'cast:child' ? `- [${f.impact}] cast:child: the reference child exactly (same face, hair, skin tone and proportions as the child reference), dressed in exactly the declared wardrobe.`
+  : f.requirement === 'cast:companion' ? `- [${f.impact}] cast:companion: the companion exactly as its reference and written design.`
+  : `- [${f.impact}] ${f.requirement}: satisfy this written requirement exactly as the page description and checks above state it.`;
 /** Only bound findings that change meaning are forwarded; detail notes never drive a regeneration. */
-export function auditionCorrections(attempt: AuditionAttempt | undefined, phase: 'sheet' | 'page') {
+export function auditionCorrections(attempt: AuditionAttempt | undefined, phase: 'sheet' | 'page', typed?: typeof TYPED_PAGE_CORRECTION_VERSION) {
   if (!attempt?.assessment) return '';
+  if (typed !== undefined) {
+    if (typed !== TYPED_PAGE_CORRECTION_VERSION || phase !== 'page') fail('audition_typed_corrections_scope');
+    const material = attempt.assessment.findings.filter(f => f.impact !== 'detail' && (f.bound || f.impact === 'safety'));
+    if (material.some(f => f.bound && !/^[a-z][a-z0-9_]*(?::[A-Za-z0-9_.-]+)*$/.test(f.requirement))) fail('audition_typed_corrections_scope');
+    const lines = [...new Set(material.map(typedPageCorrection))];
+    if (attempt.candidate && !identityPassed(attempt.identity)) lines.push('- [identity] cast:child: the child must be the reference child (the measured resemblance was below 0.70 or missing).');
+    return lines.length ? `\nTYPED CORRECTIONS FROM THE PREVIOUS ATTEMPT'S REVIEW (canonical wording; resolve each against the written requirements and references, and keep everything that was already correct):\n${[...new Set(lines)].join('\n')}` : '';
+  }
   const notes = attempt.assessment.findings.filter(f => f.impact !== 'detail' && (f.bound || f.impact === 'safety'))
     .map(f => `- [${f.impact}] ${f.requirement}: ${f.note}`);
   if (phase === 'page' && attempt.candidate && !identityPassed(attempt.identity))
@@ -1408,7 +1427,10 @@ export async function illustrateReviewedAudition(args: {
    * call. Absent: a held sheet stays a diagnostic candidate for every page, exactly as before.
    */
   referenceQualification?: typeof REFERENCE_QUALIFICATION_VERSION;
+  /** Opt-in (customer-current-engine/v2): page corrections in canonical wording from typed findings only (auditionCorrections). */
+  typedCorrections?: typeof TYPED_PAGE_CORRECTION_VERSION;
 }) {
+  if (args.typedCorrections !== undefined && (args.typedCorrections !== TYPED_PAGE_CORRECTION_VERSION || args.scenePreservation || args.recovery)) fail('audition_typed_corrections_scope');
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
   const topology = args.landmarkTopology;
   // scene-preservation/v1 composes with the native whole book only: no sample, lineup, continuation, recovery, resume or legacy repair mode.
@@ -1914,7 +1936,7 @@ export async function illustrateReviewedAudition(args: {
       const diagnosis = args.recovery ? auditionRecoveryDiagnosis(attempts) : null;
       if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });
       const previousAttempt = attempts[attempts.length - 1];
-      const result = await pageAttempt(pageNumber, attempt, previousAttempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(previousAttempt, 'page')),
+      const result = await pageAttempt(pageNumber, attempt, previousAttempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(previousAttempt, 'page', args.typedCorrections)),
         (diagnosis?.prompt ?? '') + anatomyPoseStrategy(previousAttempt ? auditionAttemptFindings(previousAttempt) : []), context, contextSha, checks, canonical, predecessor);
       attempts.push(result); report('page', String(pageNumber), result);
       if (finish('page', String(pageNumber), attempts)) break;

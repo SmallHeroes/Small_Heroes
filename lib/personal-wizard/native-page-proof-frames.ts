@@ -7,9 +7,9 @@ import { ENTITY_MATERIAL_FUNCTION_VERSION } from './storyboard-material-function
 import { trialPageRenderEvidence } from './native-page-render-evidence';
 import { nativePageProofSteps, NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS, NATIVE_BOOK_REVIEW_REASKS } from './native-page-proof';
 type Input=Pick<Parameters<typeof illustrateReviewedAudition>[0],
-  'book'|'rawReview'|'texts'|'current'|'child'|'companion'|'companionDescription'|'render'|'judge'|'identity'|'check'|'save'|'progress'|'reuseSheets'>&{pages:readonly number[]};
+  'book'|'rawReview'|'texts'|'current'|'child'|'companion'|'companionDescription'|'render'|'judge'|'identity'|'check'|'save'|'progress'|'reuseSheets'|'typedCorrections'>&{pages:readonly number[]};
 const fail=(code:string):never=>{throw Object.assign(new Error(code),{code});};
-const keys=new Set(['book','rawReview','texts','current','child','companion','companionDescription','render','judge','identity','check','save','progress','reuseSheets','pages']);
+const keys=new Set(['book','rawReview','texts','current','child','companion','companionDescription','render','judge','identity','check','save','progress','reuseSheets','pages','typedCorrections']);
 const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTANCE_DISTINCTION_VERSION&&args.book?.materialFunction?.version===ENTITY_MATERIAL_FUNCTION_VERSION&&
   args.book?.companionScale?.version===COMPANION_SCALE_VERSION&&!!args.reuseSheets?.entities&&!!args.reuseSheets?.locations;
 /** Every paid step is one of the allowlist, used once, of its own kind; the engine's own attempt loop decides which are reached.

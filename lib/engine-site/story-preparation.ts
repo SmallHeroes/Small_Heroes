@@ -25,7 +25,7 @@ import {compactSchemaDefinitions} from '@/scripts/personal-opus-storyboard-trans
 import {LOCAL_INITIAL_REPAIR_WIRE_BYTES,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
 import type {SimpleStoryboardDiagnosticCall} from '@/lib/personal-wizard/simple-storyboard-diagnostic';
 import { enginePreparationContracts } from './storyboard-concurrency-policy';
-import { isCurrentCustomerEngine } from './current-engine-policy';
+import { isCurrentCustomerEngine, isCurrentCustomerEngineV2 } from './current-engine-policy';
 
 export type StorySnapshot={request:ReviewedPersonalBookRequest;options:PersonalWizardOptions};
 export const engineStoryboardSupported=(status:string)=>['review_supported','review_supported_with_notes'].includes(status);
@@ -33,7 +33,7 @@ export const engineStoryboardSupported=(status:string)=>['review_supported','rev
 export function localInitialRepairBody(authority:EngineOrderAuthority,call:SimpleStoryboardDiagnosticCall,repair:StoryboardRepair|undefined,step='initial_storyboard_repair_1'){
  const extended=(step==='initial_storyboard_repair_3'||step==='initial_storyboard_repair_4'&&authority.storyboardConcurrencyPolicy&&authority.storyboardAttemptExtension?.maxAttempts===5)&&authority.storyboardAttemptExtension&&repair?.extension&&canonicalHash(authority.storyboardAttemptExtension)===canonicalHash(repair.extension);
  // The current engine's bound repair uses the same complete repair wire and reserve as its base repairs.
- const bound=step===ENGINE_BOUND_REPAIR_STEP&&isCurrentCustomerEngine(authority)&&repair?.binding===STORYBOARD_BOUND_REPAIR_VERSION;
+ const bound=step===ENGINE_BOUND_REPAIR_STEP&&isCurrentCustomerEngineV2(authority)&&repair?.binding===STORYBOARD_BOUND_REPAIR_VERSION;
  if(!(['initial_storyboard_repair_1','initial_storyboard_repair_2'].includes(step)&&repair?.binding===undefined||extended||bound)||!repair||call.stage!=='storyboard'||call.maxOutputTokens>50_000||(authority.purpose!=='test'&&!isCurrentCustomerEngine(authority))||authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd!==LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD)engineSiteFail('engine_initial_repair_authority');
  const body=personalBookProviderPayload(call,'gpt-6.1-sol');body.text.format.schema=compactSchemaDefinitions(body.text.format.schema);
  if(Buffer.byteLength(JSON.stringify({...body,background:true,store:false}))>LOCAL_INITIAL_REPAIR_WIRE_BYTES)engineSiteFail('engine_initial_repair_wire_limit');return body;
@@ -68,7 +68,7 @@ export async function prepareEngineStoryboard(runtime:EngineRuntime,snapshot:Sto
  ports:EngineProviderPorts,prefix:'initial'|'prep'|'initial_repair_1'|'initial_repair_2'|'initial_repair_3'|'initial_repair_4'|'bound_repair',existingChildAppearance?:ExistingChildAppearance,repair?:StoryboardRepair){
  // A bound repair exists only as the current engine's one repair of a held bound board: with its appearance, its marker and both slots.
  if((prefix==='bound_repair')!==(repair?.binding!==undefined)||prefix==='bound_repair'&&(!existingChildAppearance||repair?.binding!==STORYBOARD_BOUND_REPAIR_VERSION||
-  !isCurrentCustomerEngine(runtime.checkpoint.authority)||![ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP].every(id=>runtime.checkpoint.authority.budget.steps.some(s=>s.id===id))))
+  !isCurrentCustomerEngineV2(runtime.checkpoint.authority)||![ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP].every(id=>runtime.checkpoint.authority.budget.steps.some(s=>s.id===id))))
   engineSiteFail('engine_bound_repair_authority');
  if(prefix==='initial_repair_3'&&(!runtime.checkpoint.authority.storyboardAttemptExtension||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_extension_authority');
  if(prefix==='initial_repair_4'&&(!runtime.checkpoint.authority.storyboardConcurrencyPolicy||runtime.checkpoint.authority.storyboardAttemptExtension?.maxAttempts!==5||!repair?.extension||canonicalHash(repair.extension)!==canonicalHash(runtime.checkpoint.authority.storyboardAttemptExtension)))engineSiteFail('engine_initial_concurrency_authority');

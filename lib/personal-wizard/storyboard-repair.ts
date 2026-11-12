@@ -45,6 +45,43 @@ export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown;
 export const STORYBOARD_BOUND_REPAIR_VERSION = 'storyboard-bound-repair/v1' as const;
 /** At most this many repairs above the first held storyboard. */
 const MAX_REPAIR_DEPTH = 3;
+/**
+ * The precise change scope of a bound repair, derived from the held bound review's BLOCKING findings and their typed issue refs only: the
+ * coarse draft sections (storyboard-diagnosis draftSections) each ref may change. A page claim may change its own frame, and a state it carries
+ * the frames that inherit it (a transition or change also the frame before it); a frame, its composition or a plan field only that frame's plan
+ * and moment; an entity or prop the continuity entities and recurring props; a location the locations; the companion its appearance; the book
+ * ref every book-level section. The child (cast:child) changes nothing: it is pinned. A blocking finding without typed issues, with an unknown
+ * ref, or whose refs allow nothing cannot be repaired here and refuses BEFORE the planner is called. The compiler then refuses any repaired draft
+ * that changes a section outside this scope.
+ */
+export function boundRepairSections(blocking: readonly { reason?: string; issues: readonly { ref: string }[] }[], frames: number): string[] {
+  const out = new Set<string>(), pageSections = (m: number) => [`p${m}:plan`, `p${m}:moment`, `p${m}:continuity`, ...(m >= 1 ? [`p${m}:sequence`] : [])];
+  const of = (raw: string): string[] => {
+    const ref = raw.replace(/#\d+$/, ''), page = /^p(\d+)(?::(.+))?$/.exec(ref);
+    if (ref === 'book') return ['book:*'];
+    if (ref === 'cast:child') return [];
+    if (ref === 'cast:companion') return ['book:plan.actorAppearance'];
+    if (/^(entity|prop):[A-Za-z0-9_.-]+$/.test(ref)) return ['book:continuity.entities', 'book:plan.recurringProps'];
+    if (/^location:[A-Za-z0-9_.-]+$/.test(ref)) return ['book:plan.locations'];
+    if (!page || Number(page[1]) >= frames) fail('repair_unbound_finding');
+    const n = Number(page![1]), rest = page![2] ?? '';
+    if (!rest || rest === 'composition' || /^[a-z][A-Za-z0-9_]*$/.test(rest) && rest !== 'instant' && rest !== 'scene') return [`p${n}:plan`, `p${n}:moment`];
+    if (/^requirement:\d+$/.test(rest)) return pageSections(n);
+    const from = /^(transition|change):/.test(rest) ? Math.max(0, n - 1) : n;
+    return Array.from({ length: frames - from }, (_, i) => pageSections(from + i)).flat();
+  };
+  for (const finding of blocking) {
+    if (finding.reason !== undefined && finding.reason !== 'blocking_impact' || !finding.issues.length) fail('repair_unbound_finding');
+    const sections = finding.issues.flatMap(i => of(i.ref));
+    if (!sections.length) fail('repair_unbound_finding');
+    sections.forEach(s => out.add(s));
+  }
+  if (!out.size) fail('repair_unbound_finding');
+  return [...out].sort();
+}
+/** Whether a changed section lies inside a bound repair's scope (book:* admits every book-level section). */
+export const insideBoundScope = (scope: readonly string[], section: string) => scope.includes(section) || scope.includes('book:*') && section.startsWith('book:');
+export const BOUND_REPAIR_SCOPE_ADDENDUM = `BOUND REPAIR SCOPE (${STORYBOARD_BOUND_REPAIR_VERSION}): priorReviewedStoryboard.changeScope lists the ONLY draft sections this repair may change (p{n}:plan, p{n}:moment, p{n}:continuity and p{n}:sequence are frame n's plan page, moment, continuity page and sequence page; book:... a book-level field; book:* every book-level field). Every other section must come back byte-identical. The child's identity, design and clothing are fixed and must not change.`;
 
 export const REPAIR_STORYBOARD_ADDENDUM = `REPAIR CONTRACT (one focused repair of a reviewed storyboard): priorReviewedStoryboard.storyboard is your previous storyboard for this exact final manuscript, and priorReviewedStoryboard.reviewFindings lists every check an independent review did not support: a book-level finding, or a page finding with its pageNumber (0 is the cover), each with the reviewer's category, verdict and observation.
 Return the complete storyboard again. Keep every part that no finding implicates exactly as it was: the same ids, designs, invariants, clothing, locations, props, page plans, cameras, compositions, cast, states, transitions, moments and sequence entries, with the same wording, values and order.

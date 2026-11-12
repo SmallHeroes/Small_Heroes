@@ -7,7 +7,7 @@ import {z} from 'zod';
 import {canonicalHash} from '@/lib/canonical-json';
 import type {CausalDispatch} from '@/lib/personal-wizard/story-causal-experiment-runner';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../local-trial-runtime';
-import {ENGINE_AUTHOR_BATCH,ENGINE_CURRENT_CUSTOMER} from '../current-engine-policy';
+import {ENGINE_AUTHOR_BATCH,ENGINE_CURRENT_CUSTOMER,ENGINE_CURRENT_CUSTOMER_V2} from '../current-engine-policy';
 import {engineSpendPolicySchema,engineOrderSteps,enginePolicyDigest} from '../platform-policy';
 import {prepareEngineAnthropic,prepareEngineResponse} from '../provider-plans';
 import {engineCustomerAuthority} from '../personal-jobs';
@@ -23,12 +23,13 @@ import {localInitialRepairBody,prepareEngineStoryboard} from '../story-preparati
 
 const roots:string[]=[];
 afterEach(()=>{vi.restoreAllMocks();for(const r of roots.splice(0)){if(path.dirname(r)!==path.resolve(tmpdir())||!path.basename(r).startsWith('sh_local_current_'))throw Error('owned_test_only');rmSync(r,{recursive:true,force:true});}});
-const policy=(maximumCalls=LOCAL_CURRENT_ENGINE_MAX_CALLS)=>engineSpendPolicySchema.parse({version:'engine-site-spend-policy/v1',sourceRevision:'a'.repeat(40),
+const policy=(maximumCalls=LOCAL_CURRENT_ENGINE_MAX_CALLS,version:string=ENGINE_CURRENT_CUSTOMER)=>engineSpendPolicySchema.parse({version:'engine-site-spend-policy/v1',sourceRevision:'a'.repeat(40),
  maximumMicroUsd:12_000_000,maximumCalls,approvalReference:'SYNTHETIC_LOCAL',approvedBy:'synthetic_owner',approvedAt:'2026-11-12T00:00:00.000Z',
  paidProviderActivation:'owner_approved_live_personal_orders',
- engineProfile:{version:ENGINE_CURRENT_CUSTOMER,imageModelPolicy:{version:'image26-local-book/v1',model:'gpt-image-2.6-sunburst',complexity:'high'}}});
+ engineProfile:{version,imageModelPolicy:{version:'image26-local-book/v1',model:'gpt-image-2.6-sunburst',complexity:'high'}}});
 function prepared(){return prepareEngineOrder(syntheticEngineOrderInput(),{id:'local_owner',email:'fixture@example.invalid',name:'Synthetic'},resolveEngineWizardOptions());}
 const current=(maximumCalls?:number)=>{const p=prepared();return engineCustomerAuthority('local_current_synthetic',p.snapshot,p.inputSha256,policy(maximumCalls));};
+const currentV2=()=>{const p=prepared();return engineCustomerAuthority('local_current_synthetic',p.snapshot,p.inputSha256,policy(undefined,ENGINE_CURRENT_CUSTOMER_V2));};
 const dispatch=():CausalDispatch=>({role:'opus',stage:'author',conversationKey:'synthetic_author',input:'SYNTHETIC brief',
  instructions:'SYNTHETIC instructions',schema:z.object({text:z.string().min(2)}).strict(),maxOutputTokens:8000});
 const message={id:'msg_synthetic',type:'message',model:'claude-opus-5-5',stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify({text:'Synthetic story'})}],
@@ -104,7 +105,7 @@ describe('local rehearsal of the current customer engine',()=>{
   await expect(u.r.call(old.plan as any)).rejects.toThrow('local_trial_pending_deadline');expect(now).toBeLessThan(10_000+600_000);
  });
  it('the current customer engine draws the child anchor under the wardrobe-safe pose contract; historical recipes keep v1',()=>{
-  expect(engineChildAnchorPose(current())).toBe(CHILD_ANCHOR_POSE_V3);
+  expect(engineChildAnchorPose(current())).toBe(CHILD_ANCHOR_POSE_V3);expect(engineChildAnchorPose(currentV2())).toBe(CHILD_ANCHOR_POSE_V3);
   expect(engineChildAnchorPose({...authority(),purpose:'test'})).toBe(CHILD_ANCHOR_POSE_VERSION);
   expect(engineChildAnchorPose({...authority(),purpose:'customer'})).toBe(CHILD_ANCHOR_POSE_VERSION);
  });
@@ -123,11 +124,19 @@ describe('local rehearsal of the current customer engine',()=>{
   expect(()=>prepareEngineResponse(test,'initial_storyboard_repair_1_review',body(104_001),x=>x,p)).toThrow('engine_responses_input_limit');
   expect(()=>prepareEngineResponse(test,'initial_storyboard_repair_1_review',body(104_000),x=>x,p)).not.toThrow('engine_responses_input_limit');
  });
- it('the current engine owns one bound repair (both slots, 1.2M reserve, 208 KB review); every other authority keeps the old stop',async()=>{
-  const a=current(),p={fetch:vi.fn() as unknown as typeof globalThis.fetch,openAIKey:()=>'unused',anthropicKey:()=>'unused'};
+ it('customer-current-engine/v2 owns one bound repair (both slots in place of the unused prep pair, 1.2M reserve, 208 KB review); v1 and every other authority keep the old stop',async()=>{
+  const a=currentV2(),v1=current(),p={fetch:vi.fn() as unknown as typeof globalThis.fetch,openAIKey:()=>'unused',anthropicKey:()=>'unused'};
+  expect(a).toMatchObject({currentEngine:ENGINE_CURRENT_CUSTOMER_V2,budget:{maximumMicroUsd:12_000_000,maximumCalls:LOCAL_CURRENT_ENGINE_MAX_CALLS}});
+  expect(validateLocalTrialAuthority(a)).toEqual(a);
   expect(a.budget.steps.find(s=>s.id===ENGINE_BOUND_REPAIR_STEP)?.maximumMicroUsd).toBe(1_200_000);
   expect(a.budget.steps.some(s=>s.id===ENGINE_BOUND_REPAIR_REVIEW_STEP)).toBe(true);
-  expect(engineBoundRepairAvailable(a)).toBe(true);
+  // The same slot count and ceiling: v2 declares the bound repair pair instead of the legacy prep_storyboard_0 pair it never uses.
+  expect(a.budget.steps.length).toBe(v1.budget.steps.length);
+  expect(a.budget.steps.some(s=>s.id.startsWith('prep_storyboard_0'))).toBe(false);
+  expect(v1.budget.steps.filter(s=>s.id.startsWith('prep_storyboard_0')).map(s=>s.id)).toEqual(['prep_storyboard_0','prep_storyboard_0_review']);
+  expect(v1.budget.steps.some(s=>s.id===ENGINE_BOUND_REPAIR_STEP||s.id===ENGINE_BOUND_REPAIR_REVIEW_STEP)).toBe(false);
+  expect(engineBoundRepairAvailable(a)).toBe(true);expect(engineBoundRepairAvailable(v1)).toBe(false);
+  expect(engineBoundRepairAvailable({...v1,budget:a.budget})).toBe(false);
   // An authority without the slots (every historical one) and a test authority never get it.
   expect(engineBoundRepairAvailable({...a,budget:{...a.budget,steps:a.budget.steps.filter(s=>s.id!==ENGINE_BOUND_REPAIR_STEP)}})).toBe(false);
   expect(engineBoundRepairAvailable({...a,purpose:'test'} as any)).toBe(false);
@@ -143,6 +152,7 @@ describe('local rehearsal of the current customer engine',()=>{
   expect(()=>localInitialRepairBody(a,call,bound,ENGINE_BOUND_REPAIR_STEP)).not.toThrow('engine_initial_repair_authority');
   expect(()=>localInitialRepairBody(a,call,plain,ENGINE_BOUND_REPAIR_STEP)).toThrow('engine_initial_repair_authority');
   expect(()=>localInitialRepairBody(a,call,bound,'initial_storyboard_repair_1')).toThrow('engine_initial_repair_authority');
+  expect(()=>localInitialRepairBody({...v1,budget:a.budget},call,bound,ENGINE_BOUND_REPAIR_STEP)).toThrow('engine_initial_repair_authority');
   expect(()=>localInitialRepairBody({...authority(),purpose:'test'} as any,call,bound,ENGINE_BOUND_REPAIR_STEP)).toThrow('engine_initial_repair_authority');
   // The storyboard stage refuses a bound repair without its marker, its appearance or its authority, and a marker on any other prefix.
   const rt=(x:any)=>({checkpoint:{authority:x}}) as any,existing={} as any;
@@ -151,6 +161,7 @@ describe('local rehearsal of the current customer engine',()=>{
   await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'bound_repair',existing,plain)).rejects.toThrow('engine_bound_repair_authority');
   await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'initial_repair_1',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
   await expect(prepareEngineStoryboard(rt({...authority(),purpose:'test'}),{} as any,{} as any,p,'bound_repair',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
+  await expect(prepareEngineStoryboard(rt({...v1,budget:a.budget}),{} as any,{} as any,p,'bound_repair',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
  });
  it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
   const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();

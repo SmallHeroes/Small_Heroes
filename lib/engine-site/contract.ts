@@ -6,7 +6,7 @@ import { ENGINE_SITE_LAUNCH_OFFER } from './offer-definition';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 import { ENGINE_STORYBOARD_BINDING } from './storyboard-binding-policy';
 import { locationSheetPolicySchema, LOCATION_SHEET_PROJECTION_V2 } from '@/lib/personal-wizard/location-sheet-projection';
-import { ENGINE_CURRENT_CUSTOMER, ENGINE_AUTHOR_BATCH } from './current-engine-policy';
+import { ENGINE_CURRENT_VERSIONS, ENGINE_AUTHOR_BATCH } from './current-engine-policy';
 import { engineImageModelPolicySchema } from './image-model-policy';
 import {localAttemptExtensionPolicySchema} from './local-attempt-extension-policy';
 import { SOURCE_CONCURRENCY_VERSION } from '@/lib/personal-wizard/storyboard-source-concurrency';
@@ -40,7 +40,7 @@ export const engineOrderAuthoritySchema = z.object({
   /** Opt-in local-test lifecycle only. Absent keeps all historical authority/wire bytes. */
   responsesQueuePolicy:z.literal('bounded-responses-queue/v1').optional(),
   /** Hosted customer bundle of the current proven policies; requires every member below. Absent: historical recipe. */
-  currentEngine: z.literal(ENGINE_CURRENT_CUSTOMER).optional(),
+  currentEngine: z.enum(ENGINE_CURRENT_VERSIONS).optional(),
   /** Opus author through Message Batches (polled across invocations). Only within the current customer bundle. */
   authorTransport: z.literal(ENGINE_AUTHOR_BATCH).optional(),
   sourceRevision: z.string().regex(/^[a-f0-9]{40}$/),
@@ -62,7 +62,7 @@ export const engineOrderAuthoritySchema = z.object({
     }).strict()).min(1).max(1000),
   }).strict(),
 }).strict().superRefine((value, ctx) => {
-  const current = value.currentEngine === ENGINE_CURRENT_CUSTOMER;
+  const current = value.currentEngine !== undefined;
   if (current && (value.purpose !== 'customer' || value.responseSchemaPolicy !== ENGINE_RESPONSE_SCHEMA_POLICY ||
       value.storyboardBindingPolicy !== ENGINE_STORYBOARD_BINDING || value.locationSheetPolicy !== LOCATION_SHEET_PROJECTION_V2 ||
       !value.imageModelPolicy || value.storyboardConcurrencyPolicy !== SOURCE_CONCURRENCY_VERSION || value.authorTransport !== ENGINE_AUTHOR_BATCH ||

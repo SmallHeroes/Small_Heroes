@@ -25,7 +25,7 @@ import {engineSiteFail} from '../lib/engine-site/contract';
 import {prepareEngineOrder,resolveEngineWizardOptions} from '../lib/engine-site/personal-orders';
 import {engineCustomerAuthority} from '../lib/engine-site/personal-jobs';
 import {engineSpendPolicySchema,type EngineSpendPolicy} from '../lib/engine-site/platform-policy';
-import {ENGINE_CURRENT_CUSTOMER} from '../lib/engine-site/current-engine-policy';
+import {ENGINE_CURRENT_CUSTOMER_V2} from '../lib/engine-site/current-engine-policy';
 import {ENGINE_IMAGE26_POLICY} from '../lib/engine-site/image-model-policy';
 import {engineQaRequired} from '../lib/engine-site/qa-order-policy';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../lib/engine-site/local-trial-runtime';
@@ -74,7 +74,7 @@ function writeOnceOrSame(file:string,value:unknown){
 export function localCurrentPolicy(head:string,go:{approvalReference:string;approvedAt:string}):EngineSpendPolicy{
  return engineSpendPolicySchema.parse({version:'engine-site-spend-policy/v1',sourceRevision:head,maximumMicroUsd:12_000_000,maximumCalls:LOCAL_CURRENT_ENGINE_MAX_CALLS,
   approvalReference:go.approvalReference,approvedBy:'Guy',approvedAt:go.approvedAt,paidProviderActivation:'owner_approved_live_personal_orders',
-  engineProfile:{version:ENGINE_CURRENT_CUSTOMER,imageModelPolicy:{...LOCAL_CURRENT_IMAGE_MODEL}}});
+  engineProfile:{version:ENGINE_CURRENT_CUSTOMER_V2,imageModelPolicy:{...LOCAL_CURRENT_IMAGE_MODEL}}});
 }
 /** Provider-free: the exact customer authority this profile would get on the current source. */
 export function prepareLocalCurrentBook(root:string,profileFile:string,go:{approvalReference:string;approvedAt:string}){

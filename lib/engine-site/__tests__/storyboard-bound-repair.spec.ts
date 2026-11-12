@@ -14,13 +14,13 @@ vi.mock('../story-preparation',async original=>({...await original<any>(),prepar
   storyboard:{existingChildAppearance:{synthetic:'e'.repeat(64)}}},draft:{repaired:true}};}}));
 import {admitEngineBindingParent,prepareEngineBoundRepair,engineBoundRepairOrigin,engineBoundRepairInput} from '../storyboard-binding';
 import {ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP,ENGINE_BOUND_REVIEW_STEP,ENGINE_STORYBOARD_BINDING} from '../storyboard-binding-policy';
-import {ENGINE_CURRENT_CUSTOMER} from '../current-engine-policy';
+import {ENGINE_CURRENT_CUSTOMER,ENGINE_CURRENT_CUSTOMER_V2} from '../current-engine-policy';
 import {ENGINE_RESPONSE_SCHEMA_POLICY} from '../response-schema';
 import {STORYBOARD_BOUND_REPAIR_VERSION} from '@/lib/personal-wizard/storyboard-repair';
 
 const steps=[ENGINE_BOUND_REVIEW_STEP,ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP].map(id=>({id,maximumMicroUsd:1_200_000}));
 function fixture(authorityOverride:Record<string,unknown>={}){
- const authority:any={orderId:'synthetic_order',requestSha256:'c'.repeat(64),optionsSha256:'d'.repeat(64),purpose:'customer',currentEngine:ENGINE_CURRENT_CUSTOMER,
+ const authority:any={orderId:'synthetic_order',requestSha256:'c'.repeat(64),optionsSha256:'d'.repeat(64),purpose:'customer',currentEngine:ENGINE_CURRENT_CUSTOMER_V2,
   storyboardBindingPolicy:ENGINE_STORYBOARD_BINDING,responseSchemaPolicy:ENGINE_RESPONSE_SCHEMA_POLICY,budget:{steps},...authorityOverride};
  const runtime:any={checkpoint:{ownerId:'synthetic_owner',draftId:'synthetic_draft',authority}};
  const snapshot:any={request:{},options:{}},source:any={synthetic:'bound-repair-fixture'},draft={plan:{actorAppearance:{child:{clothing:['shirt','trousers']}}},sequence:{state:'fixed'}};
@@ -49,7 +49,7 @@ describe('the current engine repairs a held bound board once, from its own bound
   await expect(prepareEngineBoundRepair(f.runtime,f.snapshot,f.source,ports,f.parent,f.existing,supported)).rejects.toThrow('engine_bound_repair_not_held');
   const other={diagnostic:{...f.held.diagnostic,storyboardDigest:'f'.repeat(64)}};
   await expect(prepareEngineBoundRepair(f.runtime,f.snapshot,f.source,ports,f.parent,f.existing,other)).rejects.toThrow('engine_bound_repair_parent_changed');
-  for(const override of [{budget:{steps:steps.filter(s=>s.id!==ENGINE_BOUND_REPAIR_REVIEW_STEP)}},{purpose:'test'},{currentEngine:undefined}]){
+  for(const override of [{budget:{steps:steps.filter(s=>s.id!==ENGINE_BOUND_REPAIR_REVIEW_STEP)}},{purpose:'test'},{currentEngine:undefined},{currentEngine:ENGINE_CURRENT_CUSTOMER}]){
    const g=fixture(override);
    await expect(prepareEngineBoundRepair(g.runtime,g.snapshot,g.source,ports,g.parent,g.existing,g.held)).rejects.toThrow('engine_bound_repair_authority');
   }

@@ -20,7 +20,7 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { buildStage0DescriptionTemplatePrompt, buildStage0MethodBPrompt, buildStage0MethodBReferences, STAGE0_ANCHOR_NEUTRAL_EXPRESSION } from '../generation-pipeline/stage0-method-b';
 import { STYLE_01_AVOIDANCE_NEGATIVE } from '../style01-gptimage';
 import { STYLE01_ANCHOR_STYLE_QA_PROMPT } from '../anchor-style-qa';
-import { PREVIEW_JUDGE_INSTRUCTION, previewQualityReviewSchema, qualityDisposition, type PreviewQualityReview } from '../local-preview-quality';
+import { PREVIEW_JUDGE_INSTRUCTION, previewQualityReviewSchema, qualityDisposition, type PreviewQualityReview, type QUALITY_CATEGORIES } from '../local-preview-quality';
 import { planGPTImageRequest, resolveGPTImageEditMaxReferences, type BookDesignReferenceRole } from '../generate-image';
 import { canonicalJson } from './request-acceptance';
 
@@ -359,8 +359,53 @@ export function childAnchorPoseDescriptionRequest(child: ChildAnchorChild, versi
 export const childAnchorPoseCorrectionPrompt = (core: string, corrections: readonly string[]) => {
   const clauses = anchorPoseClauses.filter(c => core.includes(c));
   if (!corrections.length || corrections.some(c => !c.trim()) || clauses.length !== 1 || core.split(clauses[0]).length !== 2) fail('child_anchor_correction_scope');
-  return `${core}\n\n${CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION}\nTARGETED CORRECTIONS:\n${corrections.join('\n')}${AVOID}`;
+  const prompt = `${core}\n\n${CHILD_ANCHOR_POSE_CORRECTION_INSTRUCTION}\nTARGETED CORRECTIONS:\n${corrections.join('\n')}${AVOID}`;
+  // v3 (no v3 correction was ever drawn, so no receipt changes): no correction may carry a contract clause of its own, and the FINAL prompt
+  // carries exactly the selected ANCHOR POSE clause, once (a judge's text quoting another version's clause can never reach the renderer).
+  if (clauses[0] === CHILD_ANCHOR_POSE_CLAUSE_V3 && (corrections.some(c => CONTRACT_MARKERS.some(m => c.includes(m))) ||
+      prompt.split(CONTRACT_MARKERS[0]).length !== 2 || prompt.split(CHILD_ANCHOR_POSE_CLAUSE_V3).length !== 2)) fail('child_anchor_correction_scope');
+  return prompt;
 };
+/** The text every contract clause starts with (an ANCHOR POSE or EYE SCALE clause, or any pose version id). */
+const CONTRACT_MARKERS = ['ANCHOR POSE (mandatory', 'EYE SCALE (mandatory', 'child-anchor-visible-pose/'] as const;
+
+// ---------------------------------------------------------------------------------------------------------------
+// child-anchor-typed-correction/v1 (customer-current-engine/v2 only): the ONE anchor correction is built from the review's TYPED fields only,
+// in canonical wording; the judges' free-text corrections, observations and notes are never forwarded to the renderer. Each defect category,
+// each visible-evidence mismatch (by its aspect), a defective apparent age and a style defect map to one fixed sentence; the wardrobe sentence
+// names exactly the declared wardrobe items, so a correction can never undress, shorten, open, replace or add clothing, change the pose
+// contract, or ask to uncover a child's skin. The disposition (repair / held / passed) is the unchanged childAnchorDisposition.
+// ---------------------------------------------------------------------------------------------------------------
+export const CHILD_ANCHOR_TYPED_CORRECTION_VERSION = 'child-anchor-typed-correction/v1' as const;
+const TYPED_CATEGORY_CORRECTIONS: Readonly<Record<(typeof QUALITY_CATEGORIES)[number], string>> = Object.freeze({
+  anatomy: 'anatomy: natural child anatomy, two arms and two legs, five fingers on each hand, natural joints and proportions.',
+  identity: 'identity: match the CHILD VISUAL LOCK above exactly.',
+  relative_scale: 'relative scale: natural child proportions for the requested age.',
+  props: 'props: no object the written design does not declare.',
+  environment: 'environment: a clean, near-empty background, as the ANCHOR POSE clause above requires.',
+  scene: 'scene: follow the ANCHOR POSE clause above exactly.',
+  framing: 'framing: the whole body from the top of the head to the soles of the feet inside the frame, as the ANCHOR POSE clause above requires.',
+  safety: 'safety: a child-safe picture, the child fully dressed exactly as the declared wardrobe describes.' });
+const TYPED_ASPECT = (aspect: (typeof CHILD_ANCHOR_REQUIRED_VISIBLE)[number], wardrobe: readonly string[]) => aspect === 'wardrobe'
+  ? `wardrobe: exactly the declared wardrobe, ${wardrobe.join('; ')}; no item removed, shortened, rolled up, opened, replaced or added.`
+  : `identity (${aspect.replace('_', ' ')}): exactly as the CHILD VISUAL LOCK above describes it.`;
+/**
+ * The typed corrections of ONE candidate whose disposition is a repair: categories, then mismatched aspects, then age, then style, each a
+ * fixed sentence (the wardrobe sentence with the declared items). Refuses an empty result or a wardrobe that is not a list of plain items.
+ */
+export function childAnchorTypedCorrections(style: StyleOutcome, design: DesignOutcome & { visibleEvidence?: readonly { aspect: string; verdict: string }[] },
+  wardrobe: readonly string[]) {
+  if (!wardrobe.length || wardrobe.some(w => !w.trim() || /[\n;]/.test(w) || CONTRACT_MARKERS.some(m => w.includes(m)))) fail('child_anchor_correction_scope');
+  const aspects = (design.visibleEvidence ?? []).filter(e => e.verdict === 'mismatch').map(e => e.aspect)
+    .filter((a): a is (typeof CHILD_ANCHOR_REQUIRED_VISIBLE)[number] => (CHILD_ANCHOR_REQUIRED_VISIBLE as readonly string[]).includes(a));
+  const corrections = [
+    ...design.review.checks.filter(c => c.verdict === 'defect').map(c => TYPED_CATEGORY_CORRECTIONS[c.category as (typeof QUALITY_CATEGORIES)[number]] ?? fail('child_anchor_correction_scope')),
+    ...[...new Set(aspects)].map(a => TYPED_ASPECT(a, wardrobe)),
+    ...(design.apparentAge.verdict === 'defect' ? [`apparent age: the face, head-to-body proportions and build of a ${design.apparentAge.requestedAge}-year-old child.`] : []),
+    ...(style.disposition === 'defect' ? ['style: refined semi-naturalistic Style 01 watercolor, natural eye scale, no mascot, chibi, flat-cartoon or photographic treatment.'] : [])];
+  if (!corrections.length) fail('child_anchor_correction_scope');
+  return corrections;
+}
 
 const poseContractSchema = z.union([
   z.object({ version: z.literal(CHILD_ANCHOR_POSE_VERSION), clause: z.literal(CHILD_ANCHOR_POSE_CLAUSE), clauseSha256: z.literal(CHILD_ANCHOR_POSE_CLAUSE_SHA256) }).strict(),
