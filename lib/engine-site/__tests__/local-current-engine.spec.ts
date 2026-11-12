@@ -9,7 +9,7 @@ import type {CausalDispatch} from '@/lib/personal-wizard/story-causal-experiment
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../local-trial-runtime';
 import {ENGINE_AUTHOR_BATCH,ENGINE_CURRENT_CUSTOMER} from '../current-engine-policy';
 import {engineSpendPolicySchema,engineOrderSteps,enginePolicyDigest} from '../platform-policy';
-import {prepareEngineAnthropic} from '../provider-plans';
+import {prepareEngineAnthropic,prepareEngineResponse} from '../provider-plans';
 import {engineCustomerAuthority} from '../personal-jobs';
 import {prepareEngineOrder,resolveEngineWizardOptions} from '../personal-orders';
 import {syntheticEngineOrderInput} from './synthetic-order';
@@ -103,6 +103,21 @@ describe('local rehearsal of the current customer engine',()=>{
   expect(engineChildAnchorPose(current())).toBe(CHILD_ANCHOR_POSE_V3);
   expect(engineChildAnchorPose({...authority(),purpose:'test'})).toBe(CHILD_ANCHOR_POSE_VERSION);
   expect(engineChildAnchorPose({...authority(),purpose:'customer'})).toBe(CHILD_ANCHOR_POSE_VERSION);
+ });
+ it('the current engine reviews its first storyboard repair with the full 208 KB review capacity; historical authorities keep 104 KB',()=>{
+  const body=(bytes:number)=>({model:'gpt-6.1-sol',service_tier:'default',store:false,reasoning:{effort:'medium'},instructions:'',input:'x'.repeat(bytes),
+   max_output_tokens:12000,text:{format:{type:'json_schema',name:'synthetic',strict:true,schema:{type:'object',properties:{},required:[],additionalProperties:false}}}});
+  const p={fetch:vi.fn() as unknown as typeof globalThis.fetch,openAIKey:()=>'unused',anthropicKey:()=>'unused'},a=current();
+  expect(a.budget.steps.find(s=>s.id==='initial_storyboard_repair_1_review')?.maximumMicroUsd).toBe(1_200_000);
+  // 114,076 bytes was the live initial review of 11/12; the first repair's review is at least that large.
+  expect(prepareEngineResponse(a,'initial_storyboard_repair_1_review',body(208_000),x=>x,p).call.step).toBe('initial_storyboard_repair_1_review');
+  expect(()=>prepareEngineResponse(a,'initial_storyboard_repair_1_review',body(208_001),x=>x,p)).toThrow('engine_responses_input_limit');
+  // The repair's own storyboard generation keeps 104 KB.
+  expect(()=>prepareEngineResponse(a,'initial_storyboard_repair_1',body(104_001),x=>x,p)).toThrow('engine_responses_input_limit');
+  // A historical (test) authority keeps the 104 KB review ceiling for this step.
+  const test={...authority(),purpose:'test' as const,responseSchemaPolicy:a.responseSchemaPolicy};
+  expect(()=>prepareEngineResponse(test,'initial_storyboard_repair_1_review',body(104_001),x=>x,p)).toThrow('engine_responses_input_limit');
+  expect(()=>prepareEngineResponse(test,'initial_storyboard_repair_1_review',body(104_000),x=>x,p)).not.toThrow('engine_responses_input_limit');
  });
  it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
   const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();

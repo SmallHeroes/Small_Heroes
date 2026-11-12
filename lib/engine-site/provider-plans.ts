@@ -191,7 +191,11 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
     (authority.purpose === 'test' || isCurrentCustomerEngine(authority)) && !!schemaPolicy;
   const boundReview = step === ENGINE_BOUND_REVIEW_STEP && (authority.purpose === 'test' || isCurrentCustomerEngine(authority)) &&
     authority.storyboardBindingPolicy === ENGINE_STORYBOARD_BINDING;
-  const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview || boundReview ? 208_000 : 104_000;
+  // The current engine's base loop reviews its FIRST repair too (2026-11-12): that review carries the same full storyboard as the initial and
+  // bound reviews (114 KB and 106 KB live), so it gets the same full-review capacity; the 104 KB ceiling refused it before dispatch
+  // (review_callback_failed) and stopped the book. Historical authorities keep 104 KB.
+  const baseRepairReview = step === 'initial_storyboard_repair_1_review' && isCurrentCustomerEngine(authority) && !!schemaPolicy;
+  const ceiling = /^(prep_storyboard_0_review|initial_storyboard_review)$/.test(step) || planRecoveryReview || boundReview || baseRepairReview ? 208_000 : 104_000;
   if (Buffer.byteLength(String(body.instructions) + textParts) > ceiling || Buffer.byteLength(JSON.stringify(body)) > 64 * 1024 * 1024)
     engineSiteFail('engine_responses_input_limit');
   const queueTiming=authority.responsesQueuePolicy?responseQueueTiming(generationTimeoutMs(body.max_output_tokens)):undefined;
