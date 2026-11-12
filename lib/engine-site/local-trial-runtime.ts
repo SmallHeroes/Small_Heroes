@@ -16,9 +16,16 @@ type Claim={version:'engine-local-claim/v1'|'engine-local-claim/v2';authoritySha
 type Settlement={version:'engine-local-result/v1';claimSha256:string;assetId:string;assetSha256:string;result:EngineProviderResult};
 type Poll={id:string;raw:unknown;at:number};
 export type LocalTrialCarry={accountedMicroUsd:number;logicalCalls:number;evidenceSha256:string};
-/** Optional consent-global write-once dispatch witnesses. Default/legacy runtimes retain their exact journal path. */
+/**
+ * Optional consent-global write-once dispatch witnesses. Default/legacy runtimes retain their exact journal path. `observe`/`observed`
+ * (optional): the provider's FIRST id of a dispatched step and its dispatch time, recorded before the first local pending observation, so a
+ * resume can only ever collect that one id.
+ */
 export type LocalTrialDispatchWitness={list:()=>readonly {step:string;claimSha256:string;maximumMicroUsd:number}[];
- check:(step:string,claimSha256:string,dispatched:boolean)=>void;begin:(step:string,claimSha256:string)=>void};
+ check:(step:string,claimSha256:string,dispatched:boolean)=>void;begin:(step:string,claimSha256:string)=>void;
+ observe?:(step:string,claimSha256:string,id:string,dispatchAt:number)=>void;observed?:(step:string)=>{claimSha256:string;id:string;dispatchAt:number}|null};
+/** The provider's own id inside a raw pending answer, when it carries one. */
+const rawId=(raw:unknown)=>raw&&typeof raw==='object'&&typeof (raw as {id?:unknown}).id==='string'?(raw as {id:string}).id:undefined;
 /** Shared by the real constructor and CLI planning, before any one-use execution claim. */
 /** Eligible description-only slots of the current customer recipe (with every re-ask): a full book never stops on count alone. */
 export const LOCAL_CURRENT_ENGINE_MAX_CALLS=124;
@@ -50,6 +57,9 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
   this.root=path.resolve(options.root);mkdirSync(this.root,{recursive:true,mode:0o700});
   if(lstatSync(this.root).isSymbolicLink()||realpathSync(this.root)!==this.root)engineSiteFail('local_trial_path');
   for(const name of ['assets','calls']){const dir=path.join(this.root,name);mkdirSync(dir,{recursive:true,mode:0o700});if(lstatSync(dir).isSymbolicLink()||realpathSync(dir)!==dir)engineSiteFail('local_trial_path');}
+  // The checkpoint is written before any asset, claim or dispatch: without it, saved calls or a witnessed dispatch mean lost state, never a new run.
+  if(!existsSync(this.file('checkpoint.json'))&&(readdirSync(this.file('calls')).length>0||readdirSync(this.file('assets')).length>0||(options.dispatchWitness?.list().length??0)>0))
+   engineSiteFail('local_trial_checkpoint_missing');
   if(this.carried){const c=this.carried;if(!Number.isSafeInteger(c.accountedMicroUsd)||c.accountedMicroUsd<0||c.accountedMicroUsd>a.budget.maximumMicroUsd||!Number.isSafeInteger(c.logicalCalls)||c.logicalCalls<1||c.logicalCalls>=a.budget.maximumCalls||!/^[a-f0-9]{64}$/.test(c.evidenceSha256))engineSiteFail('local_trial_carry_invalid');}
   const carryFile=this.file('carry.json'),carry=this.carried;
   if(existsSync(carryFile)){if(canonicalHash(this.read(carryFile))!==canonicalHash(carry))engineSiteFail('local_trial_carry_changed');}
@@ -89,12 +99,15 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
   }
   if(!Number.isSafeInteger(accountedMicroUsd))engineSiteFail('local_trial_meter_overflow');
   let missing=0;for(const w of witnesses)if(!steps.includes(w.step)){accountedMicroUsd+=w.maximumMicroUsd;pendingCalls++;lostLocalCalls++;missing++;}
+  // A call the checkpoint records whose local journal is gone keeps its full slot reserve and blocks (the claim is written before the checkpoint).
+  const vanished=Object.keys(this.checkpoint.calls).filter(step=>!steps.includes(step)&&!witnessByStep.has(step));
+  for(const step of vanished){accountedMicroUsd+=this.checkpoint.authority.budget.steps.find(s=>s.id===step)?.maximumMicroUsd??this.checkpoint.authority.budget.maximumMicroUsd;pendingCalls++;missing++;}
   if(!Number.isSafeInteger(accountedMicroUsd))engineSiteFail('local_trial_meter_overflow');
   const logicalCalls=steps.length+missing+(this.carried?.logicalCalls??0);
   return {accountedMicroUsd,knownEstimateMicroUsd,pendingCalls,unknownCalls,failedCalls,overReservedCalls,logicalCalls,
    ...(this.carried?{carriedMicroUsd:this.carried.accountedMicroUsd,carriedCalls:this.carried.logicalCalls}:{}),
    ...(this.options.dispatchWitness?{lostLocalCalls}:{}),
-   blocked:lostLocalCalls>0||unknownCalls>0||failedCalls>0||overReservedCalls>0||accountedMicroUsd>this.checkpoint.authority.budget.maximumMicroUsd||logicalCalls>this.checkpoint.authority.budget.maximumCalls,kind:'estimate_not_invoice' as const};
+   blocked:lostLocalCalls>0||vanished.length>0||unknownCalls>0||failedCalls>0||overReservedCalls>0||accountedMicroUsd>this.checkpoint.authority.budget.maximumMicroUsd||logicalCalls>this.checkpoint.authority.budget.maximumCalls,kind:'estimate_not_invoice' as const};
  }
  readonly check=()=>{if(this.signal.aborted)engineSiteFail('local_trial_cancelled');};
  async result(step:string){const claim=this.claim(step),r=await this.settled(step,claim);if(!r||r.result.estimatedMicroUsd===null||r.result.usable===false)engineSiteFail('local_trial_result_unavailable');return r.result;}
@@ -132,19 +145,35 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
     this.exclusive(claimFile,claim);this.updateCheckpoint(step,claim,undefined,false);
    }
    const polls=readdirSync(dir).filter(f=>/^pending-\d{5}\.json$/.test(f)).sort();let pending:string|undefined;
-   if(polls.length){const prior=this.read(this.callFile(step,polls[polls.length-1])) as Poll;pending=prior.id;if(!pendingPattern.test(pending))engineSiteFail('local_trial_pending_id');}
-   else if(existsSync(this.callFile(step,'dispatch.json')))engineSiteFail('local_trial_unknown_dispatch');
+   const dispatchFile=this.callFile(step,'dispatch.json'),claimSha=canonicalHash(claim);let dispatchAt:number|undefined;
+   if(existsSync(dispatchFile)){const d=this.read(dispatchFile);if(d.claimSha256!==claimSha||!Number.isSafeInteger(d.at))engineSiteFail('local_trial_dispatch_changed');dispatchAt=d.at;}
+   const witnessed=this.options.dispatchWitness?.observed?.(step)??null;
+   if(witnessed&&(dispatchAt===undefined||witnessed.claimSha256!==claimSha||witnessed.dispatchAt!==dispatchAt||!pendingPattern.test(witnessed.id)))engineSiteFail('local_trial_pending_id');
+   if(polls.length){
+    // A resume collects exactly ONE provider id: every saved observation, its raw provider answer, the checkpoint and the durable
+    // first-id witness must agree; a conflict or a gap stops with the full reserve kept.
+    const entry=this.checkpoint.calls[step],observations=polls.map(f=>this.read(this.callFile(step,f)) as Poll);pending=observations[0].id;
+    if(dispatchAt===undefined||!entry||polls.some((f,i)=>f!=='pending-'+String(i).padStart(5,'0')+'.json')||
+      observations.some(o=>typeof o.id!=='string'||o.id!==pending||!pendingPattern.test(o.id)||rawId(o.raw)!==undefined&&rawId(o.raw)!==o.id)||
+      !(entry.polls===polls.length||entry.polls===polls.length-1)||(entry.pendingId===undefined?entry.polls!==0:entry.pendingId!==pending)||
+      !!this.options.dispatchWitness?.observed&&witnessed?.id!==pending)engineSiteFail('local_trial_pending_id');
+   }else if(dispatchAt!==undefined){
+    // The one consistent crash window that resumes by id: the durable first id exists, its first local observation was never written.
+    if(!witnessed)engineSiteFail('local_trial_unknown_dispatch');pending=witnessed.id;
+   }
    const meter=await this.meter();if(meter.blocked||meter.pendingCalls!==1)engineSiteFail('local_trial_budget_or_unknown');
    let n=polls.length;const queuePolls:Poll[]=queued?polls.map(f=>this.read(this.callFile(step,f))):[];
    const queueCheck=()=>{if(!queued)return;const d=this.read(this.callFile(step,'dispatch.json'));if(d.claimSha256!==canonicalHash(claim))engineSiteFail('local_trial_dispatch_changed');responseQueueDeadline(queued,d.at,queuePolls,this.now());};
    for(;;){
     this.check();if(this.now()>=claim.deadlineAt||n>(queued||longWait?1000:500))engineSiteFail('local_trial_pending_deadline');if(pending)queueCheck();
     const assertDispatch=async()=>{this.check();await this.options.assertCurrent();plan.revalidate?.();if(canonicalHash(plan.wire)!==plan.call.wireSha256||canonicalHash(plan.responseQueueTiming??null)!==timingSha)engineSiteFail('local_trial_wire_changed');if(queued&&existsSync(this.callFile(step,'dispatch.json')))queueCheck();};
-    await assertDispatch();if(!pending){this.options.dispatchWitness?.begin(step,canonicalHash(claim));this.exclusive(this.callFile(step,'dispatch.json'),{at:this.now(),claimSha256:canonicalHash(claim)});}
+    await assertDispatch();if(!pending){this.options.dispatchWitness?.begin(step,claimSha);dispatchAt=this.now();this.exclusive(dispatchFile,{at:dispatchAt,claimSha256:claimSha});}
     // A throw leaves the complete reservation and dispatch marker. It NEVER authorizes another POST.
     const answer=await plan.execute(pending,this.signal,assertDispatch);
     if(answer.kind==='pending'){
-     if(!pendingPattern.test(answer.id)||pending&&answer.id!==pending)engineSiteFail('local_trial_pending_id');
+     if(!pendingPattern.test(answer.id)||pending&&answer.id!==pending||rawId(answer.raw)!==undefined&&rawId(answer.raw)!==answer.id)engineSiteFail('local_trial_pending_id');
+     // The first id is durable outside the journal BEFORE its first local observation; later answers must carry the same id.
+     this.options.dispatchWitness?.observe?.(step,claimSha,answer.id,dispatchAt!);
      const observation={id:answer.id,raw:answer.raw,at:this.now()};this.exclusive(this.callFile(step,'pending-'+String(n++).padStart(5,'0')+'.json'),observation);if(queued)queuePolls.push(observation);pending=answer.id;
      this.checkpoint.calls[step].pendingId=pending;this.checkpoint.calls[step].polls=n;this.persist();
      const wait=batch?BATCH_POLL_MS:5000;await (this.options.pause?.(wait)??new Promise<void>(resolve=>setTimeout(resolve,wait)));continue;

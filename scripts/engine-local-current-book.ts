@@ -11,6 +11,8 @@
  *   execute (paid):        ... same ... --execute            (requires <dir>/OWNER-GO.json written after the owner's go)
  *   resume after a crash:  ... same ... --execute --resume   (never repurchases a settled call; an unknown dispatch stops)
  *   stop between calls:    create <dir>/OWNER-STOP
+ * One GO is consumed once, machine-wide (local-consent-ledger.ts, outside every output folder): a copy elsewhere is refused, one process runs
+ * at a time, and every dispatch is witnessed there before the provider is called (a lost journal keeps its reserves and stops).
  */
 import 'server-only';
 import {existsSync,lstatSync,mkdirSync,readFileSync,realpathSync,renameSync,writeFileSync} from 'node:fs';
@@ -28,6 +30,7 @@ import {ENGINE_IMAGE26_POLICY} from '../lib/engine-site/image-model-policy';
 import {engineQaRequired} from '../lib/engine-site/qa-order-policy';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../lib/engine-site/local-trial-runtime';
 import {runLocalEngineTrialBook,localTrialReaderBundle} from '../lib/engine-site/local-trial-book';
+import {LOCAL_CONSENT_LEDGER_ROOT,localConsentLedger,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness} from '../lib/engine-site/local-consent-ledger';
 import {localReaderId} from '../lib/local-reader-preview';
 
 const KEYS=['OPENAI_API_KEY','ANTHROPIC_API_KEY','ELEVENLABS_API_KEY'] as const;
@@ -85,7 +88,8 @@ export function prepareLocalCurrentBook(root:string,profileFile:string,go:{appro
  return {head,profile,profileSha256:sha(profileBytes),options,prepared,policy,authority};
 }
 
-export async function localCurrentBookCLI(argv:string[]){
+/** `options.consentRoot`: tests only (a scratch ledger); the command line always uses LOCAL_CONSENT_LEDGER_ROOT. */
+export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:string}={}){
  const flag=(name:string)=>{const i=argv.indexOf(name);if(i<0||!argv[i+1])engineSiteFail('local_current_arguments');return path.resolve(absolute.parse(argv[i+1]));};
  const execute=argv.includes('--execute'),resume=argv.includes('--resume');
  if(argv.length!==6+Number(execute)+Number(resume)||resume&&!execute)engineSiteFail('local_current_arguments');
@@ -102,28 +106,40 @@ export async function localCurrentBookCLI(argv:string[]){
    ownerGo:existsSync(goFile),credentialsPresent:keys.present(),providerCalls:0}));
   return 0;
  }
- const go=localCurrentGoSchema.parse(JSON.parse(readFile(goFile).toString('utf8')));
+ // One captured read of the approval: the bytes that are parsed are the bytes that are hashed and bound.
+ const goBytes=readFile(goFile),go=localCurrentGoSchema.parse(JSON.parse(goBytes.toString('utf8')));
  const p=prepareLocalCurrentBook(root,profileFile,go);
  if(go.sourceRevision!==p.head||go.profileSha256!==p.profileSha256)engineSiteFail('local_current_go_scope');
  localReaderId(go.readerId);
+ if(realpathSync(out)!==out)engineSiteFail('local_current_output_path');
+ const journal=path.join(out,'journal'),authoritySha256=canonicalHash(p.authority),goSha256=sha(goBytes);
  const readerRoot=path.join(root,'outputs','local-reader-previews'),destination=path.join(readerRoot,go.readerId);
- const claim={version:'engine-local-current-book-claim/v1',authoritySha256:canonicalHash(p.authority),sourceRevision:p.head,profileSha256:p.profileSha256,goSha256:sha(readFile(goFile)),out};
+ // The consent is consumed ONCE, machine-wide, outside every output and journal tree (a copied GO or another folder is not a new approval).
+ const ledger=localConsentLedger(options.consentRoot??LOCAL_CONSENT_LEDGER_ROOT,go.approvalReference);
+ if(ledger.root===out||ledger.root.startsWith(out+path.sep)||out.startsWith(ledger.root+path.sep))engineSiteFail('local_current_ledger_path');
+ if(!resume&&existsSync(destination))engineSiteFail('local_current_reader_exists');
+ const consent=claimLocalConsent(ledger,{approvalReference:go.approvalReference,goSha256,goCanonicalSha256:canonicalHash(go),sourceRevision:p.head,
+  profileSha256:p.profileSha256,authoritySha256,out,journal},resume);
+ const claim={version:'engine-local-current-book-claim/v1',authoritySha256,sourceRevision:p.head,profileSha256:p.profileSha256,goSha256,out};
  const claimFile=path.join(out,'CLAIM.json');
- if(existsSync(claimFile)){if(!resume)engineSiteFail('local_current_already_claimed');writeOnceOrSame(claimFile,claim);}
- else{if(resume)engineSiteFail('local_current_resume_without_claim');if(existsSync(destination))engineSiteFail('local_current_reader_exists');exclusive(claimFile,claim);}
+ if(resume)writeOnceOrSame(claimFile,claim);else{if(existsSync(claimFile))engineSiteFail('local_current_already_claimed');exclusive(claimFile,claim);}
  writeOnceOrSame(path.join(out,'POLICY.json'),p.policy);writeOnceOrSame(path.join(out,'AUTHORITY.json'),p.authority);
  const terminal=path.join(out,'OUTCOME.json');if(existsSync(terminal)){console.log(JSON.stringify({status:'already_terminal',outcomeSha256:sha(readFile(terminal))}));return 0;}
+ const lease=acquireLocalLease(ledger,consent.consentSha256,resume);
+ try{
  const liveFile=path.join(out,'RUNNING.json');
- if(existsSync(liveFile)){const old=JSON.parse(readFile(liveFile).toString('utf8'));let alive=true;try{process.kill(old.pid,0);}catch{alive=false;}
-  if(alive)engineSiteFail('local_current_running');if(!resume)engineSiteFail('local_current_resume_required');renameSync(liveFile,path.join(out,'RUNNING-previous-'+Date.now()+'.json'));}
- exclusive(liveFile,{pid:process.pid,startedAt:new Date().toISOString(),authoritySha256:claim.authoritySha256});
+ if(existsSync(liveFile))renameSync(liveFile,path.join(out,'RUNNING-previous-'+Date.now()+'.json'));
+ exclusive(liveFile,{pid:process.pid,startedAt:new Date().toISOString(),authoritySha256});
+ const assertCurrent=()=>{lease.assert();if(existsSync(path.join(out,'OWNER-STOP')))engineSiteFail('local_current_owner_stop');if(frozenHead(root)!==p.head)engineSiteFail('local_current_source_changed');};
+ const runtime=new LocalEngineTrialRuntime({root:journal,authority:p.authority,ownerId:p.prepared.snapshot.ownerId,
+  draftId:p.prepared.snapshot.request.draftId,snapshotSha256:p.prepared.inputSha256,assertCurrent,
+  dispatchWitness:localConsentDispatchWitness(ledger,consent.consentSha256,p.authority)});
+ // Missing or ambiguous local evidence of a witnessed dispatch keeps every reserve and stops here, before any credential or provider.
+ if((await runtime.meter()).blocked)engineSiteFail('local_current_journal_blocked');
  // Only logs are scrubbed; the raw provider evidence stays unchanged in the private local journal.
  const original={log:console.log,warn:console.warn,error:console.error};
  for(const name of ['log','warn','error'] as const)console[name]=(...args:unknown[])=>{let text=args.map(a=>typeof a==='string'?a:a instanceof Error?safeError(a):JSON.stringify(a)).join(' ');
   for(const secret of keys.secrets())text=text.split(secret).join('[REDACTED]');original[name](text);};
- const assertCurrent=()=>{if(existsSync(path.join(out,'OWNER-STOP')))engineSiteFail('local_current_owner_stop');if(frozenHead(root)!==p.head)engineSiteFail('local_current_source_changed');};
- const runtime=new LocalEngineTrialRuntime({root:path.join(out,'journal'),authority:p.authority,ownerId:p.prepared.snapshot.ownerId,
-  draftId:p.prepared.snapshot.request.draftId,snapshotSha256:p.prepared.inputSha256,assertCurrent});
  let beating=false;const beat=setInterval(()=>{if(beating)return;beating=true;void runtime.meter().then(m=>{
   const value={at:new Date().toISOString(),pid:process.pid,phase:runtime.checkpoint.phase,calls:Object.keys(runtime.checkpoint.calls),meter:m},temp=path.join(out,'live.tmp');
   writeFileSync(temp,JSON.stringify(value,null,2));renameSync(temp,path.join(out,'live.json'));}).catch(()=>{}).finally(()=>{beating=false;});},15000);beat.unref();
@@ -143,6 +159,7 @@ export async function localCurrentBookCLI(argv:string[]){
    calls:Object.keys(runtime.checkpoint.calls),meter:await runtime.meter().catch(()=>null),productAccepted:false};
   exclusive(path.join(out,'STOP-'+Date.now()+'.json'),stop);console.error(JSON.stringify(stop));return 1;
  }finally{clearInterval(beat);Object.assign(console,original);}
+ }finally{lease.release();}
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(__filename))
