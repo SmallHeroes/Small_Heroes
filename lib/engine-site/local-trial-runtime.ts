@@ -31,6 +31,12 @@ export function validateLocalTrialAuthority(value:unknown){
  return a;
 }
 const BATCH_WIRE='engine-site-anthropic-batch/v1',BATCH_MAX_DEADLINE_MS=3*60*60*1000,BATCH_POLL_MS=30_000;
+/**
+ * The local rehearsal waits up to one hour for an OpenAI background response that is still queued (observed 11/10:
+ * a default-tier review stayed "queued" past its generation timer). Same wire, same full reserve, never a second POST:
+ * only the local stop timer is longer. The hosted worker does NOT have this yet; that is a separate launch item.
+ */
+export const LOCAL_CURRENT_RESPONSE_WAIT_MS=3_600_000;
 export class LocalEngineTrialRuntime implements EngineRuntime {
  readonly checkpoint:EngineCheckpoint;
  readonly signal:AbortSignal;
@@ -108,6 +114,8 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
      !Number.isSafeInteger(plan.requiredMs)||plan.requiredMs<1||plan.requiredMs>1_500_000||
      plan.completionDeadlineMs!==undefined&&(!Number.isSafeInteger(plan.completionDeadlineMs)||plan.completionDeadlineMs<1||plan.completionDeadlineMs>(batch?BATCH_MAX_DEADLINE_MS:3_600_000)))engineSiteFail('local_trial_plan_changed');
    const wire=plan.wire as any,queued=plan.responseQueueTiming;
+   const longWait=!queued&&isCurrentCustomerEngine(this.checkpoint.authority)&&wire?.endpoint==='https://api.openai.com/v1/responses';
+   const waitMs=longWait?Math.max(plan.completionDeadlineMs??plan.requiredMs,LOCAL_CURRENT_RESPONSE_WAIT_MS):undefined;
    const timingSha=canonicalHash(queued??null);
    if(queued&&(wire.version!=='engine-site-responses/v3'||!this.checkpoint.authority.responsesQueuePolicy||canonicalHash(queued)!==canonicalHash(responseQueueTiming(plan.completionDeadlineMs!))||canonicalHash(queued)!==canonicalHash(wire.responseQueueTiming))||wire.endpoint==='https://api.openai.com/v1/responses'&&!!this.checkpoint.authority.responsesQueuePolicy!==!!queued)engineSiteFail('local_trial_queue_policy_changed');
    const dir=this.file('calls/'+step),claimFile=this.callFile(step,'claim.json');let claim:Claim;
@@ -120,7 +128,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
    }else{
     const m=await this.meter();if(m.blocked||m.pendingCalls||m.logicalCalls>=this.checkpoint.authority.budget.maximumCalls||m.accountedMicroUsd+plan.call.maximumMicroUsd>this.checkpoint.authority.budget.maximumMicroUsd)engineSiteFail('local_trial_budget_or_unknown');
     mkdirSync(dir,{mode:0o700});const requestAssetId=this.blob({authoritySha256:canonicalHash(this.checkpoint.authority),call:plan.call,wire:plan.wire});
-    claim={version:queued?'engine-local-claim/v2':'engine-local-claim/v1',authoritySha256:canonicalHash(this.checkpoint.authority),call:plan.call,requestAssetId,deadlineAt:this.now()+(queued?.absoluteMs??plan.completionDeadlineMs??plan.requiredMs)+45_000,...(queued?{responseQueueTiming:queued}:{})};
+    claim={version:queued?'engine-local-claim/v2':'engine-local-claim/v1',authoritySha256:canonicalHash(this.checkpoint.authority),call:plan.call,requestAssetId,deadlineAt:this.now()+(queued?.absoluteMs??waitMs??plan.completionDeadlineMs??plan.requiredMs)+45_000,...(queued?{responseQueueTiming:queued}:{})};
     this.exclusive(claimFile,claim);this.updateCheckpoint(step,claim,undefined,false);
    }
    const polls=readdirSync(dir).filter(f=>/^pending-\d{5}\.json$/.test(f)).sort();let pending:string|undefined;
@@ -130,7 +138,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
    let n=polls.length;const queuePolls:Poll[]=queued?polls.map(f=>this.read(this.callFile(step,f))):[];
    const queueCheck=()=>{if(!queued)return;const d=this.read(this.callFile(step,'dispatch.json'));if(d.claimSha256!==canonicalHash(claim))engineSiteFail('local_trial_dispatch_changed');responseQueueDeadline(queued,d.at,queuePolls,this.now());};
    for(;;){
-    this.check();if(this.now()>=claim.deadlineAt||n>(queued?1000:500))engineSiteFail('local_trial_pending_deadline');if(pending)queueCheck();
+    this.check();if(this.now()>=claim.deadlineAt||n>(queued||longWait?1000:500))engineSiteFail('local_trial_pending_deadline');if(pending)queueCheck();
     const assertDispatch=async()=>{this.check();await this.options.assertCurrent();plan.revalidate?.();if(canonicalHash(plan.wire)!==plan.call.wireSha256||canonicalHash(plan.responseQueueTiming??null)!==timingSha)engineSiteFail('local_trial_wire_changed');if(queued&&existsSync(this.callFile(step,'dispatch.json')))queueCheck();};
     await assertDispatch();if(!pending){this.options.dispatchWitness?.begin(step,canonicalHash(claim));this.exclusive(this.callFile(step,'dispatch.json'),{at:this.now(),claimSha256:canonicalHash(claim)});}
     // A throw leaves the complete reservation and dispatch marker. It NEVER authorizes another POST.

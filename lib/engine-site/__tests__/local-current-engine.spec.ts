@@ -80,6 +80,23 @@ describe('local rehearsal of the current customer engine',()=>{
   expect(f.calls.filter(c=>c.method==='POST')).toHaveLength(1);
   expect(await s.r.meter()).toMatchObject({pendingCalls:1,accountedMicroUsd:a.budget.steps.find(x=>x.id==='story_author')!.maximumMicroUsd});
  });
+ it('waits up to one hour for a queued OpenAI background response on the current engine only, with one POST and the full reserve',async()=>{
+  const responsesPlan=(a:{budget:{steps:{id:string;maximumMicroUsd:number}[]}},result:any)=>{const step=a.budget.steps.find(x=>x.id==='page_0_0_qa')!,
+   wire={endpoint:'https://api.openai.com/v1/responses',step:step.id,synthetic:true},execute=vi.fn(async(pending:string|undefined)=>pending&&result?{kind:'completed' as const,result}:{kind:'pending' as const,id:'resp_queued',raw:{status:'queued'}});
+   return {execute,plan:{wire,call:{step:step.id,wireSha256:canonicalHash(wire),maximumMicroUsd:step.maximumMicroUsd},requiredMs:20_000,completionDeadlineMs:240_000,execute,admitSaved:()=>{}}};};
+  // Current engine: still queued after 20 minutes (beyond its 4-minute generation timer), then answered.
+  let now=10_000,polls=0;const a=current(),done={usable:true,output:{ok:true},raw:{},estimatedMicroUsd:100};
+  const q=responsesPlan(a,null),s=runtime(a,{now:()=>now,pause:async()=>{now+=60_000;if(++polls===20)q.execute.mockImplementation(async()=>({kind:'completed',result:done}) as any);}});
+  expect(await s.r.call(q.plan as any)).toEqual(done);expect(q.execute.mock.calls.filter(c=>c[0]===undefined)).toHaveLength(1);
+  expect(s.r.checkpoint.calls.page_0_0_qa.deadlineAt).toBe(10_000+3_600_000+45_000);
+  // Never answered: stops at the one-hour ceiling with the reserve kept.
+  now=10_000;const never=responsesPlan(a,null),t=runtime(a,{now:()=>now,pause:async()=>{now+=5*60_000;}});
+  await expect(t.r.call(never.plan as any)).rejects.toThrow('local_trial_pending_deadline');
+  expect(now).toBeGreaterThanOrEqual(10_000+3_600_000);expect(await t.r.meter()).toMatchObject({pendingCalls:1});
+  // A test authority keeps the historical generation timer.
+  const test={...authority(),purpose:'test' as const};now=10_000;const old=responsesPlan(test,null),u=runtime(test as any,{now:()=>now,pause:async()=>{now+=60_000;}});
+  await expect(u.r.call(old.plan as any)).rejects.toThrow('local_trial_pending_deadline');expect(now).toBeLessThan(10_000+600_000);
+ });
  it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
   const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();
   const step=test.budget.steps[0].id;
