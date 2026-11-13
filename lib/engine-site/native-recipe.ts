@@ -21,7 +21,7 @@ import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_A
   CHILD_ANCHOR_CORRECTION_ROLES } from '@/lib/personal-wizard/child-anchor-style';
 import { companionIdentityReference } from '@/lib/personal-wizard/companion-identity';
 import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, auditionEntitySheetPrompt, assessAuditionReview, attemptStatus,
-  selectAuditionAttempt, localEvaluationEligible, attemptStatus as assessedAttemptStatus, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+  selectAuditionAttempt, localEvaluationEligible, attemptStatus as assessedAttemptStatus, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, BOUND_PAGE_RETRY_POLICY, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { AUDITION_REVIEW_CAPACITY_VERSION } from '@/lib/personal-wizard/audition-review-capacity';
 import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-payload';
 import { runNativeBookFrames } from '@/lib/personal-wizard/native-page-proof-frames';
@@ -39,7 +39,7 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { ENGINE_CURRENT_CUSTOMER_V3, enginePictureBookReview, isCurrentCustomerEngine, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
+import { ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V9, enginePictureBookReview, isCurrentCustomerEngine, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
 import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, PICTURE_BOOK_SPATIAL_STAGING, PICTURE_BOOK_READABLE_INSTANT, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
 import { blockedRouteDrawing, initialBlockedRoutesOnPage, locationSpatialDirection } from '@/lib/personal-wizard/location-spatial-direction';
 import {scaleCoverage} from '@/lib/personal-wizard/companion-scale';
@@ -82,6 +82,15 @@ export type EngineNativeSheetObservation = ReturnType<typeof auditionSheetContex
  * the anchor never asks to uncover a child's skin, so a child the storyboard dresses in trousers or long sleeves no longer gets a correction
  * the image provider refuses); every historical recipe keeps v1 byte-identical.
  */
+/** A logical replay can query its own receipt. A second dispatch with the same provider body and ordered bytes is a repeat. */
+export function checkRepeatedPageDraw(seen: Map<string, string>, frame: string, planned: Pick<ReturnType<typeof prepareEngineImage>, 'wire' | 'call'>) {
+  const { mode, body, references } = planned.wire as { mode: unknown; body: unknown; references: string[] };
+  const key = frame + ':' + canonicalHash({ mode, body, references });
+  const prior = seen.get(key);
+  if (prior && prior !== planned.call.step) engineSiteFail('engine_page_draw_repeated');
+  seen.set(key, planned.call.step);
+}
+
 export const engineChildAnchorPose = (authority: { purpose: string; currentEngine?: string }) =>
   isCurrentCustomerEngine(authority) ? CHILD_ANCHOR_POSE_V3 : CHILD_ANCHOR_POSE_VERSION;
 
@@ -125,20 +134,25 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     if(args.currentLocationsRepair)runtime=withLocalSettledMedia(args.currentLocationsRepair,runtime);
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
     const pictureBook = enginePictureBookReview(authority);
+    const boundPageRetry = authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V9;
     const recovery = args.currentLocationsRepair ? localMediaRecovery(args.currentLocationsRepair) : undefined;
     const spatialPolicy = usesLocationSpatialDirection(authority);
     const correctedSpatial = usesCorrectedLocationSpatialDirection(authority);
     if (canonicalHash(ENGINE_SITE_LAUNCH_OFFER) !== authority.offer.revisionSha256 || snapshot.ownerId !== runtime.checkpoint.ownerId)
       engineSiteFail('engine_recipe_binding_changed');
     const pool = new Map<string, Buffer>();
+    const pageDraws = new Map<string, string>();
     const put = (image: AuditionImage, bytes: Buffer) => { if (assetBytesSha256(bytes) !== image.imageSha) engineSiteFail('engine_recipe_image_changed'); pool.set(image.imageSha, bytes); return image; };
     const bytesOf = (image: AuditionImage) => { const bytes = pool.get(image.imageSha); if (!bytes || assetBytesSha256(bytes) !== image.imageSha) engineSiteFail('engine_recipe_image_missing'); return Buffer.from(bytes); };
     const render = async (step: string, prompt: string, refs: AuditionImage[], mode: GenerateGPTImageInput['referenceMode'], roles?: readonly BookDesignReferenceRole[]) => {
       runtime.check(); const bytes = refs.map(bytesOf);
       const portrait = /^page_[0-8]_[0-2]$/.test(step) || (recovery && step === 'page_'+recovery.edit.page+'_'+(recovery.edit.redraw?4:3));
-      const result = await runtime.call(prepareEngineImage(authority, step, { finalPrompt: prompt, referenceMode: mode,
+      const preparedImage = prepareEngineImage(authority, step, { finalPrompt: prompt, referenceMode: mode,
         ...(roles ? { referenceRoles: roles } : {}), size: portrait ? '1024x1536' : '1024x1024',
-        referenceImages: bytes.map(dataURL), exactReferenceBytes: bytes, requireReferenceEdit: bytes.length > 0 }, ports));
+        referenceImages: bytes.map(dataURL), exactReferenceBytes: bytes, requireReferenceEdit: bytes.length > 0 }, ports);
+      const frame = boundPageRetry && /^page_([0-8])_[01]$/.exec(step);
+      if (frame) checkRepeatedPageDraw(pageDraws, frame[1], preparedImage);
+      const result = await runtime.call(preparedImage);
       const output = z.object({ b64: z.string(), imageSha: z.string().length(64) }).parse(result.output);
       const buffer = Buffer.from(output.b64, 'base64'), meta = await sharp(buffer).metadata();
       if (meta.format !== 'png' || meta.width !== 1024 || meta.height !== (portrait ? 1536 : 1024)) engineSiteFail('engine_recipe_image_format');
@@ -179,7 +193,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       const body = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha,
         refs: refs.map(bytesOf), predecessor: previous ? bytesOf(previous) : null, kind,
         ...(pictureBook ? { pictureBookReview: pictureBook } : {}),
-        ...(kind === 'page' && recovery?.useReviewCapacity(step) ? { reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION,concisePageEvidence:true as const } : {}) });
+        ...(kind === 'page' && recovery?.useReviewCapacity(step) ? { reviewCapacity: AUDITION_REVIEW_CAPACITY_VERSION } : {}),
+        ...(kind === 'page' && (boundPageRetry || recovery?.useReviewCapacity(step)) ? { concisePageEvidence: true as const } : {}) });
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     if(args.locationsRepairPreparation&&args.locationsV2RepairPreparation)engineSiteFail('local_locations_v2_preparation_changed');
@@ -425,6 +440,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         companionDescription: restored.source.companionDescription, pages: NATIVE_BOOK_FRAMES, reuseSheets: sheets,
         ...(usesTypedCustomerCorrections(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
         ...(pictureBook ? { pictureBookReview: pictureBook } : {}),
+        ...(boundPageRetry ? { pageRetryPolicy: BOUND_PAGE_RETRY_POLICY } : {}),
         ...(spentReviewReasks===undefined?{}:{spentReviewReasks}),
         ...(replayAttempts?{replayAttempts}:{}),
         ...(recovery?{exhaustedFrameEdit:recovery.edit,usedCurrentCorrection:recovery.usedCurrentCorrection}:{}),
@@ -440,6 +456,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
           return render(step,recovery?.localReaderCompletion&&recovery.prospective(step)?sparse+'\n'+PICTURE_BOOK_READABLE_INSTANT:sparse,refs,mode,roles);
         }, judge: judged, identity, save: (name, value) => {
           saved[name] = value;
+          if (boundPageRetry && /^page_retry_[0-8]$/.test(name)) return runtime.save(name, value);
           if (/^page_[0-8]$/.test(name)) {
             args.observeNativePage?.(structuredClone(value as SavedPage));
             if ((value as SavedPage).status === 'qa_supported') return runtime.save(`native_${name}`, value);

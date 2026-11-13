@@ -1,5 +1,13 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Bound page corrections and faster Dad playback
+
+- The finished local Noa evaluation has nine illustrations, nine Dad clips and the PDF. Five of nine frames passed automatic image QA and pages 4–7 are held. The historical meter remains 8,051,584 microUSD over 109 calls, with zero unsettled or unknown book cost. [Outcome and retry analysis](<C:/GNart/Work/local-current-book-20261112/LOCAL-READER-COMPLETION-R2-20261113/OUTCOME-QA/BOOK-OUTCOME-AND-RETRY-REPORT-HE.md>)
+- The explicit customer-current-engine/v9 profile derives a single in-place edit from a confirmed, bound story or continuity defect. It keeps the original QA verdicts and child resemblance threshold of 0.70. Uncertainty alone, protected findings and unusable evidence do not grant a new draw. Known completed malformed review payloads can use the existing same-image re-ask fence. Transport, unknown and admission failures stop at their original boundary. The final provider body and ordered reference bytes are checked before a repeated page draw could reserve spend. Historical profiles keep their original recipe.
+- The Reader plays Dad's existing clips at 1.25× with pitch preserved and shorter automatic waits. The latest local book played its cover and first two pages at the new rate in a headless browser. The Reader asset bytes are unchanged. [Playback evidence](<C:/GNart/Work/local-current-book-20261112/RETRY-DECISION-NARRATION-20261113/READER-PLAYBACK.json>)
+- Local validation passed 799 tests in 21 specs and both TypeScript gates. Provider-free evidence checked 24 saved page images, 26 reviews, 23 distinct identity results and 254 protected inputs. Two duplicate requests accounted for 487,402 microUSD including review and resemblance. Visual improvement awaits an actual sample. [Replay](<C:/GNart/Work/local-current-book-20261112/RETRY-DECISION-NARRATION-20261113/REPLAY.json>)
+- Independent code and proposal QA is pending at this milestone. The pages 6–7 proposal reserves 2,556,504 microUSD for at most six calls and two LOW edits. It cannot activate a run. It needs new exact authority and execution review if Guy approves the spend. [Proposal](<C:/GNart/Work/local-current-book-20261112/RETRY-DECISION-NARRATION-20261113/PROPOSED-PAGES-6-7.json>)
+
 ## 2026-11-13 — Local evaluation preserves ordinary page corrections
 
 - Independent QA held the unused run5l package because a late page eligible for local viewing could exit the draw loop after its first held review. The loop now keeps the normal correction allowance. Local evaluation selection happens after review and preserves all remaining findings.

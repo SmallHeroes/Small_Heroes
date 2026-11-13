@@ -29,7 +29,9 @@ export const ENGINE_CURRENT_CUSTOMER_V6 = 'customer-current-engine/v6' as const;
 export const ENGINE_CURRENT_CUSTOMER_V7 = 'customer-current-engine/v7' as const;
 /** Admits complete whole-object evidence when the source has no second decisive aspect. */
 export const ENGINE_CURRENT_CUSTOMER_V8 = 'customer-current-engine/v8' as const;
-export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4, ENGINE_CURRENT_CUSTOMER_V5, ENGINE_CURRENT_CUSTOMER_V6, ENGINE_CURRENT_CUSTOMER_V7, ENGINE_CURRENT_CUSTOMER_V8] as const;
+/** Uses one parent-bound page correction chosen from verified frame evidence. */
+export const ENGINE_CURRENT_CUSTOMER_V9 = 'customer-current-engine/v9' as const;
+export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4, ENGINE_CURRENT_CUSTOMER_V5, ENGINE_CURRENT_CUSTOMER_V6, ENGINE_CURRENT_CUSTOMER_V7, ENGINE_CURRENT_CUSTOMER_V8, ENGINE_CURRENT_CUSTOMER_V9] as const;
 export type EngineCurrentVersion = (typeof ENGINE_CURRENT_VERSIONS)[number];
 export const ENGINE_AUTHOR_BATCH = 'anthropic-message-batch/v1' as const;
 /** The base storyboard ceiling: the first plan plus two focused repairs. No owner extension is implied. */
@@ -50,7 +52,7 @@ export function usesPictureBookReview(authority: { currentEngine?: string }) {
 }
 
 export function enginePictureBookReview(authority: { currentEngine?: string }) {
-  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V8 ? PICTURE_BOOK_SPARSE_LANDMARK_REVIEW :
+  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V8 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V9 ? PICTURE_BOOK_SPARSE_LANDMARK_REVIEW :
     authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V7 ? PICTURE_BOOK_SCALE_REVIEW :
     usesPictureBookReview(authority) ? PICTURE_BOOK_REVIEW : undefined;
 }
@@ -61,5 +63,5 @@ export function usesLocationSpatialDirection(authority: { currentEngine?: string
 
 export function usesCorrectedLocationSpatialDirection(authority: { currentEngine?: string }) {
   return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V6 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V7 ||
-    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V8;
+    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V8 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V9;
 }

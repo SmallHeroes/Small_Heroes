@@ -1,5 +1,5 @@
 import 'server-only';
-import { illustrateReviewedAudition, auditionSheetDesigns, reviewedAuditionPolicy, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION, type ScenePreservationRun, type SavedPage, type ExhaustedFrameEdit } from './simple-book-reviewed-audition';
+import { illustrateReviewedAudition, auditionSheetDesigns, reviewedAuditionPolicy, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION, BOUND_PAGE_RETRY_POLICY, UNUSABLE_REVIEW_CODES, type ScenePreservationRun, type SavedPage, type ExhaustedFrameEdit } from './simple-book-reviewed-audition';
 import { SCENE_PRESERVATION_VERSION, SCENE_PRESERVATION_MODE } from './scene-preservation';
 import { COMPANION_SCALE_SAMPLE_GATE, COMPANION_SCALE_VERSION } from './companion-scale';
 import { INSTANCE_DISTINCTION_VERSION } from './storyboard-instance-distinction';
@@ -18,14 +18,24 @@ const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTA
  *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
 function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true;scenePreservation?:ScenePreservationRun;
   pictureBookReview?:PictureBookReview;replayAttempts?:Readonly<Partial<Record<number,number>>>;
-  exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean},
+  exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean;pageRetryPolicy?:typeof BOUND_PAGE_RETRY_POLICY},
   terminalRender=false,resumePages?:Partial<Record<number,SavedPage>>,spentReviewReasks=0){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
   if(options.exhaustedFrameEdit)for(const suffix of ['','_qa','_identity'])allowed.add('page_'+options.exhaustedFrameEdit.page+'_'+(attempts+(options.exhaustedFrameEdit.redraw?1:0))+suffix);
-  let renderFailed=false,renderFailure:unknown,reasks=Object.values(resumePages??{}).reduce(
+  let failed=false,failure:unknown,reasks=Object.values(resumePages??{}).reduce(
     (n,p)=>n+(p?.attempts.filter(a=>a.reviewReask!==undefined).length??0),spentReviewReasks);
   if(reasks>NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');
-  const check=()=>{if(renderFailed)throw renderFailure;args.check();};
+  const check=()=>{if(failed)throw failure;args.check();};
+  const stop=(error:unknown)=>{if(!failed){failed=true;failure=error;}};
+  const checkedReview = async <T>(work:()=>Promise<T>, allowUnusableReview:boolean) => {
+    try { const value=await work();check();return value; }
+    catch(error) {
+      const knownReview=allowUnusableReview && error instanceof Error && 'code' in error && typeof error.code==='string' &&
+        UNUSABLE_REVIEW_CODES.has(error.code);
+      if(options.pageRetryPolicy && !knownReview)stop(error);
+      throw error;
+    }
+  };
   const begin=(step:string,kind:'render'|'review'|'identity')=>{
     if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-4]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
     check();
@@ -38,9 +48,9 @@ function fencedFrames(args:Input,attempts:number,options:{sample?:readonly numbe
     ...(resumePages?{resume:{designs:{policy:reviewedAuditionPolicy(undefined,true,LANDMARK_COVERAGE_TOPOLOGY_VERSION,true),designs:auditionSheetDesigns(args.book,args.texts)},
       sheets:{},pages:resumePages,stepPrefix:'',durable:{version:'native-order-checkpoint/v1' as const,requestId:args.book.requestId,storyboardDigest:args.book.storyboardDigest}}}:{}),
     structuralAnatomy:true,landmarkTopology:LANDMARK_COVERAGE_TOPOLOGY_VERSION,referenceQualification:REFERENCE_QUALIFICATION_VERSION,
-    render:async(...a)=>{begin(a[0],'render');let v;try{v=await observed(...a);}catch(error){if(terminalRender&&!renderFailed){renderFailed=true;renderFailure=error;}throw error;}check();return v;},
-    judge:async(...a)=>{if(a[6]!=='page')fail('page_proof_step');begin(a[0],'review');const v=await args.judge(...a);check();return v;},
-    identity:async(...a)=>{begin(a[0],'identity');const v=await args.identity(...a);check();return v;}});
+    render:async(...a)=>{begin(a[0],'render');let v;try{v=await observed(...a);}catch(error){if(terminalRender)stop(error);throw error;}check();return v;},
+    judge:async(...a)=>{if(a[6]!=='page')fail('page_proof_step');begin(a[0],'review');return checkedReview(()=>args.judge(...a),true);},
+    identity:async(...a)=>{begin(a[0],'identity');return checkedReview(()=>args.identity(...a),false);}});
 }
 /** Explicit page-only boundary. No full-native guard/default changes and no authority granted by this composable engine primitive. */
 export async function runNativePageProofFrames(args:Input){
@@ -52,9 +62,12 @@ export async function runNativePageProofFrames(args:Input){
  *  identical re-ask of an unusable review answer per image (a structural slip in one answer is not a reason to end a whole book). */
 export async function runNativeBookFrames(args:Input&{resumePages?:Partial<Record<number,SavedPage>>;
   pictureBookReview?:PictureBookReview;spentReviewReasks?:number;replayAttempts?:Readonly<Partial<Record<number,number>>>;
-  exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean}){
+  exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean;
+  pageRetryPolicy?:typeof BOUND_PAGE_RETRY_POLICY}){
   if(!args)fail('page_proof_scope');
-  const {resumePages,pictureBookReview,spentReviewReasks,replayAttempts,exhaustedFrameEdit,usedCurrentCorrection,...base}=args;
+  const {resumePages,pictureBookReview,spentReviewReasks,replayAttempts,exhaustedFrameEdit,usedCurrentCorrection,pageRetryPolicy,...base}=args;
+  if(pageRetryPolicy!==undefined&&(pageRetryPolicy!==BOUND_PAGE_RETRY_POLICY||replayAttempts||exhaustedFrameEdit||spentReviewReasks!==undefined))
+    fail('page_proof_scope');
   if((exhaustedFrameEdit===undefined)!==(usedCurrentCorrection===undefined)||exhaustedFrameEdit&&(
     !replayAttempts||resumePages||pictureBookReview!==PICTURE_BOOK_SPARSE_LANDMARK_REVIEW||
     !Number.isInteger(exhaustedFrameEdit.page)||!Number.isInteger(exhaustedFrameEdit.afterPage)||exhaustedFrameEdit.page<1||
@@ -70,7 +83,7 @@ export async function runNativeBookFrames(args:Input&{resumePages?:Partial<Recor
     fail('page_proof_scope');
   if(!args||Object.keys(base).some(k=>!keys.has(k))||!Array.isArray(args.pages)||JSON.stringify(args.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(args))fail('page_proof_scope');
   if(resumePages&&(Object.keys(resumePages).map(Number).sort((a,b)=>a-b).some((n,i)=>n!==i)||Object.values(resumePages).some(p=>!p||p.status!=='qa_supported')))fail('page_proof_scope');
-  return fencedFrames(base,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true,pictureBookReview,replayAttempts,exhaustedFrameEdit,usedCurrentCorrection},true,
+  return fencedFrames(base,pageRetryPolicy ? 2 : NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true,pictureBookReview,replayAttempts,exhaustedFrameEdit,usedCurrentCorrection,pageRetryPolicy},true,
     resumePages,spentReviewReasks);
 }
 /**

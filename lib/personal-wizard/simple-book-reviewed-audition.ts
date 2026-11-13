@@ -1293,6 +1293,56 @@ FROZEN SOURCE AND CANON (data, not text to paint): ${canonicalJson(auditionInsta
   return { status:corrected.status==='qa_supported' ? 'corrected_supported' as const : 'corrected_not_supported' as const,parent,corrected };
 }
 
+export const BOUND_PAGE_RETRY_POLICY = 'bound-page-retry/v1' as const;
+
+const FRAME_REQUIREMENT_ID = /^[a-z][a-z0-9_]*(?::[A-Za-z0-9_.-]+)*$/;
+const retryHardFinding = (f: AuditionFinding) => f.impact === 'safety' || f.impact === 'identity' ||
+  f.impact !== 'detail' && (['anatomy', 'identity', 'relative_scale'].includes(f.category) ||
+    /^(?:cast:|anatomy(?::|$)|companion_scale$|safety$)/.test(f.requirement));
+
+/** The renderer may fix a demonstrated frame defect. Review uncertainty changes neither the art nor the verdict. */
+export function pageRetryDecision(prior: AuditionAttempt, context: unknown, contextSha: string) {
+  const stop = (reason: 'unusable_evidence' | 'unsafe_or_invalid' | 'identity' | 'protected_finding' | 'no_confirmed_defect') =>
+    ({ action: 'hold' as const, reason });
+  if (!prior.candidate || !prior.review || !prior.assessment) return stop('unusable_evidence');
+  const c = context as { requirementIds: string[]; checks: { uniqueLandmarks: AuditionLandmark[] } };
+  if (previewQualityContextSha(context) !== contextSha || !Array.isArray(c?.requirementIds) || !Array.isArray(c.checks?.uniqueLandmarks) ||
+      !auditionAnatomyCast(context) || !companionScaleFromContext(context)) fail('audition_page_retry_binding');
+  const actual = assessAuditionReview(prior.review, prior.candidate.imageSha, contextSha, c.requirementIds,
+    c.checks.uniqueLandmarks, auditionLandmarkTopology(context), auditionAnatomyCast(context), auditionInstanceDistinction(context),
+    companionScaleFromContext(context), PICTURE_BOOK_SPARSE_LANDMARK_REVIEW).assessment;
+  if (canonicalJson(actual) !== canonicalJson(prior.assessment) || attemptStatus('page', prior) !== prior.status)
+    fail('audition_page_retry_binding');
+  if (actual.safetyBlocked || actual.invalidCitations) return stop('unsafe_or_invalid');
+  if (!identityPassed(prior.identity)) return stop('identity');
+  if (prior.status === 'qa_supported') return { action: 'accept' as const };
+  if (actual.findings.some(retryHardFinding) || actual.companionScale?.disposition === 'defect') return stop('protected_finding');
+  const targets = actual.findings.filter(f => f.bound && f.verdict === 'defect' &&
+    (f.impact === 'story' || f.impact === 'continuity') && FRAME_REQUIREMENT_ID.test(f.requirement));
+  const requirements = [...new Set(targets.map(f => f.requirement))].sort();
+  if (!requirements.length) return stop('no_confirmed_defect');
+  return { action: 'edit_once' as const, requirements };
+}
+
+export function planBoundPageCorrection(prior: AuditionAttempt, context: unknown, contextSha: string, canonical: AuditionImage[]) {
+  const decision = pageRetryDecision(prior, context, contextSha);
+  if (decision.action !== 'edit_once') return { decision, render: null };
+  const parent = prior.candidate!;
+  const c = context as { references: AuditionImage[] };
+  if (canonical.length !== 4 || canonicalJson(c.references) !== canonicalJson(canonical) ||
+      new Set([parent, ...canonical].map(r => r.imageSha)).size !== 5) fail('audition_page_retry_binding');
+  const prompt = [
+    'Edit the first image in place. Preserve its camera, composition, characters, style, proportions and all unaffected details. Keep the source-required action and the child design.',
+    'The accepted references give character and object designs. Do not copy their framing. Correct only the cited requirements, using the exact written scene state below.',
+    'When part of a scene is confused with another place, state or object, make the required separation readable using the spatial relationships and visible changes in the frozen frame. Show only the source-required visible parts; keep intentionally off-frame parts outside the crop.',
+    'Keep the source geometry and physical functions clear where visible. Do not change limb counts, add characters or invent an intermediate event. No labels or text.',
+    'REQUIREMENTS TO CORRECT: ' + canonicalJson(decision.requirements),
+    'FROZEN FRAME AND DESIGN DATA (not text to paint): ' + canonicalJson(currentSceneRenderSource(context)),
+  ].join('\n');
+  return { decision, render: { mode: 'book_scene_edit' as const, prompt, references: [parent, ...canonical.slice(0, 3)],
+    roles: ['scene_edit_target', 'child_design_authority', 'companion_design_authority', 'entity_design_authority'] as const } };
+}
+
 export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<SavedSheet, 'chosen' | 'status'>>): ReferenceStatus {
   const one = (s: Pick<SavedSheet, 'chosen' | 'status'>) => ({ image: s.chosen.candidate,
     status: s.status === 'qa_supported' ? 'approved_reference' as const : 'diagnostic_candidate' as const,
@@ -1494,6 +1544,7 @@ export async function illustrateReviewedAudition(args: {
   referenceQualification?: typeof REFERENCE_QUALIFICATION_VERSION;
   /** Opt-in (customer-current-engine/v2): page corrections in canonical wording from typed findings only (auditionCorrections). */
   typedCorrections?: typeof TYPED_PAGE_CORRECTION_VERSION;
+  pageRetryPolicy?: typeof BOUND_PAGE_RETRY_POLICY;
 }) {
   if (args.typedCorrections !== undefined && (args.typedCorrections !== TYPED_PAGE_CORRECTION_VERSION || args.scenePreservation || args.recovery)) fail('audition_typed_corrections_scope');
   const continuation = args.topologyContinuation, coverage = args.coverageContinuation, calibration = args.calibration ?? continuation ?? coverage;
@@ -1563,6 +1614,11 @@ export async function illustrateReviewedAudition(args: {
   const prefix = args.resume?.stepPrefix ?? '', suffix = args.scaleLineup ? AUDITION_SCALE_LINEUP_PAGE_SUFFIX : AUDITION_PAGE_SUFFIX;
   const pageAttempts = diagnostic ? 1 : args.pageAttempts ?? policy.pageAttempts;
   if (!Number.isInteger(pageAttempts) || pageAttempts < 1 || pageAttempts > policy.pageAttempts) fail('audition_page_attempts');
+  if (args.pageRetryPolicy !== undefined && (args.pageRetryPolicy !== BOUND_PAGE_RETRY_POLICY || pageAttempts !== 2 ||
+      args.pictureBookReview !== PICTURE_BOOK_SPARSE_LANDMARK_REVIEW || !args.structuralAnatomy || topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION ||
+      !args.typedCorrections || args.replayAttempts || args.exhaustedFrameEdit || args.scenePreservation || args.recovery || args.localAnatomyRepair ||
+      calibration || diagnostic || freshCohort || args.sample || args.anatomyRecovery || args.resume && !args.resume.durable))
+    fail('audition_page_retry_scope');
   const reusedRoles = (['entities', 'locations'] as const).filter(role => args.reuseSheets?.[role] !== undefined);
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
   if (!frames.length || frames.some(n => !Number.isInteger(n) || n < 0 || n > args.book.narrativeSpreads)) fail('audition_page_scope');
@@ -1975,7 +2031,24 @@ export async function illustrateReviewedAudition(args: {
     const attempts = closedAttempts(closed, pageAttempts);
     const base = `${packet.render.prompt}${suffix}\n${pageChecksPrompt(checks, refs)}${args.structuralAnatomy ? ANATOMY_RENDER_RULES : ''}`;
     const diagnoses: NonNullable<SavedPage['recovery']>['diagnoses'] = [];
-    if (scene) {
+    if (args.pageRetryPolicy) {
+      const first = await attemptOnce('page', String(pageNumber), 0, base, canonical, 'book_identity', undefined,
+        context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+      attempts.push(first); report('page', String(pageNumber), first);
+      finish('page', String(pageNumber), attempts);
+      if (first.status === 'unavailable') fail(first.error ?? 'audition_page_unavailable');
+      const plan = planBoundPageCorrection(first, context, contextSha, canonical);
+      await args.save('page_retry_' + pageNumber, { version: BOUND_PAGE_RETRY_POLICY, contextSha,
+        parentImageSha: first.candidate?.imageSha ?? null, decision: plan.decision });
+      if (plan.render) {
+        const edit = plan.render;
+        const corrected = await attemptOnce('page', String(pageNumber), 1, edit.prompt, edit.references, edit.mode, edit.roles,
+          context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+        attempts.push(corrected); report('page', String(pageNumber), corrected);
+        finish('page', String(pageNumber), attempts);
+        if (corrected.status === 'unavailable') fail(corrected.error ?? 'audition_page_unavailable');
+      }
+    } else if (scene) {
       const at = packet.render.prompt.indexOf(PREVIEW_REFERENCE_ROLES_LINE);
       if (at < 0 || packet.render.prompt.indexOf(PREVIEW_REFERENCE_ROLES_LINE, at + 1) >= 0) fail('scene_prompt_positional');
       const sceneBase = `${packet.render.prompt.replace(PREVIEW_REFERENCE_ROLES_LINE, SCENE_V2_REFERENCE_ROLES_LINE)}${SCENE_V2_PAGE_SUFFIX}\n` +

@@ -36,7 +36,7 @@ export async function engineFamilyBookReady(db: PrismaClient, context: EngineRea
 export function engineReaderPayload(orderId: string, book: EngineMaterializedBook, preview: boolean): ReaderBookPayload {
   const assetUrl = (id: string) => `/api/engine-site/v1/books/${encodeURIComponent(orderId)}/assets/${id}${preview ? '?preview=1' : ''}`;
   return { id: orderId, status: 'ready', childName: book.childName, storyLength: 'short', powerCard: null,
-    book: { title: book.title, coverText: book.title, pages: book.pages.map(p => ({ pageNumber: p.pageNumber, text: p.text,
+    book: { title: book.title, coverText: book.title, narrationVoiceId: book.voiceId, pages: book.pages.map(p => ({ pageNumber: p.pageNumber, text: p.text,
       title: p.pageNumber === 0 ? book.title : null, isCover: p.pageNumber === 0, narrationText: p.text,
       imageUrl: assetUrl(p.image.assetId), presentationImageUrl: assetUrl(p.image.assetId), audioUrl: assetUrl(p.audio.assetId),
       layout: 'standard', illustrationAspect: 'portrait', textTreatment: 'standard' })) } };

@@ -53,7 +53,7 @@ export function localReaderAsset(preview: LocalReaderPreview, file: string) {
 
 export function localReaderPayload(preview: LocalReaderPreview): ReaderBookPayload {
   return { id: preview.id, status: 'LOCAL_DIAGNOSTIC_PREVIEW', childName: preview.childName, powerCard: null,
-    book: { title: preview.title, audioUrl: null, pages: preview.pages.map(p => ({
+    book: { title: preview.title, audioUrl: null, ...(preview.voice ? { narrationVoiceId: preview.voice.id } : {}), pages: preview.pages.map(p => ({
       pageNumber: p.pageNumber, text: p.text, narrationText: p.text, isCover: p.pageNumber === 0,
       pageLayout: 'standard',
       imageUrl: `/api/dev/local-reader?book=${encodeURIComponent(preview.id)}&asset=page-${p.pageNumber}.png`,

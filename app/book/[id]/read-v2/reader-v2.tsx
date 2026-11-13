@@ -29,6 +29,7 @@ import {
 } from './reader-nav';
 import styles from './reader-v2.module.css';
 import {
+  readerNarrationTiming,
   readerSourceAccessKey,
   readerSourceBookId,
   readerSourceExitHref,
@@ -61,8 +62,6 @@ type Props = {
   devLayoutFlags?: DevLayoutQueryFlags;
 };
 
-const AUTO_PLAY_DELAY_MS = 1500;
-const AUTO_ADVANCE_AFTER_NARRATION_MS = 2000;
 /** Cover without title narration: advance to page 1 after storytime start. */
 export const COVER_NO_AUDIO_ADVANCE_MS = 2000;
 const MIN_NO_AUDIO_DWELL_MS = 4000;
@@ -104,6 +103,8 @@ export default function ReaderV2({
   /** Whole-book MP3 when the order has no per-page clips. */
   const [fallbackBookAudioUrl, setFallbackBookAudioUrl] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [voiceId, setVoiceId] = useState<string>();
+  const narrationTiming = readerNarrationTiming(voiceId);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isRegeneratingPage, setIsRegeneratingPage] = useState(false);
   const [regenMessage, setRegenMessage] = useState<string | null>(null);
@@ -307,6 +308,7 @@ export default function ReaderV2({
         setTransitionKey(0);
         setPageTurnDirection('initial');
         cancelPhysicalPageTurn();
+        setVoiceId(data.book?.narrationVoiceId);
         setFallbackBookAudioUrl(
           typeof data.book?.audioUrl === 'string' && data.book.audioUrl.trim()
             ? data.book.audioUrl.trim()
@@ -447,7 +449,10 @@ export default function ReaderV2({
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || status !== 'ready') return;
+    audio.defaultPlaybackRate = narrationTiming.rate;
+    audio.playbackRate = narrationTiming.rate;
+    audio.preservesPitch = true;
     const onPlay = () => setIsAudioPlaying(true);
     const onPause = () => setIsAudioPlaying(false);
     const onEnded = () => {
@@ -459,7 +464,7 @@ export default function ReaderV2({
       autoAdvanceTimerRef.current = window.setTimeout(() => {
         autoAdvanceTimerRef.current = null;
         advancePageAutoRef.current();
-      }, AUTO_ADVANCE_AFTER_NARRATION_MS);
+      }, narrationTiming.advanceDelayMs);
     };
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
@@ -469,7 +474,7 @@ export default function ReaderV2({
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
     };
-  }, [clearAutoAdvanceTimer]);
+  }, [clearAutoAdvanceTimer, narrationTiming, status]);
 
   /** Auto-narration on every active page — independent of session auto-advance. */
   useEffect(() => {
@@ -505,10 +510,11 @@ export default function ReaderV2({
 
     autoPlayTimerRef.current = window.setTimeout(() => {
       autoPlayTimerRef.current = null;
+      audio.playbackRate = narrationTiming.rate;
       audio.play().catch(() => {
         console.log('[read-v2] auto-play blocked, user interaction required');
       });
-    }, AUTO_PLAY_DELAY_MS);
+    }, narrationTiming.playDelayMs);
 
     return () => {
       clearAutoPlayTimer();
@@ -521,6 +527,7 @@ export default function ReaderV2({
     currentScene?.sceneId,
     currentSceneIndex,
     hasPerPageAudio,
+    narrationTiming,
     showEndScreen,
     showPowerCardScreen,
     handsFreeUnlocked,
@@ -591,6 +598,7 @@ export default function ReaderV2({
     if (audio.paused) {
       userPausedSceneIdRef.current = null;
       try {
+        audio.playbackRate = narrationTiming.rate;
         await audio.play();
       } catch {
         setIsAudioPlaying(false);
@@ -600,7 +608,7 @@ export default function ReaderV2({
 
     userPausedSceneIdRef.current = currentScene?.sceneId ?? null;
     audio.pause();
-  }, [audioSrcForCurrentScene, clearAutoAdvanceTimer, clearAutoPlayTimer, currentScene?.sceneId, unlockHandsFreeSession]);
+  }, [audioSrcForCurrentScene, clearAutoAdvanceTimer, clearAutoPlayTimer, currentScene?.sceneId, narrationTiming.rate, unlockHandsFreeSession]);
 
   /**
    * RTL book navigation (desktop + keyboard):

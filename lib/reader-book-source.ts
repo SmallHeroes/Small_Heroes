@@ -35,10 +35,18 @@ export type ReaderBookPayload = {
     coverText?: string | null;
     pages: ReaderBookPage[];
     storyScenes?: StoryScene[];
+    narrationVoiceId?: string;
     /** Legacy: single MP3 for an entire book when page clips do not exist. */
     audioUrl?: string | null;
   } | null;
 };
+
+const DAD_NARRATION_TIMING = { rate: 1.25, playDelayMs: 350, advanceDelayMs: 550 } as const;
+const DEFAULT_NARRATION_TIMING = { rate: 1, playDelayMs: 1500, advanceDelayMs: 2000 } as const;
+
+export function readerNarrationTiming(voiceId?: string) {
+  return voiceId === 'dad_v2' ? DAD_NARRATION_TIMING : DEFAULT_NARRATION_TIMING;
+}
 
 export type ReaderBookSource =
   | { kind: 'engine_order'; bookId: string; preview: boolean }

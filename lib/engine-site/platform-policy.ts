@@ -10,7 +10,7 @@ import { NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS } from '@/lib/personal-wi
 import { digestSchema, identifierSchema, microUsdSchema, utcSchema, engineSiteFail, type EngineOrderAuthority } from './contract';
 import {LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
 import { engineQaRequired, engineQaScope } from './qa-order-policy';
-import { ENGINE_CURRENT_VERSIONS, ENGINE_AUTHOR_BATCH, CUSTOMER_STORYBOARD_REPAIR_STEPS, usesTypedCustomerCorrections, type EngineCurrentVersion } from './current-engine-policy';
+import { ENGINE_CURRENT_VERSIONS, ENGINE_CURRENT_CUSTOMER_V9, ENGINE_AUTHOR_BATCH, CUSTOMER_STORYBOARD_REPAIR_STEPS, usesTypedCustomerCorrections, type EngineCurrentVersion } from './current-engine-policy';
 import { engineImageModelPolicySchema } from './image-model-policy';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP, ENGINE_BOUND_REPAIR_STEP, ENGINE_BOUND_REPAIR_REVIEW_STEP } from './storyboard-binding-policy';
@@ -66,8 +66,9 @@ export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true;curr
   }
   add('photo_appearance', SOL_PIXEL_REVIEW_SLOT_MICRO_USD);
   add('initial_storyboard', PREPARATION_SLOTS[0]); add('initial_storyboard_review', PREPARATION_SLOTS[1]);
+  const pageAttempts = options?.currentEngine === ENGINE_CURRENT_CUSTOMER_V9 ? 2 : NATIVE_BOOK_PAGE_ATTEMPTS;
   for (const page of NATIVE_BOOK_FRAMES) {
-    for (let attempt = 0; attempt < NATIVE_BOOK_PAGE_ATTEMPTS; attempt += 1) {
+    for (let attempt = 0; attempt < pageAttempts; attempt += 1) {
       const stem = `page_${page}_${attempt}`;
       add(stem, renderMaximum('x'.repeat(96_000), 4));
       add(`${stem}_qa`, SOL_PIXEL_REVIEW_SLOT_MICRO_USD); add(`${stem}_qa2`, SOL_PIXEL_REVIEW_SLOT_MICRO_USD);

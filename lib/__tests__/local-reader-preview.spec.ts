@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readerNarrationTiming } from '../reader-book-source';
 import { localReaderAsset, localReaderByteRange, localReaderId, localReaderPayload, localReaderPreviewSchema } from '../local-reader-preview';
 
 const fixture = () => ({ version: 'local-narrated-reader/v1', id: 'synthetic-book', title: 'כותרת', childName: 'דוגמה',
@@ -17,6 +18,15 @@ describe('local narrated reader uses existing fixture contract without delivery 
       expect(row.isCover).toBe(index === 0); expect(row.audioUrl).toContain(`asset=page-${index}.mp3`);
       expect(row.imageUrl).toContain(`asset=page-${index}.png`);
     });
+  });
+  it('binds Dad playback timing without changing any audio URL or applying it to legacy and other voices', () => {
+    const dad = fixture();
+    dad.voice.id = 'dad_v2';
+    const p = localReaderPreviewSchema.parse(dad), book = localReaderPayload(p).book!;
+    expect(book.narrationVoiceId).toBe('dad_v2');
+    expect(readerNarrationTiming(book.narrationVoiceId)).toEqual({rate:1.25,playDelayMs:350,advanceDelayMs:550});
+    expect(book.pages[0].audioUrl).toBe('/api/dev/local-reader?book=synthetic-book&asset=page-0.mp3');
+    for (const id of [undefined, 'mom', 'dad']) expect(readerNarrationTiming(id)).toEqual({rate:1,playDelayMs:1500,advanceDelayMs:2000});
   });
   it.each(['../secret', 'a/b', 'a\\b', '%2e%2e', '', 'A-b', 'book?x=1'])('rejects untrusted book id %s', id => {
     expect(() => localReaderId(id)).toThrow();
