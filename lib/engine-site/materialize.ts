@@ -73,7 +73,9 @@ export function createEngineMaterializer(args: { db: PrismaClient; storage: Engi
       const n = page.pageNumber, chosen = page.chosen;
       if (!chosen || attemptStatus('page', chosen) !== 'qa_supported') engineSiteFail('engine_materialization_page_held');
       const step = chosen.candidate.imageName.replace(/\.png$/, '');
-      if (!(new RegExp(`^page_${n}_[0-2]$`)).test(step)) engineSiteFail('engine_materialization_frame_changed');
+      if (!(new RegExp(`^page_${n}_[0-2]$`)).test(step) && !(step === `page_${n}_3` && chosen.attempt === 3 &&
+          chosen.sceneRepair?.version === 'audition-local-material-scene/v1' && authority.budget.steps.some(slot=>slot.id===step)))
+        engineSiteFail('engine_materialization_frame_changed');
       const generated = await runtime.result(step), output = z.object({ b64: z.string(), imageSha: z.literal(chosen.candidate.imageSha) }).parse(generated.output);
       const image = Buffer.from(output.b64, 'base64'); if (assetBytesSha256(image) !== output.imageSha) engineSiteFail('engine_materialization_image_changed');
       const imageRef = await persist(`reader_image_${n}`, 'page', 'image/png', image);

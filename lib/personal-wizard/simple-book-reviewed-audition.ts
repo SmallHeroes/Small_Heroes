@@ -698,6 +698,19 @@ export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null
     /** Null only for a redraw with no eligible verified parent (reason no_eligible_parent). */
     parent: { attempt: number; imageSha: string; contextSha: string; rawReviewSha: string; assessmentSha: string } | null;
     allowedRequirementIds: string[] } };
+/** One source-bound edit of an exhausted material frame, deferred through the next historical review. */
+export type ExhaustedFrameEdit = Readonly<{page:number; afterPage:number; parentImageSha256:string}>;
+export function exhaustedFrameEditParent(page:SavedPage, spec:ExhaustedFrameEdit) {
+  const prior = page.attempts.find(a => a.candidate?.imageSha === spec.parentImageSha256);
+  const material = prior?.assessment?.findings.some(f => f.bound && !f.derived && f.verdict === 'defect' &&
+    (f.impact === 'story' || f.impact === 'continuity'));
+  if (page.pageNumber !== spec.page || page.status !== 'held' || page.attempts.length !== 3 ||
+      page.attempts.some((a, i) => a.attempt !== i || !a.candidate || !a.review || !a.assessment ||
+        a.assessment.safetyBlocked || a.assessment.invalidCitations || !identityUsable(a.identity)) ||
+      !prior?.candidate || prior.status !== 'held' || !identityPassed(prior.identity) || !material)
+    fail('audition_exhausted_frame_binding');
+  return prior as AuditionAttempt & { candidate: AuditionImage };
+}
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
 
 const critical = (a: AuditionAssessment) => a.counts.story + a.counts.identity + a.counts.continuity;
@@ -1024,7 +1037,7 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
   'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable',
   'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost', 'audition_meter_debit', 'audition_rereview_wire', 'audition_transport_unavailable',
-  'audition_transport_policy', 'audition_diagnostic_scope']);
+  'audition_transport_policy', 'audition_diagnostic_scope', 'local_scale_replay_wire', 'local_scale_replay_collision', 'local_scale_first_call']);
 /** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
 export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';
@@ -1436,6 +1449,8 @@ export async function illustrateReviewedAudition(args: {
   reviewReask?: true;
   pictureBookReview?: PictureBookReview;
   replayAttempts?: Readonly<Partial<Record<number,number>>>;
+  usedCurrentCorrection?: (page:number,attempt:number)=>boolean;
+  exhaustedFrameEdit?: ExhaustedFrameEdit;
   /** native-cde-book/v2 only (scene-preservation/v1): admitted scoped references, the shared record and per-attempt operations. Absent: as before. */
   scenePreservation?: ScenePreservationRun;
   /**
@@ -1617,7 +1632,7 @@ export async function illustrateReviewedAudition(args: {
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     return judgeReviewedAuditionCandidate({ phase, step: `${prefix}${phase}_${name}_${attempt}`, attempt, candidate, context, contextSha,
       requirementIds, judgeRefs, predecessor, landmarks, child: args.child, judge: args.judge, identity: args.identity, check: args.check,
-      pictureBookReview: args.pictureBookReview, ...(args.reviewReask === true ? { reaskUnusable: true as const } : {}) });
+      pictureBookReview: args.pictureBookReview, ...(args.reviewReask === true && !(args.exhaustedFrameEdit?.page === Number(name) && attempt === pageAttempts) ? { reaskUnusable: true as const } : {}) });
   };
   const pageAttempt = async (page: number, attempt: number, prior: AuditionAttempt | undefined, prompt: string, strategy: string,
     context: unknown, contextSha: string, checks: ReturnType<typeof auditionPageChecks>, canonical: AuditionImage[], predecessor: AuditionImage | null) => {
@@ -1831,6 +1846,7 @@ export async function illustrateReviewedAudition(args: {
           consumedAttemptsBefore: spec.consumedAttemptsBefore, priorAttempts: prior.attempts, action: spec.action } }) };
   };
   const pages: SavedPage[] = [];
+  let deferredEdit: (()=>Promise<void>) | undefined;
   const sceneFrames = new Map<number, { projection: FrameProjection; context: unknown; contextSha: string; checks: ReturnType<typeof auditionPageChecks> }>();
   const diagnosticCandidates = new Map<number, AuditionImage>();
   if (diagnostic || freshCohort) for (const pageNumber of order) {
@@ -1978,7 +1994,7 @@ export async function illustrateReviewedAudition(args: {
       const previousAttempt = attempts[attempts.length - 1];
       const replayThrough = args.replayAttempts?.[pageNumber] ?? 0;
       // Keep the historical correction on an already drawn attempt. Requalification affects new draws and the selected result.
-      const correctionParent = attempt < replayThrough && previousAttempt?.candidate && previousAttempt.review
+      const correctionParent = attempt < replayThrough && !args.usedCurrentCorrection?.(pageNumber,attempt) && previousAttempt?.candidate && previousAttempt.review
         ? { ...previousAttempt, assessment: assessAuditionReview(previousAttempt.review, previousAttempt.candidate.imageSha, contextSha,
           checks.requirementIds, checks.uniqueLandmarks, topology, auditionAnatomyCast(context), auditionInstanceDistinction(context),
           companionScaleFromContext(context), PICTURE_BOOK_SCALE_REVIEW).assessment } : previousAttempt;
@@ -1992,9 +2008,45 @@ export async function illustrateReviewedAudition(args: {
     pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen),
       ...(diagnoses.length ? { recovery: { version: STAGE_RECOVERY_VERSION, diagnoses } } : {}) });
     // A service host can persist this completed page before any later operation. Local synchronous saves remain unchanged.
-    await args.save(`page_${pageNumber}`, pages[pages.length - 1]);
+    const savedIndex = pages.length - 1, savedPage = pages[savedIndex];
+    await args.save(`page_${pageNumber}`, savedPage);
+    const edit = args.exhaustedFrameEdit;
+    if (edit?.page === pageNumber) {
+      const prior = exhaustedFrameEditParent(savedPage, edit);
+      deferredEdit = async () => {
+        const prompt = `Edit only the rejected full scene supplied as scene_edit_target. Preserve the characters, style, framing and unaffected design.
+Depict the single instant specified below. When a character is considering or about to perform an action, show attention, gaze or readiness and leave the effect absent until the story actually performs it. Treat shown physical states as concrete drawing instructions: preserve established colors, keep distinct materials or flows visibly separated until the written moment joins them, and keep an untouched route beyond a blockage visibly dry if the scene specifies dry. Make the important relation readable with clear space and boundaries.
+Use the other references for established designs only. Preserve the source-required anatomy, appearance and cast. No painted words or labels.
+FROZEN SOURCE AND CANON (data): ${canonicalJson(currentSceneRenderSource(context))}` +
+          auditionCorrections(prior, 'page', TYPED_PAGE_CORRECTION_VERSION) +
+          materialRenderAppendix(context) + scaleRenderAppendix(context);
+        const roles = ['scene_edit_target','child_design_authority','companion_design_authority','entity_design_authority'] as const;
+        const candidate = await args.render(`page_${pageNumber}_${pageAttempts}`, prompt, [prior.candidate, ...canonical.slice(0,3)], 'book_scene_edit', roles);
+        args.check();
+        if ([...attempts.map(a=>a.candidate),...canonical].some(a=>a?.imageSha===candidate.imageSha))
+          fail('audition_exhausted_frame_unchanged');
+        const result = { ...await judgeCandidate('page', String(pageNumber), pageAttempts, candidate, context, contextSha,
+          checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks),
+          sceneRepair:{version:'audition-local-material-scene/v1' as const,parentImageSha:prior.candidate.imageSha,
+            parentContextSha:contextSha,targetActorIds:[]} };
+        const updated = [...attempts, result];
+        report('page', String(pageNumber), result);
+        finish('page', String(pageNumber), updated);
+        const selected = selectAuditionAttempt('page', updated) ?? fail('audition_exhausted_frame_binding');
+        const status = attemptStatus('page', selected);
+        pages[savedIndex] = {...savedPage, attempts:updated, chosen:selected, status};
+        await args.save(`page_${pageNumber}`, pages[savedIndex]);
+        if (status !== 'qa_supported' || selected.attempt !== pageAttempts) fail('audition_exhausted_frame_held');
+      };
+    }
+    if (edit?.afterPage === pageNumber) {
+      const apply = deferredEdit ?? fail('audition_exhausted_frame_binding');
+      await apply();
+      deferredEdit = undefined;
+    }
   }
   args.check();
+  if (deferredEdit) fail('audition_exhausted_frame_binding');
   if (!diagnostic && sample && pages.length === sample.length &&
       (pages.some(p => p.status !== 'qa_supported') || (args.sampleScaleGate && scaleSampleResult()!.status !== 'passed'))) heldSample = true;
   const complete = !heldSample && frames.length === args.book.narrativeSpreads + 1;

@@ -1,5 +1,11 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Recovery of a truncated visual review
+
+- Run5j retained the accepted cover and pages 1–3. Page 4 exhausted the ordinary attempts with material continuity concerns. The next page was drawn and its review settled as incomplete at the 12,000-token cap. The original receipt, image and failed verdict are preserved. The book carries 4,965,622 microUSD across 66 calls, with no pending or unknown cost. [Terminal reconciliation](<C:/GNart/Work/local-current-book-20261112/NATIVE-ASSEMBLY-CONTINUATION-20261113/OUTCOME-QA/TERMINAL-RECONCILIATION.json>)
+- An exact local successor replays the archived requests and failed receipt, using one expanded review of the already drawn image. One targeted edit of an exhausted frame requires a pinned previously measured candidate and a verified material defect. Its result must pass a full new review and child identity check. The ordinary attempt limits, coverage and 0.70 identity rule stay in force.
+- This mode continues to the remaining images, Dad narration, PDF and local Reader only if the visual gates pass and the cumulative USD12 and 124-call budget admits the actual work. Independent review of the exact package precedes activation. [Decision](<C:/GNart/Work/local-current-book-20261112/FINAL-MEDIA-RECOVERY-20261113/DECISION.md>)
+
 ## 2026-11-13 — Native book assembly through materialization
 
 - A provider-denied run at `72a6ee70` produced nine supported synthetic-frame records but stopped before Dad narration. The final native array selected records by numeric page number and therefore included the diagnostic drawing entries. [Reproduction](<C:/GNart/Work/local-current-book-20261112/SPARSE-LANDMARK-CONTINUATION-20261113/OUTCOME-QA/NATIVE-ASSEMBLY-REPRODUCTION.json>)

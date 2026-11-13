@@ -22,6 +22,7 @@ import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_A
 import { companionIdentityReference } from '@/lib/personal-wizard/companion-identity';
 import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, auditionEntitySheetPrompt, assessAuditionReview, attemptStatus,
   selectAuditionAttempt, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import { AUDITION_REVIEW_CAPACITY_VERSION } from '@/lib/personal-wizard/audition-review-capacity';
 import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-payload';
 import { runNativeBookFrames } from '@/lib/personal-wizard/native-page-proof-frames';
 import { NATIVE_BOOK_FRAMES } from '@/lib/personal-wizard/native-page-proof';
@@ -48,7 +49,7 @@ import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrig
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
-import {checkLocalEntitiesPreparation,localCurrentLocationAttempt,localCurrentTransition,localEntitiesSheetPair,localReplayAttempts,localSpentReviewReasks,withLocalSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
+import {checkLocalEntitiesPreparation,localCurrentLocationAttempt,localCurrentTransition,localEntitiesSheetPair,localMediaRecovery,localReplayAttempts,localSpentReviewReasks,withLocalSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
 import {assertEngineLocationV2RepairPreparation,locationV2RepairFindings,type AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
@@ -103,11 +104,13 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
   observeChildPreparation?:(value:EngineNativeChildPreparation,appearance:ExistingChildAppearance)=>void;
   /** Detached raw-replay observation only; cannot supply or modify sheet approval. */
   observeReferenceSheet?:(value:EngineNativeSheetObservation)=>void;
+  observeNativePage?:(value:SavedPage)=>void;
   materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
   return async runtime => {
     if(args.currentLocationsRepair)runtime=withLocalSettledMedia(args.currentLocationsRepair,runtime);
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
     const pictureBook = enginePictureBookReview(authority);
+    const recovery = args.currentLocationsRepair ? localMediaRecovery(args.currentLocationsRepair) : undefined;
     const spatialPolicy = usesLocationSpatialDirection(authority);
     const correctedSpatial = usesCorrectedLocationSpatialDirection(authority);
     if (canonicalHash(ENGINE_SITE_LAUNCH_OFFER) !== authority.offer.revisionSha256 || snapshot.ownerId !== runtime.checkpoint.ownerId)
@@ -117,12 +120,13 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     const bytesOf = (image: AuditionImage) => { const bytes = pool.get(image.imageSha); if (!bytes || assetBytesSha256(bytes) !== image.imageSha) engineSiteFail('engine_recipe_image_missing'); return Buffer.from(bytes); };
     const render = async (step: string, prompt: string, refs: AuditionImage[], mode: GenerateGPTImageInput['referenceMode'], roles?: readonly BookDesignReferenceRole[]) => {
       runtime.check(); const bytes = refs.map(bytesOf);
+      const portrait = /^page_[0-8]_[0-2]$/.test(step) || (recovery && step === 'page_'+recovery.edit.page+'_3');
       const result = await runtime.call(prepareEngineImage(authority, step, { finalPrompt: prompt, referenceMode: mode,
-        ...(roles ? { referenceRoles: roles } : {}), size: /^page_[0-8]_[0-2]$/.test(step) ? '1024x1536' : '1024x1024',
+        ...(roles ? { referenceRoles: roles } : {}), size: portrait ? '1024x1536' : '1024x1024',
         referenceImages: bytes.map(dataURL), exactReferenceBytes: bytes, requireReferenceEdit: bytes.length > 0 }, ports));
       const output = z.object({ b64: z.string(), imageSha: z.string().length(64) }).parse(result.output);
       const buffer = Buffer.from(output.b64, 'base64'), meta = await sharp(buffer).metadata();
-      if (meta.format !== 'png' || meta.width !== 1024 || meta.height !== (/^page_[0-8]_[0-2]$/.test(step) ? 1536 : 1024)) engineSiteFail('engine_recipe_image_format');
+      if (meta.format !== 'png' || meta.width !== 1024 || meta.height !== (portrait ? 1536 : 1024)) engineSiteFail('engine_recipe_image_format');
       return put({ imageName: `${step}.png`, imageSha: output.imageSha }, buffer);
     };
     const identity = async (step: string, child: AuditionImage, candidate: AuditionImage) => {
@@ -159,7 +163,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       previous: AuditionImage | null, kind: 'sheet' | 'page') => {
       const body = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha,
         refs: refs.map(bytesOf), predecessor: previous ? bytesOf(previous) : null, kind,
-        ...(pictureBook ? { pictureBookReview: pictureBook } : {}) });
+        ...(pictureBook ? { pictureBookReview: pictureBook } : {}),
+        ...(kind === 'page' && recovery?.useReviewCapacity(step) ? { reviewCapacity:AUDITION_REVIEW_CAPACITY_VERSION,concisePageEvidence:true as const } : {}) });
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     if(args.locationsRepairPreparation&&args.locationsV2RepairPreparation)engineSiteFail('local_locations_v2_preparation_changed');
@@ -407,6 +412,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         ...(pictureBook ? { pictureBookReview: pictureBook } : {}),
         ...(spentReviewReasks===undefined?{}:{spentReviewReasks}),
         ...(replayAttempts?{replayAttempts}:{}),
+        ...(recovery?{exhaustedFrameEdit:recovery.edit,usedCurrentCorrection:recovery.usedCurrentCorrection}:{}),
         ...(Object.keys(resumePages).length ? { resumePages } : {}),
         check: runtime.check, render: (step, prompt, refs, mode, roles) => {
           if (!['book_identity', 'book_design', 'book_scene_edit'].includes(mode)) engineSiteFail('engine_native_v2_not_enabled');
@@ -419,8 +425,10 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
             refs, mode, roles);
         }, judge: judged, identity, save: (name, value) => {
           saved[name] = value;
-          if (/^page_[0-8]$/.test(name) && (value as SavedPage).status === 'qa_supported')
-            return runtime.save(`native_${name}`, value);
+          if (/^page_[0-8]$/.test(name)) {
+            args.observeNativePage?.(structuredClone(value as SavedPage));
+            if ((value as SavedPage).status === 'qa_supported') return runtime.save(`native_${name}`, value);
+          }
         } });
       const pages = selectSupportedNativePages(saved);
       if (pictureBook === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW && audition.status !== 'qa_supported_audition')

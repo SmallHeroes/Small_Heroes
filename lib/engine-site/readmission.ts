@@ -22,7 +22,7 @@ import type {AdmittedEngineInitialPreparation} from './story-preparation';
 import type {AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import type {AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
 import type {AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
-import {checkLocalEntitiesPreparation,localEntitiesPreparedSource,localSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
+import {checkLocalEntitiesPreparation,localEntitiesPreparedSource,localSettledMedia, localMediaRecovery,type LocalEntitiesPreparation} from './local-current-entities';
 
 /** Rebuild the entire producer through its real compilers, raw saved provider answers and native resume gates.
  * No grant, lease, provider execute(), key, mutation or replacement answer is available in this runtime. */
@@ -105,7 +105,9 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
     for (const attempt of page.attempts) {
       if (!attempt.candidate) engineSiteFail('engine_readmission_missing_candidate');
       const step = attempt.candidate.imageName.replace(/\.png$/, '');
-      if (!(new RegExp(`^page_${page.pageNumber}_[0-2]$`)).test(step)) engineSiteFail('engine_readmission_frame_changed');
+      const edit = entitiesContinuation ? localMediaRecovery(entitiesContinuation)?.edit : undefined;
+      if (!(new RegExp(`^page_${page.pageNumber}_[0-2]$`)).test(step) &&
+          !(edit?.page === page.pageNumber && step === `page_${page.pageNumber}_3`)) engineSiteFail('engine_readmission_frame_changed');
       const archived = (step:string) => entitiesContinuation ? localSettledMedia(entitiesContinuation,checkpoint,step) : null;
       const image = archived(step)?.result ?? await result(step), rawImage = image.raw as any, output = image.output as any;
       if (!image.usable || image.model !== (checkpoint.authority.imageModelPolicy?.model ?? 'gpt-image-2') || typeof rawImage.data?.[0]?.b64_json !== 'string' ||

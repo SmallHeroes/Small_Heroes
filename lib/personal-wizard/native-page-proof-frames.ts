@@ -1,5 +1,5 @@
 import 'server-only';
-import { illustrateReviewedAudition, auditionSheetDesigns, reviewedAuditionPolicy, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION, type ScenePreservationRun, type SavedPage } from './simple-book-reviewed-audition';
+import { illustrateReviewedAudition, auditionSheetDesigns, reviewedAuditionPolicy, LANDMARK_COVERAGE_TOPOLOGY_VERSION, REFERENCE_QUALIFICATION_VERSION, type ScenePreservationRun, type SavedPage, type ExhaustedFrameEdit } from './simple-book-reviewed-audition';
 import { SCENE_PRESERVATION_VERSION, SCENE_PRESERVATION_MODE } from './scene-preservation';
 import { COMPANION_SCALE_SAMPLE_GATE, COMPANION_SCALE_VERSION } from './companion-scale';
 import { INSTANCE_DISTINCTION_VERSION } from './storyboard-instance-distinction';
@@ -17,15 +17,17 @@ const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTA
  *  `terminalRender`: a rejected render ends the run with its original error (the engine's attempt step rechecks `check` in its catch), so a
  *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
 function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true;scenePreservation?:ScenePreservationRun;
-  pictureBookReview?:PictureBookReview;replayAttempts?:Readonly<Partial<Record<number,number>>>},
+  pictureBookReview?:PictureBookReview;replayAttempts?:Readonly<Partial<Record<number,number>>>;
+  exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean},
   terminalRender=false,resumePages?:Partial<Record<number,SavedPage>>,spentReviewReasks=0){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
+  if(options.exhaustedFrameEdit)for(const suffix of ['','_qa','_identity'])allowed.add('page_'+options.exhaustedFrameEdit.page+'_'+attempts+suffix);
   let renderFailed=false,renderFailure:unknown,reasks=Object.values(resumePages??{}).reduce(
     (n,p)=>n+(p?.attempts.filter(a=>a.reviewReask!==undefined).length??0),spentReviewReasks);
   if(reasks>NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');
   const check=()=>{if(renderFailed)throw renderFailure;args.check();};
   const begin=(step:string,kind:'render'|'review'|'identity')=>{
-    if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-2]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
+    if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-3]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
     check();
     // The owner's re-ask allowance is its own book-wide count, independent of the call and USD limits; past it the run ends (fatal code).
     if(kind==='review'&&step.endsWith('_qa2')){if(reasks>=NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');reasks++;}
@@ -49,9 +51,16 @@ export async function runNativePageProofFrames(args:Input){
 /** The whole native book: the fixed cover + 8 frames, no sample stop, the engine's bounded correction ceiling per frame, and one
  *  identical re-ask of an unusable review answer per image (a structural slip in one answer is not a reason to end a whole book). */
 export async function runNativeBookFrames(args:Input&{resumePages?:Partial<Record<number,SavedPage>>;
-  pictureBookReview?:PictureBookReview;spentReviewReasks?:number;replayAttempts?:Readonly<Partial<Record<number,number>>>}){
+  pictureBookReview?:PictureBookReview;spentReviewReasks?:number;replayAttempts?:Readonly<Partial<Record<number,number>>>;
+  exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean}){
   if(!args)fail('page_proof_scope');
-  const {resumePages,pictureBookReview,spentReviewReasks,replayAttempts,...base}=args;
+  const {resumePages,pictureBookReview,spentReviewReasks,replayAttempts,exhaustedFrameEdit,usedCurrentCorrection,...base}=args;
+  if((exhaustedFrameEdit===undefined)!==(usedCurrentCorrection===undefined)||exhaustedFrameEdit&&(
+    !replayAttempts||resumePages||pictureBookReview!==PICTURE_BOOK_SPARSE_LANDMARK_REVIEW||
+    !Number.isInteger(exhaustedFrameEdit.page)||!Number.isInteger(exhaustedFrameEdit.afterPage)||exhaustedFrameEdit.page<1||
+    exhaustedFrameEdit.afterPage>8||exhaustedFrameEdit.afterPage<=exhaustedFrameEdit.page||
+    replayAttempts[exhaustedFrameEdit.page]!==NATIVE_BOOK_PAGE_ATTEMPTS||!replayAttempts[exhaustedFrameEdit.afterPage]||
+    !/^[a-f0-9]{64}$/.test(exhaustedFrameEdit.parentImageSha256)))fail('page_proof_scope');
   if(pictureBookReview!==undefined&&pictureBookReview!==PICTURE_BOOK_REVIEW&&pictureBookReview!==PICTURE_BOOK_SCALE_REVIEW&&
     pictureBookReview!==PICTURE_BOOK_SPARSE_LANDMARK_REVIEW)fail('page_proof_scope');
   if(spentReviewReasks!==undefined&&((pictureBookReview!==PICTURE_BOOK_SCALE_REVIEW&&pictureBookReview!==PICTURE_BOOK_SPARSE_LANDMARK_REVIEW)||
@@ -61,7 +70,7 @@ export async function runNativeBookFrames(args:Input&{resumePages?:Partial<Recor
     fail('page_proof_scope');
   if(!args||Object.keys(base).some(k=>!keys.has(k))||!Array.isArray(args.pages)||JSON.stringify(args.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(args))fail('page_proof_scope');
   if(resumePages&&(Object.keys(resumePages).map(Number).sort((a,b)=>a-b).some((n,i)=>n!==i)||Object.values(resumePages).some(p=>!p||p.status!=='qa_supported')))fail('page_proof_scope');
-  return fencedFrames(base,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true,pictureBookReview,replayAttempts},true,
+  return fencedFrames(base,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true,pictureBookReview,replayAttempts,exhaustedFrameEdit,usedCurrentCorrection},true,
     resumePages,spentReviewReasks);
 }
 /**

@@ -14,7 +14,7 @@ const dataUrl = (bytes: Buffer) => `data:image/png;base64,${bytes.toString('base
 const fail = (code: string): never => { throw new ReviewedAuditionError(code); };
 export async function auditionJudgePayload(args: { candidate: AuditionImage; candidateBytes: Buffer; context: unknown; contextSha: string;
   refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page'; reviewCapacity?: typeof AUDITION_REVIEW_CAPACITY_VERSION;
-  pictureBookReview?: PictureBookReview }) {
+  pictureBookReview?: PictureBookReview; concisePageEvidence?: true }) {
   const outputCap = auditionReviewOutputCap(args.reviewCapacity);
   const buffer = args.candidateBytes, meta = await sharp(buffer).metadata();
   const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
@@ -33,7 +33,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
     (args.pictureBookReview ? '\n' + PICTURE_BOOK_REVIEW_DIRECTION : '') +
     (args.kind === 'page' && (args.pictureBookReview === PICTURE_BOOK_SCALE_REVIEW ||
       args.pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW) ? '\n' + PICTURE_BOOK_SCALE_REPORTING : '') +
-    (args.kind === 'page' && args.pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? '\n' + PICTURE_BOOK_LANDMARK_REPORTING : '');
+    (args.kind === 'page' && args.pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? '\n' + PICTURE_BOOK_LANDMARK_REPORTING : '') +
+    (args.kind === 'page' && args.concisePageEvidence ? '\nComplete every required field. Use one short visual observation per evidence or note field, without repeating the same observation or reasoning. Keep the precise part, location, state and finding needed for each decision.' : '');
   if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
   return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },

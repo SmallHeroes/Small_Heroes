@@ -6,7 +6,7 @@ import path from 'node:path';
 import {z} from 'zod';
 import type {PrismaClient} from '@prisma/client';
 import {canonicalHash} from '@/lib/canonical-json';
-import type {AuditionAttempt} from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import {exhaustedFrameEditParent,type AuditionAttempt,type ExhaustedFrameEdit} from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import {PICTURE_BOOK_LANDMARK_REPORTING,PICTURE_BOOK_SCALE_REPORTING,PICTURE_BOOK_SPATIAL_STAGING} from '@/lib/personal-wizard/picture-book-direction';
 import {auditionUsageCost} from '@/scripts/personal-simple-book-illustrator';
 import {anthropicAuthorCost} from './anthropic-author';
@@ -34,10 +34,15 @@ export const localCurrentScaleContinuationSchema=localCurrentLocationsSchema.ext
  targetReviewStep:z.string().regex(/^page_[0-8]_[0-2]_qa2$/)}).strict();
 export const localCurrentLandmarkContinuationSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-landmark-continuation/v1'),
  nextIdentityStep:z.string().regex(/^page_[0-8]_[0-2]_identity$/)}).strict();
-type Spec=z.infer<typeof localCurrentEntitiesSchema>|z.infer<typeof localCurrentLocationsSchema>|z.infer<typeof localCurrentPictureBookSchema>|z.infer<typeof localCurrentSpatialSchema>|z.infer<typeof localCurrentSpatialCorrectionSchema>|z.infer<typeof localCurrentScaleContinuationSchema>|z.infer<typeof localCurrentLandmarkContinuationSchema>;
-export const localCurrentBoundaries=['entities','locations','locations-art-direction','locations-spatial-direction','locations-spatial-correction','page-scale-abstention','page-landmark'] as const;
-const localCurrentVersions=[ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6,ENGINE_CURRENT_CUSTOMER_V7,ENGINE_CURRENT_CUSTOMER_V8] as const;
+export const localCurrentMediaRecoverySchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-media-recovery/v1'),
+ targetReviewStep:z.string().regex(/^page_[1-8]_[01]_qa$/),
+ edit:z.object({page:z.number().int().min(1).max(8),parentImageSha256:digest}).strict()}).strict();
+type MediaRecoverySpec=z.infer<typeof localCurrentMediaRecoverySchema>;
+type Spec=MediaRecoverySpec|z.infer<typeof localCurrentEntitiesSchema>|z.infer<typeof localCurrentLocationsSchema>|z.infer<typeof localCurrentPictureBookSchema>|z.infer<typeof localCurrentSpatialSchema>|z.infer<typeof localCurrentSpatialCorrectionSchema>|z.infer<typeof localCurrentScaleContinuationSchema>|z.infer<typeof localCurrentLandmarkContinuationSchema>;
+export const localCurrentBoundaries=['entities','locations','locations-art-direction','locations-spatial-direction','locations-spatial-correction','page-scale-abstention','page-landmark','page-media-recovery'] as const;
+const localCurrentVersions=[ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6,ENGINE_CURRENT_CUSTOMER_V7,ENGINE_CURRENT_CUSTOMER_V8,ENGINE_CURRENT_CUSTOMER_V8] as const;
 export function localCurrentBoundary(spec:Spec) {
+ if(spec.version==='engine-local-current-media-recovery/v1')return 'page-media-recovery';
  if(spec.version==='engine-local-current-landmark-continuation/v1')return 'page-landmark';
  if(spec.version==='engine-local-current-scale-continuation/v1')return 'page-scale-abstention';
  if(spec.version==='engine-local-current-spatial-correction/v1')return 'locations-spatial-correction';
@@ -46,7 +51,7 @@ export function localCurrentBoundary(spec:Spec) {
  return spec.version==='engine-local-current-locations-continuation/v1'?'locations':'entities';
 }
 export function localCurrentTransition(boundary:ReturnType<typeof localCurrentBoundary>){
- const index=localCurrentBoundaries.indexOf(boundary) as 0|1|2|3|4|5|6;
+ const index=localCurrentBoundaries.indexOf(boundary) as 0|1|2|3|4|5|6|7;
  return {index,previousBoundary:localCurrentBoundaries[index-1],from:localCurrentVersions[index],to:localCurrentVersions[index+1]};
 }
 type Snapshot=Parameters<typeof createEngineNativeRecipe>[0]['snapshot'];
@@ -70,6 +75,12 @@ const locationSteps=(attempt:number)=>[`sheet_locations_${attempt}`,`sheet_locat
 export const localLocationMediaStep=(step:string,attempt:Exclude<LocationAttempt,0>=1)=>locationSteps(attempt).includes(step)||localEntityMediaStep(step)&&!step.startsWith('sheet_');
 export const localCurrentLocationRepairSlots=(steps:EngineOrderAuthority['budget']['steps'],attempt:LocationAttempt=1,from:LocationAttempt=0)=>
  steps.map(s=>locationSteps(from).includes(s.id)?{...s,id:s.id.replace(`_${from}`,`_${attempt}`)}:s);
+export function localCurrentMediaRecoverySlots(steps:EngineOrderAuthority['budget']['steps'],page:number){
+ const base='page_'+page+'_';
+ const last=[base+'2',base+'2_qa',base+'2_identity'].map(id=>steps.find(step=>step.id===id)??engineSiteFail('local_media_recovery_slots'));
+ if(steps.some(step=>step.id.startsWith(base+'3')))engineSiteFail('local_media_recovery_slots');
+ return [...steps,...last.map(step=>({...step,id:base+'3'+step.id.slice(base.length+1)}))];
+}
 export const localCurrentLocationAttempt=(stage:number):LocationAttempt=>Math.min(stage,4) as LocationAttempt;
 type ParentGo={approvalReference:string;approvedAt:string;sourceRevision:string;profileSha256:string;readerId:string;maximumMicroUsd:number;maximumCalls:number};
 export function readLocalEntityParentGo(spec:Spec):unknown{return JSON.parse(pinned(spec.parentGo).toString('utf8'));}
@@ -79,7 +90,8 @@ type Admitted={readonly carried:Readonly<LocalTrialCarry>;readonly preparedSha25
  readonly parentConsentSha256:string;readonly parentApprovalReference:string};
 type ArchivedMedia={request:{authoritySha256:string;call:PreparedEngineCall['call'];wire:unknown};result:EngineProviderResult};
 type SettlementReplay={first:string;excluded:ReadonlySet<string>;records:ReadonlyMap<string,ArchivedMedia>;
- replayAttempts?:Readonly<Partial<Record<number,number>>>};
+ replayAttempts?:Readonly<Partial<Record<number,number>>>;
+ recovery?:{failedStep:string;edit:ExhaustedFrameEdit;historicalCurrentCorrections:ReadonlySet<string>}};
 type Admission={prepared:unknown;authoritySha256:string;snapshotSha256:string;ownerId:string;draftId:string;check:()=>void;
  settledMedia?:SettlementReplay;
  sheets?:{entities:EngineNativeSheetObservation;locations:EngineNativeSheetObservation;previousLocations:AuditionAttempt[]}};
@@ -121,8 +133,16 @@ export function localReplayAttempts(cap:Admitted){
  return admission(cap).settledMedia?.replayAttempts;
 }
 
+export function localMediaRecovery(cap:Admitted){
+ const media=admission(cap).settledMedia;
+ if(!media?.recovery)return undefined;
+ const {edit,historicalCurrentCorrections}=media.recovery;
+ return {edit, useReviewCapacity:(step:string)=>!media.records.has(step),
+  usedCurrentCorrection:(page:number,attempt:number)=>historicalCurrentCorrections.has('page_'+page+'_'+attempt)};
+}
+
 /** Strip only the newly appended prospective directions when comparing to a sealed request. */
-function archivedWire(plan:PreparedEngineCall,archive:ArchivedMedia,landmark:boolean){
+function archivedWire(plan:PreparedEngineCall,archive:ArchivedMedia,sparseLandmark:boolean){
  const step=plan.call.step,wire=plan.wire as {body?:{prompt?:string;instructions?:string}};
  const previous=archive.request.wire as typeof wire;
  const projected={...wire,authoritySha256:archive.request.authoritySha256};
@@ -133,11 +153,14 @@ function archivedWire(plan:PreparedEngineCall,archive:ArchivedMedia,landmark:boo
  };
  if(/^page_[0-8]_[0-2]_qa2?$/.test(step)){
   let instructions=wire.body?.instructions;
-  if(landmark)instructions=remove(instructions,PICTURE_BOOK_LANDMARK_REPORTING);
-  if(!previous.body?.instructions?.endsWith('\n'+PICTURE_BOOK_SCALE_REPORTING))
+  if(sparseLandmark&&!previous.body?.instructions?.endsWith('\n'+PICTURE_BOOK_LANDMARK_REPORTING))
+   instructions=remove(instructions,PICTURE_BOOK_LANDMARK_REPORTING);
+  const priorInstructions=previous.body?.instructions;
+  if(!priorInstructions?.endsWith('\n'+PICTURE_BOOK_SCALE_REPORTING)&&
+     !priorInstructions?.endsWith('\n'+PICTURE_BOOK_SCALE_REPORTING+'\n'+PICTURE_BOOK_LANDMARK_REPORTING))
    instructions=remove(instructions,PICTURE_BOOK_SCALE_REPORTING);
   projected.body={...wire.body,instructions};
- }else if(landmark&&/^page_[0-8]_[0-2]$/.test(step)){
+ }else if(sparseLandmark&&/^page_[0-8]_[0-2]$/.test(step)&&!previous.body?.prompt?.endsWith('\n'+PICTURE_BOOK_SPATIAL_STAGING)){
   projected.body={...wire.body,prompt:remove(wire.body?.prompt,PICTURE_BOOK_SPATIAL_STAGING)};
  }
  return projected;
@@ -165,8 +188,12 @@ export function withLocalSettledMedia(cap:Admitted,runtime:EngineRuntime):Engine
    runtime.check();plan.revalidate?.();
    if(crossed||used.has(step)||!plan.admitSaved||canonicalHash(plan.wire)!==plan.call.wireSha256||
      plan.call.maximumMicroUsd!==archived.request.call.maximumMicroUsd)engineSiteFail('local_scale_replay_wire');
-   if(canonicalHash(archivedWire(plan,archived,cap.boundary==='page-landmark'))!==archived.request.call.wireSha256)
-    engineSiteFail('local_scale_replay_wire');
+   const projected=archivedWire(plan,archived,cap.boundary==='page-landmark'||cap.boundary==='page-media-recovery');
+   if(canonicalHash(projected)!==archived.request.call.wireSha256)engineSiteFail('local_scale_replay_wire');
+   if(step===settledMedia.recovery?.failedStep){
+    runtime.check();used.add(step);
+    engineSiteFail('audition_pixel_provider_invalid');
+   }
    await plan.admitSaved(archived.result);runtime.check();used.add(step);return archived.result;
   }};
 }
@@ -185,7 +212,10 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  const boundary=localCurrentBoundary(spec),location='previousLink' in spec,upstream=o.upstream;
  const scale=spec.version==='engine-local-current-scale-continuation/v1'?spec:null;
  const landmark=spec.version==='engine-local-current-landmark-continuation/v1'?spec:null;
- const media=scale??landmark;
+ const recovery=spec.version==='engine-local-current-media-recovery/v1'?spec:null;
+ const media=scale??landmark??recovery;
+ const recoveryFrame=recovery?Number(recovery.targetReviewStep.split('_')[1]):null;
+ if(recovery&&recovery.edit.page>=recoveryFrame!)engineSiteFail('local_media_recovery_scope');
  const transition=localCurrentTransition(boundary),priorLocation=transition.index>=2;
  if(location?(!upstream||upstream.boundary!==transition.previousBoundary||admission(upstream).authoritySha256!==canonicalHash(old)):upstream!==undefined)
   engineSiteFail('local_locations_current_parent_scope');
@@ -202,7 +232,8 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
   old.orderId!==(upstream?.orderId??g.approvalReference)||
   old.sourceRevision!==g.sourceRevision||old.currentEngine!==transition.from||a.currentEngine!==transition.to||
   old.imageQuality!=='low'||old.imageModelPolicy?.model!=='gpt-image-2.6-sunburst'||old.budget.maximumMicroUsd!==g.maximumMicroUsd||
-  old.budget.maximumCalls!==g.maximumCalls||canonicalHash(oldShape(a))!==canonicalHash(oldShape(location&&!media?
+  old.budget.maximumCalls!==g.maximumCalls||canonicalHash(oldShape(a))!==canonicalHash(oldShape(recovery?
+   {...old,budget:{...old.budget,steps:localCurrentMediaRecoverySlots(old.budget.steps,recovery.edit.page)}}:location&&!media?
    {...old,budget:{...old.budget,steps:localCurrentLocationRepairSlots(old.budget.steps,localCurrentLocationAttempt(transition.index),localCurrentLocationAttempt(transition.index-1))}}:old))||snapshot.appearance.kind!=='description'||
   snapshot.request.bookOptions.voiceId!=='dad_v2'||a.requestSha256!==canonicalHash(snapshot))engineSiteFail('local_entities_scope');
  if(!o.terminalTargetForReplay)assertFreshOutput(out,root,o.ledgerRoot);
@@ -226,7 +257,7 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  if((location?(exit.code!==1||exit.outcomeExists!==false||exit.head!==g.sourceRevision||exit.goSha256!==spec.parentGo.sha256||
     launch.head!==g.sourceRevision||launch.registrationSha256!==registration.registrationSha256):!legacy)||
   !Number.isFinite(Date.parse(exitedAt))||!(Date.parse(launch.at)<=Date.parse(startedAt)&&Date.parse(startedAt)<=Date.parse(running.startedAt)&&Date.parse(running.startedAt)<=Date.parse(stop.at)&&Date.parse(stop.at)<=Date.parse(exitedAt))||
-  stop.version!=='engine-local-current-book-stop/v1'||stop.reason!==(landmark?'audition_identity_unusable':scale?'audition_review_unusable':'engine_reference_sheet_held')||stop.phase!=='native'||stop.productAccepted!==false||
+  stop.version!=='engine-local-current-book-stop/v1'||stop.reason!==(recovery?'local_trial_budget_or_unknown':landmark?'audition_identity_unusable':scale?'audition_review_unusable':'engine_reference_sheet_held')||stop.phase!=='native'||stop.productAccepted!==false||
   launch.pid!==supervisor||launch.authoritySha256!==authoritySha256||launch.goSha256!==spec.parentGo.sha256||
   terminal.version!=='local-book-independent-outcome/v1'||terminal.sourceHead!==g.sourceRevision||terminal.exitCode!==1||terminal.outcome!=='held'||
   terminal.reason!==stop.reason||terminal.phase!==stop.phase||terminal.launcherExitAt!==exitedAt||
@@ -243,9 +274,11 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
    consentSha256,goSha256:spec.parentGo.sha256,authoritySha256,out:root}))engineSiteFail('local_locations_current_parent_claim');
  }
  const cp=parseEngineCheckpoint({engineSite:json(path.join(root,'journal/checkpoint.json'))}),steps=Object.keys(cp.calls);
- const targetRender=landmark?.nextIdentityStep.replace(/_identity$/,'')??scale?.targetReviewStep.replace(/_qa2$/,'');
+ const targetRender=recovery?.targetReviewStep.replace(/_qa$/,'')??landmark?.nextIdentityStep.replace(/_identity$/,'')??scale?.targetReviewStep.replace(/_qa2$/,'');
+ const failedStep=recovery?.targetReviewStep;
+ const nextRender=recovery?targetRender!.replace(/([01])$/,(_s,n)=>String(Number(n)+1)):undefined;
  const required=scale?[...locationSteps(4),targetRender!,targetRender+'_qa',scale.targetReviewStep]:
-  landmark?[targetRender!,targetRender+'_qa']:
+  landmark||recovery?[targetRender!,targetRender+'_qa']:
   priorLocation?locationSteps(transition.index-1):['sheet_entities_0','sheet_entities_0_qa',...(location?locationSteps(0):[])];
  const outputNames=Object.keys(cp.outputs);
  const validOutputs=media?outputNames.includes('prepared_source')&&outputNames.every(n=>n==='prepared_source'||/^native_page_[0-8]$/.test(n)):sorted(outputNames)==='prepared_source';
@@ -253,6 +286,9 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
   cp.ownerId!==snapshot.ownerId||cp.draftId!==snapshot.request.draftId||!validOutputs||
   sorted(steps)!==sorted(stop.calls)||(media?steps.some(step=>!localLocationMediaStep(step,4)||step.startsWith('narration_')):
    location?sorted(steps)!==sorted(required):steps.some(s=>!oldStep.test(s))))engineSiteFail('local_entities_parent_checkpoint');
+ if(recovery&&(cp.calls[failedStep!+'2']||cp.calls[targetRender!+'_identity']||cp.calls[nextRender!]||
+   existsSync(ledger.dispatchFile(failedStep!+'2'))||existsSync(ledger.dispatchFile(targetRender!+'_identity'))||existsSync(ledger.dispatchFile(nextRender!))))
+  engineSiteFail('local_media_recovery_prior_dispatch');
  if(landmark){
   const stopped=/^Technical pause after settled receipt (page_[0-8]_[0-2]_qa) (\S+)\r?\n?$/.exec(bytes(path.join(root,'OWNER-STOP')).toString('utf8'));
   if(!stopped||stopped[1]!==targetRender+'_qa'||!Number.isFinite(Date.parse(stopped[2]))||
@@ -267,13 +303,22 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
    return r.model===old.imageModelPolicy?.model?auditionUsageCost(raw.usage,'image'):null;
   if(step.endsWith('_identity'))return auditionUsageCost({input_tokens:raw.usage?.prompt_tokens,output_tokens:raw.usage?.completion_tokens},'identity');
   return raw.model==='gpt-6.1-sol'&&raw.service_tier==='default'?auditionUsageCost(raw.usage,'sol'):null;
- });
+ }, recovery ? (step,result,request)=>{
+  const raw=result.raw as any,wire=(request as ArchivedMedia['request']).wire as {body?:{max_output_tokens?:number;model?:string}};
+  const outputCap=wire.body?.max_output_tokens;
+  return step===failedStep&&result.usable===false&&result.output===null&&wire.body?.model==='gpt-6.1-sol'&&
+    result.model==='gpt-6.1-sol'&&raw.status==='incomplete'&&raw.error===null&&raw.incomplete_details?.reason==='max_output_tokens'&&
+    outputCap===12000&&raw.max_output_tokens===outputCap&&raw.usage?.output_tokens===outputCap&&
+    result.usage?.outputTokens===outputCap&&result.usage?.inputTokens===raw.usage?.input_tokens&&
+    /^resp_[A-Za-z0-9_-]+$/.test(raw.id)&&cp.calls[step].pendingId===raw.id;
+ } : undefined);
  const known=receipts.known+(upstream?.carried.accountedMicroUsd??0),count=steps.length+(upstream?.carried.logicalCalls??0),m=stop.meter;
- if(m?.blocked!==false||m.accountedMicroUsd!==known||m.knownEstimateMicroUsd!==known||m.logicalCalls!==count||
+ if(m?.blocked!==!!recovery||m.failedCalls!==(recovery?1:0)||m.accountedMicroUsd!==known||m.knownEstimateMicroUsd!==known||m.logicalCalls!==count||
   (upstream&&(m.carriedMicroUsd!==upstream.carried.accountedMicroUsd||m.carriedCalls!==upstream.carried.logicalCalls||
    terminal.newKnownMicroUsd!==receipts.known||terminal.newLogicalCalls!==steps.length||canonicalHash(terminal.carried)!==canonicalHash(upstream.carried)))||
-  ['pendingCalls','unknownCalls','failedCalls','overReservedCalls','lostLocalCalls'].some(k=>m[k]!==0)||
+  ['pendingCalls','unknownCalls','overReservedCalls','lostLocalCalls'].some(k=>m[k]!==0)||
   terminal.meter?.accountedMicroUsd!==known||terminal.meter?.logicalCalls!==count||terminal.meter?.reservedMicroUsd!==0||
+  recovery&&(receipts.results.get(failedStep!)?.usable!==false||terminal.meter?.failedCalls!==1||terminal.meter?.unknownCalls!==0||terminal.meter?.pendingCalls!==0)||
   known>=a.budget.maximumMicroUsd||count>=a.budget.maximumCalls)engineSiteFail('local_entities_parent_meter');
  const witness=localConsentDispatchWitness(ledger,consentSha256,old);
  const witnessPins=new Map<string,string>();
@@ -305,7 +350,7 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  };
  const accepted=receipts.asset(cp.outputs.prepared_source),preparedSha256=canonicalHash(accepted);
  const used=new Set<string>(),verifiedOutputs=new Set<string>(),observations:EngineNativeSheetObservation[]=[];
- let pausedAtIdentity=false,terminated=false;
+ let pausedAtIdentity=false,blockedAfterReview=false,verifiedEditParent=false,terminated=false;
  let prepared:unknown=upstream?localEntitiesPreparedSource(upstream,cp,snapshot,accepted):null;
  const runtime:EngineRuntime={checkpoint:{...structuredClone(cp),phase:location?'native':'story'},signal:new AbortController().signal,check(){},result:denied,
   async load(name){if(name==='prepared_source')return prepared;return null;},
@@ -325,11 +370,21 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
       canonicalHash(plan.wire)===plan.call.wireSha256&&!!plan.admitSaved){
     pausedAtIdentity=true;engineSiteFail('local_current_owner_stop');
    }
+   if(recovery&&step===nextRender&&[...used][used.size-1]===failedStep&&used.size===steps.length&&!blockedAfterReview&&
+     !found&&!!plan.admitSaved&&canonicalHash(plan.wire)===plan.call.wireSha256){
+    blockedAfterReview=true;engineSiteFail('local_trial_budget_or_unknown');
+   }
    if(!found||!result||!plan.admitSaved||used.has(step)||canonicalHash(plan.call)!==canonicalHash(found.claim.call)||
     canonicalHash(plan.wire)!==found.claim.call.wireSha256)engineSiteFail('local_entities_replay_wire');
+   if(step===failedStep&&result.usable===false){used.add(step);engineSiteFail('local_trial_settled_hold');}
    await plan.admitSaved(result);used.add(step);return result;
   }};
  try{await createEngineNativeRecipe({db,storage,snapshot,ports,observeReferenceSheet:v=>observations.push(v),
+  ...(recovery?{observeNativePage:(page:Parameters<typeof exhaustedFrameEditParent>[0])=>{
+   if(page.pageNumber===recovery.edit.page){
+    exhaustedFrameEditParent(page,{...recovery.edit,afterPage:recoveryFrame!});verifiedEditParent=true;
+   }
+  }}:{}),
   ...(priorLocation?{currentLocationsRepair:upstream}:{})})(runtime);}
  catch(error){if((error as {code?:unknown})?.code!==stop.reason)throw error;terminated=true;}
  if(!terminated||prepared===null||sorted(used)!==sorted(steps)||observations.length!==(location&&!priorLocation?2:1)||observations[0].role!==(priorLocation?'locations':'entities'))
@@ -337,26 +392,32 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  let sheets:Admission['sheets'],settledMedia:Admission['settledMedia'];
  if(media){
   const last=scale?.targetReviewStep??targetRender+'_qa';
-  if(outputNames.length!==verifiedOutputs.size+1||[...used][used.size-1]!==last||landmark&&!pausedAtIdentity||
+  if(outputNames.length!==verifiedOutputs.size+1||[...used][used.size-1]!==last||landmark&&!pausedAtIdentity||recovery&&(!blockedAfterReview||!verifiedEditParent)||
     observations[0].attempt.status!=='qa_supported'||
     (receipts.results.get(targetRender!)?.output as {imageSha?:string})?.imageSha!==media.targetImageSha256)
    engineSiteFail('local_scale_parent_target');
   sheets=localEntitiesSheetPair(upstream!,cp,snapshot,prepared);
   const previous=admission(upstream!).settledMedia;
-  if(landmark&&!previous)engineSiteFail('local_landmark_parent_pause');
+  if((landmark||recovery)&&!previous)engineSiteFail('local_landmark_parent_pause');
   const records=new Map(previous?.records);
   for(const [step,{request}] of receipts.claims){
    if(records.has(step))engineSiteFail('local_scale_replay_collision');
    records.set(step,{request,result:receipts.results.get(step)!});
   }
   const excluded=scale?new Set([scale.targetReviewStep]):previous!.excluded;
-  const first=landmark?.nextIdentityStep??scale!.targetReviewStep.replace(/_qa2$/,'_identity');
+  const first=recovery?failedStep+'2':landmark?.nextIdentityStep??scale!.targetReviewStep.replace(/_qa2$/,'_identity');
   const replayAttempts:Partial<Record<number,number>>={};
-  if(landmark)for(const step of records.keys()){
+  if(landmark||recovery)for(const step of records.keys()){
    const frame=/^page_([0-8])_([0-2])$/.exec(step);
    if(frame)replayAttempts[Number(frame[1])]=Math.max(replayAttempts[Number(frame[1])]??0,Number(frame[2])+1);
   }
-  settledMedia={first,excluded,records,...(landmark?{replayAttempts:Object.freeze(replayAttempts)}:{})};
+  const historicalCurrentCorrections=new Set<string>();
+  if(recovery)for(const [step,{request}] of records){
+   if(/^page_[0-8]_[0-2]$/.test(step)&&(request.wire as {body?:{prompt?:string}}).body?.prompt?.endsWith('\n'+PICTURE_BOOK_SPATIAL_STAGING))
+    historicalCurrentCorrections.add(step);
+  }
+  settledMedia={first,excluded,records,...(landmark||recovery?{replayAttempts:Object.freeze(replayAttempts)}:{}),
+   ...(recovery?{recovery:{failedStep:failedStep!,edit:Object.freeze({...recovery.edit,afterPage:recoveryFrame!}),historicalCurrentCorrections}}:{})};
  }
  else if(location){
   const locations=observations[priorLocation?0:1];
@@ -409,6 +470,8 @@ export async function previewLocalEntitiesContinuation(cap:Admitted,snapshot:Sna
 export function localEntitiesAllowedStep(cap:Admitted,step:string){
  const a=admission(cap);
  if(a.settledMedia?.records.has(step))return false;
+ const edit=a.settledMedia?.recovery?.edit;
+ if(edit&&['','_qa','_identity'].some(suffix=>step==='page_'+edit.page+'_3'+suffix))return true;
  return cap.boundary==='entities'?localEntityMediaStep(step):localLocationMediaStep(step,localCurrentLocationAttempt(localCurrentTransition(cap.boundary).index) as Exclude<LocationAttempt,0>);
 }
 
