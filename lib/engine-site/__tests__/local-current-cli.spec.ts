@@ -68,7 +68,7 @@ describe('the local current-engine CLI consumes one GO once',()=>{
   expect(m.book).not.toHaveBeenCalled();
   expect(readdirSync(out)).toEqual(['OWNER-GO.json']);
  });
- it.each(['engine-local-current-locations-continuation/v1','engine-local-current-picture-book-continuation/v1','engine-local-current-spatial-continuation/v1'])(
+ it.each(['engine-local-current-locations-continuation/v1','engine-local-current-picture-book-continuation/v1','engine-local-current-spatial-continuation/v1','engine-local-current-spatial-correction/v1'])(
  'refuses a %s resume before replaying any parent or reading credentials',async version=>{
   const f=fixture(),pin={file:path.join(f.base,'absent-parent'),sha256:'0'.repeat(64)};
   const out=f.run('locations',{entitiesContinuation:{firstWireSha256:pin.sha256,parent:{

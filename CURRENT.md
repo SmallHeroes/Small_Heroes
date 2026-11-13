@@ -1,5 +1,11 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Bound locations sheet edit
+
+- Run5f at `85407bd5` drew distinct supply, obstruction and dry continuation. It stopped at three different bound continuity findings involving an entity-owned prop, a repeated landmark and required visible features through openings. The image and review settled at 94,934 microUSD. The manuscript's cumulative estimate is 1,553,770 microUSD across 25 calls, with zero pending or unknown cost. [Outcome and receipts](<C:/GNart/Work/local-current-book-20261112/SOURCE-SPATIAL-DIRECTION-20261113/OUTCOME-QA/PRODUCT-OUTCOME.md>)
+- The v6 continuation applies a targeted edit to the replayed spatial candidate. It derives correction directions from ownership, stable placement, explicit location design and bound requirement IDs. The prospective spatial pattern abstains when the assertion has a trailing qualification, and the page cue retains the planned camera. The v5 wire and historical evidence are preserved.
+- The same local book retains the manuscript, child, Momo and accepted entities. The exact edit and review use one new pair of slots inside $12/124, followed by the ordinary media gates if supported. [Decision](<C:/GNart/Work/local-current-book-20261112/LOCATION-SHEET-CORRECTION-20261113/DECISION.md>)
+
 ## 2026-11-13 — Source-derived location composition
 
 - The v5 native render derives stable placements from the admitted plan. When the original design identifies an obstruction and an empty or dry continuation, the location prompt names the visible supply side, obstruction, continuation and any explicitly named overhead feature. An abstract composition guide carries the same relationships. The page prompt uses the initial direction only while both landmarks are visible and their depicted state still matches.

@@ -35,3 +35,38 @@ INITIAL DRAWING DATA: ${canonicalJson({ locations, landmarks, props, initialAttr
     ...(materialFunction ? { materialFunction } : {}) })}
 EXCLUSIONS FOR RECOGNITION ONLY: ${canonicalJson(excludedEntities)}`;
 }
+
+/** Convert known review targets into drawing obligations from the original scoped design. */
+export function pictureBookLocationCorrection(
+  design: SheetDesigns['locations'],
+  entityDesign: SheetDesigns['entities'],
+  requirements: readonly string[],
+  placements: readonly { entityId: string; relation: string; targetId: string }[],
+) {
+  const ids = [...new Set(requirements)];
+  const exclusions = locationExclusionDescriptions(design, entityDesign);
+  const lines = ids.map(id => {
+    if (id === 'sheet_scope') {
+      return `Clear entity-owned content from both views. Remove these excluded designs wherever they appear: ${exclusions.map(e => e.entityId).join(', ')}. Keep their existing surrounding terrain and empty space. Clear any revealed event, track or effect that is absent from the initial design.`;
+    }
+    const [kind, name] = id.split(':');
+    const location = design.locations.find(row => row.id === name);
+    if (kind === 'design' && location) {
+      return `In ${location.id}, restore the missing fixed spatial cues in this location description: ${location.design} When the design calls for a view through an opening, show the prescribed visible feature inside the opening in its initial form. Use the same existing feature seen through the opening.`;
+    }
+    const landmark = design.landmarks.find(row => row.id === name);
+    if (kind === 'landmark_unique' && landmark) {
+      const bases = placements.filter(row => row.entityId === name &&
+        (row.relation === 'at' || row.relation === 'inside') && design.locations.some(l => l.id === row.targetId));
+      const base = bases[0]?.targetId;
+      const label = landmark.id.replace(/_/g, ' ');
+      const connector = new RegExp(`\\breached (?:by|via) the ${label}\\b`, 'i');
+      const views = design.locations.filter(row => base && row.id !== base && connector.test(row.design));
+      const keep = views.length === 1 ? views[0].id : base;
+      return `Show one readable main depiction of ${landmark.id}${keep ? ` in ${keep}` : ''}. Remove other full depictions from the other tiles. Preserve a source-required opening or endpoint as a small partial view of this same connected feature.`;
+    }
+    return `Correct ${id} against the fixed drawing data. Preserve all other designs.`;
+  });
+  return 'FOCUSED SHEET EDIT\n' + lines.join('\n') +
+    '\nKeep the watercolor rendering and every readable spatial relationship already present, including the supply, obstruction, and continuation where specified. Keep the view count and labels. Repaint only what these instructions require.';
+}

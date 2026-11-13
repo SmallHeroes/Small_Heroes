@@ -10,7 +10,7 @@ import type {AuditionAttempt} from '@/lib/personal-wizard/simple-book-reviewed-a
 import {auditionUsageCost} from '@/scripts/personal-simple-book-illustrator';
 import {anthropicAuthorCost} from './anthropic-author';
 import {engineSiteFail,type EngineOrderAuthority} from './contract';
-import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5} from './current-engine-policy';
+import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6} from './current-engine-policy';
 import {parseEngineCheckpoint,type EngineRuntime} from './durable-worker';
 import {admitLocalCurrentRegistration,localConsentDispatchWitness,localConsentLedger,localConsentRecordSchema,type LocalConsentLedger} from './local-consent-ledger';
 import {assertLocalParentEvidence,readLocalSettledJournal} from './local-trial-continuation';
@@ -28,16 +28,18 @@ export const localCurrentLocationsSchema=localCurrentEntitiesSchema.extend({vers
  previousLink:pin,targetImageSha256:digest}).strict();
 export const localCurrentPictureBookSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-picture-book-continuation/v1')}).strict();
 export const localCurrentSpatialSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-spatial-continuation/v1')}).strict();
-type Spec=z.infer<typeof localCurrentEntitiesSchema>|z.infer<typeof localCurrentLocationsSchema>|z.infer<typeof localCurrentPictureBookSchema>|z.infer<typeof localCurrentSpatialSchema>;
-export const localCurrentBoundaries=['entities','locations','locations-art-direction','locations-spatial-direction'] as const;
-const localCurrentVersions=[ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5] as const;
+export const localCurrentSpatialCorrectionSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-spatial-correction/v1')}).strict();
+type Spec=z.infer<typeof localCurrentEntitiesSchema>|z.infer<typeof localCurrentLocationsSchema>|z.infer<typeof localCurrentPictureBookSchema>|z.infer<typeof localCurrentSpatialSchema>|z.infer<typeof localCurrentSpatialCorrectionSchema>;
+export const localCurrentBoundaries=['entities','locations','locations-art-direction','locations-spatial-direction','locations-spatial-correction'] as const;
+const localCurrentVersions=[ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6] as const;
 export function localCurrentBoundary(spec:Spec) {
+ if(spec.version==='engine-local-current-spatial-correction/v1')return 'locations-spatial-correction';
  if(spec.version==='engine-local-current-spatial-continuation/v1')return 'locations-spatial-direction';
  if(spec.version==='engine-local-current-picture-book-continuation/v1')return 'locations-art-direction';
  return spec.version==='engine-local-current-locations-continuation/v1'?'locations':'entities';
 }
 export function localCurrentTransition(boundary:ReturnType<typeof localCurrentBoundary>){
- const index=localCurrentBoundaries.indexOf(boundary) as 0|1|2|3;
+ const index=localCurrentBoundaries.indexOf(boundary) as LocationAttempt;
  return {index,previousBoundary:localCurrentBoundaries[index-1],from:localCurrentVersions[index],to:localCurrentVersions[index+1]};
 }
 type Snapshot=Parameters<typeof createEngineNativeRecipe>[0]['snapshot'];
@@ -56,9 +58,9 @@ const ports={fetch:denied,openAIKey:denied,anthropicKey:denied,image:denied};
 const db=new Proxy({},{get:denied}) as PrismaClient,storage={put:denied,read:denied,sign:denied};
 const oldStep=/^(?:story_(?:author|editor|final_review(?:_citation)?|comparison(?:_citation)?)|initial_storyboard(?:_review|_repair_[12](?:_review)?)?|reference_child(?:_repair)?(?:_style_qa|_qa|_identity)?|prep_child_bound_(?:review|repair(?:_review)?)|sheet_entities_0(?:_qa)?)$/;
 export const localEntityMediaStep=(step:string)=>/^(?:sheet_(?:entities|locations)_0(?:_qa)?|page_[0-8]_[0-2](?:_qa2?|_identity)?|narration_[0-8])$/.test(step);
-type LocationAttempt=0|1|2|3;
+type LocationAttempt=0|1|2|3|4;
 const locationSteps=(attempt:number)=>[`sheet_locations_${attempt}`,`sheet_locations_${attempt}_qa`];
-export const localLocationMediaStep=(step:string,attempt:1|2|3=1)=>locationSteps(attempt).includes(step)||localEntityMediaStep(step)&&!step.startsWith('sheet_');
+export const localLocationMediaStep=(step:string,attempt:Exclude<LocationAttempt,0>=1)=>locationSteps(attempt).includes(step)||localEntityMediaStep(step)&&!step.startsWith('sheet_');
 export const localCurrentLocationRepairSlots=(steps:EngineOrderAuthority['budget']['steps'],attempt:LocationAttempt=1,from:LocationAttempt=0)=>
  steps.map(s=>locationSteps(from).includes(s.id)?{...s,id:s.id.replace(`_${from}`,`_${attempt}`)}:s);
 type ParentGo={approvalReference:string;approvedAt:string;sourceRevision:string;profileSha256:string;readerId:string;maximumMicroUsd:number;maximumCalls:number};
@@ -164,7 +166,7 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  const receipts=readLocalSettledJournal(root,cp,required,new Set(steps),(step,r)=>{
   const raw=r.raw as any;
   if(step==='story_author')return anthropicAuthorCost(raw,'batch');
-  if(/^(?:reference_child(?:_repair)?|sheet_entities_0|sheet_locations_[0-2])$/.test(step))
+  if(/^(?:reference_child(?:_repair)?|sheet_entities_0|sheet_locations_[0-3])$/.test(step))
    return r.model===old.imageModelPolicy?.model?auditionUsageCost(raw.usage,'image'):null;
   if(step.endsWith('_identity'))return auditionUsageCost({input_tokens:raw.usage?.prompt_tokens,output_tokens:raw.usage?.completion_tokens},'identity');
   return raw.model==='gpt-6.1-sol'&&raw.service_tier==='default'?auditionUsageCost(raw.usage,'sol'):null;
@@ -231,7 +233,7 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
    else{
     const attempt=locations.attempt,assessment=attempt.assessment;
     const material=assessment?.findings.filter(f=>f.impact!=='detail')??[];
-    if(attempt.attempt!==2||attempt.status!=='held'||!attempt.review||!assessment||assessment.safetyBlocked||assessment.invalidCitations||
+    if(attempt.attempt!==transition.index-1||attempt.status!=='held'||!attempt.review||!assessment||assessment.safetyBlocked||assessment.invalidCitations||
      !material.some(f=>f.verdict==='defect')||material.some(f=>!f.bound||f.impact!=='continuity'))engineSiteFail('local_locations_current_target');
    }
    const prior=localEntitiesSheetPair(upstream!,cp,snapshot,prepared);

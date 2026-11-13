@@ -34,8 +34,8 @@ function fixture(route: string, beyond: 'dry' | 'empty', overhead: string) {
   return { book, design };
 }
 
-const compile = (f: ReturnType<typeof fixture>) =>
-  locationSpatialDirection(f.book as Parameters<typeof locationSpatialDirection>[0], f.design as Parameters<typeof locationSpatialDirection>[1]);
+const compile = (f: ReturnType<typeof fixture>, strictClause = false) =>
+  locationSpatialDirection(f.book as Parameters<typeof locationSpatialDirection>[0], f.design as Parameters<typeof locationSpatialDirection>[1], strictClause);
 
 describe('source-bound location composition', () => {
   it.each([
@@ -75,6 +75,16 @@ describe('source-bound location composition', () => {
     expect(onPage(1)).toEqual(routes);
     expect(onPage(2)).toEqual([]);
     expect(onPage(3)).toEqual([]);
+  });
+
+  it('the prospective policy abstains on a trailing qualification and respects the planned camera', () => {
+    const f = fixture('rain gutter', 'dry', 'the raised terrace');
+    const [initial] = compile(f, true).routes;
+    expect(blockedRouteDrawing(initial, true)).toContain('Keep the planned camera');
+    expect(blockedRouteDrawing(initial, true)).not.toContain('side cutaway');
+    f.design.landmarks[0].invariants[1].value = f.design.landmarks[0].invariants[1].value.replace(/\.$/, ', which is not true.');
+    expect(compile(f).routes).toHaveLength(1);
+    expect(compile(f, true).routes).toEqual([]);
   });
 
   it('labels the diagram only in its exact reference role and refuses swapped or edit-target diagrams', () => {

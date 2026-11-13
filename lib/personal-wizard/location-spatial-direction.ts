@@ -31,7 +31,7 @@ function fixedPlacements(book: SpatialBook, design: LocationDesign) {
 }
 
 /** Compile a small visual pattern when the admitted design explicitly states both sides of an obstruction. */
-export function locationSpatialDirection(book: SpatialBook, design: LocationDesign) {
+export function locationSpatialDirection(book: SpatialBook, design: LocationDesign, strictClause = false) {
   const placements = fixedPlacements(book, design);
   const locationOf = (entityId: string) => placements.find(p => p.entityId === entityId &&
     (p.relation === 'at' || p.relation === 'inside') && design.locations.some(l => l.id === p.targetId))?.targetId;
@@ -40,7 +40,8 @@ export function locationSpatialDirection(book: SpatialBook, design: LocationDesi
     const locationId = locationOf(landmark.id);
     if (!locationId) continue;
     const matches = landmark.invariants.flatMap(({ value }) => [...value.matchAll(
-      /(?:^|[.;] |, with )the ([a-z]{2,20}(?: [a-z]{2,20})? (?:branch|channel|ditch|trench|gutter|path|route|passage)) (?:is )?blocked and (dry|empty) beyond (?:its |the )(?:blockage|obstruction|barrier)(?=[.,;]|$)/gi)]);
+      /(?:^|[.;] |, with )the ([a-z]{2,20}(?: [a-z]{2,20})? (?:branch|channel|ditch|trench|gutter|path|route|passage)) (?:is )?blocked and (dry|empty) beyond (?:its |the )(?:blockage|obstruction|barrier)(?=[.,;]|$)/gi)]
+      .filter(match => !strictClause || /^\.?\s*$/.test(value.slice(match.index! + match[0].length))));
     if (matches.length !== 1) continue;
     const route = matches[0][1].toLowerCase();
     const beyond = matches[0][2].toLowerCase() === 'dry' ? 'dry' : 'empty';
@@ -56,12 +57,13 @@ export function locationSpatialDirection(book: SpatialBook, design: LocationDesi
   return { placements, routes };
 }
 
-export function blockedRouteDrawing({ locationId, routeId, obstructionId, route, beyond, overhead }: BlockedRoute) {
+export function blockedRouteDrawing({ locationId, routeId, obstructionId, route, beyond, overhead }: BlockedRoute, preserveCamera = false) {
   return [
     `In ${locationId}, give ${routeId} a continuous readable bed. Compose the ${route} in three visible sections: supply side, ${obstructionId} across the route, then the ${beyond} continuation of the same route.`,
     `Show the supply stopping against ${obstructionId}. Past it, keep both edges and the ${beyond} surface visible. Make the obstacle a separate shape interrupting the bed.`,
     ...(overhead ? [`Keep ${overhead} above the route. Give it its own outline and leave the obstacle, edges and surface of the ${beyond} continuation easy to distinguish.`] : []),
-    'Leave room around this relationship. Use a slightly elevated view or a side cutaway as needed for a young reader to trace it.',
+    preserveCamera ? 'Keep the planned camera and make the relation easy to trace within that view.' :
+      'Leave room around this relationship. Use a slightly elevated view or a side cutaway as needed for a young reader to trace it.',
   ].join(' ');
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import { LOCATION_SHEET_PROJECTION, LOCATION_SHEET_PROJECTION_V2, locationSheetProjection } from '../location-sheet-projection';
 import { auditionEntitySheetPrompt, auditionSheetContext, auditionSheetPrompt, sheetRepairPrompt } from '../simple-book-reviewed-audition';
-import { pictureBookLocationPrompt, PICTURE_BOOK_REVIEW } from '../picture-book-direction';
+import { pictureBookLocationCorrection, pictureBookLocationPrompt, PICTURE_BOOK_REVIEW } from '../picture-book-direction';
 import { auditionJudgePayload } from '../audition-provider-payload';
 
 function fixture() {
@@ -99,6 +99,20 @@ describe('locations v2 generator recognition binding (no new source/judge author
 });
 
 describe('picture-book location direction', () => {
+  it('binds targeted correction to ownership, a single connector view and the prescribed opening', () => {
+    const { locations, entities } = fixture();
+    const source = { ...locations, locations: [
+      { id: 'yard', design: 'A pale yard beside the house.' },
+      { id: 'loft', design: 'The loft is reached by the rail. A window reveals the existing tree.' },
+    ] } as unknown as Parameters<typeof pictureBookLocationCorrection>[0];
+    const prompt = pictureBookLocationCorrection(source, entities as unknown as Parameters<typeof pictureBookLocationCorrection>[1],
+      ['sheet_scope', 'landmark_unique:rail', 'design:loft'], [{ entityId: 'rail', relation: 'at', targetId: 'yard' }]);
+    expect(prompt).toContain('toy_box, bird, orb');
+    expect(prompt).toContain('one readable main depiction of rail in loft');
+    expect(prompt).toContain('A window reveals the existing tree.');
+    expect(prompt).toContain('prescribed visible feature inside the opening');
+    expect(prompt).not.toContain('another synthetic quote');
+  });
   it.each([
     ['doorway', 'A door interrupts a stone corridor beside a raised wooden bench.', 'door position', 'closed'],
     ['footpath', 'A fallen branch crosses a gravel footpath alongside a low stone wall.', 'path surface', 'clear beyond the branch'],
