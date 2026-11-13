@@ -11,8 +11,10 @@
  *   execute (paid):        ... same ... --execute            (requires <dir>/OWNER-GO.json written after the owner's go)
  *   resume after a crash:  ... same ... --execute --resume   (never repurchases a settled call; an unknown dispatch stops)
  *   stop between calls:    create <dir>/OWNER-STOP
- * One GO is consumed once, machine-wide (local-consent-ledger.ts, outside every output folder): a copy elsewhere is refused, one process runs
- * at a time, and every dispatch is witnessed there before the provider is called (a lost journal keeps its reserves and stops).
+ * One GO is consumed once, machine-wide (local-consent-ledger.ts, outside every output folder): it executes only through an existing,
+ * independently reviewed registration of exactly its bytes, source, profile, output and reader (this command never creates one), a copy
+ * elsewhere is refused, one process runs at a time, and every dispatch is witnessed there before the provider is called (a lost journal keeps
+ * its reserves and stops).
  */
 import 'server-only';
 import {existsSync,lstatSync,mkdirSync,readFileSync,realpathSync,renameSync,writeFileSync} from 'node:fs';
@@ -30,7 +32,7 @@ import {ENGINE_IMAGE26_POLICY} from '../lib/engine-site/image-model-policy';
 import {engineQaRequired} from '../lib/engine-site/qa-order-policy';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../lib/engine-site/local-trial-runtime';
 import {runLocalEngineTrialBook,localTrialReaderBundle} from '../lib/engine-site/local-trial-book';
-import {LOCAL_CONSENT_LEDGER_ROOT,localConsentLedger,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness} from '../lib/engine-site/local-consent-ledger';
+import {LOCAL_CONSENT_LEDGER_ROOT,localConsentLedger,admitLocalCurrentRegistration,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness} from '../lib/engine-site/local-consent-ledger';
 import {localReaderId} from '../lib/local-reader-preview';
 
 const KEYS=['OPENAI_API_KEY','ANTHROPIC_API_KEY','ELEVENLABS_API_KEY'] as const;
@@ -118,8 +120,10 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  const ledger=localConsentLedger(options.consentRoot??LOCAL_CONSENT_LEDGER_ROOT,go.approvalReference);
  if(ledger.root===out||ledger.root.startsWith(out+path.sep)||out.startsWith(ledger.root+path.sep))engineSiteFail('local_current_ledger_path');
  if(!resume&&existsSync(destination))engineSiteFail('local_current_reader_exists');
- const consent=claimLocalConsent(ledger,{approvalReference:go.approvalReference,goSha256,goCanonicalSha256:canonicalHash(go),sourceRevision:p.head,
-  profileSha256:p.profileSha256,authoritySha256,out,journal},resume);
+ // The GO's own reference is not authority: only an existing registration of exactly these bytes and this activation admits it.
+ const registration=admitLocalCurrentRegistration(ledger,go,{goSha256,sourceRevision:p.head,profileSha256:p.profileSha256,out,readerId:go.readerId});
+ const consent=claimLocalConsent(ledger,{approvalReference:go.approvalReference,registrationSha256:registration.registrationSha256,goSha256,
+  goCanonicalSha256:canonicalHash(go),sourceRevision:p.head,profileSha256:p.profileSha256,authoritySha256,out,journal},resume);
  const claim={version:'engine-local-current-book-claim/v1',authoritySha256,sourceRevision:p.head,profileSha256:p.profileSha256,goSha256,out};
  const claimFile=path.join(out,'CLAIM.json');
  if(resume)writeOnceOrSame(claimFile,claim);else{if(existsSync(claimFile))engineSiteFail('local_current_already_claimed');exclusive(claimFile,claim);}
@@ -130,7 +134,7 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  const liveFile=path.join(out,'RUNNING.json');
  if(existsSync(liveFile))renameSync(liveFile,path.join(out,'RUNNING-previous-'+Date.now()+'.json'));
  exclusive(liveFile,{pid:process.pid,startedAt:new Date().toISOString(),authoritySha256});
- const assertCurrent=()=>{lease.assert();if(existsSync(path.join(out,'OWNER-STOP')))engineSiteFail('local_current_owner_stop');if(frozenHead(root)!==p.head)engineSiteFail('local_current_source_changed');};
+ const assertCurrent=()=>{lease.assert();registration.check();if(existsSync(path.join(out,'OWNER-STOP')))engineSiteFail('local_current_owner_stop');if(frozenHead(root)!==p.head)engineSiteFail('local_current_source_changed');};
  const runtime=new LocalEngineTrialRuntime({root:journal,authority:p.authority,ownerId:p.prepared.snapshot.ownerId,
   draftId:p.prepared.snapshot.request.draftId,snapshotSha256:p.prepared.inputSha256,assertCurrent,
   dispatchWitness:localConsentDispatchWitness(ledger,consent.consentSha256,p.authority)});

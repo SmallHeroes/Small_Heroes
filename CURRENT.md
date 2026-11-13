@@ -1,5 +1,13 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Local current-engine rehearsal: USD0 correction of Codex HOLD on b19c6a93; independent re-gate next
+
+- Scope: the four blocking findings only (R2-LC1A/B, R2-LC2, R2-BOUND1), on `claude/wizard-qa-hosted-20261112`. No provider, key, `.env`, paid call or run 5. LC-4 and the future pose contract are out of scope.
+- Paid local execution now needs an existing `engine-local-current-registration/v1` in the consent ledger. It is write-once by reference and by approval identity, and is bound to the exact GO bytes, source, profile, output, reader and a pinned independent PASS seal of those bytes. The execute path only reads it. A self-declared or edited reference, a copy or a reserialized GO never reaches the executor. The consent record is v2 and binds the registration. No real registration or consent record exists. The staged run5 GO is byte-unchanged and cannot execute until a separately approved registration.
+- Lease creation and stale takeover run in one write-once ledger transaction that revalidates the exact stale generation. A leftover transaction refuses (`local_current_transaction_ambiguous`). A resume without local observations needs the matching unsettled checkpoint entry with zero polls and no pending id. Otherwise it stops before collection with the full reserve.
+- The bound repair's scope is typed (`storyboard-bound-repair-target/v1`). Each blocking ref resolves to its exact entry in the held draft, plus that entity's dependent entries. Everything else stays byte-identical. Each target must change, by correction or withdrawal. A repair cannot add an entry or id, or re-cite the held quote for the same claim. Book, child and unresolvable refs refuse before the planner is called. The caps, slots, other gates and v1 receipts are unchanged.
+- Evidence: external `CLAUDE-R3-b19c6a93-20261113-REAUTH`. This is not an independent PASS or paid authority.
+
 ## 2026-11-12 — Isolated Wizard Preview blocked on Vercel packaging
 
 - The independently reviewed `c623b911` was pushed to `codex/engine-site-launch-20261104`. Its isolated Vercel Preview compiled successfully on Linux with the vendored Heebo fonts. The post-build trace check held on two oversized legacy routes. The hosted log did not identify those routes. The webhook transport probe did not run.

@@ -46,42 +46,10 @@ export const STORYBOARD_BOUND_REPAIR_VERSION = 'storyboard-bound-repair/v1' as c
 /** At most this many repairs above the first held storyboard. */
 const MAX_REPAIR_DEPTH = 3;
 /**
- * The precise change scope of a bound repair, derived from the held bound review's BLOCKING findings and their typed issue refs only: the
- * coarse draft sections (storyboard-diagnosis draftSections) each ref may change. A page claim may change its own frame, and a state it carries
- * the frames that inherit it (a transition or change also the frame before it); a frame, its composition or a plan field only that frame's plan
- * and moment; an entity or prop the continuity entities and recurring props; a location the locations; the companion its appearance; the book
- * ref every book-level section. The child (cast:child) changes nothing: it is pinned. A blocking finding without typed issues, with an unknown
- * ref, or whose refs allow nothing cannot be repaired here and refuses BEFORE the planner is called. The compiler then refuses any repaired draft
- * that changes a section outside this scope.
+ * The change scope of a bound repair is TYPED (storyboard-bound-repair-target/v1, storyboard-bound-repair-scope.ts): each blocking issue ref of
+ * the held bound review resolves to its exact entry or field and the same entity's dependent entries; everything else stays byte-identical.
  */
-export function boundRepairSections(blocking: readonly { reason?: string; issues: readonly { ref: string }[] }[], frames: number): string[] {
-  const out = new Set<string>(), pageSections = (m: number) => [`p${m}:plan`, `p${m}:moment`, `p${m}:continuity`, ...(m >= 1 ? [`p${m}:sequence`] : [])];
-  const of = (raw: string): string[] => {
-    const ref = raw.replace(/#\d+$/, ''), page = /^p(\d+)(?::(.+))?$/.exec(ref);
-    if (ref === 'book') return ['book:*'];
-    if (ref === 'cast:child') return [];
-    if (ref === 'cast:companion') return ['book:plan.actorAppearance'];
-    if (/^(entity|prop):[A-Za-z0-9_.-]+$/.test(ref)) return ['book:continuity.entities', 'book:plan.recurringProps'];
-    if (/^location:[A-Za-z0-9_.-]+$/.test(ref)) return ['book:plan.locations'];
-    if (!page || Number(page[1]) >= frames) fail('repair_unbound_finding');
-    const n = Number(page![1]), rest = page![2] ?? '';
-    if (!rest || rest === 'composition' || /^[a-z][A-Za-z0-9_]*$/.test(rest) && rest !== 'instant' && rest !== 'scene') return [`p${n}:plan`, `p${n}:moment`];
-    if (/^requirement:\d+$/.test(rest)) return pageSections(n);
-    const from = /^(transition|change):/.test(rest) ? Math.max(0, n - 1) : n;
-    return Array.from({ length: frames - from }, (_, i) => pageSections(from + i)).flat();
-  };
-  for (const finding of blocking) {
-    if (finding.reason !== undefined && finding.reason !== 'blocking_impact' || !finding.issues.length) fail('repair_unbound_finding');
-    const sections = finding.issues.flatMap(i => of(i.ref));
-    if (!sections.length) fail('repair_unbound_finding');
-    sections.forEach(s => out.add(s));
-  }
-  if (!out.size) fail('repair_unbound_finding');
-  return [...out].sort();
-}
-/** Whether a changed section lies inside a bound repair's scope (book:* admits every book-level section). */
-export const insideBoundScope = (scope: readonly string[], section: string) => scope.includes(section) || scope.includes('book:*') && section.startsWith('book:');
-export const BOUND_REPAIR_SCOPE_ADDENDUM = `BOUND REPAIR SCOPE (${STORYBOARD_BOUND_REPAIR_VERSION}): priorReviewedStoryboard.changeScope lists the ONLY draft sections this repair may change (p{n}:plan, p{n}:moment, p{n}:continuity and p{n}:sequence are frame n's plan page, moment, continuity page and sequence page; book:... a book-level field; book:* every book-level field). Every other section must come back byte-identical. The child's identity, design and clothing are fixed and must not change.`;
+export const BOUND_REPAIR_SCOPE_ADDENDUM = `BOUND REPAIR SCOPE (${STORYBOARD_BOUND_REPAIR_VERSION}, typed targets storyboard-bound-repair-target/v1): priorReviewedStoryboard.changeScope lists each held finding's exact target (ref, kind) and the ONLY draft paths this repair may change for it (may: a path with [key=value] selects those entries of an array). Every other field must come back byte-identical: other entities' entries on the same page, other locations and objects, every other frame's camera, composition and actions, and the child's identity, design and clothing. For each target either correct exactly that entry or, when the final manuscript does not state it, withdraw it (remove that entry) and make only the matching change in the listed dependent entries of the same entity. Never add an entry (no new transition, change, relation or event) and never introduce a new id. Re-citing the held quote, or a part of it, for the same claim repairs nothing: a kept claim needs a quote whose own words state it; otherwise withdraw it.`;
 
 export const REPAIR_STORYBOARD_ADDENDUM = `REPAIR CONTRACT (one focused repair of a reviewed storyboard): priorReviewedStoryboard.storyboard is your previous storyboard for this exact final manuscript, and priorReviewedStoryboard.reviewFindings lists every check an independent review did not support: a book-level finding, or a page finding with its pageNumber (0 is the cover), each with the reviewer's category, verdict and observation.
 Return the complete storyboard again. Keep every part that no finding implicates exactly as it was: the same ids, designs, invariants, clothing, locations, props, page plans, cameras, compositions, cast, states, transitions, moments and sequence entries, with the same wording, values and order.

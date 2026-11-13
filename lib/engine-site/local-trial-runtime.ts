@@ -158,9 +158,14 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
       observations.some(o=>typeof o.id!=='string'||o.id!==pending||!pendingPattern.test(o.id)||rawId(o.raw)!==undefined&&rawId(o.raw)!==o.id)||
       !(entry.polls===polls.length||entry.polls===polls.length-1)||(entry.pendingId===undefined?entry.polls!==0:entry.pendingId!==pending)||
       !!this.options.dispatchWitness?.observed&&witnessed?.id!==pending)engineSiteFail('local_trial_pending_id');
-   }else if(dispatchAt!==undefined){
+   }else{
+    // No local observation. The checkpoint must agree before anything is collected: the exact unsettled call of this claim, zero polls and
+    // no pending id. A missing entry, a persisted poll or id, or another call keeps the full reserve and stops before the transport.
+    const entry=this.checkpoint.calls[step];
+    if(!entry||entry.settled||entry.polls!==0||entry.pendingId!==undefined||entry.wireSha256!==claim.call.wireSha256||entry.requestAssetId!==claim.requestAssetId||
+      entry.deadlineAt!==claim.deadlineAt)engineSiteFail('local_trial_pending_id');
     // The one consistent crash window that resumes by id: the durable first id exists, its first local observation was never written.
-    if(!witnessed)engineSiteFail('local_trial_unknown_dispatch');pending=witnessed.id;
+    if(dispatchAt!==undefined){if(!witnessed)engineSiteFail('local_trial_unknown_dispatch');pending=witnessed.id;}
    }
    const meter=await this.meter();if(meter.blocked||meter.pendingCalls!==1)engineSiteFail('local_trial_budget_or_unknown');
    let n=polls.length;const queuePolls:Poll[]=queued?polls.map(f=>this.read(this.callFile(step,f))):[];

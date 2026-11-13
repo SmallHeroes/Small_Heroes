@@ -14,7 +14,7 @@ import {prepareEngineAnthropic} from '../provider-plans';
 import {engineCustomerAuthority} from '../personal-jobs';
 import {prepareEngineOrder,resolveEngineWizardOptions} from '../personal-orders';
 import {syntheticEngineOrderInput} from './synthetic-order';
-import {localConsentLedger,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness,type LocalConsentBinding} from '../local-consent-ledger';
+import {localConsentLedger,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness,localLedgerTransaction,type LocalConsentBinding} from '../local-consent-ledger';
 
 const roots:string[]=[];
 afterEach(()=>{vi.restoreAllMocks();for(const r of roots.splice(0)){if(path.dirname(r)!==path.resolve(tmpdir())||!path.basename(r).startsWith('sh_local_consent_'))throw Error('owned_test_only');rmSync(r,{recursive:true,force:true});}});
@@ -42,7 +42,7 @@ function batchFetch(id='msgbatch_original',endedAfter=1){
 }
 const ports=(fetch:typeof globalThis.fetch)=>({fetch,openAIKey:()=>'unused',anthropicKey:()=>'SYNTHETIC_KEY'});
 function binding(out:string,authority:unknown,goSha256='1'.repeat(64)):LocalConsentBinding{
- return {approvalReference:'synthetic_consent',goSha256,goCanonicalSha256:'2'.repeat(64),sourceRevision:'a'.repeat(40),profileSha256:'3'.repeat(64),
+ return {approvalReference:'synthetic_consent',registrationSha256:'5'.repeat(64),goSha256,goCanonicalSha256:'2'.repeat(64),sourceRevision:'a'.repeat(40),profileSha256:'3'.repeat(64),
   authoritySha256:canonicalHash(authority),out,journal:path.join(out,'journal')};
 }
 /** One claimed consent with its witness and a runtime over `journal`; `pause` interrupts the first pending poll by default. */
@@ -55,6 +55,14 @@ function claimed(a=current()){
  return {a,base,ledger,out,consent,witness,options,resumeFreely:()=>{interrupt=false;},runtime:()=>new LocalEngineTrialRuntime(options)};
 }
 const stepDir=(s:{out:string},step='story_author')=>path.join(s.out,'journal','calls',step);
+const responsesDone={usable:true,output:{ok:true},raw:{},estimatedMicroUsd:100};
+/** A synthetic OpenAI background response plan: the first dispatch returns resp_original pending; collection completes (or, `stop`, refuses). */
+function responsesPlan(a:ReturnType<typeof current>,seen:(string|undefined)[],stop=false){
+ const step=a.budget.steps.find(x=>x.id==='page_0_0_qa')!,wire={endpoint:'https://api.openai.com/v1/responses',step:step.id,synthetic:true};
+ return {wire,call:{step:step.id,wireSha256:canonicalHash(wire),maximumMicroUsd:step.maximumMicroUsd},requiredMs:20_000,completionDeadlineMs:240_000,admitSaved:()=>{},
+  execute:async(id:string|undefined)=>{seen.push(id);if(id&&stop)throw Error('synthetic_collection_reached');
+   return id?{kind:'completed',result:responsesDone}:{kind:'pending',id:'resp_original',raw:{id:'resp_original',status:'queued'}};}} as any;
+}
 const editJson=(file:string,edit:(v:any)=>unknown)=>writeFileSync(file,JSON.stringify(edit(JSON.parse(readFileSync(file,'utf8'))),null,2)+'\n');
 
 describe('one owner consent is consumed once, machine-wide',()=>{
@@ -75,7 +83,7 @@ describe('one owner consent is consumed once, machine-wide',()=>{
   const script=path.join(base,'claim.ts');
   writeFileSync(script,`import {localConsentLedger,claimLocalConsent} from ${JSON.stringify(path.join(repo,'lib/engine-site/local-consent-ledger.ts'))};
 const [root,out]=process.argv.slice(2);
-try{claimLocalConsent(localConsentLedger(root,'synthetic_consent'),{approvalReference:'synthetic_consent',goSha256:'1'.repeat(64),goCanonicalSha256:'2'.repeat(64),
+try{claimLocalConsent(localConsentLedger(root,'synthetic_consent'),{approvalReference:'synthetic_consent',registrationSha256:'5'.repeat(64),goSha256:'1'.repeat(64),goCanonicalSha256:'2'.repeat(64),
  sourceRevision:'a'.repeat(40),profileSha256:'3'.repeat(64),authoritySha256:'4'.repeat(64),out,journal:out+'/journal'},false);console.log('CLAIMED');}
 catch(e){console.log('REFUSED '+(e as Error).message);}`);
   const run=(out:string)=>new Promise<string>((resolve,reject)=>{const child=spawn(process.execPath,[path.join(repo,'node_modules/tsx/dist/cli.mjs'),
@@ -94,6 +102,51 @@ catch(e){console.log('REFUSED '+(e as Error).message);}`);
   const taken=acquireLocalLease(s.ledger,s.consent.consentSha256,true);taken.assert();
   expect(readdirSync(s.ledger.root).some(n=>n.includes('.lease-stale-'))).toBe(true);
   taken.release();
+ });
+});
+
+describe('stale-lease takeover is one serialized transaction that revalidates the exact generation (R2-LC1B)',()=>{
+ const deadPid=2147483646;
+ const stale=(s:ReturnType<typeof claimed>)=>writeFileSync(s.ledger.leaseFile,JSON.stringify({version:'engine-local-current-lease/v1',consentSha256:s.consent.consentSha256,pid:deadPid,startedAt:'x'}));
+ /** process.kill(deadPid) reports the holder dead; on its `at`-th liveness probe it first runs `inside` (a second contender, interleaved). */
+ const interleave=(at:number,inside:()=>void)=>{const native=process.kill.bind(process);let probes=0;
+  return vi.spyOn(process,'kill').mockImplementation(((pid:number,signal?:string|number)=>{if(pid!==deadPid)return native(pid,signal);
+   if(++probes===at)inside();throw Object.assign(Error('synthetic dead holder'),{code:'ESRCH'});}) as typeof process.kill);};
+ const archived=(s:ReturnType<typeof claimed>)=>readdirSync(s.ledger.root).filter(n=>n.includes('.lease-stale-')).map(n=>JSON.parse(readFileSync(path.join(s.ledger.root,n),'utf8')).pid);
+ it('positive control: one resumer takes over a dead holder, archives exactly that generation and leaves no transaction behind',()=>{
+  const s=claimed();stale(s);
+  const taken=acquireLocalLease(s.ledger,s.consent.consentSha256,true);taken.assert();
+  expect(archived(s)).toEqual([deadPid]);expect(existsSync(s.ledger.leaseTransactionFile)).toBe(false);
+  taken.release();expect(existsSync(s.ledger.leaseFile)).toBe(false);
+ });
+ it('two stale contenders, the second completing first: the first refuses inside the transaction and never moves the newly live lease',()=>{
+  const s=claimed();stale(s);let inner:ReturnType<typeof acquireLocalLease>|undefined;
+  // Both inspect the same dead generation; the inner contender completes its takeover during the outer one's first liveness probe.
+  const spy=interleave(1,()=>{inner=acquireLocalLease(s.ledger,s.consent.consentSha256,true,process.pid);});
+  try{expect(()=>acquireLocalLease(s.ledger,s.consent.consentSha256,true,process.ppid)).toThrow('local_current_running');}finally{spy.mockRestore();}
+  expect(inner).toBeDefined();inner!.assert();
+  expect(archived(s)).toEqual([deadPid]);expect(existsSync(s.ledger.leaseTransactionFile)).toBe(false);
+  inner!.release();
+ });
+ it('two stale contenders, the second arriving while the first holds the transaction: the second refuses and the first takes over',()=>{
+  const s=claimed();stale(s);let refused='';
+  const spy=interleave(2,()=>{try{acquireLocalLease(s.ledger,s.consent.consentSha256,true,process.pid);}catch(e){refused=(e as Error).message;}});
+  let outer:ReturnType<typeof acquireLocalLease>|undefined;
+  try{outer=acquireLocalLease(s.ledger,s.consent.consentSha256,true,process.ppid);}finally{spy.mockRestore();}
+  expect(refused).toBe('local_current_running');outer!.assert();expect(archived(s)).toEqual([deadPid]);
+  outer!.release();
+ });
+ it('a transaction left by a crash is never guessed away: every contender refuses until it is resolved',()=>{
+  const s=claimed();stale(s);
+  writeFileSync(s.ledger.leaseTransactionFile,JSON.stringify({version:'engine-local-current-transaction/v1',pid:deadPid,startedAt:'x'}));
+  expect(()=>acquireLocalLease(s.ledger,s.consent.consentSha256,true)).toThrow('local_current_transaction_ambiguous');
+  writeFileSync(s.ledger.leaseTransactionFile,'not json');
+  expect(()=>acquireLocalLease(s.ledger,s.consent.consentSha256,true)).toThrow('local_current_transaction_ambiguous');
+  expect(archived(s)).toEqual([]);
+  // A body that fails after it began mutating keeps its lock (ambiguous); one that refuses before leaves nothing.
+  const lock=path.join(s.base,'tx.json');
+  expect(()=>localLedgerTransaction(lock,()=>{throw Error('refused_before');})).toThrow('refused_before');expect(existsSync(lock)).toBe(false);
+  expect(()=>localLedgerTransaction(lock,mutating=>{mutating();throw Error('failed_inside');})).toThrow('failed_inside');expect(existsSync(lock)).toBe(true);
  });
 });
 
@@ -166,6 +219,43 @@ describe('a resume collects exactly the one provider id the first dispatch retur
   t.resumeFreely();
   await expect(t.runtime().call(prepareEngineAnthropic(t.a,dispatch(),ports(g.fetch)))).rejects.toThrow('local_trial_unknown_dispatch');
   expect(g.posts()).toBe(1);
+ });
+ it('no local observation: a persisted poll, a pending id, a settled or a missing checkpoint entry stops before any collection, full reserve kept (Batch and Responses, R2-LC2)',async()=>{
+  const contradictions:[string,(v:any)=>void][]=[
+   ['persisted poll and another id',e=>{e.polls=1;e.pendingId='OTHER';}],['persisted poll',e=>{e.polls=1;delete e.pendingId;}],
+   ['persisted id',e=>{e.polls=0;e.pendingId='SAME';}],['settled',e=>{e.polls=0;delete e.pendingId;e.settled=true;}],['missing entry',()=>{}],
+  ];
+  for(const transport of ['batch','responses'] as const)for(const [name,edit] of contradictions){
+   const s=claimed(),f=batchFetch('msgbatch_original'),seen:(string|undefined)[]=[],step=transport==='batch'?'story_author':'page_0_0_qa';
+   const plan=()=>transport==='batch'?prepareEngineAnthropic(s.a,dispatch(),ports(f.fetch)):responsesPlan(s.a,seen,true);
+   const id=transport==='batch'?'msgbatch_original':'resp_original',other=transport==='batch'?'msgbatch_other':'resp_other';
+   await expect(s.runtime().call(plan())).rejects.toThrow('synthetic_process_exit');
+   // Every local pending observation is gone; the external first-id witness stays intact.
+   for(const n of readdirSync(stepDir(s,step)).filter(x=>x.startsWith('pending-')))unlinkSync(path.join(stepDir(s,step),n));
+   expect(s.witness.observed!(step)).toMatchObject({id});
+   editJson(path.join(s.out,'journal','checkpoint.json'),v=>{const e=v.calls[step];
+    if(name==='missing entry')delete v.calls[step];else{edit(e);if(e.pendingId==='OTHER')e.pendingId=other;if(e.pendingId==='SAME')e.pendingId=id;}return v;});
+   s.resumeFreely();const before=f.calls.length,seenBefore=seen.length,label=transport+': '+name;
+   const again=s.runtime(),reserve=s.a.budget.steps.find(x=>x.id===step)!.maximumMicroUsd;
+   await expect(again.call(plan()),label).rejects.toThrow('local_trial_pending_id');
+   expect(f.calls.length,label).toBe(before);expect(seen.length,label).toBe(seenBefore);
+   expect(await again.meter(),label).toMatchObject({pendingCalls:1,accountedMicroUsd:reserve});
+  }
+ });
+ it('the valid first-id-before-observation window still resumes by that id in both transports (positive control, R2-LC2)',async()=>{
+  // A real crash between the first-id witness and the first local observation: the checkpoint is exactly zero polls and no pending id.
+  const crashAfterWitness=(s:ReturnType<typeof claimed>)=>new LocalEngineTrialRuntime({...s.options,dispatchWitness:{...s.witness,
+   observe:(...a:Parameters<NonNullable<typeof s.witness.observe>>)=>{s.witness.observe!(...a);throw Error('synthetic_crash_after_witness');}}});
+  const s=claimed(),f=batchFetch('msgbatch_original',2);
+  await expect(crashAfterWitness(s).call(prepareEngineAnthropic(s.a,dispatch(),ports(f.fetch)))).rejects.toThrow('synthetic_crash_after_witness');
+  expect(readdirSync(stepDir(s)).some(n=>n.startsWith('pending-'))).toBe(false);
+  expect(JSON.parse(readFileSync(path.join(s.out,'journal','checkpoint.json'),'utf8')).calls.story_author).toMatchObject({polls:0,settled:false});
+  s.resumeFreely();
+  expect(await s.runtime().call(prepareEngineAnthropic(s.a,dispatch(),ports(f.fetch)))).toMatchObject({usable:true});
+  expect(f.posts()).toBe(1);expect(f.polled().every(u=>u.includes('msgbatch_original'))).toBe(true);
+  const t=claimed(),seen:(string|undefined)[]=[];
+  await expect(crashAfterWitness(t).call(responsesPlan(t.a,seen))).rejects.toThrow('synthetic_crash_after_witness');
+  t.resumeFreely();expect(await t.runtime().call(responsesPlan(t.a,seen))).toEqual(responsesDone);expect(seen).toEqual([undefined,'resp_original']);
  });
  it('an OpenAI background response resumes by its one id too; a conflicting id stops before the transport',async()=>{
   const plan=(a:ReturnType<typeof current>,execute:(id:string|undefined)=>Promise<any>)=>{const step=a.budget.steps.find(x=>x.id==='page_0_0_qa')!,
