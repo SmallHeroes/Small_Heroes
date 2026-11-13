@@ -82,6 +82,17 @@ export type EngineNativeSheetObservation = ReturnType<typeof auditionSheetContex
  */
 export const engineChildAnchorPose = (authority: { purpose: string; currentEngine?: string }) =>
   isCurrentCustomerEngine(authority) ? CHILD_ANCHOR_POSE_V3 : CHILD_ANCHOR_POSE_VERSION;
+
+/** Only the reviewed frame records feed materialization. Diagnostic rows also carry page numbers. */
+export function selectSupportedNativePages(saved: Readonly<Record<string, unknown>>) {
+  return NATIVE_BOOK_FRAMES.map(pageNumber => {
+    const page = saved[`page_${pageNumber}`] as SavedPage | undefined;
+    if (page?.pageNumber !== pageNumber || page.status !== 'qa_supported' || !page.chosen?.candidate)
+      engineSiteFail('engine_native_book_held');
+    return page;
+  });
+}
+
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
   childBindingPreparation?:AdmittedEngineChildBindingPreparation;
@@ -389,7 +400,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         const image = z.object({ b64: z.string(), imageSha: z.literal(prior.chosen.candidate.imageSha) }).parse(result.output);
         put(prior.chosen.candidate, Buffer.from(image.b64, 'base64'));
       }
-      await runNativeBookFrames({ book, rawReview: prepared.review, texts,
+      const audition = await runNativeBookFrames({ book, rawReview: prepared.review, texts,
         current: { request: snapshot.request, writerResult: prepared.source, options: snapshot.options, readerFraming: READER_PORTRAIT_FRAMING_VERSION }, child, companion,
         companionDescription: restored.source.companionDescription, pages: NATIVE_BOOK_FRAMES, reuseSheets: sheets,
         ...(usesTypedCustomerCorrections(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
@@ -411,8 +422,9 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
           if (/^page_[0-8]$/.test(name) && (value as SavedPage).status === 'qa_supported')
             return runtime.save(`native_${name}`, value);
         } });
-      const pages = Object.values(saved).filter((v: any) => v && typeof v === 'object' && Number.isInteger(v.pageNumber)) as SavedPage[];
-      if (pages.length !== 9 || NATIVE_BOOK_FRAMES.some(n => !pages.some(p => p.pageNumber === n && p.status === 'qa_supported' && p.chosen))) engineSiteFail('engine_native_book_held');
+      const pages = selectSupportedNativePages(saved);
+      if (pictureBook === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW && audition.status !== 'qa_supported_audition')
+        engineSiteFail('engine_native_book_held');
       await runtime.save('native_book', { pages, saved });
       await runtime.advance('materialize');
     }

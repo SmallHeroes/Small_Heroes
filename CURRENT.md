@@ -1,5 +1,10 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Native book assembly through materialization
+
+- A provider-denied run at `72a6ee70` produced nine supported synthetic-frame records but stopped before Dad narration. The final native array selected records by numeric page number and therefore included the diagnostic drawing entries. [Reproduction](<C:/GNart/Work/local-current-book-20261112/SPARSE-LANDMARK-CONTINUATION-20261113/OUTCOME-QA/NATIVE-ASSEMBLY-REPRODUCTION.json>)
+- The native recipe now assembles the nine exact reviewed page keys in reading order and retains the diagnostic records. The v8 local book requires the complete audition manifest to be supported, including at least one comparable standing-scale observation. The continuation uses the same archived receipts, the same manuscript and no additional attempts. [Decision](<C:/GNart/Work/local-current-book-20261112/NATIVE-ASSEMBLY-CONTINUATION-20261113/DECISION.md>)
+
 ## 2026-11-13 — Landmark recognition from sparse source descriptions
 
 - Run5h at `2fded17e` recovered the paid page 1 illustration. The three page 2 reviews each identified a whole slide, but the catalogue contained only one decisive aspect and the code required two. Page 3 also had genuine continuity defects. The terminal pause occurred after the second page 3 review settled and before its identity call. The book carries 51 settled calls and 3,697,244 microUSD, with no pending or unknown call. [Terminal reconciliation](<C:/GNart/Work/local-current-book-20261112/SCALE-ABSTENTION-CONTINUATION-20261113/OUTCOME-QA/TERMINAL-RECONCILIATION.json>)
