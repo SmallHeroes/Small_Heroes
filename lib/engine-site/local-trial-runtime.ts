@@ -51,7 +51,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
  private readonly carried:Readonly<LocalTrialCarry>|null;
  private busy=false;
  constructor(private readonly options:{root:string;authority:EngineOrderAuthority;ownerId:string;draftId:string;snapshotSha256:string;
-   assertCurrent:()=>void|Promise<void>;carried?:LocalTrialCarry;dispatchWitness?:LocalTrialDispatchWitness;signal?:AbortSignal;now?:()=>number;pause?:(ms:number)=>Promise<void>}){
+   assertCurrent:()=>void|Promise<void>;carried?:LocalTrialCarry;dispatchWitness?:LocalTrialDispatchWitness;allowedStep?:(step:string,wireSha256:string)=>boolean;signal?:AbortSignal;now?:()=>number;pause?:(ms:number)=>Promise<void>}){
   const a=validateLocalTrialAuthority(options.authority);
   this.carried=options.carried?Object.freeze({...options.carried}):null;
   this.root=path.resolve(options.root);mkdirSync(this.root,{recursive:true,mode:0o700});
@@ -120,6 +120,7 @@ export class LocalEngineTrialRuntime implements EngineRuntime {
   try{
    this.check();await this.options.assertCurrent();plan.revalidate?.();
    const step=identifierSchema.parse(plan.call.step),slot=this.checkpoint.authority.budget.steps.find(s=>s.id===step);
+   if(this.options.allowedStep&&!this.options.allowedStep(step,plan.call.wireSha256))engineSiteFail('local_trial_step_not_permitted');
    // Message Batches exist only on the current-engine authority: a batch id, a 3 h ceiling and slow polls.
    const batch=(plan.wire as any)?.version===BATCH_WIRE;
    if(batch&&this.checkpoint.authority.authorTransport!==ENGINE_AUTHOR_BATCH)engineSiteFail('local_trial_plan_changed');

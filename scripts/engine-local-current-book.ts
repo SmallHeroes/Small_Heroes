@@ -27,12 +27,13 @@ import {engineSiteFail} from '../lib/engine-site/contract';
 import {prepareEngineOrder,resolveEngineWizardOptions} from '../lib/engine-site/personal-orders';
 import {engineCustomerAuthority} from '../lib/engine-site/personal-jobs';
 import {engineSpendPolicySchema,type EngineSpendPolicy} from '../lib/engine-site/platform-policy';
-import {ENGINE_CURRENT_CUSTOMER_V2} from '../lib/engine-site/current-engine-policy';
+import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,type EngineCurrentVersion} from '../lib/engine-site/current-engine-policy';
 import {ENGINE_IMAGE26_POLICY} from '../lib/engine-site/image-model-policy';
 import {engineQaRequired} from '../lib/engine-site/qa-order-policy';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../lib/engine-site/local-trial-runtime';
 import {runLocalEngineTrialBook,localTrialReaderBundle} from '../lib/engine-site/local-trial-book';
 import {LOCAL_CONSENT_LEDGER_ROOT,localConsentLedger,admitLocalCurrentRegistration,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness} from '../lib/engine-site/local-consent-ledger';
+import {admitLocalEntitiesContinuation,claimLocalEntitiesContinuation,localCurrentEntitiesSchema,localEntityMediaStep,previewLocalEntitiesContinuation,readLocalEntityParentGo} from '../lib/engine-site/local-current-entities';
 import {localReaderId} from '../lib/local-reader-preview';
 
 const KEYS=['OPENAI_API_KEY','ANTHROPIC_API_KEY','ELEVENLABS_API_KEY'] as const;
@@ -46,7 +47,8 @@ export const localCurrentProfileSchema=z.object({version:z.literal('local-fictio
 export const localCurrentGoSchema=z.object({version:z.literal('engine-local-current-book-go/v1'),approvedBy:z.literal('Guy'),approvedAt:z.string().datetime({precision:3}),
  approvalReference:z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/),ownerWords:z.string().min(1),sourceRevision:z.string().regex(/^[a-f0-9]{40}$/),
  profileSha256:digest,maximumMicroUsd:z.literal(12_000_000),maximumCalls:z.literal(LOCAL_CURRENT_ENGINE_MAX_CALLS),readerId:z.string(),
- fictional:z.literal(true),realPayment:z.literal(false),publicDelivery:z.literal(false)}).strict();
+ fictional:z.literal(true),realPayment:z.literal(false),publicDelivery:z.literal(false),
+ entitiesContinuation:z.object({parent:localCurrentEntitiesSchema,firstWireSha256:digest}).strict().optional()}).strict();
 
 const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
 function readFile(file:string){if(lstatSync(file).isSymbolicLink()||realpathSync(file)!==path.resolve(file))engineSiteFail('local_current_file_path');return readFileSync(file);}
@@ -73,21 +75,37 @@ function writeOnceOrSame(file:string,value:unknown){
  if(canonicalHash(JSON.parse(readFile(file).toString('utf8')))!==canonicalHash(value))engineSiteFail('local_current_record_changed');
 }
 
-export function localCurrentPolicy(head:string,go:{approvalReference:string;approvedAt:string}):EngineSpendPolicy{
+export function localCurrentPolicy(head:string,go:{approvalReference:string;approvedAt:string},version:EngineCurrentVersion=ENGINE_CURRENT_CUSTOMER_V2):EngineSpendPolicy{
  return engineSpendPolicySchema.parse({version:'engine-site-spend-policy/v1',sourceRevision:head,maximumMicroUsd:12_000_000,maximumCalls:LOCAL_CURRENT_ENGINE_MAX_CALLS,
   approvalReference:go.approvalReference,approvedBy:'Guy',approvedAt:go.approvedAt,paidProviderActivation:'owner_approved_live_personal_orders',
-  engineProfile:{version:ENGINE_CURRENT_CUSTOMER_V2,imageModelPolicy:{...LOCAL_CURRENT_IMAGE_MODEL}}});
+  engineProfile:{version,imageModelPolicy:{...LOCAL_CURRENT_IMAGE_MODEL}}});
 }
 /** Provider-free: the exact customer authority this profile would get on the current source. */
-export function prepareLocalCurrentBook(root:string,profileFile:string,go:{approvalReference:string;approvedAt:string}){
+export function prepareLocalCurrentBook(root:string,profileFile:string,go:{approvalReference:string;approvedAt:string},
+ continuation?:{parentOrderId:string}){
  if(engineQaRequired())engineSiteFail('local_current_qa_environment_present');
  const head=frozenHead(root),profileBytes=readFile(profileFile),profile=localCurrentProfileSchema.parse(JSON.parse(profileBytes.toString('utf8')));
  const options=resolveEngineWizardOptions(root);
  const input={...profile.input,optionsFingerprint:options.fingerprint};
  const prepared=prepareEngineOrder(input,{id:'local_owner_guy',email:'fictional-local@example.invalid',name:'Local rehearsal'},options);
- const policy=localCurrentPolicy(head,go);
- const authority=validateLocalTrialAuthority(engineCustomerAuthority(go.approvalReference,prepared.snapshot,prepared.inputSha256,policy));
+ const policy=localCurrentPolicy(head,go,continuation?ENGINE_CURRENT_CUSTOMER_V3:ENGINE_CURRENT_CUSTOMER_V2);
+ const authority=validateLocalTrialAuthority(engineCustomerAuthority(continuation?.parentOrderId??go.approvalReference,prepared.snapshot,prepared.inputSha256,policy));
  return {head,profile,profileSha256:sha(profileBytes),options,prepared,policy,authority};
+}
+
+/** No output or credential access; also used to construct the exact review package before registration. */
+export async function prepareLocalCurrentEntities(root:string,profileFile:string,out:string,go:z.infer<typeof localCurrentGoSchema>,ledgerRoot=LOCAL_CONSENT_LEDGER_ROOT){
+ const request=go.entitiesContinuation??engineSiteFail('local_entities_spec_required');
+ const parentGo=localCurrentGoSchema.parse(readLocalEntityParentGo(request.parent));
+ if(parentGo.entitiesContinuation)engineSiteFail('local_entities_parent_recursive');
+ const p=prepareLocalCurrentBook(root,profileFile,go,{parentOrderId:parentGo.approvalReference});
+ if(go.sourceRevision!==p.head||go.profileSha256!==p.profileSha256)engineSiteFail('local_current_go_scope');
+ const oldPolicy=localCurrentPolicy(parentGo.sourceRevision,parentGo);
+ const parentAuthority=engineCustomerAuthority(parentGo.approvalReference,p.prepared.snapshot,p.prepared.inputSha256,oldPolicy);
+ const cap=await admitLocalEntitiesContinuation({spec:request.parent,parentGo,parentAuthority,authority:p.authority,snapshot:p.prepared.snapshot,
+  out,profileSha256:p.profileSha256,readerId:go.readerId,ledgerRoot});
+ const first=await previewLocalEntitiesContinuation(cap,p.prepared.snapshot,p.authority);
+ return {p,cap,first};
 }
 
 /** `options.consentRoot`: tests only (a scratch ledger); the command line always uses LOCAL_CONSENT_LEDGER_ROOT. */
@@ -96,11 +114,18 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  const execute=argv.includes('--execute'),resume=argv.includes('--resume');
  if(argv.length!==6+Number(execute)+Number(resume)||resume&&!execute)engineSiteFail('local_current_arguments');
  const root=realpathSync(process.cwd()),profileFile=flag('--profile'),out=flag('--out'),keyFile=flag('--key-env-file');
- if(out.startsWith(root+path.sep))engineSiteFail('local_current_output_inside_source');
+ if(out.toLowerCase()===root.toLowerCase()||out.toLowerCase().startsWith(root.toLowerCase()+path.sep))engineSiteFail('local_current_output_inside_source');
  const keys=keyReader(keyFile),goFile=path.join(out,'OWNER-GO.json');
  if(!execute){
   const provisional={approvalReference:'local_current_book_plan',approvedAt:new Date().toISOString().replace(/\.\d{3}Z$/,'.000Z')};
-  const p=prepareLocalCurrentBook(root,profileFile,existsSync(goFile)?localCurrentGoSchema.parse(JSON.parse(readFile(goFile).toString('utf8'))):provisional);
+  const go=existsSync(goFile)?localCurrentGoSchema.parse(JSON.parse(readFile(goFile).toString('utf8'))):null;
+  if(go?.entitiesContinuation){
+   const {p,cap,first}=await prepareLocalCurrentEntities(root,profileFile,out,go,options.consentRoot);
+   if(first.call.wireSha256!==go.entitiesContinuation.firstWireSha256)engineSiteFail('local_entities_first_wire_changed');
+   console.log(JSON.stringify({status:'local_entities_continuation_plan',head:p.head,authoritySha256:canonicalHash(p.authority),carried:cap.carried,
+    firstCall:first.call,preparedSha256:cap.preparedSha256,providerCalls:0}));return 0;
+  }
+  const p=prepareLocalCurrentBook(root,profileFile,go??provisional);
   console.log(JSON.stringify({status:'local_current_book_plan',sourceRevision:p.head,profileSha256:p.profileSha256,optionsFingerprint:p.options.fingerprint,
    authoritySha256:canonicalHash(p.authority),purpose:p.authority.purpose,currentEngine:p.authority.currentEngine,authorTransport:p.authority.authorTransport,
    imageModelPolicy:p.authority.imageModelPolicy,imageQuality:p.authority.imageQuality,voiceId:(p.prepared.snapshot.request as any).bookOptions?.voiceId,
@@ -110,7 +135,10 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  }
  // One captured read of the approval: the bytes that are parsed are the bytes that are hashed and bound.
  const goBytes=readFile(goFile),go=localCurrentGoSchema.parse(JSON.parse(goBytes.toString('utf8')));
- const p=prepareLocalCurrentBook(root,profileFile,go);
+ if(go.entitiesContinuation&&resume)engineSiteFail('local_entities_resume_forbidden');
+ const continuation=go.entitiesContinuation?await prepareLocalCurrentEntities(root,profileFile,out,go,options.consentRoot):null;
+ if(continuation&&continuation.first.call.wireSha256!==go.entitiesContinuation!.firstWireSha256)engineSiteFail('local_entities_first_wire_changed');
+ const p=continuation?.p??prepareLocalCurrentBook(root,profileFile,go);
  if(go.sourceRevision!==p.head||go.profileSha256!==p.profileSha256)engineSiteFail('local_current_go_scope');
  localReaderId(go.readerId);
  if(realpathSync(out)!==out)engineSiteFail('local_current_output_path');
@@ -120,10 +148,13 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  const ledger=localConsentLedger(options.consentRoot??LOCAL_CONSENT_LEDGER_ROOT,go.approvalReference);
  if(ledger.root===out||ledger.root.startsWith(out+path.sep)||out.startsWith(ledger.root+path.sep))engineSiteFail('local_current_ledger_path');
  if(!resume&&existsSync(destination))engineSiteFail('local_current_reader_exists');
+ if(continuation&&(existsSync(path.join(out,'OWNER-STOP'))||frozenHead(root)!==p.head||sha(readFile(goFile))!==goSha256))
+  engineSiteFail('local_entities_launch_changed');
  // The GO's own reference is not authority: only an existing registration of exactly these bytes and this activation admits it.
  const registration=admitLocalCurrentRegistration(ledger,go,{goSha256,sourceRevision:p.head,profileSha256:p.profileSha256,out,readerId:go.readerId});
  const consent=claimLocalConsent(ledger,{approvalReference:go.approvalReference,registrationSha256:registration.registrationSha256,goSha256,
   goCanonicalSha256:canonicalHash(go),sourceRevision:p.head,profileSha256:p.profileSha256,authoritySha256,out,journal},resume);
+ const checkParent=continuation?claimLocalEntitiesContinuation(continuation.cap,{consentSha256:consent.consentSha256,goSha256,authoritySha256,out}):null;
  const claim={version:'engine-local-current-book-claim/v1',authoritySha256,sourceRevision:p.head,profileSha256:p.profileSha256,goSha256,out};
  const claimFile=path.join(out,'CLAIM.json');
  if(resume)writeOnceOrSame(claimFile,claim);else{if(existsSync(claimFile))engineSiteFail('local_current_already_claimed');exclusive(claimFile,claim);}
@@ -134,9 +165,12 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  const liveFile=path.join(out,'RUNNING.json');
  if(existsSync(liveFile))renameSync(liveFile,path.join(out,'RUNNING-previous-'+Date.now()+'.json'));
  exclusive(liveFile,{pid:process.pid,startedAt:new Date().toISOString(),authoritySha256});
- const assertCurrent=()=>{lease.assert();registration.check();if(existsSync(path.join(out,'OWNER-STOP')))engineSiteFail('local_current_owner_stop');if(frozenHead(root)!==p.head)engineSiteFail('local_current_source_changed');};
+ const assertCurrent=()=>{lease.assert();registration.check();if(existsSync(path.join(out,'OWNER-STOP')))engineSiteFail('local_current_owner_stop');if(frozenHead(root)!==p.head)engineSiteFail('local_current_source_changed');
+  if(checkParent){if(sha(readFile(goFile))!==goSha256||sha(readFile(profileFile))!==p.profileSha256)engineSiteFail('local_entities_launch_changed');checkParent();}};
  const runtime=new LocalEngineTrialRuntime({root:journal,authority:p.authority,ownerId:p.prepared.snapshot.ownerId,
   draftId:p.prepared.snapshot.request.draftId,snapshotSha256:p.prepared.inputSha256,assertCurrent,
+  ...(continuation?{carried:continuation.cap.carried,allowedStep:(step:string,wireSha256:string)=>localEntityMediaStep(step)&&
+   (step!=='sheet_entities_0'||wireSha256===continuation.first.call.wireSha256)}:{}),
   dispatchWitness:localConsentDispatchWitness(ledger,consent.consentSha256,p.authority)});
  // Missing or ambiguous local evidence of a witnessed dispatch keeps every reserve and stops here, before any credential or provider.
  if((await runtime.meter()).blocked)engineSiteFail('local_current_journal_blocked');
@@ -149,7 +183,8 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
   writeFileSync(temp,JSON.stringify(value,null,2));renameSync(temp,path.join(out,'live.json'));}).catch(()=>{}).finally(()=>{beating=false;});},15000);beat.unref();
  try{
   const provider={fetch,openAIKey:()=>keys.value('OPENAI_API_KEY'),anthropicKey:()=>keys.value('ANTHROPIC_API_KEY')};
-  const result=await runLocalEngineTrialBook({runtime,directory:out,snapshot:p.prepared.snapshot,provider,narration:{fetch,key:()=>keys.value('ELEVENLABS_API_KEY')}});
+  const result=await runLocalEngineTrialBook({runtime,directory:out,snapshot:p.prepared.snapshot,provider,narration:{fetch,key:()=>keys.value('ELEVENLABS_API_KEY')},
+   ...(continuation?{entitiesContinuation:continuation.cap}:{})});
   assertCurrent();
   const staging=path.join(out,'reader-staging'),bundle=localTrialReaderBundle(staging,go.readerId,result);
   mkdirSync(readerRoot,{recursive:true});if(path.dirname(path.resolve(bundle.directory))!==path.resolve(staging)||existsSync(destination))engineSiteFail('local_current_reader_destination');

@@ -21,6 +21,7 @@ import type {AdmittedEngineInitialPreparation} from './story-preparation';
 import type {AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import type {AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
 import type {AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
+import {checkLocalEntitiesPreparation,localEntitiesPreparedSource,type LocalEntitiesPreparation} from './local-current-entities';
 
 /** Rebuild the entire producer through its real compilers, raw saved provider answers and native resume gates.
  * No grant, lease, provider execute(), key, mutation or replacement answer is available in this runtime. */
@@ -48,8 +49,8 @@ export async function admitEngineBookEvidence(db: PrismaClient, storage: EngineP
  * explicit local test journals. It neither grants a paid Order nor substitutes a database privacy check. */
 export async function replayEngineRecordedBook(context: Pick<EngineReaderContext, 'checkpoint' | 'snapshot' | 'book'>,
   evidence: { readJson: (id: string) => Promise<any>; result: (step: string) => Promise<EngineProviderResult> },
-  privatePhoto?: { db: PrismaClient; storage: EnginePrivateStorage },initialPreparation?:AdmittedEngineInitialPreparation,childBindingPreparation?:AdmittedEngineChildBindingPreparation,locationsRepairPreparation?:AdmittedEngineLocationRepairPreparation,locationsV2RepairPreparation?:AdmittedEngineLocationV2RepairPreparation) {
-  const checkpoint = structuredClone(context.checkpoint); checkpoint.phase = 'story';
+  privatePhoto?: { db: PrismaClient; storage: EnginePrivateStorage },initialPreparation?:AdmittedEngineInitialPreparation,childBindingPreparation?:AdmittedEngineChildBindingPreparation,locationsRepairPreparation?:AdmittedEngineLocationRepairPreparation,locationsV2RepairPreparation?:AdmittedEngineLocationV2RepairPreparation,entitiesContinuation?:LocalEntitiesPreparation) {
+  const checkpoint = structuredClone(context.checkpoint); checkpoint.phase = entitiesContinuation ? 'native' : 'story';
   const denied = (): never => engineSiteFail('engine_readmission_dispatch_forbidden');
   if (!privatePhoto && context.snapshot.appearance.kind !== 'description') engineSiteFail('engine_readmission_private_photo_required');
   const db = privatePhoto?.db ?? new Proxy({}, { get: denied }) as PrismaClient;
@@ -59,10 +60,18 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
     if (cached.has(name)) return cached.get(name);
     const value = checkpoint.outputs[name] ? await readJson(checkpoint.outputs[name]) : null; cached.set(name, value); return value;
   };
+  if(entitiesContinuation){
+    if(privatePhoto||initialPreparation||childBindingPreparation||locationsRepairPreparation||locationsV2RepairPreparation)
+      engineSiteFail('local_entities_readmission_scope');
+    checkLocalEntitiesPreparation(entitiesContinuation);
+    const prepared=await load('prepared_source');
+    if(!prepared)engineSiteFail('engine_readmission_source_missing');
+    localEntitiesPreparedSource(entitiesContinuation,checkpoint,context.snapshot,prepared);
+  }
   let final: SavedPage[] | null = null;
   const runtime: EngineRuntime = {
     checkpoint, signal: new AbortController().signal, check() {}, result,
-    load: name => name === 'prepared_source' ? Promise.resolve(null) : load(name),
+    load: name => name === 'prepared_source' && !entitiesContinuation ? Promise.resolve(null) : load(name),
     async call(plan) {
       plan.revalidate?.(); const c = checkpoint.calls[plan.call.step];
       if (!plan.admitSaved || canonicalHash(plan.wire) !== plan.call.wireSha256 || c?.wireSha256 !== plan.call.wireSha256)
