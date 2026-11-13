@@ -1,16 +1,16 @@
 import 'server-only';
 import { z } from 'zod';
 import type { PrismaClient } from '@prisma/client';
-import { canonicalHash } from '@/lib/canonical-json';
 import { narrationVoice, planBookNarration } from '@/scripts/personal-book-narration';
 import type { ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
 import type { PersonalWizardOptions } from '@/lib/personal-wizard/options';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
-import { attemptStatus } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import { attemptStatus, localEvaluationEligible } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { authorityDigest, boundBookManifest, engineBookManifestSchema, engineSiteFail } from './contract';
 import { assetBytesSha256, loadEnginePrivateAsset, persistEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
 import type { EnginePrivateStorage } from './private-storage';
 import type { EngineRuntime } from './durable-worker';
+import {localEntitiesPreparedSource,localMediaRecovery,type LocalEntitiesPreparation} from './local-current-entities';
 import { prepareEngineNarration,validateEngineNarrationAudio, type EngineNarrationPorts } from './narration';
 import { buildEngineBookPdf } from './book-pdf';
 
@@ -41,12 +41,20 @@ export async function verifyEngineBookAsset(db: PrismaClient, storage: EnginePri
 }
 export function createEngineMaterializer(args: { db: PrismaClient; storage: EnginePrivateStorage;
   snapshot: { request: ReviewedPersonalBookRequest; options: PersonalWizardOptions }; narration: EngineNarrationPorts;
-  pdf?: typeof buildEngineBookPdf; assets?: EngineMaterializationAssets }) {
+  pdf?: typeof buildEngineBookPdf; assets?: EngineMaterializationAssets; localEvaluation?:{cap:LocalEntitiesPreparation;snapshot:Parameters<typeof localEntitiesPreparedSource>[2]} }) {
   return async (runtime: EngineRuntime) => {
     const authority = runtime.checkpoint.authority, prior = await runtime.load('materialized_book');
+    const evaluation=args.localEvaluation?localMediaRecovery(args.localEvaluation.cap):undefined;
+    if(evaluation?.localReaderCompletion){
+      if(!args.assets||!args.localEvaluation)engineSiteFail('engine_local_evaluation_scope');
+      const {cap,snapshot}=args.localEvaluation;
+      const prepared=await runtime.load('prepared_source');
+      if(!prepared||snapshot!==args.snapshot)engineSiteFail('engine_local_evaluation_scope');
+      localEntitiesPreparedSource(cap,runtime.checkpoint,snapshot,prepared);
+    }
     if (prior) { validateEngineMaterializedBook(runtime, prior); await runtime.advance('accept'); return; }
     const prepared = await runtime.load('prepared_source') as any, native = await runtime.load('native_book') as { pages: SavedPage[] } | null;
-    if (!prepared || !native || native.pages.length !== 9 || native.pages.some((p, i) => p.pageNumber !== i || p.status !== 'qa_supported' || !p.chosen))
+    if (!prepared || !native || native.pages.length !== 9 || native.pages.some((p, i) => p.pageNumber !== i || !p.chosen || (evaluation?.localReaderCompletion ? !localEvaluationEligible(p.chosen) : p.status !== 'qa_supported')))
       engineSiteFail('engine_materialization_incomplete');
     const source = prepared.source, title = source.manuscript.title as string;
     const texts = [title, ...source.manuscript.pages.map((p: { text: string }) => p.text)];
@@ -71,10 +79,11 @@ export function createEngineMaterializer(args: { db: PrismaClient; storage: Engi
     const pages: EngineMaterializedBook['pages'] = [], pdfPages: Parameters<typeof buildEngineBookPdf>[1] = [];
     for (const page of native.pages) {
       const n = page.pageNumber, chosen = page.chosen;
-      if (!chosen || attemptStatus('page', chosen) !== 'qa_supported') engineSiteFail('engine_materialization_page_held');
+      if (!chosen || (evaluation?.localReaderCompletion ? !localEvaluationEligible(chosen) : attemptStatus('page', chosen) !== 'qa_supported')) engineSiteFail('engine_materialization_page_held');
       const step = chosen.candidate.imageName.replace(/\.png$/, '');
       if (!(new RegExp(`^page_${n}_[0-2]$`)).test(step) && !(step === `page_${n}_3` && chosen.attempt === 3 &&
-          chosen.sceneRepair?.version === 'audition-local-material-scene/v1' && authority.budget.steps.some(slot=>slot.id===step)))
+          chosen.sceneRepair?.version === 'audition-local-material-scene/v1' && authority.budget.steps.some(slot=>slot.id===step)) &&
+          !(evaluation?.localReaderCompletion && evaluation.edit.page===n && step===`page_${n}_4` && chosen.attempt===4 && authority.budget.steps.some(slot=>slot.id===step)))
         engineSiteFail('engine_materialization_frame_changed');
       const generated = await runtime.result(step), output = z.object({ b64: z.string(), imageSha: z.literal(chosen.candidate.imageSha) }).parse(generated.output);
       const image = Buffer.from(output.b64, 'base64'); if (assetBytesSha256(image) !== output.imageSha) engineSiteFail('engine_materialization_image_changed');

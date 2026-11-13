@@ -211,7 +211,7 @@ export function prepareEngineResponse(a: EngineOrderAuthority, step: string, bod
     catch (error) {
       // A known, returned unusable native review belongs to the engine's one re-ask rule.
       // Preserve its exact text, not a fabricated assessment; the normal review schema rejects it.
-      if (/^page_[0-8]_[0-2]_qa2?$/.test(step)) return responseText(raw);
+      if (/^page_[0-8]_[0-4]_qa2?$/.test(step)) return responseText(raw);
       throw error;
     }
   };

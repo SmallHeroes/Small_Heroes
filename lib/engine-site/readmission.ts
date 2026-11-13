@@ -107,7 +107,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       const step = attempt.candidate.imageName.replace(/\.png$/, '');
       const edit = entitiesContinuation ? localMediaRecovery(entitiesContinuation)?.edit : undefined;
       if (!(new RegExp(`^page_${page.pageNumber}_[0-2]$`)).test(step) &&
-          !(edit?.page === page.pageNumber && step === `page_${page.pageNumber}_3`)) engineSiteFail('engine_readmission_frame_changed');
+          !(edit?.page === page.pageNumber && step === `page_${page.pageNumber}_${edit.redraw?4:3}`)) engineSiteFail('engine_readmission_frame_changed');
       const archived = (step:string) => entitiesContinuation ? localSettledMedia(entitiesContinuation,checkpoint,step) : null;
       const image = archived(step)?.result ?? await result(step), rawImage = image.raw as any, output = image.output as any;
       if (!image.usable || image.model !== (checkpoint.authority.imageModelPolicy?.model ?? 'gpt-image-2') || typeof rawImage.data?.[0]?.b64_json !== 'string' ||

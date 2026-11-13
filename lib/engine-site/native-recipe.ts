@@ -21,7 +21,7 @@ import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_A
   CHILD_ANCHOR_CORRECTION_ROLES } from '@/lib/personal-wizard/child-anchor-style';
 import { companionIdentityReference } from '@/lib/personal-wizard/companion-identity';
 import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, auditionEntitySheetPrompt, assessAuditionReview, attemptStatus,
-  selectAuditionAttempt, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+  selectAuditionAttempt, localEvaluationEligible, attemptStatus as assessedAttemptStatus, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { AUDITION_REVIEW_CAPACITY_VERSION } from '@/lib/personal-wizard/audition-review-capacity';
 import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-payload';
 import { runNativeBookFrames } from '@/lib/personal-wizard/native-page-proof-frames';
@@ -40,8 +40,9 @@ import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
 import { ENGINE_CURRENT_CUSTOMER_V3, enginePictureBookReview, isCurrentCustomerEngine, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
-import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, PICTURE_BOOK_SPATIAL_STAGING, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
+import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, PICTURE_BOOK_SPATIAL_STAGING, PICTURE_BOOK_READABLE_INSTANT, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
 import { blockedRouteDrawing, initialBlockedRoutesOnPage, locationSpatialDirection } from '@/lib/personal-wizard/location-spatial-direction';
+import {scaleCoverage} from '@/lib/personal-wizard/companion-scale';
 import { LOCATION_GUIDE_LEGEND, locationSpatialGuide } from '@/lib/personal-wizard/location-spatial-guide';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld,engineBoundRepairAvailable,
@@ -94,6 +95,20 @@ export function selectSupportedNativePages(saved: Readonly<Record<string, unknow
   });
 }
 
+/** QA copy only. Retain each real verdict and select only fully evidenced usable visual candidates. */
+export function selectLocalEvaluationPages(saved:Readonly<Record<string,unknown>>) {
+  const pages=NATIVE_BOOK_FRAMES.map(pageNumber=>{
+    const page=saved[`page_${pageNumber}`] as SavedPage|undefined;
+    if(page?.pageNumber!==pageNumber)engineSiteFail('engine_native_book_held');
+    const chosen=selectAuditionAttempt('page',page.attempts.filter(localEvaluationEligible));
+    if(!chosen)engineSiteFail('engine_local_evaluation_ineligible');
+    return {...page,chosen,status:assessedAttemptStatus('page',chosen)};
+  });
+  if(scaleCoverage(pages.flatMap(p=>p.chosen.assessment.companionScale?[p.chosen.assessment.companionScale]:[]))!=='observed_within_range')
+    engineSiteFail('engine_local_evaluation_scale');
+  return pages;
+}
+
 export function createEngineNativeRecipe(args: { db: PrismaClient; storage: EnginePrivateStorage; ports: EngineProviderPorts;
   snapshot: OrderSnapshot; initialPreparation?:AdmittedEngineInitialPreparation;
   childBindingPreparation?:AdmittedEngineChildBindingPreparation;
@@ -120,7 +135,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     const bytesOf = (image: AuditionImage) => { const bytes = pool.get(image.imageSha); if (!bytes || assetBytesSha256(bytes) !== image.imageSha) engineSiteFail('engine_recipe_image_missing'); return Buffer.from(bytes); };
     const render = async (step: string, prompt: string, refs: AuditionImage[], mode: GenerateGPTImageInput['referenceMode'], roles?: readonly BookDesignReferenceRole[]) => {
       runtime.check(); const bytes = refs.map(bytesOf);
-      const portrait = /^page_[0-8]_[0-2]$/.test(step) || (recovery && step === 'page_'+recovery.edit.page+'_3');
+      const portrait = /^page_[0-8]_[0-2]$/.test(step) || (recovery && step === 'page_'+recovery.edit.page+'_'+(recovery.edit.redraw?4:3));
       const result = await runtime.call(prepareEngineImage(authority, step, { finalPrompt: prompt, referenceMode: mode,
         ...(roles ? { referenceRoles: roles } : {}), size: portrait ? '1024x1536' : '1024x1024',
         referenceImages: bytes.map(dataURL), exactReferenceBytes: bytes, requireReferenceEdit: bytes.length > 0 }, ports));
@@ -421,8 +436,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
           const direction = pictureBook ? prompt + '\n' + PICTURE_BOOK_DRAWING_DIRECTION : prompt;
           const cues = routes.map(route => blockedRouteDrawing({ ...route, overhead: null }, correctedSpatial));
           const staged = cues.length ? direction + '\n' + cues.join('\n') : direction;
-          return render(step, pictureBook === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? staged + '\n' + PICTURE_BOOK_SPATIAL_STAGING : staged,
-            refs, mode, roles);
+          const sparse=pictureBook===PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? staged+'\n'+PICTURE_BOOK_SPATIAL_STAGING : staged;
+          return render(step,recovery?.localReaderCompletion&&recovery.prospective(step)?sparse+'\n'+PICTURE_BOOK_READABLE_INSTANT:sparse,refs,mode,roles);
         }, judge: judged, identity, save: (name, value) => {
           saved[name] = value;
           if (/^page_[0-8]$/.test(name)) {
@@ -430,8 +445,10 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
             if ((value as SavedPage).status === 'qa_supported') return runtime.save(`native_${name}`, value);
           }
         } });
-      const pages = selectSupportedNativePages(saved);
-      if (pictureBook === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW && audition.status !== 'qa_supported_audition')
+      if(recovery?.localReaderCompletion)await runtime.save('native_evaluation_diagnostics',
+        NATIVE_BOOK_FRAMES.map(n=>saved[`page_${n}`]??null));
+      const pages = recovery?.localReaderCompletion ? selectLocalEvaluationPages(saved) : selectSupportedNativePages(saved);
+      if (!recovery?.localReaderCompletion && pictureBook === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW && audition.status !== 'qa_supported_audition')
         engineSiteFail('engine_native_book_held');
       await runtime.save('native_book', { pages, saved });
       await runtime.advance('materialize');

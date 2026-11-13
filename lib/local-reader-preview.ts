@@ -8,6 +8,7 @@ const localReaderBase = z.object({
   childName: z.string().min(1).max(80),
   sourceManifestSha256: sha,
   sourceQa: z.literal('incomplete'),
+  heldFrames: z.array(z.number().int().min(0).max(64)).min(1).max(65).optional(),
   productAccepted: z.literal(false),
   productionQualified: z.literal(false),
 }).strict();
@@ -28,6 +29,8 @@ const imageOnlyReader = localReaderBase.extend({ version: z.literal('local-image
 export const localReaderPreviewSchema = z.discriminatedUnion('version',[narratedReader,imageOnlyReader]).superRefine((value, ctx) => {
   if (value.pages.some((p, index) => p.pageNumber !== index))
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Cover and body pages must be complete and ordered from zero' });
+  if (value.heldFrames?.some((n,i,all)=>n>=value.pages.length||i>0&&n<=all[i-1]))
+    ctx.addIssue({ code:z.ZodIssueCode.custom,message:'Held frames must be distinct Reader pages in reading order' });
   if (value.pages[0]?.text !== value.title)
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Cover text must match the frozen title' });
 });

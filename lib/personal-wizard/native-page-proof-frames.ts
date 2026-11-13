@@ -21,13 +21,13 @@ function fencedFrames(args:Input,attempts:number,options:{sample?:readonly numbe
   exhaustedFrameEdit?:ExhaustedFrameEdit;usedCurrentCorrection?:(page:number,attempt:number)=>boolean},
   terminalRender=false,resumePages?:Partial<Record<number,SavedPage>>,spentReviewReasks=0){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
-  if(options.exhaustedFrameEdit)for(const suffix of ['','_qa','_identity'])allowed.add('page_'+options.exhaustedFrameEdit.page+'_'+attempts+suffix);
+  if(options.exhaustedFrameEdit)for(const suffix of ['','_qa','_identity'])allowed.add('page_'+options.exhaustedFrameEdit.page+'_'+(attempts+(options.exhaustedFrameEdit.redraw?1:0))+suffix);
   let renderFailed=false,renderFailure:unknown,reasks=Object.values(resumePages??{}).reduce(
     (n,p)=>n+(p?.attempts.filter(a=>a.reviewReask!==undefined).length??0),spentReviewReasks);
   if(reasks>NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');
   const check=()=>{if(renderFailed)throw renderFailure;args.check();};
   const begin=(step:string,kind:'render'|'review'|'identity')=>{
-    if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-3]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
+    if(!allowed.has(step)||used.has(step)||kind==='render'&&!/^page_[0-8]_[0-4]$/.test(step)||kind==='review'&&!/_qa2?$/.test(step)||kind==='identity'&&!step.endsWith('_identity'))fail('page_proof_step');
     check();
     // The owner's re-ask allowance is its own book-wide count, independent of the call and USD limits; past it the run ends (fatal code).
     if(kind==='review'&&step.endsWith('_qa2')){if(reasks>=NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');reasks++;}

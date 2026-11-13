@@ -1,5 +1,11 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Complete local Reader evaluation from recovered receipts
+
+- The one-use run5k recovered the truncated review on its original pixels. The bounded edit of another frame did not resolve the material state. A Modern Standby interruption left the review awaiting collection. The exact GET of the already dispatched response yielded a priced held receipt. The original journal remains unchanged. The reconciled carry is 5,828,874 microUSD across 76 logical calls. [Recovered settlement](<C:/GNart/Work/local-current-book-20261112/FINAL-MEDIA-RECOVERY-20261113/OUTCOME-QA/EXISTING-RESPONSE-RECOVERY/ADMITTED-SETTLEMENT.json>)
+- A separate local successor uses the same story, references and all prior debits. It can draw one fresh composition of the exhausted frame without conditioning on a rejected full image, then finish the remaining undrawn frames. A complete local owner-evaluation copy retains open story and continuity verdicts in the Reader, with identity, safety, anatomy and scale still required. The paid customer and production path still requires fully supported frames.
+- Exact source, receipts, continuation and launch remain subject to independent review. [Decision](<C:/GNart/Work/local-current-book-20261112/LOCAL-READER-COMPLETION-20261113/DECISION.md>)
+
 ## 2026-11-13 — Recovery of a truncated visual review
 
 - Run5j retained the accepted cover and pages 1–3. Page 4 exhausted the ordinary attempts with material continuity concerns. The next page was drawn and its review settled as incomplete at the 12,000-token cap. The original receipt, image and failed verdict are preserved. The book carries 4,965,622 microUSD across 66 calls, with no pending or unknown cost. [Terminal reconciliation](<C:/GNart/Work/local-current-book-20261112/NATIVE-ASSEMBLY-CONTINUATION-20261113/OUTCOME-QA/TERMINAL-RECONCILIATION.json>)

@@ -15,7 +15,7 @@ export default async function LocalNarratedReader({ searchParams }: {
   if (!preview) notFound();
   return <div className={localStyles.frame} data-reader-authority={preview.version} dir="rtl">
     <aside style={{ padding: '8px 16px', background: '#fff4cc', color: '#433b21', fontSize: 14, textAlign: 'center' }}>
-      ספר ניסוי מקומי · {preview.voice ? `קריינות ${preview.voice.label}` : 'ללא קריינות'} · בדיקות איכות האיורים טרם הושלמו · לא אישור מוצר או ייצור
+      ספר ניסוי מקומי · {preview.voice ? `קריינות ${preview.voice.label}` : 'ללא קריינות'} · {preview.heldFrames ? `איורים עם הערות איכות פתוחות בעמודים ${preview.heldFrames.map(n=>n===0?'הכריכה':n).join(', ')}` : 'בדיקות איכות האיורים טרם הושלמו'} · לא אישור מוצר או ייצור
     </aside>
     <ReaderV2 presentation="desktop-full-page" source={{ kind: 'qa_fixture', payload: localReaderPayload(preview),
       exitHref: `/dev/local-reader?book=${encodeURIComponent(preview.id)}`, exitLabel: 'חזרה לתחילת ספר הניסוי' }} />

@@ -44,7 +44,8 @@ export async function runLocalEngineTrialBook(o:{runtime:LocalEngineTrialRuntime
   await r.save('prepared_source',localEntitiesPreparedSource(cap,r.checkpoint,o.snapshot));
   await r.advance('native');
  }
- const materialize=createEngineMaterializer({db,storage,snapshot:o.snapshot,narration:o.narration,pdf:o.pdf,assets});
+ const materialize=createEngineMaterializer({db,storage,snapshot:o.snapshot,narration:o.narration,pdf:o.pdf,assets,
+  ...(o.entitiesContinuation?{localEvaluation:{cap:o.entitiesContinuation,snapshot:o.snapshot}}:{})});
  await createEngineNativeRecipe({db,storage,snapshot:o.snapshot,ports:o.provider,materialize,initialPreparation:o.initialPreparation,childBindingPreparation:o.childBindingPreparation,locationsRepairPreparation:o.locationsRepairPreparation,locationsV2RepairPreparation:o.locationsV2RepairPreparation,
   ...(o.entitiesContinuation&&o.entitiesContinuation.boundary!=='entities'?{currentLocationsRepair:o.entitiesContinuation}:{})})(r);
  const book=validateEngineMaterializedBook(r,await r.load('materialized_book'));
@@ -52,12 +53,14 @@ export async function runLocalEngineTrialBook(o:{runtime:LocalEngineTrialRuntime
  if(admitted.length!==9)engineSiteFail('local_trial_readmission_incomplete');
  for(const p of book.pages){await assets.read(p.image,'page');await assets.read(p.audio,'audio');}
  await assets.read(book.pdf,'pdf');
- await r.advance('done');return {book,admittedFrames:admitted.length,files,pdfFile:path.join(files,book.pdf.assetId+'.pdf'),meter:await r.meter()};
+ const heldFrames=admitted.filter(page=>page.status!=='qa_supported').map(page=>page.pageNumber);
+ await r.advance('done');return {book,admittedFrames:admitted.length,heldFrames,files,pdfFile:path.join(files,book.pdf.assetId+'.pdf'),meter:await r.meter()};
 }
 /** Builds staging bytes only. The caller publishes locally with exact-path atomic rename after outcome QA. */
 export function localTrialReaderBundle(directory:string,id:string,result:Awaited<ReturnType<typeof runLocalEngineTrialBook>>){
  const {book,files}=result,voice=narrationVoice(book.voiceId,[book.voiceId]);
  return writeLocalReaderBundle({root:directory,id,title:book.title,childName:book.childName,sourceSha256:canonicalHash(book.manifest),
   pages:book.pages.map(p=>({pageNumber:p.pageNumber,text:p.text,imageFile:path.join(files,p.image.assetId+'.png')})),
+  ...(result.heldFrames?.length?{heldFrames:result.heldFrames}:{}),
   narration:{voice:{id:voice.id,label:voice.label},pages:book.pages.map(p=>({pageNumber:p.pageNumber,audioFile:path.join(files,p.audio.assetId+'.mp3')}))}});
 }

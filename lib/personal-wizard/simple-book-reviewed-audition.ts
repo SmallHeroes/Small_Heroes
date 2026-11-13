@@ -699,7 +699,7 @@ export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null
     parent: { attempt: number; imageSha: string; contextSha: string; rawReviewSha: string; assessmentSha: string } | null;
     allowedRequirementIds: string[] } };
 /** One source-bound edit of an exhausted material frame, deferred through the next historical review. */
-export type ExhaustedFrameEdit = Readonly<{page:number; afterPage:number; parentImageSha256:string}>;
+export type ExhaustedFrameEdit = Readonly<{page:number; afterPage:number; parentImageSha256:string; redraw?:true}>;
 export function exhaustedFrameEditParent(page:SavedPage, spec:ExhaustedFrameEdit) {
   const prior = page.attempts.find(a => a.candidate?.imageSha === spec.parentImageSha256);
   const material = prior?.assessment?.findings.some(f => f.bound && !f.derived && f.verdict === 'defect' &&
@@ -712,6 +712,17 @@ export function exhaustedFrameEditParent(page:SavedPage, spec:ExhaustedFrameEdit
   return prior as AuditionAttempt & { candidate: AuditionImage };
 }
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
+
+export function localEvaluationEligible(attempt: AuditionAttempt): attempt is Chosen {
+  const assessment=attempt.assessment;
+  return !!attempt.candidate && !!attempt.review && !!assessment && !assessment.safetyBlocked && !assessment.invalidCitations &&
+    ['held','qa_supported'].includes(attempt.status) && !!assessment.companionScale &&
+    assessment.companionScale.disposition!=='defect' && identityPassed(attempt.identity) &&
+    !assessment.findings.some(f=>f.impact==='safety'||f.impact==='identity'||f.category==='anatomy'||
+      f.category==='identity'||/^(?:cast:|anatomy:)/.test(f.requirement)||
+      (f.category==='relative_scale'||f.requirement==='companion_scale')&&
+        !(f.impact==='detail'&&f.verdict==='uncertain'&&assessment.companionScale!.disposition==='abstain'));
+}
 
 const critical = (a: AuditionAssessment) => a.counts.story + a.counts.identity + a.counts.continuity;
 export function attemptStatus(phase: 'sheet' | 'page', a: Pick<AuditionAttempt, 'candidate' | 'assessment' | 'identity'>): AttemptStatus {
@@ -1632,7 +1643,7 @@ export async function illustrateReviewedAudition(args: {
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     return judgeReviewedAuditionCandidate({ phase, step: `${prefix}${phase}_${name}_${attempt}`, attempt, candidate, context, contextSha,
       requirementIds, judgeRefs, predecessor, landmarks, child: args.child, judge: args.judge, identity: args.identity, check: args.check,
-      pictureBookReview: args.pictureBookReview, ...(args.reviewReask === true && !(args.exhaustedFrameEdit?.page === Number(name) && attempt === pageAttempts) ? { reaskUnusable: true as const } : {}) });
+      pictureBookReview: args.pictureBookReview, ...(args.reviewReask === true && !(args.exhaustedFrameEdit?.page === Number(name) && attempt >= pageAttempts) ? { reaskUnusable: true as const } : {}) });
   };
   const pageAttempt = async (page: number, attempt: number, prior: AuditionAttempt | undefined, prompt: string, strategy: string,
     context: unknown, contextSha: string, checks: ReturnType<typeof auditionPageChecks>, canonical: AuditionImage[], predecessor: AuditionImage | null) => {
@@ -2002,7 +2013,8 @@ export async function illustrateReviewedAudition(args: {
         (diagnosis?.prompt ?? '') + anatomyPoseStrategy(previousAttempt ? auditionAttemptFindings(previousAttempt) : []), context, contextSha, checks, canonical, predecessor);
       attempts.push(result); report('page', String(pageNumber), result);
       const completeAttempt=finish('page', String(pageNumber), attempts);
-      if (completeAttempt && attempts.length >= replayThrough) break;
+      if (attempts.length >= replayThrough && (completeAttempt ||
+          (args.exhaustedFrameEdit?.redraw && pageNumber > args.exhaustedFrameEdit.afterPage && localEvaluationEligible(result)))) break;
     }
     const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${pageNumber}_unavailable`);
     pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen),
@@ -2014,6 +2026,20 @@ export async function illustrateReviewedAudition(args: {
     if (edit?.page === pageNumber) {
       const prior = exhaustedFrameEditParent(savedPage, edit);
       deferredEdit = async () => {
+        if (edit.redraw) {
+          const result = await attemptOnce('page',String(pageNumber),pageAttempts+1,
+            base + auditionCorrections(prior,'page',TYPED_PAGE_CORRECTION_VERSION), canonical, 'book_identity', undefined,
+            context, contextSha, checks.requirementIds, canonical, predecessor, checks.uniqueLandmarks);
+          if (attempts.some(a=>a.candidate?.imageSha===result.candidate?.imageSha) ||
+              canonical.some(a=>a.imageSha===result.candidate?.imageSha)) fail('audition_exhausted_frame_unchanged');
+          const updated=[...attempts,result];
+          finish('page',String(pageNumber),updated);
+          const selected = selectAuditionAttempt('page',updated.filter(localEvaluationEligible)) ??
+            fail('audition_exhausted_frame_held');
+          pages[savedIndex]={...savedPage,attempts:updated,chosen:selected,status:attemptStatus('page',selected)};
+          await args.save(`page_${pageNumber}`,pages[savedIndex]);
+          return;
+        }
         const prompt = `Edit only the rejected full scene supplied as scene_edit_target. Preserve the characters, style, framing and unaffected design.
 Depict the single instant specified below. When a character is considering or about to perform an action, show attention, gaze or readiness and leave the effect absent until the story actually performs it. Treat shown physical states as concrete drawing instructions: preserve established colors, keep distinct materials or flows visibly separated until the written moment joins them, and keep an untouched route beyond a blockage visibly dry if the scene specifies dry. Make the important relation readable with clear space and boundaries.
 Use the other references for established designs only. Preserve the source-required anatomy, appearance and cast. No painted words or labels.

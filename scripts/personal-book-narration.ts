@@ -148,7 +148,7 @@ export async function narrateBook(o: { plan: BookNarrationPlan; meter: Meter; tr
  * absent or incomplete: no silent, partial or reused audio is ever presented as narration.
  */
 export function writeLocalReaderBundle(o: { root: string; id: string; title: string; childName: string; sourceSha256: string;
-  pages: { pageNumber: number; text: string; imageFile: string }[]; narration: { voice: { id: string; label: string }; pages: { pageNumber: number; audioFile: string }[] } | null }) {
+  heldFrames?: number[]; pages: { pageNumber: number; text: string; imageFile: string }[]; narration: { voice: { id: string; label: string }; pages: { pageNumber: number; audioFile: string }[] } | null }) {
   const id = localReaderId(o.id), dir = path.join(o.root, id);
   if (existsSync(dir)) fail('reader_bundle_exists');
   mkdirSync(dir, { recursive: true });
@@ -162,7 +162,7 @@ export function writeLocalReaderBundle(o: { root: string; id: string; title: str
       audioSha256: audio ? sha(readFileSync(path.join(dir, `page-${p.pageNumber}.mp3`))) : null };
   });
   const manifest = localReaderPreviewSchema.parse({ version: narrated ? 'local-narrated-reader/v1' : 'local-image-reader/v1', id, title: o.title, childName: o.childName,
-    sourceManifestSha256: o.sourceSha256, sourceQa: 'incomplete', productAccepted: false, productionQualified: false,
+    sourceManifestSha256: o.sourceSha256, sourceQa: 'incomplete', ...(o.heldFrames?{heldFrames:o.heldFrames}:{}), productAccepted: false, productionQualified: false,
     voice: narrated ? { id: o.narration!.voice.id, label: o.narration!.voice.label, provider: 'elevenlabs', model: BOOK_NARRATION.model } : null, pages });
   exclusiveJson(path.join(dir, 'manifest.json'), manifest);
   return { id, directory: dir, narrated, url: `/dev/local-reader?book=${encodeURIComponent(id)}` };

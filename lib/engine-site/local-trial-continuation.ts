@@ -1,6 +1,6 @@
 import 'server-only';
 import {createHash} from 'node:crypto';
-import {lstatSync,readFileSync,readdirSync,realpathSync} from 'node:fs';
+import {existsSync,lstatSync,readFileSync,readdirSync,realpathSync} from 'node:fs';
 import path from 'node:path';
 import {z} from 'zod';
 import {canonicalHash} from '@/lib/canonical-json';
@@ -43,17 +43,26 @@ export const INITIAL_PARENT_STEPS=Object.freeze(['story_author','story_editor','
 const allowed=new Set([...INITIAL_PARENT_STEPS,'story_final_review_citation','story_comparison_citation']);
 /** Sealed terminal journals only. Costs come from raw receipts, never from a caller-supplied carry. */
 export function readLocalSettledJournal(root:string,checkpoint:EngineCheckpoint,required:readonly string[],permitted:ReadonlySet<string>,price?: (step:string,result:EngineProviderResult)=>number|null,
- allowUnusable?: (step:string,result:EngineProviderResult,request:unknown)=>boolean){
+ allowUnusable?: (step:string,result:EngineProviderResult,request:unknown)=>boolean,
+ recovered?: Readonly<{step:string;result:EngineProviderResult}>){
  const authority=checkpoint.authority;
  const asset=(id:string)=>{if(!/^[a-f0-9-]{36}$/.test(id))engineSiteFail('local_parent_asset');const record=json(path.join(root,'journal/assets',id+'.json'));if(record.id!==id||record.version!=='engine-local-asset/v1'||record.sha256!==canonicalHash(record.value))engineSiteFail('local_parent_asset');return record.value;};
  const claims=new Map<string,any>(),results=new Map<string,EngineProviderResult>();let known=0;
  const steps=readdirSync(path.join(root,'journal/calls'));
  if(required.some(s=>!steps.includes(s))||steps.some(s=>!permitted.has(s))||canonicalHash([...steps].sort())!==canonicalHash(Object.keys(checkpoint.calls).sort()))engineSiteFail('local_parent_scope');
- for(const step of steps){const dir=path.join(root,'journal/calls',step),claim=json(path.join(dir,'claim.json')),settled=json(path.join(dir,'result.json')),request=asset(claim.requestAssetId),saved=asset(settled.assetId),r=settled.result as EngineProviderResult;
+ for(const step of steps){
+  const dir=path.join(root,'journal/calls',step),claim=json(path.join(dir,'claim.json')),request=asset(claim.requestAssetId);
+  const recoveredResult=step===recovered?.step?recovered.result:undefined;
+  const settled=recoveredResult?null:json(path.join(dir,'result.json'));
+  const saved=settled?asset(settled.assetId):null,r=(recoveredResult??settled.result) as EngineProviderResult;
   const slot=authority.budget.steps.find(s=>s.id===step),c=checkpoint.calls[step];
   if(claim.version!=='engine-local-claim/v1'||claim.authoritySha256!==canonicalHash(authority)||claim.call.step!==step||!slot||slot.maximumMicroUsd!==claim.call.maximumMicroUsd||
-   !c?.settled||c.requestAssetId!==claim.requestAssetId||c.resultAssetId!==settled.assetId||c.wireSha256!==claim.call.wireSha256||request.authoritySha256!==canonicalHash(authority)||canonicalHash(request.call)!==canonicalHash(claim.call)||canonicalHash(request.wire)!==claim.call.wireSha256||
-   settled.version!=='engine-local-result/v1'||settled.claimSha256!==canonicalHash(claim)||settled.assetSha256!==canonicalHash(saved)||saved.wireSha256!==claim.call.wireSha256||saved.completed!==true||canonicalHash(saved.result)!==canonicalHash(r))engineSiteFail('local_parent_receipt');
+   !c||c.requestAssetId!==claim.requestAssetId||c.wireSha256!==claim.call.wireSha256||request.authoritySha256!==canonicalHash(authority)||
+   canonicalHash(request.call)!==canonicalHash(claim.call)||canonicalHash(request.wire)!==claim.call.wireSha256||
+   (recoveredResult?(c.settled||c.resultAssetId!==undefined||existsSync(path.join(dir,'result.json'))):
+    (!c.settled||c.resultAssetId!==settled.assetId||settled.version!=='engine-local-result/v1'||settled.claimSha256!==canonicalHash(claim)||
+    settled.assetSha256!==canonicalHash(saved)||saved.wireSha256!==claim.call.wireSha256||saved.completed!==true||canonicalHash(saved.result)!==canonicalHash(r))))
+   engineSiteFail('local_parent_receipt');
   const raw=r.raw as any,cost=price?price(step,r):step==='story_author'?anthropicAuthorCost(raw):raw.model==='gpt-6.1-sol'&&raw.service_tier==='default'?auditionUsageCost(raw.usage,'sol'):null;
   if((r.usable!==true&&!allowUnusable?.(step,r,request))||cost===null||cost!==r.estimatedMicroUsd||cost>slot.maximumMicroUsd)engineSiteFail('local_parent_unsettled');
   known+=cost;claims.set(step,{claim,request});results.set(step,r);
