@@ -1,5 +1,11 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Noa and Momo: the one locations edit is consumed; book incomplete
+
+- The exact local edit at `fece4062` passed independent code and activation QA, then ran once. It removed the yellow flow from the root side of the mud blockage. The separate empty channel still reads as a root or bare ground, so native review held on `design:color_channels`. No cover, page, Dad audio, PDF or Reader was produced. The manuscript, plan, child, passed entities and both locations candidates are preserved.
+- Cumulative estimate across the same book: 1,362,322 microUSD in 21 calls. The edit and its review added 109,736 microUSD in two calls; no pending or unknown charge or reserve remains. No new book, retry, threshold relaxation, push, or deployment. Evidence and the next visual-proof proposal: `C:/GNart/Work/local-current-book-20261112/LOCATIONS-CONTINUATION-20261113/OUTCOME-QA/PRODUCT-OUTCOME.md`.
+- A further proof needs a different, source-bound visual input: distinguish the dry channel's ground geometry, the blockage, upstream yellow water and the plant root. Keep the same judge and stage gates. Do not repeat the consumed edit or mark the held reference as approved.
+
 ## 2026-11-13 — Noa and Momo: entities passed; locations held
 
 - The independent v3 continuation at `ca309e1e` ran once. The corrected entities sheet passed all eight review categories. The locations sheet was held because it drew yellow flow between the mud blockage and the sunflower root, where the source requires a dry section. The raw-priced aggregate is 1,252,586 microUSD and 19 calls, with no unknown or reserved calls. The original story, bound plan, child and passed entities are preserved. The cover, pages, narration, PDF and Reader were not produced.
@@ -11,7 +17,7 @@
 - The 15 settled calls reconcile to 1,077,870 microUSD. There is no pending or unknown cost for this run. The separate historical runs and reservations remain in their own records. Evidence is in `C:/GNart/Work/local-current-book-20261112/CODEX-ACTIVATION-RUN5B-20261113`.
 - The prospective customer engine v3 limits the entities generator to a counted list of owned tiles and initial-form design data. The judge still gets the full ownership and deferral context. v1 and v2 retain their existing requests and v3 retains the v2 slots, limits, typed corrections and location recipe.
 - The provider-free gate passed 468 tests in eight specs and both TypeScript checks. Claude Code independently passed the v3 source at `0ff1920c`: 417 focused cases, 35 independent probes, 40 frozen pins, and re-admission of the exact original HOLD. This does not establish that a new image passes.
-- The original registered execution is consumed. The opt-in local entities continuation replays its terminal v2 journal and checks its one-use consent and dispatch witnesses. It carries the original cost and call count, saves only the replayed prepared source, and admits one v3 entities generation and review before the normal location, page, identity, Dad narration and PDF gates. The continuation uses an exact independent activation registration and a parent-bound one-use record, refuses resume and adds no spend capacity. The v2 CLI default and hosted path remain unchanged. No continuation has executed.
+- The original registered execution is consumed. The opt-in local entities continuation replays its terminal v2 journal and checks its one-use consent and dispatch witnesses. It carries the original cost and call count, saves only the replayed prepared source, and admits one v3 entities generation and review before the normal location, page, identity, Dad narration and PDF gates. The continuation uses an exact independent activation registration and a parent-bound one-use record, refuses resume and adds no spend capacity. The v2 CLI default and hosted path remain unchanged. The later continuation results are recorded above.
 
 ## 2026-11-13 — Local current-engine rehearsal: USD0 correction of Codex HOLD on b19c6a93; independent re-gate next
 
