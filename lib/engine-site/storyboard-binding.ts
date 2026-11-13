@@ -13,7 +13,7 @@ import type { EngineProviderPorts } from './provider-plans';
 import { prepareEngineResponse } from './provider-plans';
 import { prepareEngineStoryboard, type StorySnapshot } from './story-preparation';
 import { engineSiteFail } from './contract';
-import { isCurrentCustomerEngine, isCurrentCustomerEngineV2 } from './current-engine-policy';
+import { isCurrentCustomerEngine, usesTypedCustomerCorrections } from './current-engine-policy';
 import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP, ENGINE_BOUND_REPAIR_STEP, ENGINE_BOUND_REPAIR_REVIEW_STEP } from './storyboard-binding-policy';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 import { enginePreparationContracts } from './storyboard-concurrency-policy';
@@ -84,7 +84,7 @@ export async function prepareEngineBoundStoryboard(runtime:EngineRuntime,snapsho
 
 /** Whether this authority owns the bound repair (the current customer engine with both slots); every other authority keeps the old stop. */
 export function engineBoundRepairAvailable(authority:EngineOrderAuthority){
- return isCurrentCustomerEngineV2(authority)&&authority.storyboardBindingPolicy===ENGINE_STORYBOARD_BINDING&&authority.responseSchemaPolicy===ENGINE_RESPONSE_SCHEMA_POLICY&&
+ return usesTypedCustomerCorrections(authority)&&authority.storyboardBindingPolicy===ENGINE_STORYBOARD_BINDING&&authority.responseSchemaPolicy===ENGINE_RESPONSE_SCHEMA_POLICY&&
   [ENGINE_BOUND_REVIEW_STEP,ENGINE_BOUND_REPAIR_STEP,ENGINE_BOUND_REPAIR_REVIEW_STEP].every(id=>authority.budget.steps.some(s=>s.id===id));
 }
 /**

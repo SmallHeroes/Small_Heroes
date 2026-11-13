@@ -15,7 +15,9 @@ export const ENGINE_CURRENT_CUSTOMER = 'customer-current-engine/v1' as const;
  * A v1 authority keeps every v1 step, wire and stop exactly.
  */
 export const ENGINE_CURRENT_CUSTOMER_V2 = 'customer-current-engine/v2' as const;
-export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2] as const;
+/** Adds an entities-only drawing packet to v2. The full sheet design still goes to the judge. */
+export const ENGINE_CURRENT_CUSTOMER_V3 = 'customer-current-engine/v3' as const;
+export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3] as const;
 export type EngineCurrentVersion = (typeof ENGINE_CURRENT_VERSIONS)[number];
 export const ENGINE_AUTHOR_BATCH = 'anthropic-message-batch/v1' as const;
 /** The base storyboard ceiling: the first plan plus two focused repairs. No owner extension is implied. */
@@ -24,7 +26,8 @@ export const CUSTOMER_STORYBOARD_REPAIR_STEPS = Object.freeze(['initial_storyboa
 export function isCurrentCustomerEngine(authority: { purpose: string; currentEngine?: string }) {
   return authority.purpose === 'customer' && (ENGINE_CURRENT_VERSIONS as readonly (string | undefined)[]).includes(authority.currentEngine);
 }
-/** Only the v2 bundle: the bound repair and the typed corrections. */
-export function isCurrentCustomerEngineV2(authority: { purpose: string; currentEngine?: string }) {
-  return authority.purpose === 'customer' && authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V2;
+/** Both v2 and v3 use the bound repair and typed image corrections. */
+export function usesTypedCustomerCorrections(authority: { purpose: string; currentEngine?: string }) {
+  return authority.purpose === 'customer' && (authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V2 ||
+    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3);
 }

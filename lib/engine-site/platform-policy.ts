@@ -10,7 +10,7 @@ import { NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS } from '@/lib/personal-wi
 import { digestSchema, identifierSchema, microUsdSchema, utcSchema, engineSiteFail, type EngineOrderAuthority } from './contract';
 import {LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD} from './local-trial-recovery-policy';
 import { engineQaRequired, engineQaScope } from './qa-order-policy';
-import { ENGINE_CURRENT_VERSIONS, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_AUTHOR_BATCH, CUSTOMER_STORYBOARD_REPAIR_STEPS, type EngineCurrentVersion } from './current-engine-policy';
+import { ENGINE_CURRENT_VERSIONS, ENGINE_AUTHOR_BATCH, CUSTOMER_STORYBOARD_REPAIR_STEPS, usesTypedCustomerCorrections, type EngineCurrentVersion } from './current-engine-policy';
 import { engineImageModelPolicySchema } from './image-model-policy';
 import { ENGINE_RESPONSE_SCHEMA_POLICY } from './response-schema';
 import { ENGINE_STORYBOARD_BINDING, ENGINE_BOUND_REVIEW_STEP, ENGINE_BOUND_REPAIR_STEP, ENGINE_BOUND_REPAIR_REVIEW_STEP } from './storyboard-binding-policy';
@@ -36,11 +36,12 @@ export function engineProfileAuthority(policy: EngineSpendPolicy) {
     locationSheetPolicy: LOCATION_SHEET_PROJECTION_V2, storyboardConcurrencyPolicy: ENGINE_SOURCE_CONCURRENCY_POLICY,
     imageModelPolicy: { ...policy.engineProfile.imageModelPolicy } } as const;
 }
-/** `currentEngine`: the bundle's slots (`true` is v1). v2 trades the unused legacy prep_storyboard_0 pair for its one bound repair pair. */
+/** `currentEngine`: the bundle's slots (`true` is v1). The typed correction bundles replace the legacy prep_storyboard_0 pair. */
 export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true;currentEngine?:true|EngineCurrentVersion}) {
   const steps: { id: string; maximumMicroUsd: number }[] = [];
   const add = (id: string, maximumMicroUsd: number) => steps.push({ id, maximumMicroUsd });
-  const v2 = options?.currentEngine === ENGINE_CURRENT_CUSTOMER_V2;
+  const boundRepair = usesTypedCustomerCorrections({ purpose: 'customer',
+    currentEngine: typeof options?.currentEngine === 'string' ? options.currentEngine : undefined });
   for (const stage of ['author', 'editor'] as const) {
     const tokens = simpleStoryOutputTokens(8);
     add(`story_${stage}`, stage === 'author' ? Math.ceil((104_000 * 4 + tokens * 20) * 1.1)
@@ -50,13 +51,13 @@ export function engineRecipeSteps(options?:{initialStoryboardRecovery?:true;curr
     add(`story_${stage}`, Math.max(SOL_WRITING.minimumReserveMicroUsd, Math.ceil((104_000 * 2 + 16_000 * 10) * 1.1)));
     add(`story_${stage}_citation`, Math.max(SOL_WRITING.minimumReserveMicroUsd, Math.ceil((104_000 * 2 + 16_000 * 10) * 1.1)));
   }
-  // The bound board replaces the legacy prep re-plan on every binding authority: v2 does not declare that unused pair.
-  PREPARATION_STEPS.forEach((id, i) => { if (!(v2 && i < 2)) add(id, PREPARATION_SLOTS[i]); });
+  // The bound repair uses the slots previously reserved for the legacy prep re-plan.
+  PREPARATION_STEPS.forEach((id, i) => { if (!(boundRepair && i < 2)) add(id, PREPARATION_SLOTS[i]); });
   if(options?.initialStoryboardRecovery){add('initial_storyboard_repair_1',LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add('initial_storyboard_repair_1_review',PREPARATION_SLOTS[1]);}
   if(options?.currentEngine){
     for(const step of CUSTOMER_STORYBOARD_REPAIR_STEPS){add(step,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add(`${step}_review`,PREPARATION_SLOTS[1]);}
     add(ENGINE_BOUND_REVIEW_STEP,PREPARATION_SLOTS[1]);
-    if(v2){add(ENGINE_BOUND_REPAIR_STEP,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add(ENGINE_BOUND_REPAIR_REVIEW_STEP,PREPARATION_SLOTS[1]);}
+    if(boundRepair){add(ENGINE_BOUND_REPAIR_STEP,LOCAL_INITIAL_REPAIR_RESERVE_MICRO_USD);add(ENGINE_BOUND_REPAIR_REVIEW_STEP,PREPARATION_SLOTS[1]);}
   }
   for (const name of ['reference_child', 'reference_child_repair']) {
     add(name, renderMaximum('x'.repeat(32_768), 4));

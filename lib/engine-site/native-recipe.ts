@@ -20,7 +20,7 @@ import { resolveChildAnchorTechnique, childAnchorPoseDescriptionRequest, CHILD_A
   childAnchorPoseCorrectionPrompt, childAnchorTypedCorrections, childAnchorInspectedAdoptionRecord, assertChildAnchorInspectedAccepted,
   CHILD_ANCHOR_CORRECTION_ROLES } from '@/lib/personal-wizard/child-anchor-style';
 import { companionIdentityReference } from '@/lib/personal-wizard/companion-identity';
-import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, assessAuditionReview, attemptStatus,
+import { auditionSheetDesigns, auditionSheetContext, auditionSheetPrompt, auditionEntitySheetPrompt, assessAuditionReview, attemptStatus,
   selectAuditionAttempt, sameSheetContext, sheetRepairPrompt, TYPED_PAGE_CORRECTION_VERSION, type AuditionAttempt, type SavedSheet, type SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-payload';
 import { runNativeBookFrames } from '@/lib/personal-wizard/native-page-proof-frames';
@@ -38,7 +38,7 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { isCurrentCustomerEngine, isCurrentCustomerEngineV2 } from './current-engine-policy';
+import { ENGINE_CURRENT_CUSTOMER_V3, isCurrentCustomerEngine, usesTypedCustomerCorrections } from './current-engine-policy';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld,engineBoundRepairAvailable,
   prepareEngineBoundRepair,engineBoundRepairOrigin } from './storyboard-binding';
@@ -232,7 +232,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       let anchor = await anchorAttempt('reference_child', request.prompt, refs);
       if (anchor.disposition.disposition === 'repair') {
         const rejected = anchor.candidate;
-        anchor = await anchorAttempt('reference_child_repair', childAnchorPoseCorrectionPrompt(request.core, isCurrentCustomerEngineV2(authority)
+        anchor = await anchorAttempt('reference_child_repair', childAnchorPoseCorrectionPrompt(request.core, usesTypedCustomerCorrections(authority)
           ? childAnchorTypedCorrections(anchor.style, anchor.inspected, clothing) : anchor.disposition.corrections), [rejected], true);
         if (anchor.candidate.imageSha === rejected.imageSha) engineSiteFail('engine_child_repair_unchanged');
       }
@@ -313,7 +313,11 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         }
         const repair=cap&&role==='locations'?prior:undefined, nextAttempt=repair?(args.locationsV2RepairPreparation?2:1):0, step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
         // Both role designs derive from this same admitted book; v2 uses the sibling only as exclusion recognition data.
-        const prompt=repair?sheetRepairPrompt(role,designs[role],args.locationsV2RepairPreparation?locationV2RepairFindings(repair.attempt):locationRepairFindings(repair.attempt),authority.locationSheetPolicy,designs.entities):auditionSheetPrompt(role,designs[role],authority.locationSheetPolicy,designs.entities);
+        const prompt = repair
+          ? sheetRepairPrompt(role, designs[role], args.locationsV2RepairPreparation ? locationV2RepairFindings(repair.attempt) : locationRepairFindings(repair.attempt), authority.locationSheetPolicy, designs.entities)
+          : role === 'entities' && authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3
+            ? auditionEntitySheetPrompt(designs.entities)
+            : auditionSheetPrompt(role, designs[role], authority.locationSheetPolicy, designs.entities);
         const candidate = await render(step, prompt, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
           repair?['rejected_edit_target','child_design_authority','companion_design_authority']:['child_design_authority', 'companion_design_authority']);
         if(cap)checkLocationCap();
@@ -342,7 +346,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       await runNativeBookFrames({ book, rawReview: prepared.review, texts,
         current: { request: snapshot.request, writerResult: prepared.source, options: snapshot.options, readerFraming: READER_PORTRAIT_FRAMING_VERSION }, child, companion,
         companionDescription: restored.source.companionDescription, pages: NATIVE_BOOK_FRAMES, reuseSheets: sheets,
-        ...(isCurrentCustomerEngineV2(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
+        ...(usesTypedCustomerCorrections(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
         ...(Object.keys(resumePages).length ? { resumePages } : {}),
         check: runtime.check, render: (step, prompt, refs, mode, roles) => {
           if (!['book_identity', 'book_design', 'book_scene_edit'].includes(mode)) engineSiteFail('engine_native_v2_not_enabled');

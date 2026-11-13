@@ -7,7 +7,7 @@ import {z} from 'zod';
 import {canonicalHash} from '@/lib/canonical-json';
 import type {CausalDispatch} from '@/lib/personal-wizard/story-causal-experiment-runner';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../local-trial-runtime';
-import {ENGINE_AUTHOR_BATCH,ENGINE_CURRENT_CUSTOMER,ENGINE_CURRENT_CUSTOMER_V2} from '../current-engine-policy';
+import {ENGINE_AUTHOR_BATCH,ENGINE_CURRENT_CUSTOMER,ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3} from '../current-engine-policy';
 import {engineSpendPolicySchema,engineOrderSteps,enginePolicyDigest} from '../platform-policy';
 import {prepareEngineAnthropic,prepareEngineResponse} from '../provider-plans';
 import {engineCustomerAuthority} from '../personal-jobs';
@@ -162,6 +162,16 @@ describe('local rehearsal of the current customer engine',()=>{
   await expect(prepareEngineStoryboard(rt(a),{} as any,{} as any,p,'initial_repair_1',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
   await expect(prepareEngineStoryboard(rt({...authority(),purpose:'test'}),{} as any,{} as any,p,'bound_repair',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
   await expect(prepareEngineStoryboard(rt({...v1,budget:a.budget}),{} as any,{} as any,p,'bound_repair',existing,bound)).rejects.toThrow('engine_bound_repair_authority');
+ });
+ it('the role-scoped entities recipe preserves the v2 budget and typed corrections',()=>{
+  const p=prepared(),v2=currentV2();
+  const v3=engineCustomerAuthority('local_current_synthetic',p.snapshot,p.inputSha256,policy(undefined,ENGINE_CURRENT_CUSTOMER_V3));
+  expect(v3.currentEngine).toBe(ENGINE_CURRENT_CUSTOMER_V3);
+  expect(v3.budget).toEqual(v2.budget);
+  expect(v3.locationSheetPolicy).toBe(v2.locationSheetPolicy);
+  expect(v3.imageModelPolicy).toEqual(v2.imageModelPolicy);
+  expect(engineBoundRepairAvailable(v3)).toBe(true);
+  expect(v3.policySha256).not.toBe(v2.policySha256);
  });
  it('a batch-shaped wire is refused before dispatch on an authority without the batch transport',async()=>{
   const test={...authority(),purpose:'test' as const},s=runtime(test as any),wire={version:'engine-site-anthropic-batch/v1',synthetic:true},execute=vi.fn();

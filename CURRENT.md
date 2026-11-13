@@ -1,5 +1,12 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Noa and Momo local book stopped at the entities reference
+
+- Run 5b executed once at `6f4bb9f1` after independent source and activation review. The fictional manuscript, repaired storyboard, child reference and bound review passed their checks. The entities sheet failed the continuity check because six location-owned items appeared beside its three assigned items. No cover, pages, audio, PDF or Reader was produced.
+- The 15 settled calls reconcile to 1,077,870 microUSD. There is no pending or unknown cost for this run. The separate historical runs and reservations remain in their own records. Evidence is in `C:/GNart/Work/local-current-book-20261112/CODEX-ACTIVATION-RUN5B-20261113`.
+- The prospective customer engine v3 limits the entities generator to a counted list of owned tiles and initial-form design data. The judge still gets the full ownership and deferral context. v1 and v2 retain their existing requests and v3 retains the v2 slots, limits, typed corrections and location recipe.
+- The provider-free gate passed 468 tests in eight specs and both TypeScript checks. A replay from the real stopped run re-admitted all 15 original calls, reproduced the original HOLD and built the v3 sheet request with only its three assigned tiles. It made no new provider requests. Claude Code review and a supported live sheet remain pending. The registered run is consumed. A continuation would need to keep the approved story, storyboard, child reference and settled charges under the original aggregate ceiling.
+
 ## 2026-11-13 — Local current-engine rehearsal: USD0 correction of Codex HOLD on b19c6a93; independent re-gate next
 
 - Scope: the four blocking findings only (R2-LC1A/B, R2-LC2, R2-BOUND1), on `claude/wizard-qa-hosted-20261112`. No provider, key, `.env`, paid call or run 5. LC-4 and the future pose contract are out of scope.

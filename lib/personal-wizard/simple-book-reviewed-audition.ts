@@ -18,7 +18,7 @@ import { currentPersonalStoryboardFrame, type PersonalStoryboard } from './story
 import { drawnStates } from './storyboard-moments';
 import { LANDMARK_KIND_CONTRACT_VERSION, LANDMARK_KIND_ATTRIBUTE } from './storyboard-landmark-kind';
 import { INSTANCE_DISTINCTION_VERSION, DISTINCTION_ATTRIBUTE } from './storyboard-instance-distinction';
-import { simpleReferenceDesigns, referenceOwnershipSchema, simpleReferenceStateSchema } from './simple-reference-designs';
+import { assertReferenceRoleOwnership, simpleReferenceDesigns, referenceOwnershipSchema, simpleReferenceStateSchema } from './simple-reference-designs';
 import { locationSheetPolicySchema, locationSheetProjection, type LocationSheetPolicy } from './location-sheet-projection';
 import type { AuditionImage } from './simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
@@ -197,6 +197,28 @@ Canonical LOCATION design sheet for one picture book: FIXED GEOGRAPHY ONLY. One 
 Show each listed landmark exactly once, with its materials, shape, counted parts and its place relative to the other landmarks. No characters, no story objects, no tracks, marks or clues: story content is drawn on the pages.
 ${projection ? locationSheetProjection(design, projection, entityDesign) : 'Reference images 1 and 2 only set the watercolour technique; do not draw them.'}
 AUTHORITATIVE DESIGN DATA: ${canonicalJson(design)}`;
+}
+
+/** The renderer gets drawing tasks. The judge keeps the complete ownership and deferred-state context. */
+export function auditionEntitySheetPrompt(design: ReturnType<typeof auditionSheetDesigns>['entities']) {
+  assertReferenceRoleOwnership('entities', design);
+  const { entities, props, referenceState } = design;
+  const materialFunction = materialFunctionFromContext(design);
+  const lineup = sheetScaleLineup('entities', design);
+  const propDesigns = new Map(props.map(prop => [prop.id, prop.design]));
+  const tiles = entities.map(entity => ({
+    id: entity.id, kind: entity.kind, invariants: entity.invariants, design: propDesigns.get(entity.id),
+  }));
+  const initialAttributes = referenceState.mutableAttributes.map(({ entityId, attribute, initialValue }) => ({ entityId, attribute, initialValue }));
+  return `${STYLE_01_SHARED}
+Canonical PROP AND SUPPORTING CAST design sheet for one picture book.
+Draw exactly ${tiles.length} separated tiles. The complete list of tile labels is ${tiles.map(tile => tile.id).join(', ')}. Draw each once and use only its exact short Latin ID as its label.
+Draw the INITIAL story form using the fixed invariants and page-0 attribute values. A prop description may mention later forms. Show only its initial form.
+References, components and attachments describe the design inside an assigned tile. They do not add tiles. Keep the fixed design, colors, materials, structure and counts.
+No location views, landmark tiles, story effects, child or companion characters. A required actor-derived shape inside a tile keeps the reference actor's characteristic outline.
+Give each tile room for a large, readable design. Use no other labels or captions.${lineup ? `\n${SCALE_LINEUP_SHEET_RULES}` : ''}
+DRAWING DATA: ${canonicalJson({ tiles, initialAttributes, stableAttachments: referenceState.stableAttachments,
+  ...(materialFunction ? { materialFunction } : {}), ...(lineup ? { scaleLineup: lineup } : {}) })}`;
 }
 
 /** A repair edits the chosen sheet in place: keep what is correct, fix only the cited findings. */

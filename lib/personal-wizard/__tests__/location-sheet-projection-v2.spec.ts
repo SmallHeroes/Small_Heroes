@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOCATION_SHEET_PROJECTION, LOCATION_SHEET_PROJECTION_V2, locationSheetProjection } from '../location-sheet-projection';
-import { auditionSheetContext, auditionSheetPrompt, sheetRepairPrompt } from '../simple-book-reviewed-audition';
+import { auditionEntitySheetPrompt, auditionSheetContext, auditionSheetPrompt, sheetRepairPrompt } from '../simple-book-reviewed-audition';
 
 function fixture() {
   const referenceOwnership = { version: 'disjoint-reference-ownership/v1', assignments: [
@@ -92,5 +92,30 @@ describe('locations v2 generator recognition binding (no new source/judge author
   it('does not silently use v2 when an unknown policy is supplied', () => {
     const { entities, locations } = fixture();
     expect(() => auditionSheetPrompt('locations', locations, 'unknown' as any, entities)).toThrow('location_sheet_projection_policy');
+  });
+});
+
+describe('entities generator drawing inventory', () => {
+  it('sends only the owned tile inventory and keeps the judge context complete', () => {
+    const { entities } = fixture();
+    const input = entities as unknown as Parameters<typeof auditionEntitySheetPrompt>[0];
+    const original = auditionSheetContext('entities', input);
+    const prompt = auditionEntitySheetPrompt(input);
+    const packet = JSON.parse(prompt.split('DRAWING DATA: ')[1]);
+    expect(prompt).toContain('Draw exactly 3 separated tiles.');
+    expect(packet.tiles.map((tile: { id: string }) => tile.id)).toEqual(['toy_box', 'bird', 'orb']);
+    expect(packet.tiles[0]).toMatchObject({ kind: 'prop', design: 'A container with two hinges.', invariants: entities.entities[0].invariants });
+    expect(prompt).not.toContain('referenceOwnership');
+    expect(prompt).not.toContain('pageDeferred');
+    expect(prompt).not.toContain('"rail"');
+    expect(prompt).not.toContain('folded blue bridge');
+    expect(auditionSheetContext('entities', input)).toEqual(original);
+    expect(original.context.design).toMatchObject({ referenceOwnership: entities.referenceOwnership, pageDeferred: entities.pageDeferred });
+  });
+
+  it('refuses a location tile in the projected entities inventory', () => {
+    const { entities, locations } = fixture();
+    const mixed = { ...entities, entities: [...entities.entities, ...locations.landmarks] };
+    expect(() => auditionEntitySheetPrompt(mixed as unknown as Parameters<typeof auditionEntitySheetPrompt>[0])).toThrow('simple_reference_ownership_binding');
   });
 });
