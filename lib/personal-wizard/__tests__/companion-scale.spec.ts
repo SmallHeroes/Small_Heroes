@@ -9,6 +9,7 @@ import { preparePersonalStoryboard,compilePersonalStoryboard,personalStoryboardR
 import { runSimpleWizardBook } from '../simple-book-flow';
 import { assessAuditionReview,auditionPageReviewSchemaForContext,auditionJudgeInstruction } from '../simple-book-reviewed-audition';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
+import { PICTURE_BOOK_REVIEW, PICTURE_BOOK_SCALE_REVIEW } from '../picture-book-direction';
 import { storyboardReviewInstructions } from '../simple-storyboard-diagnostic';
 import { zodTextFormat } from 'openai/helpers/zod';
 
@@ -53,6 +54,38 @@ describe('companion-scale/v1 approved authority and honest measurements',()=>{
     expect(assess(measured(.9)).findings.some(f=>f.requirement==='companion_scale'&&f.verdict==='defect')).toBe(true);
     const airborne=assess(abstain('airborne'),true);
     expect(airborne.companionScale?.disposition).toBe('abstain');expect(airborne.counts.identity).toBe(1);expect(airborne.counts.continuity).toBe(0);
+  });
+  it('separates an abstention without an actionable correction from a visual scale finding',()=>{
+    const authority=companionScaleAuthority('elephant_momo');
+    const answer=raw(abstain('not_standing'));
+    const scale=answer.checks.find(check=>check.category==='relative_scale')!;
+    scale.verdict='uncertain';
+    const assess=(policy?:typeof PICTURE_BOOK_REVIEW|typeof PICTURE_BOOK_SCALE_REVIEW)=>
+      assessAuditionReview(answer,'a'.repeat(64),'b'.repeat(64),
+        ['companion_scale'],undefined,undefined,undefined,undefined,authority,policy);
+    expect(()=>assess()).toThrow('audition_review_issue_coverage');
+    expect(()=>assess(PICTURE_BOOK_REVIEW)).toThrow('audition_review_issue_coverage');
+    const before=structuredClone(answer);
+    const admitted=assess(PICTURE_BOOK_SCALE_REVIEW);
+    expect(admitted.review).toEqual(before);
+    expect(answer).toEqual(before);
+    expect(admitted.assessment.findings).toEqual([]);
+    expect(admitted.assessment.companionScale?.disposition).toBe('abstain');
+
+    scale.correction='Change the visible scale of the companion.';
+    expect(()=>assess(PICTURE_BOOK_SCALE_REVIEW)).toThrow('audition_review_issue_coverage');
+    scale.correction='';
+    answer.scaleEvidence=measured(.7);
+    expect(()=>assess(PICTURE_BOOK_SCALE_REVIEW)).toThrow('audition_review_issue_coverage');
+    answer.scaleEvidence=abstain('not_standing');
+    scale.verdict='defect';
+    expect(()=>assess(PICTURE_BOOK_SCALE_REVIEW)).toThrow('audition_review_issue_coverage');
+    scale.verdict='uncertain';
+    scale.issues=[{impact:'continuity',requirement:'companion_scale',note:'The action pose scale is unclear.'}];
+    expect(assess(PICTURE_BOOK_SCALE_REVIEW).assessment.counts.continuity).toBe(1);
+    scale.issues=[];
+    answer.checks.find(check=>check.category==='safety')!.verdict='uncertain';
+    expect(()=>assess(PICTURE_BOOK_SCALE_REVIEW)).toThrow('audition_review_issue_coverage');
   });
   it('CE-R2 storyboard scale review verifies the proposed plan rather than issuing planner commands',()=>{
     const instruction=storyboardReviewInstructions({engineContinuity:{companionScale:true}});

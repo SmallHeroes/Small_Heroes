@@ -38,8 +38,8 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V6, isCurrentCustomerEngine, usesLocationSpatialDirection, usesPictureBookReview, usesTypedCustomerCorrections } from './current-engine-policy';
-import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_REVIEW, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
+import { ENGINE_CURRENT_CUSTOMER_V3, enginePictureBookReview, isCurrentCustomerEngine, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
+import { PICTURE_BOOK_DRAWING_DIRECTION, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
 import { blockedRouteDrawing, initialBlockedRoutesOnPage, locationSpatialDirection } from '@/lib/personal-wizard/location-spatial-direction';
 import { LOCATION_GUIDE_LEGEND, locationSpatialGuide } from '@/lib/personal-wizard/location-spatial-guide';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
@@ -48,7 +48,7 @@ import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrig
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
-import {checkLocalEntitiesPreparation,localCurrentTransition,localEntitiesSheetPair,type LocalEntitiesPreparation} from './local-current-entities';
+import {checkLocalEntitiesPreparation,localCurrentLocationAttempt,localCurrentTransition,localEntitiesSheetPair,localSpentReviewReasks,withLocalSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
 import {assertEngineLocationV2RepairPreparation,locationV2RepairFindings,type AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
@@ -94,10 +94,11 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
   observeReferenceSheet?:(value:EngineNativeSheetObservation)=>void;
   materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
   return async runtime => {
+    if(args.currentLocationsRepair)runtime=withLocalSettledMedia(args.currentLocationsRepair,runtime);
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
-    const pictureBook = usesPictureBookReview(authority);
+    const pictureBook = enginePictureBookReview(authority);
     const spatialPolicy = usesLocationSpatialDirection(authority);
-    const correctedSpatial = authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V6;
+    const correctedSpatial = usesCorrectedLocationSpatialDirection(authority);
     if (canonicalHash(ENGINE_SITE_LAUNCH_OFFER) !== authority.offer.revisionSha256 || snapshot.ownerId !== runtime.checkpoint.ownerId)
       engineSiteFail('engine_recipe_binding_changed');
     const pool = new Map<string, Buffer>();
@@ -147,7 +148,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       previous: AuditionImage | null, kind: 'sheet' | 'page') => {
       const body = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha,
         refs: refs.map(bytesOf), predecessor: previous ? bytesOf(previous) : null, kind,
-        ...(pictureBook ? { pictureBookReview: PICTURE_BOOK_REVIEW } : {}) });
+        ...(pictureBook ? { pictureBookReview: pictureBook } : {}) });
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     if(args.locationsRepairPreparation&&args.locationsV2RepairPreparation)engineSiteFail('local_locations_v2_preparation_changed');
@@ -328,8 +329,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         }
         const repair=(cap||currentRepair)&&role==='locations'?prior:undefined;
         const spatialRedraw=args.currentLocationsRepair?.boundary==='locations-spatial-direction'&&role==='locations';
-        const spatialCorrection=args.currentLocationsRepair?.boundary==='locations-spatial-correction'&&role==='locations';
-        const nextAttempt=repair?(args.currentLocationsRepair ? localCurrentTransition(args.currentLocationsRepair.boundary).index :
+        const spatialCorrection=correctedSpatial&&!!args.currentLocationsRepair&&role==='locations';
+        const nextAttempt=repair?(args.currentLocationsRepair ? localCurrentLocationAttempt(localCurrentTransition(args.currentLocationsRepair.boundary).index) :
           args.locationsV2RepairPreparation ? 2 : 1):0;
         const step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
         const repairRequirements=repair?.attempt.assessment?.findings.filter(f => f.bound && f.impact !== 'detail').map(f => f.requirement);
@@ -374,9 +375,10 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
           : args.locationsV2RepairPreparation?.previousLocationAttempts ?? [repair.attempt]) : [];
         sheets[role] = { ...context, chosen, attempts: [...structuredClone(previous),attempt], status: attempt.status };
       }
+      const spentReviewReasks=args.currentLocationsRepair?localSpentReviewReasks(args.currentLocationsRepair):undefined;
       const saved: Record<string, unknown> = {};
       const resumePages: Partial<Record<number, SavedPage>> = {};
-      for (const n of NATIVE_BOOK_FRAMES) {
+      for (const n of spentReviewReasks ? [] : NATIVE_BOOK_FRAMES) {
         const prior = await runtime.load(`native_page_${n}`) as SavedPage | null;
         if (!prior) break;
         if (prior.pageNumber !== n || prior.status !== 'qa_supported') engineSiteFail('engine_native_checkpoint_invalid');
@@ -390,7 +392,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         current: { request: snapshot.request, writerResult: prepared.source, options: snapshot.options, readerFraming: READER_PORTRAIT_FRAMING_VERSION }, child, companion,
         companionDescription: restored.source.companionDescription, pages: NATIVE_BOOK_FRAMES, reuseSheets: sheets,
         ...(usesTypedCustomerCorrections(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
-        ...(pictureBook ? { pictureBookReview: PICTURE_BOOK_REVIEW } : {}),
+        ...(pictureBook ? { pictureBookReview: pictureBook } : {}),
+        ...(spentReviewReasks===undefined?{}:{spentReviewReasks}),
         ...(Object.keys(resumePages).length ? { resumePages } : {}),
         check: runtime.check, render: (step, prompt, refs, mode, roles) => {
           if (!['book_identity', 'book_design', 'book_scene_edit'].includes(mode)) engineSiteFail('engine_native_v2_not_enabled');

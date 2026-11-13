@@ -7,10 +7,11 @@ import {z} from 'zod';
 import type {PrismaClient} from '@prisma/client';
 import {canonicalHash} from '@/lib/canonical-json';
 import type {AuditionAttempt} from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import {PICTURE_BOOK_SCALE_REPORTING} from '@/lib/personal-wizard/picture-book-direction';
 import {auditionUsageCost} from '@/scripts/personal-simple-book-illustrator';
 import {anthropicAuthorCost} from './anthropic-author';
 import {engineSiteFail,type EngineOrderAuthority} from './contract';
-import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6} from './current-engine-policy';
+import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6,ENGINE_CURRENT_CUSTOMER_V7} from './current-engine-policy';
 import {parseEngineCheckpoint,type EngineRuntime} from './durable-worker';
 import {admitLocalCurrentRegistration,localConsentDispatchWitness,localConsentLedger,localConsentRecordSchema,type LocalConsentLedger} from './local-consent-ledger';
 import {assertLocalParentEvidence,readLocalSettledJournal} from './local-trial-continuation';
@@ -29,17 +30,20 @@ export const localCurrentLocationsSchema=localCurrentEntitiesSchema.extend({vers
 export const localCurrentPictureBookSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-picture-book-continuation/v1')}).strict();
 export const localCurrentSpatialSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-spatial-continuation/v1')}).strict();
 export const localCurrentSpatialCorrectionSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-spatial-correction/v1')}).strict();
-type Spec=z.infer<typeof localCurrentEntitiesSchema>|z.infer<typeof localCurrentLocationsSchema>|z.infer<typeof localCurrentPictureBookSchema>|z.infer<typeof localCurrentSpatialSchema>|z.infer<typeof localCurrentSpatialCorrectionSchema>;
-export const localCurrentBoundaries=['entities','locations','locations-art-direction','locations-spatial-direction','locations-spatial-correction'] as const;
-const localCurrentVersions=[ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6] as const;
+export const localCurrentScaleContinuationSchema=localCurrentLocationsSchema.extend({version:z.literal('engine-local-current-scale-continuation/v1'),
+ targetReviewStep:z.string().regex(/^page_[0-8]_[0-2]_qa2$/)}).strict();
+type Spec=z.infer<typeof localCurrentEntitiesSchema>|z.infer<typeof localCurrentLocationsSchema>|z.infer<typeof localCurrentPictureBookSchema>|z.infer<typeof localCurrentSpatialSchema>|z.infer<typeof localCurrentSpatialCorrectionSchema>|z.infer<typeof localCurrentScaleContinuationSchema>;
+export const localCurrentBoundaries=['entities','locations','locations-art-direction','locations-spatial-direction','locations-spatial-correction','page-scale-abstention'] as const;
+const localCurrentVersions=[ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,ENGINE_CURRENT_CUSTOMER_V6,ENGINE_CURRENT_CUSTOMER_V7] as const;
 export function localCurrentBoundary(spec:Spec) {
+ if(spec.version==='engine-local-current-scale-continuation/v1')return 'page-scale-abstention';
  if(spec.version==='engine-local-current-spatial-correction/v1')return 'locations-spatial-correction';
  if(spec.version==='engine-local-current-spatial-continuation/v1')return 'locations-spatial-direction';
  if(spec.version==='engine-local-current-picture-book-continuation/v1')return 'locations-art-direction';
  return spec.version==='engine-local-current-locations-continuation/v1'?'locations':'entities';
 }
 export function localCurrentTransition(boundary:ReturnType<typeof localCurrentBoundary>){
- const index=localCurrentBoundaries.indexOf(boundary) as LocationAttempt;
+ const index=localCurrentBoundaries.indexOf(boundary) as 0|1|2|3|4|5;
  return {index,previousBoundary:localCurrentBoundaries[index-1],from:localCurrentVersions[index],to:localCurrentVersions[index+1]};
 }
 type Snapshot=Parameters<typeof createEngineNativeRecipe>[0]['snapshot'];
@@ -63,13 +67,16 @@ const locationSteps=(attempt:number)=>[`sheet_locations_${attempt}`,`sheet_locat
 export const localLocationMediaStep=(step:string,attempt:Exclude<LocationAttempt,0>=1)=>locationSteps(attempt).includes(step)||localEntityMediaStep(step)&&!step.startsWith('sheet_');
 export const localCurrentLocationRepairSlots=(steps:EngineOrderAuthority['budget']['steps'],attempt:LocationAttempt=1,from:LocationAttempt=0)=>
  steps.map(s=>locationSteps(from).includes(s.id)?{...s,id:s.id.replace(`_${from}`,`_${attempt}`)}:s);
+export const localCurrentLocationAttempt=(stage:number):LocationAttempt=>Math.min(stage,4) as LocationAttempt;
 type ParentGo={approvalReference:string;approvedAt:string;sourceRevision:string;profileSha256:string;readerId:string;maximumMicroUsd:number;maximumCalls:number};
 export function readLocalEntityParentGo(spec:Spec):unknown{return JSON.parse(pinned(spec.parentGo).toString('utf8'));}
 
 type Admitted={readonly carried:Readonly<LocalTrialCarry>;readonly preparedSha256:string;readonly parentLedger:Readonly<LocalConsentLedger>;
  readonly boundary:ReturnType<typeof localCurrentBoundary>;readonly orderId:string;
  readonly parentConsentSha256:string;readonly parentApprovalReference:string};
+type SettlementReplay={targetReviewStep:string;parentAuthoritySha256:string;receipts:ReturnType<typeof readLocalSettledJournal>};
 type Admission={prepared:unknown;authoritySha256:string;snapshotSha256:string;ownerId:string;draftId:string;check:()=>void;
+ settledMedia?:SettlementReplay;
  sheets?:{entities:EngineNativeSheetObservation;locations:EngineNativeSheetObservation;previousLocations:AuditionAttempt[]}};
 const admissions=new WeakMap<Admitted,Admission>();
 export type LocalEntitiesPreparation=Admitted;
@@ -89,6 +96,57 @@ export function localEntitiesSheetPair(cap:Admitted,checkpoint:EngineRuntime['ch
  localEntitiesPreparedSource(cap,checkpoint,snapshot,prepared);
  return structuredClone(a.sheets);
 }
+
+export function localSettledMedia(cap:Admitted,checkpoint:EngineRuntime['checkpoint'],step:string){
+ const {settledMedia,authoritySha256}=admission(cap);
+ if(!settledMedia)return null;
+ if(authoritySha256!==canonicalHash(checkpoint.authority))engineSiteFail('local_entities_preparation_binding');
+ const record=settledMedia.receipts.claims.get(step);
+ if(!record)return null;
+ if(checkpoint.calls[step]||step===settledMedia.targetReviewStep)engineSiteFail('local_scale_replay_collision');
+ return {request:structuredClone(record.request),result:structuredClone(settledMedia.receipts.results.get(step)!)};
+}
+
+/** Earlier re-asks still used the normal judge path. Only the now unneeded terminal re-ask is counted separately. */
+export function localSpentReviewReasks(cap:Admitted){
+ return admission(cap).settledMedia?1:undefined;
+}
+
+/** The stopped run is fully re-derived under its original authority at admission. This adapter can only return those settled bytes.
+ * For the replayed calls, authority identity and the prospective scale-reporting sentence are the sole wire differences. */
+export function withLocalSettledMedia(cap:Admitted,runtime:EngineRuntime):EngineRuntime{
+ const {settledMedia}=admission(cap);
+ if(!settledMedia)return runtime;
+ const {targetReviewStep,parentAuthoritySha256,receipts}=settledMedia;
+ const first=targetReviewStep.replace(/_qa2$/,'_identity');
+ const used=new Set<string>();
+ let crossed=false;
+ return {...runtime,
+  load:name=>runtime.load(name),save:(name,value)=>runtime.save(name,value),advance:phase=>runtime.advance(phase),
+  async result(step){return localSettledMedia(cap,runtime.checkpoint,step)?.result??runtime.result(step);},
+  async call(plan){
+   const step=plan.call.step,archived=localSettledMedia(cap,runtime.checkpoint,step);
+   if(!archived){
+    if(!crossed){
+     if(step!==first||used.size!==receipts.results.size-1)engineSiteFail('local_scale_first_call');
+     crossed=true;
+    }
+    return runtime.call(plan);
+   }
+   runtime.check();plan.revalidate?.();
+   if(crossed||used.has(step)||!plan.admitSaved||canonicalHash(plan.wire)!==plan.call.wireSha256||
+     plan.call.maximumMicroUsd!==archived.request.call.maximumMicroUsd)engineSiteFail('local_scale_replay_wire');
+   const wire=plan.wire as Record<string,any>;
+   const previous={...wire,authoritySha256:parentAuthoritySha256};
+   if(/^page_[0-8]_[0-2]_qa2?$/.test(step)){
+    const suffix='\n'+PICTURE_BOOK_SCALE_REPORTING;
+    if(typeof wire.body?.instructions!=='string'||!wire.body.instructions.endsWith(suffix))engineSiteFail('local_scale_replay_wire');
+    Object.assign(previous,{body:{...wire.body,instructions:wire.body.instructions.slice(0,-suffix.length)}});
+   }
+   if(canonicalHash(previous)!==archived.request.call.wireSha256)engineSiteFail('local_scale_replay_wire');
+   await plan.admitSaved(archived.result);runtime.check();used.add(step);return archived.result;
+  }};
+}
 function assertFreshOutput(out:string,parent:string,ledger:string){
  const n=(s:string)=>path.resolve(s).toLowerCase(),d=n(out);
  if([parent,ledger].some(p=>d===n(p)||d.startsWith(n(p)+path.sep)||n(p).startsWith(d+path.sep))||realpathSync(out)!==out)
@@ -102,6 +160,7 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  snapshot:Snapshot;profileSha256:string;out:string;readerId:string;ledgerRoot:string;upstream?:Admitted;terminalTargetForReplay?:true}):Promise<Admitted>{
  const {spec,parentGo:g,parentAuthority:old,authority:a,snapshot,out}=o;
  const boundary=localCurrentBoundary(spec),location='previousLink' in spec,upstream=o.upstream;
+ const scale=spec.version==='engine-local-current-scale-continuation/v1'?spec:null;
  const transition=localCurrentTransition(boundary),priorLocation=transition.index>=2;
  if(location?(!upstream||upstream.boundary!==transition.previousBoundary||admission(upstream).authoritySha256!==canonicalHash(old)):upstream!==undefined)
   engineSiteFail('local_locations_current_parent_scope');
@@ -118,8 +177,8 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
   old.orderId!==(upstream?.orderId??g.approvalReference)||
   old.sourceRevision!==g.sourceRevision||old.currentEngine!==transition.from||a.currentEngine!==transition.to||
   old.imageQuality!=='low'||old.imageModelPolicy?.model!=='gpt-image-2.6-sunburst'||old.budget.maximumMicroUsd!==g.maximumMicroUsd||
-  old.budget.maximumCalls!==g.maximumCalls||canonicalHash(oldShape(a))!==canonicalHash(oldShape(location?
-   {...old,budget:{...old.budget,steps:localCurrentLocationRepairSlots(old.budget.steps,transition.index,(transition.index-1) as LocationAttempt)}}:old))||snapshot.appearance.kind!=='description'||
+  old.budget.maximumCalls!==g.maximumCalls||canonicalHash(oldShape(a))!==canonicalHash(oldShape(location&&!scale?
+   {...old,budget:{...old.budget,steps:localCurrentLocationRepairSlots(old.budget.steps,localCurrentLocationAttempt(transition.index),localCurrentLocationAttempt(transition.index-1))}}:old))||snapshot.appearance.kind!=='description'||
   snapshot.request.bookOptions.voiceId!=='dad_v2'||a.requestSha256!==canonicalHash(snapshot))engineSiteFail('local_entities_scope');
  if(!o.terminalTargetForReplay)assertFreshOutput(out,root,o.ledgerRoot);
  const ledger=localConsentLedger(o.ledgerRoot,g.approvalReference);
@@ -142,7 +201,7 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  if((location?(exit.code!==1||exit.outcomeExists!==false||exit.head!==g.sourceRevision||exit.goSha256!==spec.parentGo.sha256||
     launch.head!==g.sourceRevision||launch.registrationSha256!==registration.registrationSha256):!legacy)||
   !Number.isFinite(Date.parse(exitedAt))||!(Date.parse(launch.at)<=Date.parse(startedAt)&&Date.parse(startedAt)<=Date.parse(running.startedAt)&&Date.parse(running.startedAt)<=Date.parse(stop.at)&&Date.parse(stop.at)<=Date.parse(exitedAt))||
-  stop.version!=='engine-local-current-book-stop/v1'||stop.reason!=='engine_reference_sheet_held'||stop.phase!=='native'||stop.productAccepted!==false||
+  stop.version!=='engine-local-current-book-stop/v1'||stop.reason!==(scale?'audition_review_unusable':'engine_reference_sheet_held')||stop.phase!=='native'||stop.productAccepted!==false||
   launch.pid!==supervisor||launch.authoritySha256!==authoritySha256||launch.goSha256!==spec.parentGo.sha256||
   terminal.version!=='local-book-independent-outcome/v1'||terminal.sourceHead!==g.sourceRevision||terminal.exitCode!==1||terminal.outcome!=='held'||
   terminal.reason!==stop.reason||terminal.phase!==stop.phase||terminal.launcherExitAt!==exitedAt||
@@ -159,14 +218,19 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
    consentSha256,goSha256:spec.parentGo.sha256,authoritySha256,out:root}))engineSiteFail('local_locations_current_parent_claim');
  }
  const cp=parseEngineCheckpoint({engineSite:json(path.join(root,'journal/checkpoint.json'))}),steps=Object.keys(cp.calls);
- const required=priorLocation?locationSteps(transition.index-1):['sheet_entities_0','sheet_entities_0_qa',...(location?locationSteps(0):[])];
+ const targetRender=scale?.targetReviewStep.replace(/_qa2$/,'');
+ const required=scale?[...locationSteps(4),targetRender!,targetRender+'_qa',scale.targetReviewStep]:
+  priorLocation?locationSteps(transition.index-1):['sheet_entities_0','sheet_entities_0_qa',...(location?locationSteps(0):[])];
+ const outputNames=Object.keys(cp.outputs);
+ const validOutputs=scale?outputNames.includes('prepared_source')&&outputNames.every(n=>n==='prepared_source'||/^native_page_[0-8]$/.test(n)):sorted(outputNames)==='prepared_source';
  if(cp.phase!=='native'||cp.waiting!==null||canonicalHash(cp.authority)!==authoritySha256||cp.snapshotSha256!==a.requestSha256||
-  cp.ownerId!==snapshot.ownerId||cp.draftId!==snapshot.request.draftId||sorted(Object.keys(cp.outputs))!=='prepared_source'||
-  sorted(steps)!==sorted(stop.calls)||(location?sorted(steps)!==sorted(required):steps.some(s=>!oldStep.test(s))))engineSiteFail('local_entities_parent_checkpoint');
+  cp.ownerId!==snapshot.ownerId||cp.draftId!==snapshot.request.draftId||!validOutputs||
+  sorted(steps)!==sorted(stop.calls)||(scale?steps.some(step=>!localLocationMediaStep(step,4)||step.startsWith('narration_')):
+   location?sorted(steps)!==sorted(required):steps.some(s=>!oldStep.test(s))))engineSiteFail('local_entities_parent_checkpoint');
  const receipts=readLocalSettledJournal(root,cp,required,new Set(steps),(step,r)=>{
   const raw=r.raw as any;
   if(step==='story_author')return anthropicAuthorCost(raw,'batch');
-  if(/^(?:reference_child(?:_repair)?|sheet_entities_0|sheet_locations_[0-3])$/.test(step))
+  if(/^(?:reference_child(?:_repair)?|sheet_entities_0|sheet_locations_[0-4]|page_[0-8]_[0-2])$/.test(step))
    return r.model===old.imageModelPolicy?.model?auditionUsageCost(raw.usage,'image'):null;
   if(step.endsWith('_identity'))return auditionUsageCost({input_tokens:raw.usage?.prompt_tokens,output_tokens:raw.usage?.completion_tokens},'identity');
   return raw.model==='gpt-6.1-sol'&&raw.service_tier==='default'?auditionUsageCost(raw.usage,'sol'):null;
@@ -207,11 +271,19 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
   for(const [f,h] of witnessPins)if(sha(bytes(f))!==h)engineSiteFail('local_entities_parent_witness');
  };
  const accepted=receipts.asset(cp.outputs.prepared_source),preparedSha256=canonicalHash(accepted);
- const used=new Set<string>(),observations:EngineNativeSheetObservation[]=[];
+ const used=new Set<string>(),verifiedOutputs=new Set<string>(),observations:EngineNativeSheetObservation[]=[];
  let prepared:unknown=upstream?localEntitiesPreparedSource(upstream,cp,snapshot,accepted):null;
  const runtime:EngineRuntime={checkpoint:{...structuredClone(cp),phase:location?'native':'story'},signal:new AbortController().signal,check(){},result:denied,
   async load(name){if(name==='prepared_source')return prepared;return null;},
-  async save(name,value){if(name!=='prepared_source'||prepared!==null||canonicalHash(value)!==preparedSha256)engineSiteFail('local_entities_replay_output');prepared=structuredClone(value);},
+  async save(name,value){
+   if(scale&&/^native_page_[0-8]$/.test(name)){
+    const id=cp.outputs[name];
+    if(!id||verifiedOutputs.has(name)||canonicalHash(receipts.asset(id))!==canonicalHash(value))engineSiteFail('local_entities_replay_output');
+    verifiedOutputs.add(name);return;
+   }
+   if(name!=='prepared_source'||prepared!==null||canonicalHash(value)!==preparedSha256)engineSiteFail('local_entities_replay_output');
+   prepared=structuredClone(value);
+  },
   async advance(phase){if(phase!=='native')engineSiteFail('local_entities_replay_output');runtime.checkpoint.phase=phase;},
   async call(plan){
    plan.revalidate?.();const {step}=plan.call,found=receipts.claims.get(step),result=receipts.results.get(step);
@@ -221,11 +293,19 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
   }};
  try{await createEngineNativeRecipe({db,storage,snapshot,ports,observeReferenceSheet:v=>observations.push(v),
   ...(priorLocation?{currentLocationsRepair:upstream}:{})})(runtime);}
- catch(error){if((error as {code?:unknown})?.code!=='engine_reference_sheet_held')throw error;}
+ catch(error){if((error as {code?:unknown})?.code!==stop.reason)throw error;}
  if(prepared===null||sorted(used)!==sorted(steps)||observations.length!==(location&&!priorLocation?2:1)||observations[0].role!==(priorLocation?'locations':'entities'))
   engineSiteFail('local_entities_parent_not_repairable');
- let sheets:Admission['sheets'];
- if(location){
+ let sheets:Admission['sheets'],settledMedia:Admission['settledMedia'];
+ if(scale){
+  if(outputNames.length!==verifiedOutputs.size+1||[...used][used.size-1]!==scale.targetReviewStep||
+    observations[0].attempt.status!=='qa_supported'||
+    (receipts.results.get(targetRender!)?.output as {imageSha?:string})?.imageSha!==scale.targetImageSha256)
+   engineSiteFail('local_scale_parent_target');
+  sheets=localEntitiesSheetPair(upstream!,cp,snapshot,prepared);
+  settledMedia={targetReviewStep:scale.targetReviewStep,parentAuthoritySha256:authoritySha256,receipts};
+ }
+ else if(location){
   const locations=observations[priorLocation?0:1];
   if(locations.role!=='locations'||locations.attempt.candidate?.imageSha!==spec.targetImageSha256)engineSiteFail('local_locations_current_target');
   if(priorLocation){
@@ -249,24 +329,34 @@ export async function admitLocalEntitiesContinuation(o:{spec:Spec;parentGo:Paren
  const carried=Object.freeze({accountedMicroUsd:known,logicalCalls:count,evidenceSha256:canonicalHash(spec)});
  const cap=Object.freeze({carried,preparedSha256,parentLedger:Object.freeze(ledger),parentConsentSha256:consentSha256,parentApprovalReference:g.approvalReference,
   boundary,orderId:old.orderId});
- admissions.set(cap,{prepared,authoritySha256:canonicalHash(a),snapshotSha256:a.requestSha256,ownerId:cp.ownerId,draftId:cp.draftId,check,sheets});
+ admissions.set(cap,{prepared,authoritySha256:canonicalHash(a),snapshotSha256:a.requestSha256,ownerId:cp.ownerId,draftId:cp.draftId,check,sheets,settledMedia});
  return cap;
 }
 
 /** Exact first media wire. Neither an accepted cache nor this plan is spend authority. */
 export async function previewLocalEntitiesContinuation(cap:Admitted,snapshot:Snapshot,authority:EngineOrderAuthority){
- const stop={},plans:Pick<Parameters<EngineRuntime['call']>[0],'call'|'wire'>[]=[];
+ const stop=Object.assign(Error('local_entities_first_wire'),{code:'audition_cancelled'});
+ const plans:Pick<Parameters<EngineRuntime['call']>[0],'call'|'wire'>[]=[];
+ const continuation=admission(cap).settledMedia;
  const runtime:EngineRuntime={checkpoint:{version:'engine-site-job/v1',authority,ownerId:snapshot.ownerId,draftId:snapshot.request.draftId,
   snapshotSha256:authority.requestSha256,phase:'native',calls:{},outputs:{},waiting:null},signal:new AbortController().signal,
-  check(){},result:denied,save:async()=>denied(),advance:async()=>denied(),
+  check(){},result:denied,advance:async()=>denied(),
+  async save(name){if(!continuation||!/^native_page_[0-8]$/.test(name))denied();},
   async load(name){return name==='prepared_source'?localEntitiesPreparedSource(cap,runtime.checkpoint,snapshot):null;},
   async call(plan){plan.revalidate?.();plans.push({call:plan.call,wire:plan.wire});throw stop;}};
  try{await createEngineNativeRecipe({db,storage,snapshot,ports,...(cap.boundary!=='entities'?{currentLocationsRepair:cap}:{})})(runtime);}catch(e){if(e!==stop)throw e;}
- const expected=cap.boundary==='entities'?'sheet_entities_0':locationSteps(localCurrentTransition(cap.boundary).index)[0];
+ const expected=continuation?continuation.targetReviewStep.replace(/_qa2$/,'_identity'):
+  cap.boundary==='entities'?'sheet_entities_0':locationSteps(localCurrentTransition(cap.boundary).index)[0];
  if(plans.length!==1||plans[0].call.step!==expected||
   cap.carried.accountedMicroUsd+plans[0].call.maximumMicroUsd>authority.budget.maximumMicroUsd)
   engineSiteFail('local_entities_first_step');
  return plans[0];
+}
+
+export function localEntitiesAllowedStep(cap:Admitted,step:string){
+ const a=admission(cap);
+ if(a.settledMedia?.receipts.claims.has(step))return false;
+ return cap.boundary==='entities'?localEntityMediaStep(step):localLocationMediaStep(step,localCurrentLocationAttempt(localCurrentTransition(cap.boundary).index) as Exclude<LocationAttempt,0>);
 }
 
 /** In addition to the candidate's own one-use consent, a stopped parent may have only ONE child execution, across any candidate GO. */

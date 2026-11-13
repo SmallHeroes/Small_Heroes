@@ -5,6 +5,10 @@ import { materialFunctionFromContext } from './storyboard-material-function';
 import type { auditionSheetDesigns } from './simple-book-reviewed-audition';
 
 export const PICTURE_BOOK_REVIEW = 'picture-book-materiality/v1' as const;
+export const PICTURE_BOOK_SCALE_REVIEW = 'picture-book-materiality/v2' as const;
+export type PictureBookReview = typeof PICTURE_BOOK_REVIEW | typeof PICTURE_BOOK_SCALE_REVIEW;
+
+export const PICTURE_BOOK_SCALE_REPORTING = 'Standing-scale coverage is recorded separately in scaleEvidence. On a non-comparable frame, when there is no actionable scale issue, report the coverage limitation as an observation with an empty issues list and empty correction. Continue to report any visible action-scale defect or unresolved action-scale evidence as an issue.';
 
 export const PICTURE_BOOK_DRAWING_DIRECTION = `PICTURE BOOK ART DIRECTION
 Make the main action and its result easy to see at a glance. Place the child and companion so their gaze, gesture and points of contact tell the same story. Keep unrelated detail away from the action. Use silhouette, spacing, colour and texture to distinguish neighbouring parts. For a change in state, draw the specified moment and make the visible before/after boundary clear. Keep the same recognisable designs as the camera moves. Choose a natural angle and composition that make the required action readable.`;

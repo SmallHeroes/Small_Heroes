@@ -7,6 +7,8 @@
  * exceeds a serverless invocation) and a held initial storyboard gets the engine's ordinary bounded repairs
  * automatically. Absent, a customer authority keeps the historical recipe and wire bytes exactly.
  */
+import { PICTURE_BOOK_REVIEW, PICTURE_BOOK_SCALE_REVIEW } from '@/lib/personal-wizard/picture-book-direction';
+
 export const ENGINE_CURRENT_CUSTOMER = 'customer-current-engine/v1' as const;
 /**
  * customer-current-engine/v2: v1 exactly, plus (1) ONE bound storyboard repair and its review after a held bound review
@@ -23,7 +25,9 @@ export const ENGINE_CURRENT_CUSTOMER_V4 = 'customer-current-engine/v4' as const;
 export const ENGINE_CURRENT_CUSTOMER_V5 = 'customer-current-engine/v5' as const;
 /** Source-bound targeted correction of a reviewed spatial sheet. */
 export const ENGINE_CURRENT_CUSTOMER_V6 = 'customer-current-engine/v6' as const;
-export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4, ENGINE_CURRENT_CUSTOMER_V5, ENGINE_CURRENT_CUSTOMER_V6] as const;
+/** Distinguishes an unmeasurable standing comparison from a material scale issue. */
+export const ENGINE_CURRENT_CUSTOMER_V7 = 'customer-current-engine/v7' as const;
+export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4, ENGINE_CURRENT_CUSTOMER_V5, ENGINE_CURRENT_CUSTOMER_V6, ENGINE_CURRENT_CUSTOMER_V7] as const;
 export type EngineCurrentVersion = (typeof ENGINE_CURRENT_VERSIONS)[number];
 export const ENGINE_AUTHOR_BATCH = 'anthropic-message-batch/v1' as const;
 /** The base storyboard ceiling: the first plan plus two focused repairs. No owner extension is implied. */
@@ -36,13 +40,22 @@ export function isCurrentCustomerEngine(authority: { purpose: string; currentEng
 export function usesTypedCustomerCorrections(authority: { purpose: string; currentEngine?: string }) {
   return authority.purpose === 'customer' && (authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V2 ||
     authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V4 ||
-    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V5 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V6);
+    usesLocationSpatialDirection(authority));
 }
 
 export function usesPictureBookReview(authority: { currentEngine?: string }) {
   return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V4 || usesLocationSpatialDirection(authority);
 }
 
+export function enginePictureBookReview(authority: { currentEngine?: string }) {
+  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V7 ? PICTURE_BOOK_SCALE_REVIEW :
+    usesPictureBookReview(authority) ? PICTURE_BOOK_REVIEW : undefined;
+}
+
 export function usesLocationSpatialDirection(authority: { currentEngine?: string }) {
-  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V5 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V6;
+  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V5 || usesCorrectedLocationSpatialDirection(authority);
+}
+
+export function usesCorrectedLocationSpatialDirection(authority: { currentEngine?: string }) {
+  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V6 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V7;
 }

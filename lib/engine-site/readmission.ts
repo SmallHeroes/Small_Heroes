@@ -3,10 +3,9 @@ import type { PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
 import { auditionPageReviewSchemaForContext,assessAuditionReview,auditionAnatomyCast,auditionLandmarkTopology,auditionInstanceDistinction } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { companionScaleFromContext } from '@/lib/personal-wizard/companion-scale';
-import { PICTURE_BOOK_REVIEW } from '@/lib/personal-wizard/picture-book-direction';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { engineSiteFail } from './contract';
-import { usesPictureBookReview } from './current-engine-policy';
+import { enginePictureBookReview } from './current-engine-policy';
 import { createEngineNativeRecipe } from './native-recipe';
 import type { EngineRuntime, EngineProviderResult } from './durable-worker';
 import { loadEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
@@ -23,7 +22,7 @@ import type {AdmittedEngineInitialPreparation} from './story-preparation';
 import type {AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import type {AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
 import type {AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
-import {checkLocalEntitiesPreparation,localEntitiesPreparedSource,type LocalEntitiesPreparation} from './local-current-entities';
+import {checkLocalEntitiesPreparation,localEntitiesPreparedSource,localSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
 
 /** Rebuild the entire producer through its real compilers, raw saved provider answers and native resume gates.
  * No grant, lease, provider execute(), key, mutation or replacement answer is available in this runtime. */
@@ -107,15 +106,18 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       if (!attempt.candidate) engineSiteFail('engine_readmission_missing_candidate');
       const step = attempt.candidate.imageName.replace(/\.png$/, '');
       if (!(new RegExp(`^page_${page.pageNumber}_[0-2]$`)).test(step)) engineSiteFail('engine_readmission_frame_changed');
-      const image = await result(step), rawImage = image.raw as any, output = image.output as any;
+      const archived = (step:string) => entitiesContinuation ? localSettledMedia(entitiesContinuation,checkpoint,step) : null;
+      const image = archived(step)?.result ?? await result(step), rawImage = image.raw as any, output = image.output as any;
       if (!image.usable || image.model !== (checkpoint.authority.imageModelPolicy?.model ?? 'gpt-image-2') || typeof rawImage.data?.[0]?.b64_json !== 'string' ||
           rawImage.data[0].b64_json !== output.b64 || assetBytesSha256(Buffer.from(output.b64, 'base64')) !== attempt.candidate.imageSha ||
           auditionUsageCost(rawImage.usage, 'image') !== image.estimatedMicroUsd) engineSiteFail('engine_readmission_image_changed');
       const qaStep = `${step}_${attempt.reviewReask ? 'qa2' : 'qa'}`;
-      const qa = await result(qaStep), rawQa = qa.raw as any;
-      const claim = checkpoint.calls[qaStep], request = await readJson(claim.requestAssetId);
-      if (request.authoritySha256 !== canonicalHash(checkpoint.authority) || request.call?.step !== qaStep ||
-          canonicalHash(request.wire) !== claim.wireSha256 || request.call.wireSha256 !== claim.wireSha256)
+      const oldQa = archived(qaStep);
+      const qa = oldQa?.result ?? await result(qaStep), rawQa = qa.raw as any;
+      const claim = checkpoint.calls[qaStep], request = oldQa?.request ?? await readJson(claim.requestAssetId);
+      const expectedReviewWire = oldQa ? oldQa.request.call.wireSha256 : claim.wireSha256;
+      if ((!oldQa && request.authoritySha256 !== canonicalHash(checkpoint.authority)) || request.call?.step !== qaStep ||
+          canonicalHash(request.wire) !== expectedReviewWire || request.call.wireSha256 !== expectedReviewWire)
         engineSiteFail('engine_readmission_review_wire_changed');
       const content = request.wire?.body?.input?.[0]?.content;
       let judged: any;
@@ -135,16 +137,19 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       try {assessment=assessAuditionReview(parsedRaw,attempt.candidate.imageSha,judged.contextSha,judged.context.requirementIds??[],
         judged.context.checks?.uniqueLandmarks??[],auditionLandmarkTopology(judged.context),auditionAnatomyCast(judged.context),
         auditionInstanceDistinction(judged.context),companionScaleFromContext(judged.context),
-        usesPictureBookReview(checkpoint.authority)?PICTURE_BOOK_REVIEW:undefined).assessment;}
+        enginePictureBookReview(checkpoint.authority)).assessment;}
       catch{engineSiteFail('engine_readmission_assessment_changed');}
       if(canonicalHash(assessment)!==canonicalHash(attempt.assessment))engineSiteFail('engine_readmission_assessment_changed');
       if (attempt.status === 'identity_unusable') engineSiteFail('engine_readmission_identity_changed');
       if (assessment.safetyBlocked || assessment.invalidCitations) continue;
-      const measured = await result(`${step}_identity`), raw = measured.raw as any;
+      const identityStep = `${step}_identity`, oldIdentity = archived(identityStep);
+      const measured = oldIdentity?.result ?? await result(identityStep), raw = measured.raw as any;
       const candidateUrl = `data:image/png;base64,${output.b64}`;
       const body = planPageChildResemblanceVisionRequest(childUrl, candidateUrl, 'gpt-4o');
-      const wire = { version: 'engine-site-identity/v1', step: `${step}_identity`, authoritySha256: canonicalHash(checkpoint.authority), body, maxRetries: 0 };
-      if (canonicalHash(wire) !== checkpoint.calls[`${step}_identity`].wireSha256) engineSiteFail('engine_readmission_identity_wire_changed');
+      const wire = { version: 'engine-site-identity/v1', step: identityStep,
+        authoritySha256: oldIdentity?.request.authoritySha256 ?? canonicalHash(checkpoint.authority), body, maxRetries: 0 };
+      if (canonicalHash(wire) !== (oldIdentity?.request.call.wireSha256 ?? checkpoint.calls[identityStep].wireSha256))
+        engineSiteFail('engine_readmission_identity_wire_changed');
       const projected = await evaluatePageChildResemblanceVision({ referenceImageUrl: childUrl, candidateImageUrl: candidateUrl, threshold: PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
         model: 'gpt-4o', maxRetries: 0, apiKey: 'SAVED_RESPONSE_REPLAY', fetchImpl: async () => new Response(JSON.stringify(raw), { status: 200 }) });
       if (!measured.usable || canonicalHash(projected) !== canonicalHash(attempt.identity) || canonicalHash(projected) !== canonicalHash(measured.output) ||

@@ -1,5 +1,10 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Native visual review scale abstention
+
+- Run5g at `04725f87` passed the locations sheet and cover. Page 1's corrected picture reached two settled reviews. Both recorded non-comparable standing scale with no listed issue. The strict issue-coverage check rejected both, leaving the picture unapproved before its separate identity measurement. The 36 calls account for 2,489,514 microUSD, with no pending or unknown cost. [Exact terminal evidence](<C:/GNart/Work/local-current-book-20261112/LOCATION-SHEET-CORRECTION-20261113/OUTCOME-QA/TERMINAL-RECONCILIATION.json>)
+- An opt-in policy accepts this observation only when the typed scale evidence abstains, the relative-scale verdict is uncertain, and both the issues list and correction are empty. The raw review, identity threshold, visible action-scale findings and other quality gates keep their meaning. A one-use local continuation verifies the complete stopped producer and all historic costs. It can reach the missing identity call with the same corrected picture. The original re-ask remains spent. [Decision and independent-review scope](<C:/GNart/Work/local-current-book-20261112/SCALE-ABSTENTION-CONTINUATION-20261113/DECISION.md>)
+
 ## 2026-11-13 — Bound locations sheet edit
 
 - Run5f at `85407bd5` drew distinct supply, obstruction and dry continuation. It stopped at three different bound continuity findings involving an entity-owned prop, a repeated landmark and required visible features through openings. The image and review settled at 94,934 microUSD. The manuscript's cumulative estimate is 1,553,770 microUSD across 25 calls, with zero pending or unknown cost. [Outcome and receipts](<C:/GNart/Work/local-current-book-20261112/SOURCE-SPATIAL-DIRECTION-20261113/OUTCOME-QA/PRODUCT-OUTCOME.md>)
