@@ -488,11 +488,14 @@ These roles are distinct from supporting cast and scene props. Preserve the supp
 export function compilePersonalStoryboard(source: Source, rawDraft: unknown, options?: { selfCheckNames?: true; stagingFields?: true; selfCheckSourceSpans?: true }): PersonalStoryboard {
   assertSource(source);
   if(source.existingChildAppearance)assertExistingChildClothing(source.existingChildAppearance,rawDraft);
-  // A bound repair changes exactly its review's typed targets and nothing else (the child is pinned above and by the schema).
-  if(source.boundRepairScope)assertBoundRepairScope(source.boundRepairScope,source.repair!.draft,rawDraft);
   // Whitespace-only quote variants resolve to the page's exact span before every quote gate; exact drafts pass through unchanged.
-  rawDraft = resolveSourceQuotes(rawDraft, previewStoryEvidence(source.story).texts);
-  if (options?.stagingFields === true && source.claimBasisContract) rawDraft = canonicalStagingRefs(rawDraft);
+  const pageTexts = previewStoryEvidence(source.story).texts;
+  const canonical = (draft: unknown) => { const d = resolveSourceQuotes(draft, pageTexts);
+    return options?.stagingFields === true && source.claimBasisContract ? canonicalStagingRefs(d) : d; };
+  rawDraft = canonical(rawDraft);
+  // A bound repair changes exactly its review's typed targets and nothing else (the child is pinned above and by the schema). The held parent
+  // and the candidate are compared in the same canonical form that is compiled, so a whitespace variant of a held quote is no change.
+  if(source.boundRepairScope)assertBoundRepairScope(source.boundRepairScope,canonical(source.repair!.draft),rawDraft);
   if (options !== undefined) {
     const keys = Object.keys(options);
     if (!keys.length || keys.some(k => k !== 'selfCheckNames' && k !== 'stagingFields' && k !== 'selfCheckSourceSpans') ||

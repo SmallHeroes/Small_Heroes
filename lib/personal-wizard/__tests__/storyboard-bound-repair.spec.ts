@@ -11,6 +11,7 @@ import { STORYBOARD_BOUND_REPAIR_VERSION, REPAIR_STORYBOARD_ADDENDUM, BOUND_REPA
 import { BOUND_REPAIR_TARGET_VERSION, boundRepairScope, boundRepairChangeScope } from '../storyboard-bound-repair-scope';
 import { STORYBOARD_MOMENTS_VERSION } from '../storyboard-moments';
 import { changedSections } from '../storyboard-diagnosis';
+import { runSimpleStoryboardDiagnostic } from '../simple-storyboard-diagnostic';
 import { fullSelfCheck } from './storyboard-self-check-fixture';
 import { replanFixture } from './storyboard-replan-fixture';
 
@@ -36,9 +37,13 @@ function appearance(origin: { requestId: string; sourceDigest: string; storyboar
   return deriveExistingChildAppearance({ ...origin, clothing }, { age: 5, gender: 'girl', design: child.design, acceptance: CHILD_ANCHOR_INSPECTION_VERSION }, adoption, candidateSha);
 }
 type F = Awaited<ReturnType<typeof replanFixture>>;
-/** prepareCurrent...(request, writerResult, options, appearance=true, moments, ..., repair, ..., selfCheck, typed review impact, ..., existing appearance). */
-const prepare = (f: F, existing?: ReturnType<typeof appearance>, repair?: unknown) => {
+/**
+ * prepareCurrent...(request, writerResult, options, appearance=true, moments, ..., repair, ..., selfCheck, typed review impact, ..., existing appearance);
+ * `instance` adds the landmark-kind and instance-distinction contracts (each location then declares its population).
+ */
+const prepare = (f: F, existing?: ReturnType<typeof appearance>, repair?: unknown, instance?: true) => {
   const rest: unknown[] = Array(17).fill(undefined); rest[0] = true; rest[5] = repair; rest[8] = true; rest[9] = true; rest[16] = existing;
+  if (instance) { rest[1] = true; rest[14] = true; }
   return prepareCurrentPersonalStoryboard(...([f.request, f.writerResult, f.options, true, ...rest] as unknown as Parameters<typeof prepareCurrentPersonalStoryboard>));
 };
 const texts = (source: ReturnType<typeof prepare>) => previewStoryEvidence(source.story).texts;
@@ -48,6 +53,11 @@ function draftOf(f: F, source: ReturnType<typeof prepare>, change?: (d: any) => 
   frames[6] = { requirements: [{ kind: 'show', subject: 'the red ribbon still in the child\'s hand', evidence: LATER }], depicted: null };
   const plain: any = { ...structuredClone(f.draft), moments: { version: STORYBOARD_MOMENTS_VERSION, frames } };
   plain.plan.actorAppearance.child.clothing = [...clothing];
+  if (source.instanceDistinctionContract) {
+    // The run2 shape: the garden's design shows fruit its population omits.
+    for (const l of plain.plan.locations) l.population = l.id === 'garden' ? ['plant'] : [];
+    for (const e of plain.plan.continuity.entities) e.invariants.push({ attribute: 'kind', value: e.id });
+  }
   change?.(plain);
   return { ...plain, selfCheck: fullSelfCheck(plain, texts(source)) };
 }
@@ -62,22 +72,32 @@ const hold = (issues: unknown[]) => (r: any) => Object.assign(r.frames[6].checks
 const holdBook = (issues: unknown[]) => (r: any) => Object.assign(r.bookChecks[0], { verdict: 'uncertain', observation: 'bound book observation', issues });
 const RUN4 = [{ impact: 'continuity', ref: 'p6:transition:companion', note: 'the quoted action alone does not establish that the companion went inside', whyNotMaterial: '' }];
 const RUN2 = [{ impact: 'continuity', ref: 'location:garden', note: 'the location design omits the visible dressing', whyNotMaterial: '' }];
-async function setup(issues: unknown[] = [{ impact: 'continuity', ref: 'p6:requirement:0', note: 'the ribbon state is not carried', whyNotMaterial: '' }], book = false) {
-  const f = await replanFixture(), plain = prepare(f), accepted = compilePersonalStoryboard(plain, draftOf(f, plain));
+async function setup(issues: unknown[] = [{ impact: 'continuity', ref: 'p6:requirement:0', note: 'the ribbon state is not carried', whyNotMaterial: '' }], book = false, instance?: true) {
+  const f = await replanFixture(), plain = prepare(f, undefined, undefined, instance), accepted = compilePersonalStoryboard(plain, draftOf(f, plain));
   const existing = appearance({ requestId: accepted.requestId, sourceDigest: accepted.sourceDigest, storyboardDigest: accepted.storyboardDigest });
-  const boundSource = prepare(f, existing), draft = draftOf(f, boundSource), bound = compilePersonalStoryboard(boundSource, draft);
+  const boundSource = prepare(f, existing, undefined, instance), draft = draftOf(f, boundSource), bound = compilePersonalStoryboard(boundSource, draft);
   const boundReview = reviewOf(f, bound, (book ? holdBook : hold)(issues));
   const repair = { parentStoryboardDigest: bound.storyboardDigest, draft: structuredClone(draft), review: boundReview, binding: STORYBOARD_BOUND_REPAIR_VERSION };
-  return { f, existing, bound, boundSource, draft, boundReview, repair };
+  return { f, existing, bound, boundSource, draft, boundReview, repair, instance };
 }
 const companionAt6 = (d: any) => d.sequence.pages[5].transitions.find((t: any) => t.entityId === 'companion');
 /** Fresh compile, then cached (JSON round trip of the stored repair input and draft, re-prepared) and raw (schema-decoded bytes) re-admission. */
 function readmit(s: Awaited<ReturnType<typeof setup>>, source: ReturnType<typeof prepare>, repaired: unknown) {
   const fresh = compilePersonalStoryboard(source, repaired);
-  const cachedSource = prepare(s.f, s.existing, JSON.parse(JSON.stringify(s.repair)));
+  const cachedSource = prepare(s.f, s.existing, JSON.parse(JSON.stringify(s.repair)), s.instance);
   const cached = compilePersonalStoryboard(cachedSource, JSON.parse(JSON.stringify(repaired)));
   const raw = compilePersonalStoryboard(cachedSource, storyboardDraftSchema(cachedSource).parse(JSON.parse(Buffer.from(JSON.stringify(repaired)).toString('utf8'))));
   return { fresh, cached, raw, cachedSource };
+}
+/** The repair seam the engine's bound repair runs: the planner's answer is compiled, and only an admitted repair reaches the (denied) review. */
+async function seam(s: Awaited<ReturnType<typeof setup>>, candidate: unknown) {
+  const stages: string[] = [];
+  const stop = await runSimpleStoryboardDiagnostic({ request: s.f.request, writerResult: s.f.writerResult, options: s.f.options, signal: new AbortController().signal,
+    actorOwnedAppearance: true, momentContract: true, selfCheckContract: true, reviewImpactPolicy: true,
+    ...(s.instance ? { landmarkKindContract: true as const, instanceDistinctionContract: true as const } : {}), existingChildAppearance: s.existing, repair: s.repair as any,
+    generate: async call => { stages.push(call.stage); if (call.stage === 'storyboard') return structuredClone(candidate); throw Error('synthetic_review_denied'); },
+  }).then(() => 'unexpected_success', (e: Error) => e.message);
+  return { stages, stop };
 }
 
 describe('storyboard-bound-repair/v1 (one repair of a held bound board, the child pinned)', { timeout: 180_000 }, () => {
@@ -144,8 +164,11 @@ describe('storyboard-bound-repair/v1 (one repair of a held bound board, the chil
   });
   it('a repair of the exact target compiles with the child unchanged; another field of the same frame, another frame or other clothing is refused', async () => {
     const s = await setup(), source = prepare(s.f, s.existing, s.repair);
-    const repaired = draftOf(s.f, source, d => { d.moments.frames[6].requirements[0].subject = 'the red ribbon, carried, still in the child\'s hand'; });
+    // A corrected claim cites a different (wider) span than the held quote; keeping the held quote with a new subject repairs nothing.
+    const repaired = draftOf(s.f, source, d => { Object.assign(d.moments.frames[6].requirements[0], { subject: 'the red ribbon, carried, still in the child\'s hand', evidence: HELD }); });
     const book = compilePersonalStoryboard(source, repaired);
+    expect(() => compilePersonalStoryboard(source, draftOf(s.f, source, d => { d.moments.frames[6].requirements[0].subject = 'the red ribbon, carried, still in the child\'s hand'; })))
+      .toThrow('personal_storyboard_bound_repair_unproven_claim');
     expect(book.existingChildAppearance).toEqual(existingChildAppearanceData(s.existing));
     expect(book.repair).toEqual({ version: 'storyboard-repair/v1', parentStoryboardDigest: s.bound.storyboardDigest });
     // The old section scope admitted these; the typed target does not.
@@ -202,6 +225,34 @@ describe('the exact run4 shape: a held unsupported custody transition (p{n}:tran
     const childChanged = draftOf(s.f, source, withdraw); childChanged.plan.actorAppearance.child.clothing = ['green dress', 'blue shorts', 'teal shoes'];
     expect(() => compilePersonalStoryboard(source, childChanged)).toThrow();
   });
+  it('negative: the held quote re-spaced is no change, and the held quote (or a part, re-spaced) is no evidence for another known target', async () => {
+    const s = await setup(RUN4, true), source = prepare(s.f, s.existing, s.repair);
+    const respaced = HELD.replace(' ', '  ').replace(', and', ',\nand');
+    expect(respaced).not.toBe(HELD);
+    const cases: [string, (d: any) => void, string][] = [
+      ['the held quote with internal whitespace only', d => { companionAt6(d).evidence = respaced; }, 'bound_repair_target_unchanged'],
+      ['the held quote with another known destination', d => { companionAt6(d).to = { relation: 'at', targetId: 'lane' }; }, 'bound_repair_unproven_claim'],
+      ['the held quote re-spaced with another known destination', d => { Object.assign(companionAt6(d), { evidence: respaced, to: { relation: 'beside', targetId: 'hut' } }); }, 'bound_repair_unproven_claim'],
+      ['a part of the held quote re-spaced with another known relation', d => { Object.assign(companionAt6(d), { evidence: ' and  the ribbon stays', to: { relation: 'at', targetId: 'garden' } }); },
+        'bound_repair_unproven_claim'],
+    ];
+    for (const [name, change, code] of cases) expect(() => compilePersonalStoryboard(source, draftOf(s.f, source, change)), name).toThrow(`personal_storyboard_${code}`);
+  });
+  it('at the repair seam: a normalized no-op or the held quote with a known target stops before the review; a withdrawal or a wider span reaches it', async () => {
+    const s = await setup(RUN4, true), source = prepare(s.f, s.existing, s.repair);
+    const respaced = HELD.replace(' ', '  ');
+    const refused: [string, (d: any) => void, string][] = [
+      ['normalized no-op', d => { companionAt6(d).evidence = respaced; }, 'bound_repair_target_unchanged'],
+      ['held quote, known destination', d => { companionAt6(d).to = { relation: 'at', targetId: 'lane' }; }, 'bound_repair_unproven_claim'],
+    ];
+    for (const [name, change, code] of refused) {
+      const r = await seam(s, draftOf(s.f, source, change));
+      expect(r, name).toEqual({ stages: ['storyboard'], stop: `personal_storyboard_${code}` });
+    }
+    const withdraw = (d: any) => { d.sequence.pages[5].transitions = d.sequence.pages[5].transitions.filter((t: any) => t.entityId !== 'companion'); };
+    for (const change of [withdraw, (d: any) => { companionAt6(d).evidence = texts(source)[6].trim(); }])
+      expect(await seam(s, draftOf(s.f, source, change))).toEqual({ stages: ['storyboard', 'review'], stop: 'simple_storyboard_diagnostic_review_callback_failed' });
+  });
 });
 
 describe('the exact run2 shape: a held location finding (location:{id}), provider-free', { timeout: 180_000 }, () => {
@@ -229,5 +280,52 @@ describe('the exact run2 shape: a held location finding (location:{id}), provide
     for (const [name, change, code] of cases) expect(() => compilePersonalStoryboard(source, draftOf(s.f, source, change)), name).toThrow(`personal_storyboard_${code}`);
     const childChanged = draftOf(s.f, source, garden); childChanged.plan.actorAppearance.child.clothing = ['green dress', 'blue shorts', 'teal shoes'];
     expect(() => compilePersonalStoryboard(source, childChanged)).toThrow();
+  });
+});
+
+describe('the exact run2 shape under the instance contract: a held location finding binds that location\'s population, provider-free', { timeout: 180_000 }, () => {
+  const garden = (d: any) => d.plan.locations.find((l: any) => l.id === 'garden');
+  it('the generic location ref resolves to the population (must change) and the design (only with it)', async () => {
+    const s = await setup(RUN2, true, true), source = prepare(s.f, s.existing, s.repair, true) as any;
+    expect(source.planningInput.priorReviewedStoryboard.changeScope).toEqual([{ ref: 'location:garden', kind: 'location',
+      may: ['plan.locations[id=garden].{population}', 'plan.locations[id=garden].{design}'] }]);
+    // Without the contract (no population declared) the location's own fields stay the target, exactly as before.
+    expect(boundRepairChangeScope(boundRepairScope([{ issues: [{ ref: 'location:garden' }] }], (await setup(RUN2, true)).draft))[0].may).toEqual(['plan.locations[id=garden].*']);
+  });
+  it('positive: a population correction (with or without a matching design change) compiles and re-admits fresh, cached and raw, the child unchanged', async () => {
+    const s = await setup(RUN2, true, true), source = prepare(s.f, s.existing, s.repair, true);
+    for (const repaired of [draftOf(s.f, source, d => { garden(d).population.push('fruit'); }),
+      draftOf(s.f, source, d => { garden(d).population.push('fruit'); garden(d).design += '; lemons and tomatoes visible on their plants'; })]) {
+      const r = readmit(s, source, repaired);
+      expect([r.cached.storyboardDigest, r.raw.storyboardDigest]).toEqual([r.fresh.storyboardDigest, r.fresh.storyboardDigest]);
+      expect(r.fresh.existingChildAppearance).toEqual(existingChildAppearanceData(s.existing));
+      expect(changedSections(s.draft, repaired)).toEqual(['book:plan.locations']);
+      expect(r.fresh.plan.pages).toEqual(s.bound.plan.pages);
+    }
+  });
+  it('negative: a design-only change, a reordered or re-cased population, another location, a frame, an entity or the child are refused', async () => {
+    const s = await setup(RUN2, true, true), source = prepare(s.f, s.existing, s.repair, true);
+    const fix = (d: any) => { garden(d).population.push('fruit'); };
+    const cases: [string, (d: any) => void, string][] = [
+      ['design changed, population unchanged', d => { garden(d).design += ' Soft light across the scene.'; }, 'bound_repair_target_unchanged'],
+      ['design names the fruit, population unchanged', d => { garden(d).design += '; lemons and tomatoes visible on their plants'; }, 'bound_repair_target_unchanged'],
+      ['population re-cased only', d => { garden(d).population = [' Plant']; }, 'bound_repair_target_unchanged'],
+      ['another location\'s population', d => { d.plan.locations.find((l: any) => l.id === 'lane').population.push('fruit'); }, 'bound_repair_scope'],
+      ['another location with the right one', d => { fix(d); d.plan.locations.find((l: any) => l.id === 'lane').design += ' with puddles'; }, 'bound_repair_scope'],
+      ['a frame composition', d => { fix(d); d.plan.pages[2].composition = 'reframed'; }, 'bound_repair_scope'],
+      ['an entity invariant', d => { fix(d); d.plan.continuity.entities.find((e: any) => e.id === 'hut').invariants.push({ attribute: 'material', value: 'stone' }); }, 'bound_repair_scope'],
+      ['the location renamed', d => { garden(d).id = 'orchard'; }, 'bound_repair_scope'],
+      ['no change', () => {}, 'bound_repair_target_unchanged'],
+    ];
+    for (const [name, change, code] of cases) expect(() => compilePersonalStoryboard(source, draftOf(s.f, source, change)), name).toThrow(`personal_storyboard_${code}`);
+    const childChanged = draftOf(s.f, source, fix); childChanged.plan.actorAppearance.child.clothing = ['green dress', 'blue shorts', 'teal shoes'];
+    expect(() => compilePersonalStoryboard(source, childChanged)).toThrow();
+  });
+  it('at the repair seam: the design-only change stops before the review; the population correction reaches it', async () => {
+    const s = await setup(RUN2, true, true), source = prepare(s.f, s.existing, s.repair, true);
+    expect(await seam(s, draftOf(s.f, source, d => { garden(d).design += ' Soft light across the scene.'; })))
+      .toEqual({ stages: ['storyboard'], stop: 'personal_storyboard_bound_repair_target_unchanged' });
+    expect(await seam(s, draftOf(s.f, source, d => { garden(d).population.push('fruit'); })))
+      .toEqual({ stages: ['storyboard', 'review'], stop: 'simple_storyboard_diagnostic_review_callback_failed' });
   });
 });

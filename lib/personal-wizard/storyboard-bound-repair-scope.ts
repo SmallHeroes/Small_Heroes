@@ -12,12 +12,14 @@ import { STAGEABLE_PLAN_FIELDS } from './storyboard-claim-basis';
  *   attribute change and the entity's page-prop state;
  * - p{n}:requirement|instant|relation|attribute|actor|presence|scene|concurrent: only that claim on frame n (the drawn instant: that frame's
  *   instant, staging, concurrency and plan direction); p{n}, p{n}:composition or a plan field: only those fields of frame n;
- * - location:{id}: that location's own fields; entity|prop:{id}: that object's own definition and its page-prop entries; cast:companion: the
- *   companion's appearance entry.
- * The book ref, the child (pinned) and an unresolvable ref refuse BEFORE the planner is called. The compiler then requires: every field outside
- * the targets byte-identical (the planner's own selfCheck excepted, which the compiler validates separately); every target actually changed
- * (corrected or withdrawn); never a new entry (no new event) or a new id; and a kept claim with the same assertion never re-cites the held quote
- * or a part of it (a quote that exists in the manuscript does not prove an unstated transition; the fresh full review judges the new one).
+ * - location:{id}: that location's own fields; under the instance-distinction contract (the held location declares a population) its
+ *   population, with its design changeable only together with it (the structural fallback for the generic ref: no reviewer prose is read);
+ *   entity|prop:{id}: that object's own definition and its page-prop entries; cast:companion: the companion's appearance entry.
+ * The book ref, the child (pinned) and an unresolvable ref refuse BEFORE the planner is called. The compiler then requires, on the held parent and
+ * the candidate in the same canonical (compiled) form: every field outside the targets byte-identical (the planner's own selfCheck excepted,
+ * which the compiler validates separately); every target actually changed (corrected or withdrawn); never a new entry (no new event) or a new
+ * id; and no kept claim of a target re-cites the held quote or a part of it, whitespace-normalized, whatever it now asserts (a quote that exists
+ * in the manuscript does not prove an unstated transition; the fresh full review judges a different span).
  */
 export const BOUND_REPAIR_TARGET_VERSION = 'storyboard-bound-repair-target/v1' as const;
 type Key = string | number;
@@ -50,7 +52,15 @@ export function boundRepairScope(blocking: readonly { reason?: string; issues: r
     const ref = raw.replace(/#\d+$/, ''), page = /^p(\d+)(?::(.+))?$/.exec(ref);
     let m: RegExpExecArray | null;
     if (ref === 'cast:companion') return { ref, kind: 'companion', masks: [field(['plan', 'actorAppearance', 'companion'], true)] };
-    if ((m = /^location:([A-Za-z0-9_.-]+)$/.exec(ref))) return { ref, kind: 'location', masks: [{ kind: 'entry', path: ['plan', 'locations'], match: { id: m[1] }, primary: true }] };
+    if ((m = /^location:([A-Za-z0-9_.-]+)$/.exec(ref))) {
+      const id = m[1], held = Array.isArray(d.plan.locations) ? d.plan.locations.find((l: any) => l?.id === id) : undefined;
+      // Under the instance-distinction contract a location's one typed declaration is its population (the review judges it against the design
+      // and the manuscript): the generic ref targets that field, and the design may change only together with it, never in its place.
+      if (Array.isArray(held?.population)) return { ref, kind: 'location', masks: [
+        { kind: 'entry', path: ['plan', 'locations'], match: { id }, fields: ['population'], primary: true },
+        { kind: 'entry', path: ['plan', 'locations'], match: { id }, fields: ['design'] }] };
+      return { ref, kind: 'location', masks: [{ kind: 'entry', path: ['plan', 'locations'], match: { id }, primary: true }] };
+    }
     if ((m = /^(?:entity|prop):([A-Za-z0-9_.-]+)$/.exec(ref))) return { ref, kind: 'entity', masks: [
       { kind: 'entry', path: ['plan', 'continuity', 'entities'], match: { id: m[1] }, primary: true },
       { kind: 'entry', path: ['plan', 'recurringProps'], match: { id: m[1] }, primary: true },
@@ -138,15 +148,25 @@ function knownIds(draft: unknown) {
   walk(draft); return ids;
 }
 const evidenceOf = (v: unknown) => object(v) ? (typeof v.evidence === 'string' ? v.evidence : typeof v.storyEvidence === 'string' ? v.storyEvidence : null) : null;
-const assertion = (v: unknown) => object(v) ? canonicalJson(Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'evidence' && k !== 'storyEvidence'))) : canonicalJson(v);
+/** A quote as a span: whitespace runs are one space, so a re-spaced or re-broken held quote is the same span. */
+const span = (v: unknown) => evidenceOf(v)?.replace(/\s+/g, ' ').trim() || null;
+/** What a primary mask compares: its entries (or value), restricted to the mask's own fields; a population is the set of its kind keys. */
+const targetValue = (draft: unknown, mask: BoundRepairMask) => selected(draft, mask).map(e => !mask.fields || !object(e) ? e
+  : Object.fromEntries(mask.fields.map(k => [k, k === 'population' && Array.isArray(e[k])
+    ? (e[k] as unknown[]).map(x => typeof x === 'string' ? x.trim().toLowerCase() : x).sort() : e[k] ?? null])));
 
-/** The compiler's gate: only the typed targets changed, each one really, without a new entry, id or the held quote re-cited for the same claim. */
+/**
+ * The compiler's gate, on the held parent and the candidate in the same canonical (compiled) form: only the typed targets changed, each one
+ * really, without a new entry or id, and no kept claim cites the held quote or a part of it, whatever it now asserts (another destination,
+ * relation or value does not make a rejected quote evidence; a different span goes to the fresh full review).
+ */
 export function assertBoundRepairScope(scope: BoundRepairScope, parentDraft: unknown, candidateDraft: unknown) {
   if (projection(parentDraft, scope) !== projection(candidateDraft, scope)) fail('bound_repair_scope');
   const ids = knownIds(parentDraft);
   for (const target of scope.targets) {
     const primary = target.masks.filter(x => x.primary);
-    if (canonicalJson(primary.map(x => selected(parentDraft, x))) === canonicalJson(primary.map(x => selected(candidateDraft, x)))) fail('bound_repair_target_unchanged');
+    if (canonicalJson(primary.map(x => targetValue(parentDraft, x))) === canonicalJson(primary.map(x => targetValue(candidateDraft, x)))) fail('bound_repair_target_unchanged');
+    const held = primary.flatMap(x => selected(parentDraft, x)).map(span).filter((s): s is string => !!s);
     for (const mask of target.masks) {
       const before = selected(parentDraft, mask), after = selected(candidateDraft, mask);
       if (mask.kind === 'entries' && after.length > before.length) fail('bound_repair_new_event');
@@ -157,10 +177,10 @@ export function assertBoundRepairScope(scope: BoundRepairScope, parentDraft: unk
       after.forEach(walk);
       if (cited.some(id => !ids.has(id))) fail('bound_repair_new_id');
       if (!mask.primary) continue;
-      // Kept with the same assertion: the new quote must state more than the held one (re-citing it or a part of it repairs nothing).
+      // A kept claim must cite more than the held quote (re-citing it or a part of it repairs nothing, whatever the claim now asserts).
       for (const entry of after) {
-        const quote = evidenceOf(entry)?.trim();
-        if (quote && before.some(b => assertion(b) === assertion(entry) && (evidenceOf(b) ?? '').includes(quote))) fail('bound_repair_unproven_claim');
+        const quote = span(entry);
+        if (quote && held.some(h => h.includes(quote))) fail('bound_repair_unproven_claim');
       }
     }
   }
