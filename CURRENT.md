@@ -1,5 +1,12 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Picture-book direction and practical visual review
+
+- The opt-in current engine v4 gives the illustrator concrete guidance for silhouettes, spacing, contact and state changes. The locations prompt draws from the owned locations and landmarks in their initial state. A repair takes the requirements cited by the bound review and the original design data. Later states stay in the page plan.
+- Visual review now asks whether a child can follow the action and recognize the characters, places and important objects at reading size. Ordinary variation in composition and rendering is detail. The page assessment also records bound uncertainty about framing alone as detail while preserving the raw verdict. Confirmed framing defects, material contradictions, safety, anatomy, scale evidence and the 0.70 child resemblance gate remain actionable. Older engine versions keep their original requests and assessment.
+- Guy approved one further local attempt on the same Noa and Momo manuscript. The offline preflight re-admitted the 21 settled calls and 1,362,322 microUSD, both held locations images and the passed entities sheet. One new LOW Sunburst edit and fresh review use the full 1,400,000 microUSD reserve inside the existing 12,000,000 microUSD and 124-call limit. A supported sheet continues to the cover and eight pages, Dad audio, PDF and Reader. The native stop and one-use consent rules still apply. Evidence and exact activation are in `C:/GNart/Work/local-current-book-20261112/PICTURE-BOOK-DIRECTION-20261113`.
+- The focused offline gate passed 492 cases in eight specs, both TypeScript checks and the historical replay. Claude Code reviews the exact source and activation before any dispatch. No paid call has been made for this milestone. The full repository check and visual acceptance remain separate.
+
 ## 2026-11-13 — Noa and Momo: the one locations edit is consumed; book incomplete
 
 - The exact local edit at `fece4062` passed independent code and activation QA, then ran once. It removed the yellow flow from the root side of the mud blockage. The separate empty channel still reads as a root or bare ground, so native review held on `design:color_channels`. No cover, page, Dad audio, PDF or Reader was produced. The manuscript, plan, child, passed entities and both locations candidates are preserved.

@@ -17,6 +17,7 @@ vi.mock('../storyboard', () => ({
     ({ context: { pageNumber: a[2], ...(a.length > 4 ? { ownerAcceptance: a[4] } : {}) }, render: { prompt: `PAGE ${a[2]}` } }),
 }));
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
+import { PICTURE_BOOK_REVIEW } from '../picture-book-direction';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
@@ -1177,6 +1178,37 @@ describe('reference sheets: explicit, source-linked deferral', () => {
 
 describe('findings: impact, requirement binding and status', () => {
   const ids = ['page_text', 'cast:companion', 'landmark_unique:stone', 'safety'];
+  it('records presentation-only uncertainty as detail on the new policy and keeps the raw verdict', () => {
+    const candidate = image('picture'), context = sha('context');
+    const raw = review(candidate.imageSha, context, { framing: { verdict: 'uncertain', issues: [issue('continuity', 'framing')] } });
+    const old = assessAuditionReview(raw, candidate.imageSha, context, ['framing']);
+    const current = assessAuditionReview(raw, candidate.imageSha, context, ['framing'],
+      undefined, undefined, undefined, undefined, undefined, PICTURE_BOOK_REVIEW);
+    expect(current.review).toEqual(old.review);
+    expect(current.assessment.findings).toEqual([expect.objectContaining({ verdict: 'uncertain', bound: true, impact: 'detail' })]);
+    expect(attemptStatus('page', { candidate, assessment: old.assessment, identity: identity(.70) })).toBe('held');
+    expect(attemptStatus('page', { candidate, assessment: current.assessment, identity: identity(.70) })).toBe('qa_supported');
+    expect(attemptStatus('page', { candidate, assessment: current.assessment, identity: identity(.69) })).toBe('held');
+  });
+  it.each([
+    ['framing', 'defect', 'framing', 'continuity'],
+    ['framing', 'uncertain', 'framing', 'story'],
+    ['framing', 'uncertain', 'page_text', 'continuity'],
+    ['scene', 'uncertain', 'page_text', 'story'],
+    ['environment', 'uncertain', 'landmark_unique:stone', 'continuity'],
+    ['relative_scale', 'uncertain', 'companion_scale', 'continuity'],
+    ['identity', 'uncertain', 'cast:companion', 'identity'],
+    ['anatomy', 'uncertain', 'anatomy:child', 'identity'],
+    ['safety', 'uncertain', 'safety', 'safety'],
+  ] as const)('keeps %s %s for %s actionable', (category, verdict, requirement, impact) => {
+    const candidate = image('picture'), context = sha('context');
+    const raw = review(candidate.imageSha, context, { [category]: { verdict, issues: [issue(impact, requirement)] } });
+    const current = assessAuditionReview(raw, candidate.imageSha, context, [requirement],
+      undefined, undefined, undefined, undefined, undefined, PICTURE_BOOK_REVIEW);
+    expect(current.assessment.findings).toEqual([expect.objectContaining({ verdict, impact, bound: true })]);
+    expect(attemptStatus('page', { candidate, assessment: current.assessment, identity: identity(.95) }))
+      .toBe(impact === 'safety' ? 'ineligible_safety' : 'held');
+  });
   it('enforces issue coverage and the existing review binding', () => {
     const ok = review(sha('c'), sha('x'));
     expect(() => assessAuditionReview({ ...ok, checks: ok.checks.map(c => c.category === 'props' ? { ...c, issues: [issue('detail', 'page_text')] } : c) }, sha('c'), sha('x'), ids)).toThrow('audition_review_issue_coverage');

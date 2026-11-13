@@ -5,6 +5,7 @@ import { COMPANION_SCALE_SAMPLE_GATE, COMPANION_SCALE_VERSION } from './companio
 import { INSTANCE_DISTINCTION_VERSION } from './storyboard-instance-distinction';
 import { ENTITY_MATERIAL_FUNCTION_VERSION } from './storyboard-material-function';
 import { trialPageRenderEvidence } from './native-page-render-evidence';
+import { PICTURE_BOOK_REVIEW } from './picture-book-direction';
 import { nativePageProofSteps, NATIVE_BOOK_FRAMES, NATIVE_BOOK_PAGE_ATTEMPTS, NATIVE_BOOK_REVIEW_REASKS } from './native-page-proof';
 type Input=Pick<Parameters<typeof illustrateReviewedAudition>[0],
   'book'|'rawReview'|'texts'|'current'|'child'|'companion'|'companionDescription'|'render'|'judge'|'identity'|'check'|'save'|'progress'|'reuseSheets'|'typedCorrections'>&{pages:readonly number[]};
@@ -15,7 +16,8 @@ const nativeSource=(args:Input)=>args.book?.instanceDistinction?.version===INSTA
 /** Every paid step is one of the allowlist, used once, of its own kind; the engine's own attempt loop decides which are reached.
  *  `terminalRender`: a rejected render ends the run with its original error (the engine's attempt step rechecks `check` in its catch), so a
  *  later attempt only ever corrects a reviewed image and never re-buys a failed call. */
-function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true;scenePreservation?:ScenePreservationRun},terminalRender=false,resumePages?:Partial<Record<number,SavedPage>>){
+function fencedFrames(args:Input,attempts:number,options:{sample?:readonly number[];sampleScaleGate?:typeof COMPANION_SCALE_SAMPLE_GATE;reviewReask?:true;scenePreservation?:ScenePreservationRun;
+  pictureBookReview?:typeof PICTURE_BOOK_REVIEW},terminalRender=false,resumePages?:Partial<Record<number,SavedPage>>){
   const pages=[...args.pages],allowed=new Set(nativePageProofSteps(pages,attempts,options.reviewReask===true)),used=new Set<string>();
   let renderFailed=false,renderFailure:unknown,reasks=Object.values(resumePages??{}).reduce((n,p)=>n+(p?.attempts.filter(a=>a.reviewReask!==undefined).length??0),0);
   if(reasks>NATIVE_BOOK_REVIEW_REASKS)fail('audition_call_limit');
@@ -44,12 +46,14 @@ export async function runNativePageProofFrames(args:Input){
 }
 /** The whole native book: the fixed cover + 8 frames, no sample stop, the engine's bounded correction ceiling per frame, and one
  *  identical re-ask of an unusable review answer per image (a structural slip in one answer is not a reason to end a whole book). */
-export async function runNativeBookFrames(args:Input&{resumePages?:Partial<Record<number,SavedPage>>}){
+export async function runNativeBookFrames(args:Input&{resumePages?:Partial<Record<number,SavedPage>>;
+  pictureBookReview?:typeof PICTURE_BOOK_REVIEW}){
   if(!args)fail('page_proof_scope');
-  const {resumePages,...base}=args;
+  const {resumePages,pictureBookReview,...base}=args;
+  if(pictureBookReview!==undefined&&pictureBookReview!==PICTURE_BOOK_REVIEW)fail('page_proof_scope');
   if(!args||Object.keys(base).some(k=>!keys.has(k))||!Array.isArray(args.pages)||JSON.stringify(args.pages)!==JSON.stringify(NATIVE_BOOK_FRAMES)||!nativeSource(args))fail('page_proof_scope');
   if(resumePages&&(Object.keys(resumePages).map(Number).sort((a,b)=>a-b).some((n,i)=>n!==i)||Object.values(resumePages).some(p=>!p||p.status!=='qa_supported')))fail('page_proof_scope');
-  return fencedFrames(base,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true},true,resumePages);
+  return fencedFrames(base,NATIVE_BOOK_PAGE_ATTEMPTS,{reviewReask:true,...(pictureBookReview?{pictureBookReview}:{})},true,resumePages);
 }
 /**
  * native-cde-book/v2: the whole book with scene-preservation/v1 (same frames, attempts, latch, re-ask fence and allowlist as v1). Its input

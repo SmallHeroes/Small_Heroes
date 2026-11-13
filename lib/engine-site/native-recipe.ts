@@ -38,7 +38,8 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { ENGINE_CURRENT_CUSTOMER_V3, isCurrentCustomerEngine, usesTypedCustomerCorrections } from './current-engine-policy';
+import { ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4, isCurrentCustomerEngine, usesTypedCustomerCorrections } from './current-engine-policy';
+import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_REVIEW, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
 import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrigin,assertEngineBoundWorld,engineBoundRepairAvailable,
   prepareEngineBoundRepair,engineBoundRepairOrigin } from './storyboard-binding';
@@ -92,6 +93,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
   materialize?: (runtime: EngineRuntime) => Promise<void>; accept?: (runtime: EngineRuntime) => Promise<void> }): EngineRecipe {
   return async runtime => {
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
+    const pictureBook = authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V4;
     if (canonicalHash(ENGINE_SITE_LAUNCH_OFFER) !== authority.offer.revisionSha256 || snapshot.ownerId !== runtime.checkpoint.ownerId)
       engineSiteFail('engine_recipe_binding_changed');
     const pool = new Map<string, Buffer>();
@@ -140,7 +142,8 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     const judged = async (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
       previous: AuditionImage | null, kind: 'sheet' | 'page') => {
       const body = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha,
-        refs: refs.map(bytesOf), predecessor: previous ? bytesOf(previous) : null, kind });
+        refs: refs.map(bytesOf), predecessor: previous ? bytesOf(previous) : null, kind,
+        ...(pictureBook ? { pictureBookReview: PICTURE_BOOK_REVIEW } : {}) });
       return (await runtime.call(prepareEngineResponse(authority, step, body, x => x, ports))).output;
     };
     if(args.locationsRepairPreparation&&args.locationsV2RepairPreparation)engineSiteFail('local_locations_v2_preparation_changed');
@@ -318,14 +321,20 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
             sheets.entities={...context,chosen,attempts:[structuredClone(prior.attempt)],status:chosen.status};continue;
           }
         }
-        const repair=(cap||currentRepair)&&role==='locations'?prior:undefined, nextAttempt=repair?(args.locationsV2RepairPreparation?2:1):0, step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
+        const repair=(cap||currentRepair)&&role==='locations'?prior:undefined;
+        const nextAttempt=repair?(args.locationsV2RepairPreparation||args.currentLocationsRepair?.boundary==='locations-art-direction'?2:1):0;
+        const step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
         // Both role designs derive from this same admitted book; v2 uses the sibling only as exclusion recognition data.
-        const prompt = repair
+        const prompt = pictureBook && role === 'locations'
+          ? pictureBookLocationPrompt(designs.locations, designs.entities, repair?.attempt.assessment?.findings
+            .filter(f => f.bound && f.impact !== 'detail').map(f => f.requirement))
+          : repair
           ? sheetRepairPrompt(role, designs[role], args.locationsV2RepairPreparation ? locationV2RepairFindings(repair.attempt) : locationRepairFindings(repair.attempt), authority.locationSheetPolicy, designs.entities)
-          : role === 'entities' && authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3
+          : role === 'entities' && (pictureBook || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3)
             ? auditionEntitySheetPrompt(designs.entities)
             : auditionSheetPrompt(role, designs[role], authority.locationSheetPolicy, designs.entities);
-        const candidate = await render(step, prompt, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
+        const direction = pictureBook && role === 'entities' ? prompt + '\nKeep each object distinct, use readable silhouettes and textures, and leave space between the tiles.' : prompt;
+        const candidate = await render(step, direction, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
           repair?['rejected_edit_target','child_design_authority','companion_design_authority']:['child_design_authority', 'companion_design_authority']);
         checkRepair();
         if(repair&&candidate.imageSha===repair.attempt.candidate!.imageSha)engineSiteFail('engine_locations_repair_unchanged');
@@ -336,7 +345,9 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         attempt.status = attemptStatus('sheet', attempt); const chosen = selectAuditionAttempt('sheet', [attempt]);
         args.observeReferenceSheet?.(structuredClone({...context,role,attempt,candidateB64:bytesOf(candidate).toString('base64')}));
         if (!chosen || attempt.status !== 'qa_supported') engineSiteFail('engine_reference_sheet_held');
-        sheets[role] = { ...context, chosen, attempts: repair?[...structuredClone(args.locationsV2RepairPreparation?.previousLocationAttempts??[repair.attempt]),attempt]:[attempt], status: attempt.status };
+        const previous = repair ? (currentRepair ? [...currentRepair.previousLocations, repair.attempt]
+          : args.locationsV2RepairPreparation?.previousLocationAttempts ?? [repair.attempt]) : [];
+        sheets[role] = { ...context, chosen, attempts: [...structuredClone(previous),attempt], status: attempt.status };
       }
       const saved: Record<string, unknown> = {};
       const resumePages: Partial<Record<number, SavedPage>> = {};
@@ -354,10 +365,11 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         current: { request: snapshot.request, writerResult: prepared.source, options: snapshot.options, readerFraming: READER_PORTRAIT_FRAMING_VERSION }, child, companion,
         companionDescription: restored.source.companionDescription, pages: NATIVE_BOOK_FRAMES, reuseSheets: sheets,
         ...(usesTypedCustomerCorrections(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
+        ...(pictureBook ? { pictureBookReview: PICTURE_BOOK_REVIEW } : {}),
         ...(Object.keys(resumePages).length ? { resumePages } : {}),
         check: runtime.check, render: (step, prompt, refs, mode, roles) => {
           if (!['book_identity', 'book_design', 'book_scene_edit'].includes(mode)) engineSiteFail('engine_native_v2_not_enabled');
-          return render(step, prompt, refs, mode, roles);
+          return render(step, pictureBook ? prompt + '\n' + PICTURE_BOOK_DRAWING_DIRECTION : prompt, refs, mode, roles);
         }, judge: judged, identity, save: (name, value) => {
           saved[name] = value;
           if (/^page_[0-8]$/.test(name) && (value as SavedPage).status === 'qa_supported')

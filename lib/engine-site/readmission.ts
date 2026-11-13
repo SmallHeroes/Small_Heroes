@@ -3,8 +3,10 @@ import type { PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
 import { auditionPageReviewSchemaForContext,assessAuditionReview,auditionAnatomyCast,auditionLandmarkTopology,auditionInstanceDistinction } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { companionScaleFromContext } from '@/lib/personal-wizard/companion-scale';
+import { PICTURE_BOOK_REVIEW } from '@/lib/personal-wizard/picture-book-direction';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { engineSiteFail } from './contract';
+import { ENGINE_CURRENT_CUSTOMER_V4 } from './current-engine-policy';
 import { createEngineNativeRecipe } from './native-recipe';
 import type { EngineRuntime, EngineProviderResult } from './durable-worker';
 import { loadEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
@@ -91,7 +93,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
     async advance(phase) { checkpoint.phase = phase; },
   };
   await createEngineNativeRecipe({ db, storage, snapshot: context.snapshot,initialPreparation,childBindingPreparation,locationsRepairPreparation,locationsV2RepairPreparation,
-    ...(entitiesContinuation?.boundary==='locations'?{currentLocationsRepair:entitiesContinuation}:{}),
+    ...(entitiesContinuation&&entitiesContinuation.boundary!=='entities'?{currentLocationsRepair:entitiesContinuation}:{}),
     ports: { fetch: denied, openAIKey: denied, anthropicKey: denied, image: denied } })(runtime);
   if (!final || (final as SavedPage[]).length !== 9) engineSiteFail('engine_readmission_incomplete');
   const prepared = await load('prepared_source') as any, childUrl = `data:image/png;base64,${prepared.childB64}`;
@@ -132,7 +134,8 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       let assessment:ReturnType<typeof assessAuditionReview>['assessment'];
       try {assessment=assessAuditionReview(parsedRaw,attempt.candidate.imageSha,judged.contextSha,judged.context.requirementIds??[],
         judged.context.checks?.uniqueLandmarks??[],auditionLandmarkTopology(judged.context),auditionAnatomyCast(judged.context),
-        auditionInstanceDistinction(judged.context),companionScaleFromContext(judged.context)).assessment;}
+        auditionInstanceDistinction(judged.context),companionScaleFromContext(judged.context),
+        checkpoint.authority.currentEngine===ENGINE_CURRENT_CUSTOMER_V4?PICTURE_BOOK_REVIEW:undefined).assessment;}
       catch{engineSiteFail('engine_readmission_assessment_changed');}
       if(canonicalHash(assessment)!==canonicalHash(attempt.assessment))engineSiteFail('engine_readmission_assessment_changed');
       if (attempt.status === 'identity_unusable') engineSiteFail('engine_readmission_identity_changed');

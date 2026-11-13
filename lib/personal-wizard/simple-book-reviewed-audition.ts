@@ -20,6 +20,7 @@ import { LANDMARK_KIND_CONTRACT_VERSION, LANDMARK_KIND_ATTRIBUTE } from './story
 import { INSTANCE_DISTINCTION_VERSION, DISTINCTION_ATTRIBUTE } from './storyboard-instance-distinction';
 import { assertReferenceRoleOwnership, simpleReferenceDesigns, referenceOwnershipSchema, simpleReferenceStateSchema } from './simple-reference-designs';
 import { locationSheetPolicySchema, locationSheetProjection, type LocationSheetPolicy } from './location-sheet-projection';
+import { PICTURE_BOOK_REVIEW } from './picture-book-direction';
 import type { AuditionImage } from './simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
 import type { BookDesignReferenceRole } from '../generate-image';
@@ -616,7 +617,8 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
 
 /** Binding, coverage and correction rules of the existing judge, plus impact/requirement checks; pages also bind the landmark inventory. */
 export function assessAuditionReview(raw: unknown, candidateSha: string, contextSha: string, requirementIds: readonly string[],
-  landmarks?: readonly AuditionLandmark[], topology?: LandmarkTopologyVersion, anatomyCast?: readonly string[], instance?: typeof INSTANCE_DISTINCTION_VERSION, companionScale?: CompanionScaleAuthority) {
+  landmarks?: readonly AuditionLandmark[], topology?: LandmarkTopologyVersion, anatomyCast?: readonly string[],
+  instance?: typeof INSTANCE_DISTINCTION_VERSION, companionScale?: CompanionScaleAuthority, pictureBookReview?: typeof PICTURE_BOOK_REVIEW) {
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || !landmarks)) fail('audition_landmark_contract');
   if (anatomyCast && (topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || !landmarks || anatomyCast.some(id => !requirementIds.includes(`anatomy:${id}`)))) fail('audition_anatomy_contract');
   if (instance !== undefined && (instance !== INSTANCE_DISTINCTION_VERSION || !anatomyCast)) fail('audition_instance_contract');
@@ -631,8 +633,14 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   if (review.checks.some(c => (c.verdict === 'pass') !== (c.issues.length === 0))) fail('audition_review_issue_coverage');
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
   const known = new Set(requirementIds);
-  const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => ({ category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
-    impact: i.impact, requirement: i.requirement, note: i.note, bound: known.has(i.requirement) })));
+  const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => {
+    const bound = known.has(i.requirement);
+    // Only the presentation requirement itself is advisory. Explicit story, identity and safety findings still gate.
+    const advisoryFraming = pictureBookReview === PICTURE_BOOK_REVIEW && bound && c.category === 'framing' &&
+      c.verdict === 'uncertain' && i.requirement === 'framing' && i.impact === 'continuity';
+    return { category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
+      impact: advisoryFraming ? 'detail' : i.impact, requirement: i.requirement, note: i.note, bound };
+  }));
   if (anatomyCast) findings.push(...anatomyFindings(review.anatomy, anatomyCast));
   // Incomparable frames contribute coverage evidence, not a page defect or a standing-scale pass.
   if (scaleAssessment?.disposition === 'defect') findings.push({ category:'relative_scale', verdict:'defect',
@@ -1117,7 +1125,7 @@ export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page
   context: unknown; contextSha: string; requirementIds: string[]; judgeRefs: AuditionImage[]; predecessor: AuditionImage | null;
   landmarks?: readonly AuditionLandmark[]; child: AuditionImage; judge: Judge; qualityOnly?: true;
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>; check: () => void;
-  reaskUnusable?: true }): Promise<AuditionAttempt> {
+  reaskUnusable?: true; pictureBookReview?: typeof PICTURE_BOOK_REVIEW }): Promise<AuditionAttempt> {
   const { attempt, candidate } = a;
   type Outcome = { judged: ReturnType<typeof assessAuditionReview> } | { error: string; unusable: boolean };
   const ask = async (step: string): Promise<Outcome> => {
@@ -1125,7 +1133,8 @@ export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page
     if ('error' in raw) return { error: raw.error, unusable: UNUSABLE_REVIEW_CODES.has(raw.error) };
     try { return { judged: assessAuditionReview(raw.value, candidate.imageSha, a.contextSha, a.requirementIds, a.landmarks,
       a.phase === 'page' ? auditionLandmarkTopology(a.context) : undefined, a.phase === 'page' ? auditionAnatomyCast(a.context) : undefined,
-      a.phase === 'page' ? auditionInstanceDistinction(a.context) : undefined, a.phase === 'page' ? companionScaleFromContext(a.context) : undefined) }; }
+      a.phase === 'page' ? auditionInstanceDistinction(a.context) : undefined, a.phase === 'page' ? companionScaleFromContext(a.context) : undefined,
+      a.phase === 'page' ? a.pictureBookReview : undefined) }; }
     catch (error) { return { error: errorCode(error), unusable: true }; }
   };
   let outcome = await ask(`${a.step}_qa`), reask: AuditionAttempt['reviewReask'];
@@ -1419,6 +1428,7 @@ export async function illustrateReviewedAudition(args: {
   pageAttempts?: number;
   /** Native whole book only: an unusable review answer gets one fresh identical request for the same image (step <image>_qa2). Absent: as before. */
   reviewReask?: true;
+  pictureBookReview?: typeof PICTURE_BOOK_REVIEW;
   /** native-cde-book/v2 only (scene-preservation/v1): admitted scoped references, the shared record and per-attempt operations. Absent: as before. */
   scenePreservation?: ScenePreservationRun;
   /**
@@ -1546,7 +1556,8 @@ export async function illustrateReviewedAudition(args: {
     const attempts = prior.attempts.map(a => a.candidate && a.review ? { ...a,
       assessment: assessAuditionReview(a.review, a.candidate.imageSha, contextSha, requirementIds, landmarks, topologyVersion,
         phase==='page' && args.structuralAnatomy ? requirementIds.filter(r=>r.startsWith('anatomy:')).map(r=>r.slice(8)) : undefined,
-        phase==='page' && args.book.instanceDistinction ? INSTANCE_DISTINCTION_VERSION : undefined, phase==='page' ? args.book.companionScale : undefined).assessment } : a);
+        phase==='page' && args.book.instanceDistinction ? INSTANCE_DISTINCTION_VERSION : undefined, phase==='page' ? args.book.companionScale : undefined,
+        phase==='page' ? args.pictureBookReview : undefined).assessment } : a);
     const again = selectAuditionAttempt(phase, attempts);
     // A measured page attempt without usable identity evidence would have halted the run; it is never trusted from a save.
     const unknownIdentity = phase === 'page' && attempts.some(a => a.status === 'identity_unusable' ||
@@ -1599,7 +1610,7 @@ export async function illustrateReviewedAudition(args: {
     requirementIds: string[], judgeRefs: AuditionImage[], predecessor: AuditionImage | null, landmarks?: readonly AuditionLandmark[]): Promise<AuditionAttempt> => {
     return judgeReviewedAuditionCandidate({ phase, step: `${prefix}${phase}_${name}_${attempt}`, attempt, candidate, context, contextSha,
       requirementIds, judgeRefs, predecessor, landmarks, child: args.child, judge: args.judge, identity: args.identity, check: args.check,
-      ...(args.reviewReask === true ? { reaskUnusable: true as const } : {}) });
+      pictureBookReview: args.pictureBookReview, ...(args.reviewReask === true ? { reaskUnusable: true as const } : {}) });
   };
   const pageAttempt = async (page: number, attempt: number, prior: AuditionAttempt | undefined, prompt: string, strategy: string,
     context: unknown, contextSha: string, checks: ReturnType<typeof auditionPageChecks>, canonical: AuditionImage[], predecessor: AuditionImage | null) => {

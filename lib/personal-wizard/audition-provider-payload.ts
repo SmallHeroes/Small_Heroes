@@ -7,11 +7,13 @@ import { auditionJudgeInstruction, auditionPageReviewSchemaForContext, auditionA
   auditionLandmarkTopology, auditionReviewSchema, LANDMARK_COVERAGE_TOPOLOGY_VERSION, ReviewedAuditionError } from './simple-book-reviewed-audition';
 import { sceneJudgeReferenceRoles } from './scene-preservation';
 import { auditionReviewOutputCap, type AUDITION_REVIEW_CAPACITY_VERSION } from './audition-review-capacity';
+import { PICTURE_BOOK_REVIEW, PICTURE_BOOK_REVIEW_DIRECTION } from './picture-book-direction';
 const REVIEW_MODEL = 'gpt-6.1-sol';
 const dataUrl = (bytes: Buffer) => `data:image/png;base64,${bytes.toString('base64')}`;
 const fail = (code: string): never => { throw new ReviewedAuditionError(code); };
 export async function auditionJudgePayload(args: { candidate: AuditionImage; candidateBytes: Buffer; context: unknown; contextSha: string;
-  refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page'; reviewCapacity?: typeof AUDITION_REVIEW_CAPACITY_VERSION }) {
+  refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page'; reviewCapacity?: typeof AUDITION_REVIEW_CAPACITY_VERSION;
+  pictureBookReview?: typeof PICTURE_BOOK_REVIEW }) {
   const outputCap = auditionReviewOutputCap(args.reviewCapacity);
   const buffer = args.candidateBytes, meta = await sharp(buffer).metadata();
   const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
@@ -26,7 +28,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
     imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
       ...refRoles, ...(args.predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
   // Chosen from the judged context: an entities design carrying the opt-in lineup gets its checks; anything else the existing instruction.
-  const instructions = auditionJudgeInstruction(args.kind, args.context);
+  const instructions = auditionJudgeInstruction(args.kind, args.context) +
+    (args.pictureBookReview === PICTURE_BOOK_REVIEW ? '\n' + PICTURE_BOOK_REVIEW_DIRECTION : '');
   if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
   return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },

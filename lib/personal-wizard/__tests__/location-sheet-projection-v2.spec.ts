@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import sharp from 'sharp';
 import { LOCATION_SHEET_PROJECTION, LOCATION_SHEET_PROJECTION_V2, locationSheetProjection } from '../location-sheet-projection';
 import { auditionEntitySheetPrompt, auditionSheetContext, auditionSheetPrompt, sheetRepairPrompt } from '../simple-book-reviewed-audition';
+import { pictureBookLocationPrompt, PICTURE_BOOK_REVIEW } from '../picture-book-direction';
+import { auditionJudgePayload } from '../audition-provider-payload';
 
 function fixture() {
   const referenceOwnership = { version: 'disjoint-reference-ownership/v1', assignments: [
@@ -92,6 +95,54 @@ describe('locations v2 generator recognition binding (no new source/judge author
   it('does not silently use v2 when an unknown policy is supplied', () => {
     const { entities, locations } = fixture();
     expect(() => auditionSheetPrompt('locations', locations, 'unknown' as any, entities)).toThrow('location_sheet_projection_policy');
+  });
+});
+
+describe('picture-book location direction', () => {
+  it.each([
+    ['doorway', 'A door interrupts a stone corridor beside a raised wooden bench.', 'door position', 'closed'],
+    ['footpath', 'A fallen branch crosses a gravel footpath alongside a low stone wall.', 'path surface', 'clear beyond the branch'],
+  ])('separates visible parts using the initial source geometry for %s', (id, design, attribute, initialValue) => {
+    const { locations, entities } = fixture();
+    const input = {
+      ...locations,
+      locations: [{ id, design }],
+      referenceState: { ...locations.referenceState, mutableAttributes: [
+        { entityId: 'rail', attribute, initialValue, knownValues: [{ pageNumber: 0, value: initialValue, evidence: null }] },
+      ] },
+    } as unknown as Parameters<typeof pictureBookLocationPrompt>[0];
+    const before = auditionSheetContext('locations', input);
+    const prompt = pictureBookLocationPrompt(input, entities as unknown as Parameters<typeof pictureBookLocationPrompt>[1], ['design:rail']);
+    const [, inventory, exclusions] = prompt.split(/INITIAL DRAWING DATA: |\nEXCLUSIONS FOR RECOGNITION ONLY: /);
+    expect(prompt).toContain(`one for each location ID: ${id}`);
+    expect(prompt).toContain('the distinct route beyond it in its specified state');
+    expect(prompt).toContain('its edges and floor in the terrain');
+    expect(prompt).toContain('design:rail');
+    expect(prompt).not.toContain('another synthetic quote');
+    expect(prompt).not.toContain('a folded blue bridge');
+    expect(JSON.parse(inventory)).toMatchObject({ locations: [{ id, design }], landmarks: [{ id: 'rail' }],
+      initialAttributes: [{ entityId: 'rail', attribute, initialValue }] });
+    expect(JSON.parse(exclusions).map((row: { entityId: string }) => row.entityId)).toEqual(['toy_box', 'bird', 'orb']);
+    expect(auditionSheetContext('locations', input)).toEqual(before);
+  });
+
+  it('refuses a sibling with different ownership or deferral data', () => {
+    const { locations, entities } = fixture();
+    const wrong = { ...entities, pageDeferred: [] } as unknown as Parameters<typeof pictureBookLocationPrompt>[1];
+    expect(() => pictureBookLocationPrompt(locations as unknown as Parameters<typeof pictureBookLocationPrompt>[0], wrong))
+      .toThrow('location_sheet_projection_sibling_binding');
+  });
+  it('changes only the prospective judge instructions and preserves its bound images and schema', async () => {
+    const { locations } = fixture();
+    const { context, contextSha } = auditionSheetContext('locations', locations);
+    const bytes = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#f7e6ca' } }).png().toBuffer();
+    const args = { kind: 'sheet' as const, candidate: { imageName: 'scratch.png', imageSha: 'a'.repeat(64) },
+      candidateBytes: bytes, context, contextSha, refs: [], predecessor: null };
+    const old = await auditionJudgePayload(args);
+    const current = await auditionJudgePayload({ ...args, pictureBookReview: PICTURE_BOOK_REVIEW });
+    expect(current.instructions).toContain('Record ordinary artistic variation as detail');
+    expect(current.instructions).toContain('uncertainty about required action, identity or physical state actionable');
+    expect({ ...current, instructions: old.instructions }).toEqual(old);
   });
 });
 

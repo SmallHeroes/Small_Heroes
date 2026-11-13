@@ -16,7 +16,7 @@ const siblingSchema = z.object({ entities: previewContinuitySchema.shape.entitie
   referenceOwnership: referenceOwnershipSchema, pageDeferred: deferredSchema }).passthrough();
 
 /** Recognition data only, derived from the admitted book's sibling sheet, never a new design authority. */
-function excludedDescriptions(design: unknown, entityDesign: unknown) {
+export function locationExclusionDescriptions(design: unknown, entityDesign: unknown) {
   const locations = z.object({ referenceOwnership: referenceOwnershipSchema, pageDeferred: deferredSchema }).passthrough().parse(design);
   const entities = siblingSchema.parse(entityDesign);
   assertReferenceRoleOwnership('locations', design);
@@ -47,7 +47,7 @@ export function locationSheetProjection(design: unknown, policy: LocationSheetPo
 ENTITY-OWNED EXCLUSIONS: ${excluded.length ? excluded.map(a => `${a.entityId} (${a.kind})`).join(', ') : 'none'}. These IDs are owned by the ENTITIES reference, never this sheet. If location prose names them, it names them ONLY FOR PLACEMENT CONTEXT: do NOT draw those objects or characters, copies, substitutes or their story effects here. Keep their surrounding fixed geography and empty placement space. No child or companion. This ownership rule takes precedence over an incidental object mention in location prose; it does not remove any listed location or location-owned landmark.
 Draw every location-owned landmark with its complete fixed design/counts in its proper view. The canonical data below is unchanged. Approved child/companion references provide watercolour technique only; do not draw their characters.`;
   if (policy === LOCATION_SHEET_PROJECTION) return base;
-  const descriptions = excludedDescriptions(design, entityDesign);
+  const descriptions = locationExclusionDescriptions(design, entityDesign);
   return `${base}
 INITIAL LOCATION STATE ONLY: design.pageDeferred items are NOT drawn here; later states belong to their pages. A location-owned landmark keeps its complete initial fixed design and its page-0 attribute values, not a deferred later form. Never turn a later story event, object formation or effect into permanent geography.
 EXCLUDED ENTITY DESCRIPTIONS (recognition only, NEVER drawing tasks): ${canonicalJson(descriptions)}

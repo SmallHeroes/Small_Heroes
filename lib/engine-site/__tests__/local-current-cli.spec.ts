@@ -68,10 +68,11 @@ describe('the local current-engine CLI consumes one GO once',()=>{
   expect(m.book).not.toHaveBeenCalled();
   expect(readdirSync(out)).toEqual(['OWNER-GO.json']);
  });
- it('refuses a locations resume before replaying any parent or reading credentials',async()=>{
+ it.each(['engine-local-current-locations-continuation/v1','engine-local-current-picture-book-continuation/v1'])(
+ 'refuses a %s resume before replaying any parent or reading credentials',async version=>{
   const f=fixture(),pin={file:path.join(f.base,'absent-parent'),sha256:'0'.repeat(64)};
   const out=f.run('locations',{entitiesContinuation:{firstWireSha256:pin.sha256,parent:{
-   version:'engine-local-current-locations-continuation/v1',parentGo:pin,parentStop:pin,parentExit:pin,parentLaunch:pin,
+   version,parentGo:pin,parentStop:pin,parentExit:pin,parentLaunch:pin,
    parentLauncherLog:pin,parentEvidence:pin,parentConsentSha256:pin.sha256,previousLink:pin,targetImageSha256:pin.sha256}}},false);
   await expect(f.cli(out,'--resume')).rejects.toThrow('local_entities_resume_forbidden');
   expect(m.book).not.toHaveBeenCalled();
