@@ -2013,8 +2013,7 @@ export async function illustrateReviewedAudition(args: {
         (diagnosis?.prompt ?? '') + anatomyPoseStrategy(previousAttempt ? auditionAttemptFindings(previousAttempt) : []), context, contextSha, checks, canonical, predecessor);
       attempts.push(result); report('page', String(pageNumber), result);
       const completeAttempt=finish('page', String(pageNumber), attempts);
-      if (attempts.length >= replayThrough && (completeAttempt ||
-          (args.exhaustedFrameEdit?.redraw && pageNumber > args.exhaustedFrameEdit.afterPage && localEvaluationEligible(result)))) break;
+      if (completeAttempt && attempts.length >= replayThrough) break;
     }
     const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${pageNumber}_unavailable`);
     pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen),

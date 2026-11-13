@@ -1,5 +1,10 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Local evaluation preserves ordinary page corrections
+
+- Independent QA held the unused run5l package because a late page eligible for local viewing could exit the draw loop after its first held review. The loop now keeps the normal correction allowance. Local evaluation selection happens after review and preserves all remaining findings.
+- The carry remains 76 calls and 5,828,874 microUSD. The next unused envelope is run5m, with independent re-gate before registration or dispatch. [Decision](<C:/GNart/Work/local-current-book-20261112/LOCAL-READER-COMPLETION-R2-20261113/DECISION.md>)
+
 ## 2026-11-13 — Complete local Reader evaluation from recovered receipts
 
 - The one-use run5k recovered the truncated review on its original pixels. The bounded edit of another frame did not resolve the material state. A Modern Standby interruption left the review awaiting collection. The exact GET of the already dispatched response yielded a priced held receipt. The original journal remains unchanged. The reconciled carry is 5,828,874 microUSD across 76 logical calls. [Recovered settlement](<C:/GNart/Work/local-current-book-20261112/FINAL-MEDIA-RECOVERY-20261113/OUTCOME-QA/EXISTING-RESPONSE-RECOVERY/ADMITTED-SETTLEMENT.json>)
