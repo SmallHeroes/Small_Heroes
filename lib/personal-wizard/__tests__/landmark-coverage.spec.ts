@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { assessAuditionReview, auditionJudgeInstruction, auditionPageReviewSchemaForContext, reviewedAuditionPolicy,
   LANDMARK_DESIGN_HEAD_VERSION, type AuditionLandmark } from '../simple-book-reviewed-audition';
 import { LANDMARK_SCAN_REGIONS as regions, LANDMARK_COVERAGE_TOPOLOGY_VERSION as V } from '../landmark-topology';
+import { PICTURE_BOOK_SPARSE_LANDMARK_REVIEW } from '../picture-book-direction';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 
 const sha = (s: string) => s.repeat(64);
@@ -38,6 +39,58 @@ function fixture() {
 const assess = (s = fixture()) => assessAuditionReview(s.raw, sha('a'), sha('b'), ['landmark_unique:s0', 'landmark_unique:s1'], s.landmarks, V).assessment;
 const context = { version: 'audition-page-context/v4', landmarkDesignHead: LANDMARK_DESIGN_HEAD_VERSION,
   landmarkTopology: V, landmarkCoverage: 'landmark-candidate-coverage/v1' };
+
+describe('whole-object evidence for a landmark with one source-bound aspect', () => {
+  const singleAspect = () => {
+    const s = fixture(), inventory = s.raw.landmarkInventory;
+    s.landmarks[0].features[1].decisive = false;
+    inventory.landmarks[0].candidates[1].association = 'different_object';
+    inventory.landmarks[0].candidates[1].featureChecks[0].observed = 'contradicted';
+    s.topology.bindings.find((b: any) => b.landmarkId === 's0' && b.objectId === 'o2').extent = 'not_instance';
+    return s;
+  };
+  const sparse = (s: ReturnType<typeof fixture>) => assessAuditionReview(s.raw, sha('a'), sha('b'),
+    ['landmark_unique:s0', 'landmark_unique:s1'], s.landmarks, V, undefined, undefined, undefined, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW).assessment;
+  it('accepts the single whole kind with complete exclusions and retains the historical hold', () => {
+    const s = singleAspect();
+    expect(assess(s).findings).toContainEqual(expect.objectContaining({ requirement: 'landmark_unique:s0', derived: true }));
+    expect(sparse(s).findings).toEqual([]);
+  });
+  it.each(['unreadable-kind', 'required-colour', 'same-kind-in-catalogue', 'incomplete-coverage', 'potential-duplicate', 'unreadable-population',
+    'unplanned-landmark', 'component-only'])('does not qualify %s', mode => {
+    const s = singleAspect(), inv = s.raw.landmarkInventory;
+    const whole = inv.landmarks[0].candidates[0];
+    const other = inv.landmarks[0].candidates[1];
+    const binding = (id: string) => s.topology.bindings.find((b: any) => b.landmarkId === 's0' && b.objectId === id);
+    if (mode === 'unreadable-kind') whole.featureChecks[0].observed = 'not_visible';
+    if (mode === 'required-colour') {
+      s.landmarks[0].features[1].decisive = true; whole.featureChecks[1].observed = 'not_visible';
+    }
+    if (mode === 'same-kind-in-catalogue') {
+      s.landmarks[1].features[0].text = s.landmarks[0].features[0].text;
+      s.topology.bindings.filter((b: any) => b.landmarkId === 's1').forEach((b: any) => { b.sourceKind = 'building'; });
+      const peer = inv.landmarks[1].candidates[1];
+      peer.association = 'different_object'; peer.featureChecks[0].observed = 'contradicted';
+      s.topology.bindings.find((b: any) => b.landmarkId === 's1' && b.objectId === 'o2').extent = 'not_instance';
+    }
+    if (mode === 'incomplete-coverage') Object.assign(s.topology.coverage.scans[2], {
+      status: 'uncertain', unresolvedReason: 'unreadable', uncertainLandmarkIds: ['s1'],
+    });
+    if (mode === 'potential-duplicate') {
+      other.association = 'possible_copy'; other.featureChecks[0].observed = 'matches'; binding('o2').extent = 'whole_instance';
+    }
+    if (mode === 'unreadable-population') s.topology.coverage.populations[0].negativeChecks[0].allMembersReadable = false;
+    if (mode === 'unplanned-landmark') s.landmarks[0].plannedVisible = false;
+    if (mode === 'component-only') { whole.association = 'possible_copy'; binding('o1').extent = 'component_only'; }
+    expect(sparse(s).findings).toContainEqual(expect.objectContaining({ requirement: 'landmark_unique:s0', derived: true }));
+  });
+  it('preserves material defects even when identity and coverage support one whole', () => {
+    const s = singleAspect();
+    Object.assign(s.raw.checks.find((c: any) => c.category === 'environment'), { verdict: 'defect', correction: 'restore the separated objects',
+      issues: [{ requirement: 'landmark_unique:s0', impact: 'continuity', note: 'distinct parts were visibly combined too early' }] });
+    expect(sparse(s).findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:s0', verdict: 'defect' })]);
+  });
+});
 
 describe('prospective whole-landmark candidate coverage, not incidental cue enumeration', () => {
   it('fixes nondecisive anchor veto only in v2; v1 deterministic history stays held', () => {

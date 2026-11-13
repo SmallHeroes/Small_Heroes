@@ -20,7 +20,7 @@ import { LANDMARK_KIND_CONTRACT_VERSION, LANDMARK_KIND_ATTRIBUTE } from './story
 import { INSTANCE_DISTINCTION_VERSION, DISTINCTION_ATTRIBUTE } from './storyboard-instance-distinction';
 import { assertReferenceRoleOwnership, simpleReferenceDesigns, referenceOwnershipSchema, simpleReferenceStateSchema } from './simple-reference-designs';
 import { locationSheetPolicySchema, locationSheetProjection, type LocationSheetPolicy } from './location-sheet-projection';
-import { PICTURE_BOOK_REVIEW, PICTURE_BOOK_SCALE_REVIEW, type PictureBookReview } from './picture-book-direction';
+import { PICTURE_BOOK_REVIEW, PICTURE_BOOK_SCALE_REVIEW, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, type PictureBookReview } from './picture-book-direction';
 import type { AuditionImage } from './simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
 import type { BookDesignReferenceRole } from '../generate-image';
@@ -547,7 +547,7 @@ export type AuditionAssessment = { companionScale?: ReturnType<typeof assessComp
  * objectId of the SAME observed object; a different object identified as that landmark never excuses this one.
  */
 export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInventorySchema>, landmarks: readonly AuditionLandmark[], topology?: LandmarkTopology,
-  instance?: typeof INSTANCE_DISTINCTION_VERSION) {
+  instance?: typeof INSTANCE_DISTINCTION_VERSION, sparseWholeEvidence?: true) {
   const bad = (): never => fail('audition_review_landmark_inventory');
   const catalogue = new Map(landmarks.map(l => [l.id, l.features])), ids = inventory.landmarks.map(e => e.landmarkId);
   if (new Set(ids).size !== ids.length || ids.length !== landmarks.length || ids.some(id => !catalogue.has(id))) bad();
@@ -584,7 +584,7 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
   if (instance !== undefined && (instance !== INSTANCE_DISTINCTION_VERSION || !topology)) bad();
   // A set_dressing association never reaches the count unresolved (setDressingInventory), and never outside the instance contract.
   if (inventory.landmarks.some(l => l.candidates.some(c => (c.association as string) === 'set_dressing'))) bad();
-  const physical = topology ? assessLandmarkTopology(topology, inventory, landmarks, instance ? true : undefined) : undefined;
+  const physical = topology ? assessLandmarkTopology(topology, inventory, landmarks, instance ? true : undefined, sparseWholeEvidence) : undefined;
   const instanceIds = physical ? [...new Set(inventory.objects.map(o => physical.objectGroup(o.objectId)))] : places.map((_, i) => i);
   return inventory.landmarks.map(entry => {
     const candidates = [...evaluated.get(entry.landmarkId)!.values()].map(({ c, contradictedCore, matchedCore, matchedCoreAspects }) => {
@@ -631,7 +631,8 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   const scaleAssessment = companionScale ? assessCompanionScale(review.scaleEvidence, companionScale) : undefined;
   const inventory = instance ? setDressingInventory(review.landmarkInventory!, landmarks!) : review.landmarkInventory;
   if (review.checks.some(c => (c.verdict === 'pass') !== (c.issues.length === 0) &&
-      !(pictureBookReview === PICTURE_BOOK_SCALE_REVIEW && scaleAssessment?.disposition === 'abstain' &&
+      !((pictureBookReview === PICTURE_BOOK_SCALE_REVIEW || pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW) &&
+        scaleAssessment?.disposition === 'abstain' &&
         c.category === 'relative_scale' && c.verdict === 'uncertain' && !c.issues.length && !c.correction.trim())))
     fail('audition_review_issue_coverage');
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
@@ -639,7 +640,8 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => {
     const bound = known.has(i.requirement);
     // Only the presentation requirement itself is advisory. Explicit story, identity and safety findings still gate.
-    const advisoryFraming = (pictureBookReview === PICTURE_BOOK_REVIEW || pictureBookReview === PICTURE_BOOK_SCALE_REVIEW) && bound && c.category === 'framing' &&
+    const advisoryFraming = (pictureBookReview === PICTURE_BOOK_REVIEW || pictureBookReview === PICTURE_BOOK_SCALE_REVIEW ||
+      pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW) && bound && c.category === 'framing' &&
       c.verdict === 'uncertain' && i.requirement === 'framing' && i.impact === 'continuity';
     return { category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
       impact: advisoryFraming ? 'detail' : i.impact, requirement: i.requirement, note: i.note, bound };
@@ -649,7 +651,8 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   if (scaleAssessment?.disposition === 'defect') findings.push({ category:'relative_scale', verdict:'defect',
     impact:'continuity', requirement:'companion_scale', bound:true, derived:true,
     note:'Measured natural standing height is outside the approved companion range.' });
-  const landmarkAssessment = landmarks ? assessLandmarkInventory(inventory!, landmarks, topology ? inventory!.topology : undefined, instance) : undefined;
+  const landmarkAssessment = landmarks ? assessLandmarkInventory(inventory!, landmarks, topology ? inventory!.topology : undefined, instance,
+    pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? true : undefined) : undefined;
   for (const l of landmarkAssessment ?? []) {
     const requirement = `landmark_unique:${l.landmarkId}`;
     // The inventory's fact is always kept: a model issue that merely shares this requirement can neither erase nor downgrade it.
@@ -1432,6 +1435,7 @@ export async function illustrateReviewedAudition(args: {
   /** Native whole book only: an unusable review answer gets one fresh identical request for the same image (step <image>_qa2). Absent: as before. */
   reviewReask?: true;
   pictureBookReview?: PictureBookReview;
+  replayAttempts?: Readonly<Partial<Record<number,number>>>;
   /** native-cde-book/v2 only (scene-preservation/v1): admitted scoped references, the shared record and per-attempt operations. Absent: as before. */
   scenePreservation?: ScenePreservationRun;
   /**
@@ -1972,10 +1976,17 @@ export async function illustrateReviewedAudition(args: {
       const diagnosis = args.recovery ? auditionRecoveryDiagnosis(attempts) : null;
       if (diagnosis) diagnoses.push({ beforeAttempt: attempt, diagnosis });
       const previousAttempt = attempts[attempts.length - 1];
-      const result = await pageAttempt(pageNumber, attempt, previousAttempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(previousAttempt, 'page', args.typedCorrections)),
+      const replayThrough = args.replayAttempts?.[pageNumber] ?? 0;
+      // Keep the historical correction on an already drawn attempt. Requalification affects new draws and the selected result.
+      const correctionParent = attempt < replayThrough && previousAttempt?.candidate && previousAttempt.review
+        ? { ...previousAttempt, assessment: assessAuditionReview(previousAttempt.review, previousAttempt.candidate.imageSha, contextSha,
+          checks.requirementIds, checks.uniqueLandmarks, topology, auditionAnatomyCast(context), auditionInstanceDistinction(context),
+          companionScaleFromContext(context), PICTURE_BOOK_SCALE_REVIEW).assessment } : previousAttempt;
+      const result = await pageAttempt(pageNumber, attempt, previousAttempt, base + (diagnosis ? diagnosis.prompt : auditionCorrections(correctionParent, 'page', args.typedCorrections)),
         (diagnosis?.prompt ?? '') + anatomyPoseStrategy(previousAttempt ? auditionAttemptFindings(previousAttempt) : []), context, contextSha, checks, canonical, predecessor);
       attempts.push(result); report('page', String(pageNumber), result);
-      if (finish('page', String(pageNumber), attempts)) break;
+      const completeAttempt=finish('page', String(pageNumber), attempts);
+      if (completeAttempt && attempts.length >= replayThrough) break;
     }
     const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${pageNumber}_unavailable`);
     pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen),

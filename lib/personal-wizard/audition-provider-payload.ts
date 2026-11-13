@@ -7,7 +7,8 @@ import { auditionJudgeInstruction, auditionPageReviewSchemaForContext, auditionA
   auditionLandmarkTopology, auditionReviewSchema, LANDMARK_COVERAGE_TOPOLOGY_VERSION, ReviewedAuditionError } from './simple-book-reviewed-audition';
 import { sceneJudgeReferenceRoles } from './scene-preservation';
 import { auditionReviewOutputCap, type AUDITION_REVIEW_CAPACITY_VERSION } from './audition-review-capacity';
-import { PICTURE_BOOK_REVIEW_DIRECTION, PICTURE_BOOK_SCALE_REPORTING, PICTURE_BOOK_SCALE_REVIEW, type PictureBookReview } from './picture-book-direction';
+import { PICTURE_BOOK_LANDMARK_REPORTING, PICTURE_BOOK_REVIEW_DIRECTION, PICTURE_BOOK_SCALE_REPORTING, PICTURE_BOOK_SCALE_REVIEW,
+  PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, type PictureBookReview } from './picture-book-direction';
 const REVIEW_MODEL = 'gpt-6.1-sol';
 const dataUrl = (bytes: Buffer) => `data:image/png;base64,${bytes.toString('base64')}`;
 const fail = (code: string): never => { throw new ReviewedAuditionError(code); };
@@ -30,7 +31,9 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
   // Chosen from the judged context: an entities design carrying the opt-in lineup gets its checks; anything else the existing instruction.
   const instructions = auditionJudgeInstruction(args.kind, args.context) +
     (args.pictureBookReview ? '\n' + PICTURE_BOOK_REVIEW_DIRECTION : '') +
-    (args.kind === 'page' && args.pictureBookReview === PICTURE_BOOK_SCALE_REVIEW ? '\n' + PICTURE_BOOK_SCALE_REPORTING : '');
+    (args.kind === 'page' && (args.pictureBookReview === PICTURE_BOOK_SCALE_REVIEW ||
+      args.pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW) ? '\n' + PICTURE_BOOK_SCALE_REPORTING : '') +
+    (args.kind === 'page' && args.pictureBookReview === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? '\n' + PICTURE_BOOK_LANDMARK_REPORTING : '');
   if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
   return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
     input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },

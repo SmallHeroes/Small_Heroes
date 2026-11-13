@@ -116,7 +116,8 @@ function assessCoverage(topology: z.infer<typeof landmarkCoverageTopologySchema>
 }
 
 /** Validate the physical graph separately from source ownership; never union component siblings. */
-export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Inventory, landmarks: readonly Landmark[], instance?: true) {
+export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Inventory, landmarks: readonly Landmark[], instance?: true,
+  sparseWholeEvidence?: true) {
   if (instance !== undefined && (instance !== true || raw.version !== LANDMARK_COVERAGE_TOPOLOGY_VERSION)) bad();
   const topology = instance ? instanceCoverageTopologySchema.parse(raw) as z.infer<typeof landmarkCoverageTopologySchema>
     : raw.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? landmarkCoverageTopologySchema.parse(raw) : landmarkTopologySchema.parse(raw);
@@ -198,6 +199,20 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     if ([...observedKinds.values()].some(s => s.has('matches') && s.has('contradicted'))) bad();
   }
   const uncertain = topology.version === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? assessCoverage(topology, inventory, landmarks, root) : new Set<string>();
+  const sparseAnchor = (landmarkId: string, objectId: string, kind: Feature) => {
+    if (!sparseWholeEvidence || topology.version !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || uncertain.has(landmarkId) ||
+        topology.coverage.scans.some(scan => scan.status !== 'complete') ||
+        [...kinds.values()].filter(candidate => candidate.text === kind.text).length !== 1) return false;
+    const source = landmarks.find(row => row.id === landmarkId)!;
+    if (!source.plannedVisible || source.features.filter(f => f.decisive).length !== 1) return false;
+    const physical = root(objectId);
+    const rows = inventory.landmarks.find(row => row.landmarkId === landmarkId)!.candidates;
+    return rows.every(row => root(row.objectId) === physical
+      ? row.association === 'this_landmark' && bindings.get(key(landmarkId, row.objectId))!.extent === 'whole_instance' &&
+        row.featureChecks.some(f => f.featureId === kind.id && f.observed === 'matches')
+      : row.association === 'different_object' && bindings.get(key(landmarkId, row.objectId))!.extent === 'not_instance' &&
+        row.featureChecks.some(f => f.featureId === kind.id && f.observed === 'contradicted'));
+  };
   // Coverage contract only: a visibly attached part (or containing aggregate) whose own decisive feature contradicts the landmark - e.g. the
   // block tail of a block-built sculpture - may be labelled different_object with its typed extent. It is never counted (a different object)
   // and its exclusion still needs the same visible path to a positive whole below; without that path the landmark stays uncertain.
@@ -216,7 +231,7 @@ export function assessLandmarkTopology(raw: LandmarkTopology, inventory: Invento
     const veto = c.featureChecks.some(x => x.observed === 'contradicted' &&
       (topology.version === LANDMARK_TOPOLOGY_VERSION || features.some(f => f.id === x.featureId && f.decisive)));
     const supported = kindObserved === 'matches' && !veto &&
-      new Set(matched.map(f => f.aspect)).size >= 2;
+      (new Set(matched.map(f => f.aspect)).size >= 2 || sparseAnchor(l.landmarkId, c.objectId, kind));
     if (binding.extent === 'uncertain') uncertain.add(l.landmarkId);
     if (binding.extent === 'whole_instance' && c.association !== 'different_object' && !supported) uncertain.add(l.landmarkId);
     if (c.association !== 'this_landmark') continue;

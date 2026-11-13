@@ -1,5 +1,11 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Landmark recognition from sparse source descriptions
+
+- Run5h at `2fded17e` recovered the paid page 1 illustration. The three page 2 reviews each identified a whole slide, but the catalogue contained only one decisive aspect and the code required two. Page 3 also had genuine continuity defects. The terminal pause occurred after the second page 3 review settled and before its identity call. The book carries 51 settled calls and 3,697,244 microUSD, with no pending or unknown call. [Terminal reconciliation](<C:/GNart/Work/local-current-book-20261112/SCALE-ABSTENTION-CONTINUATION-20261113/OUTCOME-QA/TERMINAL-RECONCILIATION.json>)
+- The prospective v8 rule accepts one whole, planned landmark on positive kind evidence when the catalogue supplies no other decisive aspect, the kind is unique, and complete typed coverage excludes every competing object. Genuine defects, incomplete evidence, anatomy, companion scale and 0.70 child resemblance retain their gates. New page directions clarify sightlines, separate flow boundaries and the orientation of partly concealed props.
+- Provider-free replay verified the original stopped run, retained the accepted cover and pages 1 and 2 from existing pixels, and derived the next identity wire from the saved page 3 illustration. The already-paid page attempts and re-ask remain counted. [Decision and replay](<C:/GNart/Work/local-current-book-20261112/SPARSE-LANDMARK-CONTINUATION-20261113/DECISION.md>)
+
 ## 2026-11-13 — Native visual review scale abstention
 
 - Run5g at `04725f87` passed the locations sheet and cover. Page 1's corrected picture reached two settled reviews. Both recorded non-comparable standing scale with no listed issue. The strict issue-coverage check rejected both, leaving the picture unapproved before its separate identity measurement. The 36 calls account for 2,489,514 microUSD, with no pending or unknown cost. [Exact terminal evidence](<C:/GNart/Work/local-current-book-20261112/LOCATION-SHEET-CORRECTION-20261113/OUTCOME-QA/TERMINAL-RECONCILIATION.json>)

@@ -39,7 +39,7 @@ import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
 import { ENGINE_CURRENT_CUSTOMER_V3, enginePictureBookReview, isCurrentCustomerEngine, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
-import { PICTURE_BOOK_DRAWING_DIRECTION, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
+import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, PICTURE_BOOK_SPATIAL_STAGING, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
 import { blockedRouteDrawing, initialBlockedRoutesOnPage, locationSpatialDirection } from '@/lib/personal-wizard/location-spatial-direction';
 import { LOCATION_GUIDE_LEGEND, locationSpatialGuide } from '@/lib/personal-wizard/location-spatial-guide';
 import { prepareEngineStorySource,prepareEngineStoryboard,engineStoryboardSupported,assertEngineInitialPreparation,assertEngineSupportedPreparationCache,type AdmittedEngineInitialPreparation } from './story-preparation';
@@ -48,7 +48,7 @@ import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrig
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
-import {checkLocalEntitiesPreparation,localCurrentLocationAttempt,localCurrentTransition,localEntitiesSheetPair,localSpentReviewReasks,withLocalSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
+import {checkLocalEntitiesPreparation,localCurrentLocationAttempt,localCurrentTransition,localEntitiesSheetPair,localReplayAttempts,localSpentReviewReasks,withLocalSettledMedia,type LocalEntitiesPreparation} from './local-current-entities';
 import {assertEngineLocationV2RepairPreparation,locationV2RepairFindings,type AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
@@ -376,6 +376,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         sheets[role] = { ...context, chosen, attempts: [...structuredClone(previous),attempt], status: attempt.status };
       }
       const spentReviewReasks=args.currentLocationsRepair?localSpentReviewReasks(args.currentLocationsRepair):undefined;
+      const replayAttempts=args.currentLocationsRepair?localReplayAttempts(args.currentLocationsRepair):undefined;
       const saved: Record<string, unknown> = {};
       const resumePages: Partial<Record<number, SavedPage>> = {};
       for (const n of spentReviewReasks ? [] : NATIVE_BOOK_FRAMES) {
@@ -394,6 +395,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
         ...(usesTypedCustomerCorrections(authority) ? { typedCorrections: TYPED_PAGE_CORRECTION_VERSION } : {}),
         ...(pictureBook ? { pictureBookReview: pictureBook } : {}),
         ...(spentReviewReasks===undefined?{}:{spentReviewReasks}),
+        ...(replayAttempts?{replayAttempts}:{}),
         ...(Object.keys(resumePages).length ? { resumePages } : {}),
         check: runtime.check, render: (step, prompt, refs, mode, roles) => {
           if (!['book_identity', 'book_design', 'book_scene_edit'].includes(mode)) engineSiteFail('engine_native_v2_not_enabled');
@@ -401,7 +403,9 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
           const routes = spatial && frame ? initialBlockedRoutesOnPage(book, designs.locations, spatial.routes, Number(frame[1])) : [];
           const direction = pictureBook ? prompt + '\n' + PICTURE_BOOK_DRAWING_DIRECTION : prompt;
           const cues = routes.map(route => blockedRouteDrawing({ ...route, overhead: null }, correctedSpatial));
-          return render(step, cues.length ? direction + '\n' + cues.join('\n') : direction, refs, mode, roles);
+          const staged = cues.length ? direction + '\n' + cues.join('\n') : direction;
+          return render(step, pictureBook === PICTURE_BOOK_SPARSE_LANDMARK_REVIEW ? staged + '\n' + PICTURE_BOOK_SPATIAL_STAGING : staged,
+            refs, mode, roles);
         }, judge: judged, identity, save: (name, value) => {
           saved[name] = value;
           if (/^page_[0-8]$/.test(name) && (value as SavedPage).status === 'qa_supported')

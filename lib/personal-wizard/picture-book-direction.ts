@@ -6,9 +6,15 @@ import type { auditionSheetDesigns } from './simple-book-reviewed-audition';
 
 export const PICTURE_BOOK_REVIEW = 'picture-book-materiality/v1' as const;
 export const PICTURE_BOOK_SCALE_REVIEW = 'picture-book-materiality/v2' as const;
-export type PictureBookReview = typeof PICTURE_BOOK_REVIEW | typeof PICTURE_BOOK_SCALE_REVIEW;
+export const PICTURE_BOOK_SPARSE_LANDMARK_REVIEW = 'picture-book-materiality/v3' as const;
+export type PictureBookReview = typeof PICTURE_BOOK_REVIEW | typeof PICTURE_BOOK_SCALE_REVIEW | typeof PICTURE_BOOK_SPARSE_LANDMARK_REVIEW;
 
 export const PICTURE_BOOK_SCALE_REPORTING = 'Standing-scale coverage is recorded separately in scaleEvidence. On a non-comparable frame, when there is no actionable scale issue, report the coverage limitation as an observation with an empty issues list and empty correction. Continue to report any visible action-scale defect or unresolved action-scale evidence as an issue.';
+
+export const PICTURE_BOOK_LANDMARK_REPORTING = 'If the supplied catalogue gives a planned landmark exactly one decisive feature and that feature is a kind unique to that landmark, the whole visible object can be identified by kind alone. In this case a second decisive aspect is unnecessary. Account for every competing body with a visibly contradicted kind and complete all four scans. If any competing body could be another instance, report the uncertainty. A landmark with the same kind elsewhere in the catalogue still needs distinguishing evidence. Never use a neighbouring object, component, imagined feature or an absence of evidence as a match.';
+
+export const PICTURE_BOOK_SPATIAL_STAGING = `Use one coherent view of the drawn instant. If an opening reveals an existing object in an adjacent space, position its one visible instance within the sightline and connect it to its own surroundings. Keep the framing around the opening simple and avoid a second copy or a separate overview above the scene.
+Trace every required separate route with its own boundaries and surface. For liquids that have not yet joined, leave a visible continuous bank or strip of ground between the flows. Carry the divider through their closest point and around bends. Use visible connections only at the source-specified place and moment. Give small props room to read: for an object partly inside a pocket or container, show only the specified exposed end and place the rest behind its opening.`;
 
 export const PICTURE_BOOK_DRAWING_DIRECTION = `PICTURE BOOK ART DIRECTION
 Make the main action and its result easy to see at a glance. Place the child and companion so their gaze, gesture and points of contact tell the same story. Keep unrelated detail away from the action. Use silhouette, spacing, colour and texture to distinguish neighbouring parts. For a change in state, draw the specified moment and make the visible before/after boundary clear. Keep the same recognisable designs as the camera moves. Choose a natural angle and composition that make the required action readable.`;
