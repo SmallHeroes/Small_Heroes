@@ -1,5 +1,10 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Noa and Momo: entities passed; locations held
+
+- The independent v3 continuation at `ca309e1e` ran once. The corrected entities sheet passed all eight review categories. The locations sheet was held because it drew yellow flow between the mud blockage and the sunflower root, where the source requires a dry section. The raw-priced aggregate is 1,252,586 microUSD and 19 calls, with no unknown or reserved calls. The original story, bound plan, child and passed entities are preserved. The cover, pages, narration, PDF and Reader were not produced.
+- A separate opt-in local continuation verifies both original journals and their linked one-use ledger records, replays the four settled sheet operations under the original v3 authority, and carries all 19 costs and calls. It uses the existing location edit primitive on the exact held image with its bound finding, reuses the passed entities bytes, and stops unless the edited location passes the same review. One new edit and review at the original full reserves ($1.40 combined), then existing media gates if supported. It adds no spend capacity or hosted behavior. A new independent activation is required; no repeat or resume of earlier GO files.
+
 ## 2026-11-13 — Noa and Momo local book stopped at the entities reference
 
 - Run 5b executed once at `6f4bb9f1` after independent source and activation review. The fictional manuscript, repaired storyboard, child reference and bound review passed their checks. The entities sheet failed the continuity check because six location-owned items appeared beside its three assigned items. No cover, pages, audio, PDF or Reader was produced.

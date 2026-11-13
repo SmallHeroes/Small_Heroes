@@ -91,6 +91,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
     async advance(phase) { checkpoint.phase = phase; },
   };
   await createEngineNativeRecipe({ db, storage, snapshot: context.snapshot,initialPreparation,childBindingPreparation,locationsRepairPreparation,locationsV2RepairPreparation,
+    ...(entitiesContinuation?.boundary==='locations'?{currentLocationsRepair:entitiesContinuation}:{}),
     ports: { fetch: denied, openAIKey: denied, anthropicKey: denied, image: denied } })(runtime);
   if (!final || (final as SavedPage[]).length !== 9) engineSiteFail('engine_readmission_incomplete');
   const prepared = await load('prepared_source') as any, childUrl = `data:image/png;base64,${prepared.childB64}`;

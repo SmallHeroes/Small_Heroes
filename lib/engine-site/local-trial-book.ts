@@ -45,7 +45,8 @@ export async function runLocalEngineTrialBook(o:{runtime:LocalEngineTrialRuntime
   await r.advance('native');
  }
  const materialize=createEngineMaterializer({db,storage,snapshot:o.snapshot,narration:o.narration,pdf:o.pdf,assets});
- await createEngineNativeRecipe({db,storage,snapshot:o.snapshot,ports:o.provider,materialize,initialPreparation:o.initialPreparation,childBindingPreparation:o.childBindingPreparation,locationsRepairPreparation:o.locationsRepairPreparation,locationsV2RepairPreparation:o.locationsV2RepairPreparation})(r);
+ await createEngineNativeRecipe({db,storage,snapshot:o.snapshot,ports:o.provider,materialize,initialPreparation:o.initialPreparation,childBindingPreparation:o.childBindingPreparation,locationsRepairPreparation:o.locationsRepairPreparation,locationsV2RepairPreparation:o.locationsV2RepairPreparation,
+  ...(o.entitiesContinuation?.boundary==='locations'?{currentLocationsRepair:o.entitiesContinuation}:{})})(r);
  const book=validateEngineMaterializedBook(r,await r.load('materialized_book'));
  const admitted=await replayEngineRecordedBook({checkpoint:r.checkpoint,snapshot:o.snapshot,book},{readJson:id=>r.readJson(id),result:step=>r.result(step)},undefined,o.initialPreparation,o.childBindingPreparation,o.locationsRepairPreparation,o.locationsV2RepairPreparation,o.entitiesContinuation);
  if(admitted.length!==9)engineSiteFail('local_trial_readmission_incomplete');

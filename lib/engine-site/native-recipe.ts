@@ -45,6 +45,7 @@ import { admitEngineBindingParent,prepareEngineBoundStoryboard,engineBindingOrig
 import type { StoryboardRepair } from '@/lib/personal-wizard/storyboard-repair';
 import {assertEngineChildBindingPreparation,type AdmittedEngineChildBindingPreparation} from './local-trial-child-binding';
 import {assertEngineLocationRepairPreparation,locationRepairFindings,type AdmittedEngineLocationRepairPreparation} from './local-trial-location-repair';
+import {checkLocalEntitiesPreparation,localEntitiesSheetPair,type LocalEntitiesPreparation} from './local-current-entities';
 import {assertEngineLocationV2RepairPreparation,locationV2RepairFindings,type AdmittedEngineLocationV2RepairPreparation} from './local-trial-location-repair-v2';
 
 const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex');
@@ -83,6 +84,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
   childBindingPreparation?:AdmittedEngineChildBindingPreparation;
   locationsRepairPreparation?:AdmittedEngineLocationRepairPreparation;
   locationsV2RepairPreparation?:AdmittedEngineLocationV2RepairPreparation;
+  currentLocationsRepair?:LocalEntitiesPreparation;
   /** Read-only observation seam for provider-denied complete raw replay. Receives a detached copy; never supplies approval/state. */
   observeChildPreparation?:(value:EngineNativeChildPreparation,appearance:ExistingChildAppearance)=>void;
   /** Detached raw-replay observation only; cannot supply or modify sheet approval. */
@@ -144,6 +146,10 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     if(args.locationsRepairPreparation&&args.locationsV2RepairPreparation)engineSiteFail('local_locations_v2_preparation_changed');
     let prepared: any = await runtime.load('prepared_source');
     const locationCap=args.locationsV2RepairPreparation??args.locationsRepairPreparation;
+    if(args.currentLocationsRepair&&(!prepared||locationCap||args.childBindingPreparation||args.initialPreparation))
+      engineSiteFail('local_locations_current_preparation');
+    const currentRepair=args.currentLocationsRepair?
+      localEntitiesSheetPair(args.currentLocationsRepair,runtime.checkpoint,snapshot,prepared):null;
     const checkLocationCap=()=>{if(args.locationsV2RepairPreparation)assertEngineLocationV2RepairPreparation(args.locationsV2RepairPreparation,authority,runtime.checkpoint,prepared,snapshot);
       else if(args.locationsRepairPreparation)assertEngineLocationRepairPreparation(args.locationsRepairPreparation,authority,runtime.checkpoint,prepared,snapshot);};
     if(locationCap){
@@ -298,9 +304,10 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
       const designs = auditionSheetDesigns(book, texts), sheets = {} as Record<'entities' | 'locations', SavedSheet>;
       for (const role of ['entities', 'locations'] as const) {
         const context = auditionSheetContext(role, designs[role]);
-        const cap=locationCap, prior=cap?.[role];
-        if(cap){
-          checkLocationCap();
+        const cap=locationCap, prior=cap?.[role]??currentRepair?.[role];
+        const checkRepair=()=>{if(cap)checkLocationCap();else if(args.currentLocationsRepair)checkLocalEntitiesPreparation(args.currentLocationsRepair);};
+        if(cap||currentRepair){
+          checkRepair();
           if(!prior||!sameSheetContext(prior,context)||canonicalHash(prior.requirementIds)!==canonicalHash(context.requirementIds))engineSiteFail('local_locations_context_changed');
           const old=prior.attempt.candidate;
           if(!old)engineSiteFail('local_locations_preparation_changed');
@@ -311,7 +318,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
             sheets.entities={...context,chosen,attempts:[structuredClone(prior.attempt)],status:chosen.status};continue;
           }
         }
-        const repair=cap&&role==='locations'?prior:undefined, nextAttempt=repair?(args.locationsV2RepairPreparation?2:1):0, step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
+        const repair=(cap||currentRepair)&&role==='locations'?prior:undefined, nextAttempt=repair?(args.locationsV2RepairPreparation?2:1):0, step=repair?`sheet_locations_${nextAttempt}`:`sheet_${role}_0`;
         // Both role designs derive from this same admitted book; v2 uses the sibling only as exclusion recognition data.
         const prompt = repair
           ? sheetRepairPrompt(role, designs[role], args.locationsV2RepairPreparation ? locationV2RepairFindings(repair.attempt) : locationRepairFindings(repair.attempt), authority.locationSheetPolicy, designs.entities)
@@ -320,10 +327,10 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
             : auditionSheetPrompt(role, designs[role], authority.locationSheetPolicy, designs.entities);
         const candidate = await render(step, prompt, repair?[repair.attempt.candidate!,child,companion]:[child, companion], 'book_design',
           repair?['rejected_edit_target','child_design_authority','companion_design_authority']:['child_design_authority', 'companion_design_authority']);
-        if(cap)checkLocationCap();
+        checkRepair();
         if(repair&&candidate.imageSha===repair.attempt.candidate!.imageSha)engineSiteFail('engine_locations_repair_unchanged');
         const raw = await judged(`${step}_qa`, candidate, context.context, context.contextSha, [child, companion], null, 'sheet');
-        if(cap)checkLocationCap();
+        checkRepair();
         const assessed = assessAuditionReview(raw, candidate.imageSha, context.contextSha, context.requirementIds);
         const attempt: AuditionAttempt = { attempt: nextAttempt, candidate, review: assessed.review, assessment: assessed.assessment, status: 'unavailable' };
         attempt.status = attemptStatus('sheet', attempt); const chosen = selectAuditionAttempt('sheet', [attempt]);
