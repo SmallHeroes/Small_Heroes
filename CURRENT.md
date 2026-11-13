@@ -1,5 +1,10 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Picture-book direction trial finished at the locations gate
+
+- Claude Code independently passed the v4 source and exact activation at `060e2eed`. The one authorized local continuation ran once. The Sunburst LOW locations edit still joins the sunflower root visually to the mud and shows no readable dry channel beyond the obstruction. The review returned one bound continuity defect on `design:color_channels`. The manuscript and prior references are preserved. No cover, page, Dad audio, PDF or Reader was produced.
+- The edit and review settled at 64,992 and 31,522 microUSD, bringing this manuscript to 1,458,836 microUSD across 23 calls. Pending, unknown and reserved costs are zero. The provider-free replay reproduced the exact hold and all 23 calls. The consumed execution and full evidence are recorded in `C:/GNart/Work/local-current-book-20261112/PICTURE-BOOK-DIRECTION-20261113/OUTCOME-QA/PRODUCT-OUTCOME.md`.
+
 ## 2026-11-13 — Picture-book direction and practical visual review
 
 - The opt-in current engine v4 gives the illustrator concrete guidance for silhouettes, spacing, contact and state changes. The locations prompt draws from the owned locations and landmarks in their initial state. A repair takes the requirements cited by the bound review and the original design data. Later states stay in the page plan.
