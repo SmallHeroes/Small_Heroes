@@ -19,7 +19,9 @@ export const ENGINE_CURRENT_CUSTOMER_V2 = 'customer-current-engine/v2' as const;
 export const ENGINE_CURRENT_CUSTOMER_V3 = 'customer-current-engine/v3' as const;
 /** Explicit picture-book art direction and materiality rubric for prospective image requests. */
 export const ENGINE_CURRENT_CUSTOMER_V4 = 'customer-current-engine/v4' as const;
-export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4] as const;
+/** Separates explicit source geometry into visible parts and a composition guide. */
+export const ENGINE_CURRENT_CUSTOMER_V5 = 'customer-current-engine/v5' as const;
+export const ENGINE_CURRENT_VERSIONS = [ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V2, ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V4, ENGINE_CURRENT_CUSTOMER_V5] as const;
 export type EngineCurrentVersion = (typeof ENGINE_CURRENT_VERSIONS)[number];
 export const ENGINE_AUTHOR_BATCH = 'anthropic-message-batch/v1' as const;
 /** The base storyboard ceiling: the first plan plus two focused repairs. No owner extension is implied. */
@@ -31,5 +33,10 @@ export function isCurrentCustomerEngine(authority: { purpose: string; currentEng
 /** The bound repair and typed image corrections start at v2. */
 export function usesTypedCustomerCorrections(authority: { purpose: string; currentEngine?: string }) {
   return authority.purpose === 'customer' && (authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V2 ||
-    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V4);
+    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V3 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V4 ||
+    authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V5);
+}
+
+export function usesPictureBookReview(authority: { currentEngine?: string }) {
+  return authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V4 || authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V5;
 }

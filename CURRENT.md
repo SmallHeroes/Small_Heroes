@@ -1,5 +1,11 @@
 # SmallHeroes — Current Technical State
 
+## 2026-11-13 — Source-derived location composition
+
+- The v5 native render derives stable placements from the admitted plan. When the original design identifies an obstruction and an empty or dry continuation, the location prompt names the visible supply side, obstruction, continuation and any explicitly named overhead feature. An abstract composition guide carries the same relationships. The page prompt uses the initial direction only while both landmarks are visible and their depicted state still matches.
+- The local v5 continuation preserves and replays the 23 settled operations, 1,458,836 microUSD, the manuscript, child, Momo and the approved entities sheet. It draws a fresh location atlas from the design and style references, with the rejected images retained as evidence. A synthetic passing receipt reaches the cover through the real recipe. Image efficacy requires live evidence.
+- The exact activation requires independent Claude Code review. It permits one LOW Sunburst location render and one review with 1,400,000 microUSD in full reserves, then the existing page, Dad narration, PDF and Reader stages when admitted under the same 12,000,000 microUSD and 124-call ceiling. [Decision and evidence](C:/GNart/Work/local-current-book-20261112/SOURCE-SPATIAL-DIRECTION-20261113/DECISION.md)
+
 ## 2026-11-13 — Picture-book direction trial finished at the locations gate
 
 - Claude Code independently passed the v4 source and exact activation at `060e2eed`. The one authorized local continuation ran once. The Sunburst LOW locations edit still joins the sunflower root visually to the mud and shows no readable dry channel beyond the obstruction. The review returned one bound continuity defect on `design:color_channels`. The manuscript and prior references are preserved. No cover, page, Dad audio, PDF or Reader was produced.

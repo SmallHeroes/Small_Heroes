@@ -254,13 +254,14 @@ export type GPTImageReferenceMode =
 
 export type BookDesignReferenceRole = 'rejected_edit_target' | 'scene_edit_target' | 'child_design_authority' |
   'companion_design_authority' | 'entity_design_authority' | 'landmark_subset_design_authority' |
-  'entity_scoped_authority' | 'location_scoped_authority' | 'scene_continuity_reference';
+  'entity_scoped_authority' | 'location_scoped_authority' | 'scene_continuity_reference' | 'location_layout_guide';
 const BOOK_DESIGN_ROLES: Record<BookDesignReferenceRole, string> = {
   scene_edit_target: 'Rejected full scene to edit, not canonical design authority.',
   rejected_edit_target: 'REJECTED reference sheet to edit, never canonical authority. Preserve its layout and unaffected designs; change only the named defects.',
   child_design_authority: 'Accepted child design and owned clothing authority. Preserve specified identity, anatomy, hair, colors and clothing; not a real-child photo and not an actor to add to this sheet.',
   companion_design_authority: 'Accepted selected companion design authority. Preserve its actual species, anatomy, silhouette, colors and accessories; never substitute another companion or add its body unless requested.',
   entity_design_authority: 'Accepted object/supporting-cast design atlas authority. Preserve the relevant materials, counts, silhouettes and structural details, not tile layout or labels.',
+  location_layout_guide: 'Source-bound location layout diagram. Follow the illustrated relationships only. The diagram is not a palette, a style reference or an approved finished image.',
   landmark_subset_design_authority: 'Independently supported source-bound landmark SUBSET ONLY, not an approved complete location atlas. Preserve only its named landmark designs and counted parts; the full current location/topology design remains mandatory. Do not copy its isolated tile background or replace unrelated locations.',
   entity_scoped_authority: 'Approved design tiles of ONLY the objects/supporting cast allowed in this picture. Preserve their materials, counts, silhouettes and structural details; never their tile layout, labels or background.',
   location_scoped_authority: 'Approved design of ONLY the location(s) visible in this picture and the landmarks they contain. Preserve set geometry, landmark construction and topology; follow the scene camera, never the tile framing.',
@@ -588,7 +589,8 @@ export function planGPTImageRequest(
       roles.length === 0 || referenceCountRequested !== orderedReferenceSources.length ||
       new Set(roles).size !== roles.length || Array.from(roles).some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r)) ||
       (sceneV2 ? !validSceneV2Roles(referenceMode, roles) : referenceMode === 'book_design'
-        ? roles.includes('scene_edit_target') || roles.some(r => r === 'entity_scoped_authority' || r === 'location_scoped_authority' || r === 'scene_continuity_reference')
+        ? roles.includes('scene_edit_target') || roles.some(r => r === 'entity_scoped_authority' || r === 'location_scoped_authority' || r === 'scene_continuity_reference') ||
+          roles.includes('location_layout_guide') && roles.join('|') !== 'child_design_authority|companion_design_authority|location_layout_guide'
         : roles.join('|') !== 'scene_edit_target|child_design_authority|companion_design_authority|entity_design_authority')) : roles !== undefined) {
     throw new Error('Invalid explicit book design reference roles.');
   }

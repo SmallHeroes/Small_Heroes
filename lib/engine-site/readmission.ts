@@ -6,7 +6,7 @@ import { companionScaleFromContext } from '@/lib/personal-wizard/companion-scale
 import { PICTURE_BOOK_REVIEW } from '@/lib/personal-wizard/picture-book-direction';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { engineSiteFail } from './contract';
-import { ENGINE_CURRENT_CUSTOMER_V4 } from './current-engine-policy';
+import { usesPictureBookReview } from './current-engine-policy';
 import { createEngineNativeRecipe } from './native-recipe';
 import type { EngineRuntime, EngineProviderResult } from './durable-worker';
 import { loadEnginePrivateAsset, readEnginePrivateBytes } from './private-assets';
@@ -135,7 +135,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       try {assessment=assessAuditionReview(parsedRaw,attempt.candidate.imageSha,judged.contextSha,judged.context.requirementIds??[],
         judged.context.checks?.uniqueLandmarks??[],auditionLandmarkTopology(judged.context),auditionAnatomyCast(judged.context),
         auditionInstanceDistinction(judged.context),companionScaleFromContext(judged.context),
-        checkpoint.authority.currentEngine===ENGINE_CURRENT_CUSTOMER_V4?PICTURE_BOOK_REVIEW:undefined).assessment;}
+        usesPictureBookReview(checkpoint.authority)?PICTURE_BOOK_REVIEW:undefined).assessment;}
       catch{engineSiteFail('engine_readmission_assessment_changed');}
       if(canonicalHash(assessment)!==canonicalHash(attempt.assessment))engineSiteFail('engine_readmission_assessment_changed');
       if (attempt.status === 'identity_unusable') engineSiteFail('engine_readmission_identity_changed');

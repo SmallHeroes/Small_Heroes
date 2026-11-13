@@ -27,13 +27,13 @@ import {engineSiteFail} from '../lib/engine-site/contract';
 import {prepareEngineOrder,resolveEngineWizardOptions} from '../lib/engine-site/personal-orders';
 import {engineCustomerAuthority} from '../lib/engine-site/personal-jobs';
 import {engineSpendPolicySchema,type EngineSpendPolicy} from '../lib/engine-site/platform-policy';
-import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,type EngineCurrentVersion} from '../lib/engine-site/current-engine-policy';
+import {ENGINE_CURRENT_CUSTOMER_V2,ENGINE_CURRENT_CUSTOMER_V3,ENGINE_CURRENT_CUSTOMER_V4,ENGINE_CURRENT_CUSTOMER_V5,type EngineCurrentVersion} from '../lib/engine-site/current-engine-policy';
 import {ENGINE_IMAGE26_POLICY} from '../lib/engine-site/image-model-policy';
 import {engineQaRequired} from '../lib/engine-site/qa-order-policy';
 import {LocalEngineTrialRuntime,validateLocalTrialAuthority,LOCAL_CURRENT_ENGINE_MAX_CALLS} from '../lib/engine-site/local-trial-runtime';
 import {runLocalEngineTrialBook,localTrialReaderBundle} from '../lib/engine-site/local-trial-book';
 import {LOCAL_CONSENT_LEDGER_ROOT,localConsentLedger,admitLocalCurrentRegistration,claimLocalConsent,acquireLocalLease,localConsentDispatchWitness} from '../lib/engine-site/local-consent-ledger';
-import {admitLocalEntitiesContinuation,claimLocalEntitiesContinuation,localCurrentBoundary,localCurrentEntitiesSchema,localCurrentLocationsSchema,localCurrentPictureBookSchema,localCurrentLocationRepairSlots,localEntityMediaStep,localLocationMediaStep,previewLocalEntitiesContinuation,readLocalEntityParentGo,type LocalEntitiesPreparation} from '../lib/engine-site/local-current-entities';
+import {admitLocalEntitiesContinuation,claimLocalEntitiesContinuation,localCurrentBoundaries,localCurrentBoundary,localCurrentEntitiesSchema,localCurrentLocationsSchema,localCurrentPictureBookSchema,localCurrentSpatialSchema,localCurrentTransition,localCurrentLocationRepairSlots,localEntityMediaStep,localLocationMediaStep,previewLocalEntitiesContinuation,readLocalEntityParentGo,type LocalEntitiesPreparation} from '../lib/engine-site/local-current-entities';
 import {localReaderId} from '../lib/local-reader-preview';
 
 const KEYS=['OPENAI_API_KEY','ANTHROPIC_API_KEY','ELEVENLABS_API_KEY'] as const;
@@ -48,7 +48,7 @@ export const localCurrentGoSchema=z.object({version:z.literal('engine-local-curr
  approvalReference:z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/),ownerWords:z.string().min(1),sourceRevision:z.string().regex(/^[a-f0-9]{40}$/),
  profileSha256:digest,maximumMicroUsd:z.literal(12_000_000),maximumCalls:z.literal(LOCAL_CURRENT_ENGINE_MAX_CALLS),readerId:z.string(),
  fictional:z.literal(true),realPayment:z.literal(false),publicDelivery:z.literal(false),
- entitiesContinuation:z.object({parent:z.discriminatedUnion('version',[localCurrentEntitiesSchema,localCurrentLocationsSchema,localCurrentPictureBookSchema]),firstWireSha256:digest}).strict().optional()}).strict();
+ entitiesContinuation:z.object({parent:z.discriminatedUnion('version',[localCurrentEntitiesSchema,localCurrentLocationsSchema,localCurrentPictureBookSchema,localCurrentSpatialSchema]),firstWireSha256:digest}).strict().optional()}).strict();
 
 const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
 function readFile(file:string){if(lstatSync(file).isSymbolicLink()||realpathSync(file)!==path.resolve(file))engineSiteFail('local_current_file_path');return readFileSync(file);}
@@ -82,19 +82,20 @@ export function localCurrentPolicy(head:string,go:{approvalReference:string;appr
 }
 /** Provider-free: the exact customer authority this profile would get on the current source. */
 export function prepareLocalCurrentBook(root:string,profileFile:string,go:{approvalReference:string;approvedAt:string},
- continuation?:{parentOrderId:string;locationsRepair?:true|2}){
+ continuation?:{parentOrderId:string;locationsRepair?:true|2|3}){
  if(engineQaRequired())engineSiteFail('local_current_qa_environment_present');
  const head=frozenHead(root),profileBytes=readFile(profileFile),profile=localCurrentProfileSchema.parse(JSON.parse(profileBytes.toString('utf8')));
  const options=resolveEngineWizardOptions(root);
  const input={...profile.input,optionsFingerprint:options.fingerprint};
  const prepared=prepareEngineOrder(input,{id:'local_owner_guy',email:'fictional-local@example.invalid',name:'Local rehearsal'},options);
- const policy=localCurrentPolicy(head,go,continuation?.locationsRepair===2?ENGINE_CURRENT_CUSTOMER_V4:continuation?ENGINE_CURRENT_CUSTOMER_V3:ENGINE_CURRENT_CUSTOMER_V2);
- const authority=currentAuthority(prepared,policy,continuation?.parentOrderId??go.approvalReference,
-  continuation?.locationsRepair===2?2:continuation?.locationsRepair?1:0);
+ const attempt=continuation?.locationsRepair===true?1:continuation?.locationsRepair??0;
+ const policy=localCurrentPolicy(head,go,attempt===3?ENGINE_CURRENT_CUSTOMER_V5:attempt===2?ENGINE_CURRENT_CUSTOMER_V4:
+  continuation?ENGINE_CURRENT_CUSTOMER_V3:ENGINE_CURRENT_CUSTOMER_V2);
+ const authority=currentAuthority(prepared,policy,continuation?.parentOrderId??go.approvalReference,attempt);
  return {head,profile,profileSha256:sha(profileBytes),options,prepared,policy,authority};
 }
 
-function currentAuthority(prepared:ReturnType<typeof prepareEngineOrder>,policy:EngineSpendPolicy,orderId:string,locationAttempt:0|1|2){
+function currentAuthority(prepared:ReturnType<typeof prepareEngineOrder>,policy:EngineSpendPolicy,orderId:string,locationAttempt:0|1|2|3){
  const full=engineCustomerAuthority(orderId,prepared.snapshot,prepared.inputSha256,policy);
  return validateLocalTrialAuthority(locationAttempt?{...full,budget:{...full.budget,steps:localCurrentLocationRepairSlots(full.budget.steps,locationAttempt)}}:full);
 }
@@ -102,26 +103,26 @@ function currentAuthority(prepared:ReturnType<typeof prepareEngineOrder>,policy:
 /** No output or credential access; also used to construct the exact review package before registration. */
 export async function prepareLocalCurrentEntities(root:string,profileFile:string,out:string,go:z.infer<typeof localCurrentGoSchema>,ledgerRoot=LOCAL_CONSENT_LEDGER_ROOT,terminalTargetForReplay?:true){
  const request=go.entitiesContinuation??engineSiteFail('local_entities_spec_required');
- const stages=['entities','locations','locations-art-direction'] as const;
- const stage=stages.indexOf(localCurrentBoundary(request.parent));
+ const stage=localCurrentTransition(localCurrentBoundary(request.parent)).index;
  const chain=[{go,out}];
  for(let i=stage;i>=0;i--){
   const spec=chain[0].go.entitiesContinuation?.parent;
-  if(!spec||localCurrentBoundary(spec)!==stages[i])engineSiteFail('local_entities_parent_recursive');
+  if(!spec||localCurrentBoundary(spec)!==localCurrentBoundaries[i])engineSiteFail('local_entities_parent_recursive');
   chain.unshift({go:localCurrentGoSchema.parse(readLocalEntityParentGo(spec)),out:path.dirname(spec.parentGo.file)});
  }
  const original=chain[0].go;
  if(original.entitiesContinuation||new Set(chain.map(x=>x.go.approvalReference)).size!==chain.length)engineSiteFail('local_entities_parent_recursive');
  const p=prepareLocalCurrentBook(root,profileFile,go,{parentOrderId:original.approvalReference,
-  ...(stage===2?{locationsRepair:2 as const}:stage===1?{locationsRepair:true as const}:{})});
+  ...(stage?{locationsRepair:stage===1?true as const:stage}:{})});
  if(go.sourceRevision!==p.head||go.profileSha256!==p.profileSha256)engineSiteFail('local_current_go_scope');
  const base={snapshot:p.prepared.snapshot,profileSha256:p.profileSha256,readerId:go.readerId,ledgerRoot};
  let upstream:LocalEntitiesPreparation|undefined;
  let parentAuthority=currentAuthority(p.prepared,localCurrentPolicy(original.sourceRevision,original),original.approvalReference,0);
  for(let i=1;i<chain.length;i++){
   const item=chain[i],prior=chain[i-1],step=item.go.entitiesContinuation!,last=i===chain.length-1;
+  const transition=localCurrentTransition(localCurrentBoundary(step.parent));
   const authority=last?p.authority:currentAuthority(p.prepared,
-   localCurrentPolicy(item.go.sourceRevision,item.go,ENGINE_CURRENT_CUSTOMER_V3),original.approvalReference,i===2?1:0);
+   localCurrentPolicy(item.go.sourceRevision,item.go,transition.to),original.approvalReference,transition.index);
   const cap=await admitLocalEntitiesContinuation({...base,spec:step.parent,parentGo:prior.go,parentAuthority,authority,
    out:item.out,upstream,terminalTargetForReplay:last?terminalTargetForReplay:true});
   const first=await previewLocalEntitiesContinuation(cap,p.prepared.snapshot,authority);
@@ -195,7 +196,8 @@ export async function localCurrentBookCLI(argv:string[],options:{consentRoot?:st
  const runtime=new LocalEngineTrialRuntime({root:journal,authority:p.authority,ownerId:p.prepared.snapshot.ownerId,
   draftId:p.prepared.snapshot.request.draftId,snapshotSha256:p.prepared.inputSha256,assertCurrent,
   ...(continuation?{carried:continuation.cap.carried,allowedStep:(step:string,wireSha256:string)=>
-   (continuation.cap.boundary==='entities'?localEntityMediaStep(step):localLocationMediaStep(step,continuation.cap.boundary==='locations'?1:2))&&
+   (continuation.cap.boundary==='entities'?localEntityMediaStep(step):
+    localLocationMediaStep(step,localCurrentTransition(continuation.cap.boundary).index as 1|2|3))&&
    (step!==continuation.first.call.step||wireSha256===continuation.first.call.wireSha256)}:{}),
   dispatchWitness:localConsentDispatchWitness(ledger,consent.consentSha256,p.authority)});
  // Missing or ambiguous local evidence of a witnessed dispatch keeps every reserve and stops here, before any credential or provider.
