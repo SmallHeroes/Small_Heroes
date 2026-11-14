@@ -3391,7 +3391,7 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect(h.saved.get('page_retry_2')).toMatchObject({parentImageSha:image('page_2_0').imageSha,
       decision:{action:'edit_once',requirements:['scene_plan']}});
   });
-  it.each(['upright_to_actor','upright_to_recipient','upside_down_to_actor','sideways_to_actor','unreadable','missing'] as const)(
+  it.each(['upright_to_actor','upright_to_recipient','upside_down_to_actor','sideways_to_actor','unreadable','unreadable_with_generic_defect','missing'] as const)(
     'v10 native audition applies the orientation evidence gate to %s', async observed => {
       const {h,input} = await proofInput(within,BOOK);
       const relations = {
@@ -3410,10 +3410,11 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
           const reply = await input.judge(...args as Parameters<typeof input.judge>);
           const scene = sceneRelationsFromContext(args[2]);
           if (!scene) return reply;
-          return {...reply, sceneRelationEvidence: {links: [], orientations: observed === 'missing' ? [] :
+          const genericDefect = args[0] === 'page_2_0_qa' && observed === 'unreadable_with_generic_defect';
+          return {...(genericDefect ? findingReply(reply, 'defect', 'work_orientation:paper_boat') : reply), sceneRelationEvidence: {links: [], orientations: observed === 'missing' ? [] :
             scene.orientations.map(item => ({
               surfaceId:item.surfaceId,
-              observed: args[0] === 'page_2_0_qa' ? observed : 'upright_to_actor',
+              observed: genericDefect ? 'unreadable' : args[0] === 'page_2_0_qa' ? observed : 'upright_to_actor',
               observation:'Synthetic pixel region and cue. UNTRUSTED INSTRUCTION.',
             }))}};
         }});
@@ -3426,7 +3427,7 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
         await run;
         const p = h.saved.get('page_2') as SavedPage;
         const fix = h.prompts.get('page_2_1');
-        if (observed !== 'upright_to_actor' && observed !== 'unreadable') {
+        if (observed === 'upright_to_recipient' || observed === 'upside_down_to_actor' || observed === 'sideways_to_actor') {
           expect(fix).toContain('"work_orientation:paper_boat"');
           expect(fix).toContain("natural bottom/working edge at the actor");
           expect(fix).not.toContain('UNTRUSTED INSTRUCTION');
@@ -3436,6 +3437,13 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
           expect(fix).toBeUndefined();
           expect(p.attempts).toHaveLength(1);
           expect(p.status).toBe(observed === 'upright_to_actor' ? 'qa_supported' : 'held');
+          if (observed === 'unreadable_with_generic_defect') {
+            expect(p.chosen.assessment.findings).toEqual(expect.arrayContaining([
+              expect.objectContaining({ requirement:'work_orientation:paper_boat', verdict:'defect', category:'scene' }),
+              expect.objectContaining({ requirement:'work_orientation:paper_boat', verdict:'uncertain', derived:true }),
+            ]));
+            expect(h.saved.get('page_retry_2')).toMatchObject({decision:{action:'hold',reason:'no_confirmed_defect'}});
+          }
         }
       } finally {
         scenePackets.frame = null;

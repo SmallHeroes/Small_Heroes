@@ -302,6 +302,7 @@ ${ISSUE_RULES}`;
 // Judge output, findings and status.
 // ---------------------------------------------------------------------------------------------------------------
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
+const SCENE_RELATION_REQUIREMENT = /^(?:scene_link|work_orientation):/;
 const auditionIssueSchema = z.object({ impact: z.enum(AUDITION_IMPACTS), requirement: z.string().trim().min(1).max(160),
   note: z.string().trim().min(1).max(600) }).strict();
 export const auditionReviewSchema = z.object({ candidateSha: sha, contextSha: sha,
@@ -642,7 +643,7 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
   const known = new Set(requirementIds);
   const sceneIds = sceneRelations ? sceneRelationIds(sceneRelations) : [];
-  const boundSceneIds = requirementIds.filter(id => /^(?:scene_link|work_orientation):/.test(id));
+  const boundSceneIds = requirementIds.filter(id => SCENE_RELATION_REQUIREMENT.test(id));
   if (sceneIds.length !== boundSceneIds.length || new Set(boundSceneIds).size !== boundSceneIds.length ||
       sceneIds.some(id => !known.has(id)))
     fail('audition_scene_relation_binding');
@@ -1339,8 +1340,10 @@ export function pageRetryDecision(prior: AuditionAttempt, context: unknown, cont
   if (!identityPassed(prior.identity)) return stop('identity');
   if (prior.status === 'qa_supported') return { action: 'accept' as const };
   if (actual.findings.some(retryHardFinding) || actual.companionScale?.disposition === 'defect') return stop('protected_finding');
+  // A scene relation can spend its edit only on a definite observation in its own evidence.
   const targets = actual.findings.filter(f => f.bound && f.verdict === 'defect' &&
-    (f.impact === 'story' || f.impact === 'continuity') && FRAME_REQUIREMENT_ID.test(f.requirement));
+    (f.impact === 'story' || f.impact === 'continuity') && FRAME_REQUIREMENT_ID.test(f.requirement) &&
+    (!SCENE_RELATION_REQUIREMENT.test(f.requirement) || f.category === 'scene_relations' && f.derived));
   const requirements = [...new Set(targets.map(f => f.requirement))].sort();
   if (!requirements.length) return stop('no_confirmed_defect');
   return { action: 'edit_once' as const, requirements };
