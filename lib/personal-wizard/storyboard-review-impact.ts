@@ -4,6 +4,7 @@ import type { PreviewPlan } from '../local-story-preview';
 import type { bookSequenceSchema } from '../local-book-sequence';
 import type { StoryboardMoments } from './storyboard-moments';
 import { concurrencyClaimRef, type SourceConcurrency } from './storyboard-source-concurrency';
+import { sceneRelationRef, type SceneRelations } from './storyboard-scene-relations';
 import { REVIEW_IMPACT_ORDER, impactIsMaterial } from './review-impact';
 
 /**
@@ -39,7 +40,7 @@ For EVERY check that is not supported, list its issues (1 to 4). Each issue:
 An issue you cannot positively justify as detail is not detail. Do not inflate detail into story, or the reverse. Uncertain stays uncertain.`;
 
 type Sequence = z.infer<typeof bookSequenceSchema>;
-type Storyboardish = { plan: PreviewPlan; sequence: Sequence; moments?: StoryboardMoments; sourceConcurrency?:SourceConcurrency };
+type Storyboardish = { plan: PreviewPlan; sequence: Sequence; moments?: StoryboardMoments; sourceConcurrency?:SourceConcurrency; sceneRelations?: SceneRelations };
 /** A claim and its declared quote; `page` only when that quote lives on another page (a claim-basis withhold requirement: its reveal page). */
 export type StoryboardClaim = { ref: string; evidence: string; page?: number };
 
@@ -84,6 +85,7 @@ export function storyboardReviewRefs(book: Storyboardish, planFields?: readonly 
     ...(book.plan.continuity?.entities ?? []).map(e => `entity:${e.id}`), ...book.plan.recurringProps.map(p => `prop:${p.id}`),
     ...book.plan.locations.map(l => `location:${l.id}`)];
   book.plan.pages.forEach((_, n) => refs.push(`p${n}`, `p${n}:composition`, ...(planFields ?? []).map(f => `p${n}:${f}`),
+    ...(book.sceneRelations ? [sceneRelationRef(n)] : []),
     ...storyboardFrameClaims(book, n).map(c => c.ref)));
   return [...new Set(refs)];
 }

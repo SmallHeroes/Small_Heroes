@@ -6,6 +6,8 @@ import { SOURCE_CONCURRENCY_VERSION, SOURCE_CONCURRENCY_PLANNER_ADDENDUM, SOURCE
 import { ENTITY_MATERIAL_FUNCTION_VERSION, MATERIAL_STORYBOARD_ADDENDUM, withMaterialFunction, splitMaterialFunction, compileMaterialFunction, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import { resolveSourceQuotes } from './source-quote-resolution';
+import { compileSceneRelations, sceneRelationPacket, sceneRelationRef, SCENE_RELATIONS_PLANNER, SCENE_RELATIONS_RENDER,
+  SCENE_RELATIONS_VERSION, withStoryboardSceneRelations, type SceneRelations } from './storyboard-scene-relations';
 import { assertExistingChildAppearance, assertExistingChildClothing, existingChildAppearanceData, withExistingChildAppearanceSchema, EXISTING_CHILD_APPEARANCE_INSTRUCTION,
   type ExistingChildAppearance, type ExistingChildAppearanceData } from './existing-child-appearance';
 
@@ -111,6 +113,7 @@ type BookData = {
   materialFunction?: EntityMaterialFunction;
   companionScale?: CompanionScaleAuthority;
   sourceConcurrency?:SourceConcurrency;
+  sceneRelations?: SceneRelations;
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -138,7 +141,7 @@ const contractVersions = (f: ContractFlags) => [f.actorOwnedAppearance && 'actor
   f.claimBasisContract && CLAIM_BASIS_CONTRACT_VERSION, f.calibrationContract && STORYBOARD_CALIBRATION_VERSION,
   f.presenceContract && STORYBOARD_PRESENCE_VERSION, f.stateParityContract && STORYBOARD_STATE_PARITY_VERSION,
   f.instanceDistinctionContract && INSTANCE_DISTINCTION_VERSION, f.engineContinuity?.materialFunction && ENTITY_MATERIAL_FUNCTION_VERSION, f.engineContinuity?.companionScale && COMPANION_SCALE_VERSION,
-  f.engineContinuity?.sourceConcurrency && SOURCE_CONCURRENCY_VERSION]
+  f.engineContinuity?.sourceConcurrency && SOURCE_CONCURRENCY_VERSION, f.engineContinuity?.sceneRelations && SCENE_RELATIONS_VERSION]
   .filter((v): v is string => typeof v === 'string').sort();
 /** An attempt's context: its contracts, the held candidate and review it corrects (none for a first plan) and the diagnosis it consumes. */
 const contextDigestOf = (contracts: string[], target: { parentStoryboardDigest: string; review: unknown } | undefined, diagnosis: string | null) =>
@@ -158,6 +161,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   }else if(boundRepair)fail('existing_child_appearance_scope');
   engineContinuity = assertEngineContinuityOptions(engineContinuity, instanceDistinctionContract);
   if(engineContinuity?.sourceConcurrency && (presenceContract!==true||stateParityContract!==true))fail('source_concurrency_policy');
+  if (engineContinuity?.sceneRelations && (!engineContinuity.sourceConcurrency || !instanceDistinctionContract ||
+      !reviewImpactPolicy || !calibrationContract)) fail('scene_relations_policy');
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
   // Instance distinction keys entities by the landmark-kind syntax and extends kinds to props, so it needs that contract.
   if (instanceDistinctionContract !== undefined && (instanceDistinctionContract !== true || landmarkKindContract !== true)) fail('instance_distinction_policy');
@@ -399,6 +404,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       ...(engineContinuity?.materialFunction ? { materialSourceSpans: sourceSpans(previewStoryEvidence(story).texts) } : {}),
       ...(stateParityContract ? { stateParity: stateParityRules() } : {}),
       ...(engineContinuity?.sourceConcurrency?{sourceConcurrency:{version:SOURCE_CONCURRENCY_VERSION,defaultChronology:'source_sentence_order',semanticAuthority:'independent_review'}}:{}),
+      ...(engineContinuity?.sceneRelations ? { sceneRelations: SCENE_RELATIONS_VERSION } : {}),
       ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}),
       personalSourceDigest: sourceDigest, requestId: result.requestId,
       approvedFacts: prepared.brief.facts, child: prepared.brief.child,
@@ -509,6 +515,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   const located = source.instanceDistinctionContract ? splitLocationPopulations(materialDraft ? materialDraft.draft : rawDraft) : null;
   const planned = located ? located.draft : materialDraft ? materialDraft.draft : rawDraft;
   const object = planned && typeof planned === 'object' ? planned as Record<string, unknown> : null;
+  if (!source.engineContinuity?.sceneRelations && object && 'sceneRelations' in object) fail('scene_relations_not_enabled');
   if(!source.engineContinuity?.sourceConcurrency&&object&&'concurrency' in object)fail('source_concurrency_not_enabled');
   if(source.engineContinuity?.sourceConcurrency&&!(object&&'concurrency' in object))fail('source_concurrency_required');
   if (!source.momentContract && object && 'moments' in object) fail('moments_not_enabled');
@@ -517,7 +524,9 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   // Moments (and, opt-in, the planner's self-check) are split off before the unchanged plan/sequence compiler, then validated against its output.
   const { moments: rawMoments, ...withMetadata } = source.momentContract ? object! : { moments: undefined };
   const {concurrency:rawConcurrency,...withoutConcurrency}=source.engineContinuity?.sourceConcurrency?withMetadata:{concurrency:undefined};
-  const draft=source.engineContinuity?.sourceConcurrency?withoutConcurrency:withMetadata;
+  const concurrentDraft=source.engineContinuity?.sourceConcurrency?withoutConcurrency:withMetadata;
+  const { sceneRelations: rawSceneRelations, ...withoutSceneRelations } = source.engineContinuity?.sceneRelations ? concurrentDraft : { sceneRelations: undefined };
+  const draft = source.engineContinuity?.sceneRelations ? withoutSceneRelations : concurrentDraft;
   const fullSelfCheck = source.selfCheckContract ? (draft as Record<string, unknown>).selfCheck : undefined;
   if (source.selfCheckContract) delete (draft as Record<string, unknown>).selfCheck;
   // Calibration: the planner's visual-state map is split off the self-check (validated below); the v1 self-check validator sees the rest.
@@ -526,6 +535,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
   const rawSelfCheck = source.calibrationContract && fullSelfCheck && typeof fullSelfCheck === 'object' ? calibratedSelfCheck : fullSelfCheck;
   const compiled = compileWholeBookDraft(source.momentContract ? draft : planned, source.story, source.actorOwnedAppearance === true);
   const texts = previewStoryEvidence(source.story).texts;
+  const sceneRelations = source.engineContinuity?.sceneRelations ? compileSceneRelations(rawSceneRelations, compiled.plan, compiled.sequence, texts) : undefined;
   const companionScale = source.companionScale;
   const existingChildAppearance=source.existingChildAppearance;
   if (companionScale) validateCompanionScale(companionScale, compiled.plan.continuity!.companionStandingHeightInChildHeights);
@@ -604,7 +614,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(selfCheckSourceSpans ? { selfCheckSourceSpans } : {}),
     ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}), ...(calibration ? { calibration } : {}),
     ...(presence ? { presence } : {}), ...(stateParity ? { stateParity } : {}), ...(concurrency?{sourceConcurrency:concurrency}:{}), ...(instances ? { instanceDistinction: instances } : {}), ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}),
-    ...(existingChildAppearance ? {existingChildAppearance:existingChildAppearanceData(existingChildAppearance)} : {}) });
+    ...(sceneRelations ? { sceneRelations } : {}), ...(existingChildAppearance ? {existingChildAppearance:existingChildAppearanceData(existingChildAppearance)} : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
@@ -614,7 +624,7 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown, opt
     ...(selfCheckNames ? { selfCheckNames } : {}), ...(selfCheckSourceSpans ? { selfCheckSourceSpans } : {}), ...(claimBasis ? { claimBasis } : {}), ...(stagingFields ? { stagingFields } : {}),
     ...(calibration ? { calibration } : {}), ...(presence ? { presence } : {}), ...(stateParity ? { stateParity } : {}), ...(concurrency?{sourceConcurrency:concurrency}:{}),
     ...(instances ? { instanceDistinction: instances } : {}), ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}),
-    ...(existingChildAppearance ? {existingChildAppearance:existingChildAppearanceData(existingChildAppearance)} : {}) } as PersonalStoryboard;
+    ...(sceneRelations ? { sceneRelations } : {}), ...(existingChildAppearance ? {existingChildAppearance:existingChildAppearanceData(existingChildAppearance)} : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -628,6 +638,7 @@ function assertBook(book: PersonalStoryboard) {
 
 export const STORYBOARD_BOOK_CHECKS = ['approved_facts', 'child_agency', 'companion_role', 'resilience', 'causal_adventure', 'manuscript_fidelity', 'continuity'] as const;
 export const STORYBOARD_FRAME_CHECKS = ['moment', 'cast', 'physical_state', 'identity_and_set'] as const;
+export const SCENE_RELATIONS_FRAME_CHECKS = [...STORYBOARD_FRAME_CHECKS, 'scene_relations'] as const;
 const check = z.object({ verdict: z.enum(['supported', 'contradiction', 'uncertain']), observation: z.string().trim().min(1).max(1200) }).strict();
 export const personalStoryboardReviewSchema = z.object({
   sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), storyboardDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -648,6 +659,7 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
     ...(book.existingChildAppearance?{existingChildAppearance:book.existingChildAppearance}:{}),
     ...(book.stateParity ? { stateParity: stateParityAuthority(book.plan, book.sequence) } : {}),
     ...(book.sourceConcurrency?{sourceConcurrency:book.sourceConcurrency}:{}),
+    ...(book.sceneRelations ? { sceneRelations: book.sceneRelations } : {}),
     ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
     narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}),
     ...(book.landmarkKind ? { landmarkKindContract: { version: book.landmarkKind, landmarks: landmarkKinds(book.plan.continuity!, book.sequence.mutableAttributes) } } : {}),
@@ -707,16 +719,23 @@ export const calibrationStoryboardReviewSchema = z.object({
     checks: z.array(calibrationCheck.extend({ category: z.enum(STORYBOARD_FRAME_CHECKS) })).length(STORYBOARD_FRAME_CHECKS.length),
   }).strict()).min(9).max(17),
 }).strict();
+export const sceneRelationsStoryboardReviewSchema = calibrationStoryboardReviewSchema.extend({
+  frames: z.array(z.object({ pageNumber: z.number().int().min(0).max(16),
+    checks: z.array(calibrationCheck.extend({ category: z.enum(SCENE_RELATIONS_FRAME_CHECKS) })).length(SCENE_RELATIONS_FRAME_CHECKS.length),
+  }).strict()).min(9).max(17),
+});
 type StoryboardReviewDecision = {
   disposition: 'review_supported' | 'review_supported_with_notes' | 'held_uncertain' | 'held_contradiction';
-  review: z.infer<typeof personalStoryboardReviewSchema> | z.infer<typeof impactStoryboardReviewSchema>; reviewDigest: string; runtimeEligible: false;
+  review: z.infer<typeof personalStoryboardReviewSchema> | z.infer<typeof impactStoryboardReviewSchema> |
+    z.infer<typeof sceneRelationsStoryboardReviewSchema>; reviewDigest: string; runtimeEligible: false;
   /** Present only under the typed policy: its blocking findings and its non-blocking notes. */
   impact?: ReturnType<typeof storyboardImpactDisposition>;
 };
 
 export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unknown): StoryboardReviewDecision {
   const source = assertBook(book);
-  const review = book.calibration ? calibrationStoryboardReviewSchema.parse(raw) : book.claimBasis ? claimBasisStoryboardReviewSchema.parse(raw)
+  const review = book.sceneRelations ? sceneRelationsStoryboardReviewSchema.parse(raw)
+    : book.calibration ? calibrationStoryboardReviewSchema.parse(raw) : book.claimBasis ? claimBasisStoryboardReviewSchema.parse(raw)
     : book.reviewImpact ? impactStoryboardReviewSchema.parse(raw) : personalStoryboardReviewSchema.parse(raw);
   if (review.sourceDigest !== book.sourceDigest || review.storyboardDigest !== book.storyboardDigest) fail('review_binding');
   const categories = (checks: { category: string }[], expected: readonly string[]) => {
@@ -725,25 +744,33 @@ export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unkno
   };
   categories(review.bookChecks, STORYBOARD_BOOK_CHECKS);
   if (review.frames.length !== book.narrativeSpreads + 1 || review.frames.some((frame, index) => frame.pageNumber !== index)) fail('review_coverage');
-  review.frames.forEach(frame => categories(frame.checks, STORYBOARD_FRAME_CHECKS));
+  for (const frame of review.frames) {
+    categories(frame.checks, book.sceneRelations ? SCENE_RELATIONS_FRAME_CHECKS : STORYBOARD_FRAME_CHECKS);
+    const relationCheck = frame.checks.find(check => check.category === 'scene_relations');
+    if (relationCheck && 'issues' in relationCheck &&
+        relationCheck.issues.some(issue => issue.ref !== sceneRelationRef(frame.pageNumber))) fail('scene_relations_review_binding');
+  }
   if (book.reviewImpact) {
     // The typed policy: the reviewer's own impacts, bound to the book's reference vocabulary; the engine never assigns or lowers one.
-    const typed = review as z.infer<typeof impactStoryboardReviewSchema>;
+    const typed = review as z.infer<typeof impactStoryboardReviewSchema> | z.infer<typeof sceneRelationsStoryboardReviewSchema>;
     // Claim basis: an evidence issue bound to one verified source span of its claim's page is the reviewer's binding note (structure verified only).
     const citation = book.claimBasis ? citationVerifier(book, previewStoryEvidence(source.story).texts).binds : undefined;
     // Calibration: whether an issue blocks follows the reviewer's own impact and basis (storyboard-review-severity/v1).
     // An explicitly declared temporal relationship is never mere staging/inference. A non-supported check's
     // issue on that exact claim stays material; a truly supported claim has a supported check with no issues.
     const temporalRefs=book.sourceConcurrency?new Set(book.sourceConcurrency.frames.flatMap((frame,n)=>frame.changes.map(c=>concurrencyClaimRef(n,c)))):undefined;
+    const relationRefs = book.sceneRelations ? new Set(book.sceneRelations.frames.map((_, n) => sceneRelationRef(n))) : undefined;
     const severity = book.calibration ? (i: unknown, cited: boolean) =>
-      !!temporalRefs?.has((i as CalibrationIssue).ref) || severityMaterial(i as CalibrationIssue, cited) : undefined;
+      !!temporalRefs?.has((i as CalibrationIssue).ref) || !!relationRefs?.has((i as CalibrationIssue).ref) ||
+      severityMaterial(i as CalibrationIssue, cited) : undefined;
     const impact = storyboardImpactDisposition([
       ...typed.bookChecks.map(check => ({ scope: 'book' as const, check })),
       ...typed.frames.flatMap(frame => frame.checks.map(check => ({ scope: 'page' as const, pageNumber: frame.pageNumber, check }))),
     ], storyboardReviewRefs(book, reviewPlanFields(book)), citation, severity);
     return { disposition: impact.disposition, review, reviewDigest: digest(review), runtimeEligible: false as const, impact };
   }
-  const checks = [...review.bookChecks, ...review.frames.flatMap(frame => frame.checks)];
+  const checks: { verdict: 'supported' | 'uncertain' | 'contradiction' }[] = [...review.bookChecks,
+    ...review.frames.flatMap<{ verdict: 'supported' | 'uncertain' | 'contradiction' }>(frame => frame.checks)];
   const disposition = checks.some(item => item.verdict === 'uncertain') ? 'held_uncertain' as const
     : checks.some(item => item.verdict === 'contradiction') ? 'held_contradiction' as const : 'review_supported' as const;
   // A self-consistent report is not an attestation of model accuracy or independent QA.
@@ -763,6 +790,9 @@ export function storyboardOwnerAcceptance(book: PersonalStoryboard, rawReview: u
 function bindOwnerAcceptance(book: PersonalStoryboard, decision: StoryboardReviewDecision, acceptance: unknown) {
   assertStoryboardOwnerAcceptance(acceptance);
   if (reviewAdmits(decision)) fail('owner_acceptance_not_needed');
+  if (book.sceneRelations && decision.impact?.blocking.some(f => f.category === 'scene_relations' ||
+      f.issues.some(i => /^p\d+:scene_relations$/.test(i.ref))))
+    fail('scene_relations_owner_acceptance');
   if (acceptance.storyboardDigest !== book.storyboardDigest || acceptance.reviewDigest !== decision.reviewDigest ||
       canonicalJson(acceptance.acceptedFindings) !== canonicalJson(storyboardRepairFindings(decision.review))) fail('owner_acceptance_binding');
   return { version: STORYBOARD_OWNER_ACCEPTANCE_VERSION, acceptanceDigest: digest(acceptance) };
@@ -806,6 +836,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     visual: selectedDraftQaContext(plan, pageNumber), sequence, ...(readerFraming ? { readerFraming } : {}),
     ...(book.stateParity ? { stateParity: stateParityRules() } : {}),
     ...(book.sourceConcurrency?{sourceConcurrency:{version:book.sourceConcurrency.version,...book.sourceConcurrency.frames[pageNumber]}}:{}),
+    ...(book.sceneRelations ? { sceneRelations: sceneRelationPacket(book.sceneRelations, pageNumber) } : {}),
     ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
     ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}),
     // Typed policy: the bound non-blocking notes travel with every frame (the judge sees what the review accepted as detail).
@@ -819,7 +850,9 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     : momentRenderSection(book.moments, pageNumber)) : '';
   const atInstant = section ? `${sequenced}\n\n${section}` : sequenced;
   const parityPrompt = book.stateParity ? `${atInstant}\n\n${STATE_PARITY_RENDER_ADDENDUM}` : atInstant;
-  const prompt=book.sourceConcurrency?`${parityPrompt}\n\n${sourceConcurrencyRender(book.sourceConcurrency,pageNumber)}`:parityPrompt;
+  const concurrentPrompt=book.sourceConcurrency?`${parityPrompt}\n\n${sourceConcurrencyRender(book.sourceConcurrency,pageNumber)}`:parityPrompt;
+  const prompt = context.sceneRelations && (context.sceneRelations.links.length || context.sceneRelations.orientations.length)
+    ? `${concurrentPrompt}\n\n${SCENE_RELATIONS_RENDER}\nFRAME RELATIONS (scene data): ${canonicalJson(context.sceneRelations)}` : concurrentPrompt;
   return { packetDigest, context, render: { prompt, promptSha: previewSha(prompt), contextSha: packetDigest },
     qa: { context, contextSha: packetDigest }, runtimeEligible: false as const };
 }
@@ -861,6 +894,7 @@ export const storyboardInstructions = (source: { actorOwnedAppearance?: true; mo
   + (source.presenceContract ? '\n' + PRESENCE_STORYBOARD_ADDENDUM : '')
   + (source.stateParityContract ? '\n' + STATE_PARITY_PLANNER_ADDENDUM : '')
   + (source.engineContinuity?.sourceConcurrency?'\n'+SOURCE_CONCURRENCY_PLANNER_ADDENDUM:'')
+  + (source.engineContinuity?.sceneRelations ? '\n' + SCENE_RELATIONS_PLANNER : '')
   + (source.existingChildAppearance ? '\n' + EXISTING_CHILD_APPEARANCE_INSTRUCTION : '')
   + (source.repair ? '\n' + REPAIR_STORYBOARD_ADDENDUM + (source.boundRepairScope ? '\n' + BOUND_REPAIR_SCOPE_ADDENDUM : '') : '');
 };
@@ -882,7 +916,8 @@ const appearanceBaseStoryboardDraftSchema = (source: { actorOwnedAppearance?: tr
   const located = source.instanceDistinctionContract ? withLocationPopulations(schema) : schema;
   const material=source.engineContinuity?.materialFunction ? withMaterialFunction(located) : located;
   if(source.engineContinuity?.sourceConcurrency&&source.presenceContract!==true)fail('source_concurrency_policy');
-  return source.engineContinuity?.sourceConcurrency?withSourceConcurrency(material):material;
+  const concurrent = source.engineContinuity?.sourceConcurrency ? withSourceConcurrency(material) : material;
+  return source.engineContinuity?.sceneRelations ? withStoryboardSceneRelations(concurrent) : concurrent;
 };
 const baseStoryboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; drawnInstantContract?: true;
   selfCheckContract?: true; claimBasisContract?: true; calibrationContract?: true; presenceContract?: true }) =>

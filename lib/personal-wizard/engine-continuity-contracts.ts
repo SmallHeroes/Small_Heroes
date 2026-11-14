@@ -1,7 +1,7 @@
 import { z } from 'zod';
 /** Prospective engine contracts only; existing sources/grants have no such field. */
 export const engineContinuityOptionsSchema = z.object({ materialFunction: z.literal(true).optional(), companionScale: z.literal(true).optional(),
-  sourceConcurrency:z.literal(true).optional() }).strict().refine(v => Object.keys(v).length > 0);
+  sourceConcurrency:z.literal(true).optional(), sceneRelations:z.literal(true).optional() }).strict().refine(v => Object.keys(v).length > 0);
 export type EngineContinuityOptions = z.infer<typeof engineContinuityOptionsSchema>;
 /** Prospective native binding only: no cycle, grant, paid allowance or historical upgrade. */
 export const NATIVE_BOOK_CONTINUITY_VERSION = 'native-book-continuity/v1' as const;

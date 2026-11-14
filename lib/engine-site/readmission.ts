@@ -2,6 +2,7 @@ import 'server-only';
 import type { PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
 import { auditionPageReviewSchemaForContext,assessAuditionReview,auditionAnatomyCast,auditionLandmarkTopology,auditionInstanceDistinction } from '@/lib/personal-wizard/simple-book-reviewed-audition';
+import { sceneRelationsFromContext } from '@/lib/personal-wizard/storyboard-scene-relations';
 import { companionScaleFromContext } from '@/lib/personal-wizard/companion-scale';
 import type { SavedPage } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import { engineSiteFail } from './contract';
@@ -139,7 +140,7 @@ export async function replayEngineRecordedBook(context: Pick<EngineReaderContext
       try {assessment=assessAuditionReview(parsedRaw,attempt.candidate.imageSha,judged.contextSha,judged.context.requirementIds??[],
         judged.context.checks?.uniqueLandmarks??[],auditionLandmarkTopology(judged.context),auditionAnatomyCast(judged.context),
         auditionInstanceDistinction(judged.context),companionScaleFromContext(judged.context),
-        enginePictureBookReview(checkpoint.authority)).assessment;}
+        enginePictureBookReview(checkpoint.authority),sceneRelationsFromContext(judged.context)).assessment;}
       catch{engineSiteFail('engine_readmission_assessment_changed');}
       if(canonicalHash(assessment)!==canonicalHash(attempt.assessment))engineSiteFail('engine_readmission_assessment_changed');
       if (attempt.status === 'identity_unusable') engineSiteFail('engine_readmission_identity_changed');

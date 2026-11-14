@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { canonicalHash } from '@/lib/canonical-json';
 import { engineOrderAuthoritySchema } from '../contract';
-import { ENGINE_AUTHOR_BATCH, ENGINE_CURRENT_CUSTOMER } from '../current-engine-policy';
-import { engineProfileAuthority, engineOrderSteps, enginePolicyDigest, engineSpendPolicySchema } from '../platform-policy';
+import { ENGINE_AUTHOR_BATCH, ENGINE_CURRENT_CUSTOMER, ENGINE_CURRENT_CUSTOMER_V9, ENGINE_CURRENT_CUSTOMER_V10 } from '../current-engine-policy';
+import { engineProfileAuthority, engineOrderSteps, enginePolicyDigest, engineSpendPolicySchema, engineRecipeSteps } from '../platform-policy';
 import { prepareEngineAnthropic } from '../provider-plans';
 import { anthropicAuthorCost } from '../anthropic-author';
 import { enginePreparationContracts } from '../storyboard-concurrency-policy';
@@ -51,6 +51,12 @@ describe('current customer engine bundle', () => {
     expect(engineProfileAuthority(plain)).toEqual({});
     expect(engineOrderSteps(plain).map(s => s.id)).not.toContain('prep_child_bound_review');
     expect(enginePolicyDigest(plain)).not.toBe(enginePolicyDigest(policy));
+  });
+  it('enables scene geometry only on the prospective customer profile with the exact v9 slots', () => {
+    const a = current();
+    expect(enginePreparationContracts({...a, currentEngine:ENGINE_CURRENT_CUSTOMER_V9}).engineContinuity).not.toHaveProperty('sceneRelations');
+    expect(enginePreparationContracts({...a, currentEngine:ENGINE_CURRENT_CUSTOMER_V10}).engineContinuity).toHaveProperty('sceneRelations', true);
+    expect(engineRecipeSteps({currentEngine:ENGINE_CURRENT_CUSTOMER_V10})).toEqual(engineRecipeSteps({currentEngine:ENGINE_CURRENT_CUSTOMER_V9}));
   });
 });
 

@@ -12,6 +12,7 @@ import { STAGEABLE_PLAN_FIELDS } from './storyboard-claim-basis';
  *   attribute change and the entity's page-prop state;
  * - p{n}:requirement|instant|relation|attribute|actor|presence|scene|concurrent: only that claim on frame n (the drawn instant: that frame's
  *   instant, staging, concurrency and plan direction); p{n}, p{n}:composition or a plan field: only those fields of frame n;
+ * - p{n}:scene_relations: that frame's local part graph, workpiece orientation and the shot/action fields that must agree with them;
  * - location:{id}: that location's own fields; under the instance-distinction contract (the held location declares a population) its
  *   population, with its design changeable only together with it (the structural fallback for the generic ref: no reviewer prose is read);
  *   entity|prop:{id}: that object's own definition and its page-prop entries; cast:companion: the companion's appearance entry.
@@ -69,6 +70,9 @@ export function boundRepairScope(blocking: readonly { reason?: string; issues: r
     const n = Number(page[1]), rest = page[2] ?? '', plan = (fields: string[]) => fields.map(f => field(['plan', 'pages', n, f], true));
     if (!rest) return { ref, kind: 'frame', masks: plan(DIRECTION) };
     if (rest === 'composition') return { ref, kind: 'frame_field', masks: plan(['composition', 'shot', 'angle']) };
+    if (rest === 'scene_relations' && Array.isArray(d.sceneRelations?.frames) && d.sceneRelations.frames[n]) return { ref, kind: 'scene_relations', masks: [
+      field(['sceneRelations', 'frames', n], true), ...plan(['shot', 'angle', 'composition', 'childAction', 'childGaze', 'companionAction', 'scene']),
+    ] };
     if ((STAGEABLE_PLAN_FIELDS as readonly string[]).includes(rest)) return { ref, kind: 'frame_field', masks: plan([rest]) };
     const moment = ['moments', 'frames', n], depicted = [...moment, 'depicted'];
     if ((m = /^transition:([A-Za-z0-9_.-]+)$/.exec(rest)) && n >= 1) {

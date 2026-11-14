@@ -6,6 +6,7 @@ import type { AuditionImage } from './simple-book-illustrations';
 import { auditionJudgeInstruction, auditionPageReviewSchemaForContext, auditionAnatomyCast,
   auditionLandmarkTopology, auditionReviewSchema, LANDMARK_COVERAGE_TOPOLOGY_VERSION, ReviewedAuditionError } from './simple-book-reviewed-audition';
 import { sceneJudgeReferenceRoles } from './scene-preservation';
+import { sceneRelationsFromContext } from './storyboard-scene-relations';
 import { auditionReviewOutputCap, type AUDITION_REVIEW_CAPACITY_VERSION } from './audition-review-capacity';
 import { PICTURE_BOOK_CONCISE_REVIEW, PICTURE_BOOK_LANDMARK_REPORTING, PICTURE_BOOK_REVIEW_DIRECTION, PICTURE_BOOK_SCALE_REPORTING, PICTURE_BOOK_SCALE_REVIEW,
   PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, type PictureBookReview } from './picture-book-direction';
@@ -41,7 +42,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
       ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
     ...(args.reviewCapacity ? { metadata: { review_capacity_version: args.reviewCapacity } } : {}),
     max_output_tokens: outputCap, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchemaForContext(args.context),
-      auditionAnatomyCast(args.context) ? 'personal_audition_pixels_anatomy_v2'
+      sceneRelationsFromContext(args.context) ? 'personal_audition_pixels_scene_relations_v1'
+        : auditionAnatomyCast(args.context) ? 'personal_audition_pixels_anatomy_v2'
         : auditionLandmarkTopology(args.context) === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? 'personal_audition_pixels_topology_v2'
         : auditionLandmarkTopology(args.context) ? 'personal_audition_pixels_topology_v1' : 'personal_audition_pixels_v4')
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };

@@ -36,12 +36,13 @@ export const findingKey = (f: { scope: 'book' | 'page'; pageNumber?: number; cat
 export function draftSections(raw: unknown): Record<string, string> {
   const d = raw as { plan: Record<string, unknown> & { pages: unknown[]; continuity?: Record<string, unknown> & { pages: unknown[] } };
     sequence: Record<string, unknown> & { pages: unknown[] }; moments?: Record<string, unknown> & { frames: unknown[] };
-    concurrency?:{frames:{changes:unknown[]}[]} };
+    concurrency?:{frames:{changes:unknown[]}[]}; sceneRelations?: { frames: unknown[] } };
   const out: Record<string, string> = {}, put = (k: string, v: unknown) => { out[k] = canonicalJson(v ?? null); };
   if (!d?.plan || !Array.isArray(d.plan.pages) || !d.sequence || !Array.isArray(d.sequence.pages)) return fail('draft_shape');
   d.plan.pages.forEach((p, n) => {
     const concurrent=d.concurrency?.frames[n]?.changes;
     put(`p${n}:plan`, p); put(`p${n}:moment`, concurrent?.length?{moment:d.moments?.frames[n],concurrent}:d.moments?.frames[n]); put(`p${n}:continuity`, d.plan.continuity?.pages[n]);
+    if (d.sceneRelations) put(`p${n}:scene_relations`, d.sceneRelations.frames[n]);
     if (n >= 1) put(`p${n}:sequence`, d.sequence.pages[n - 1]);
   });
   for (const [k, v] of Object.entries(d.plan)) if (k !== 'pages' && k !== 'continuity') put(`book:plan.${k}`, v);

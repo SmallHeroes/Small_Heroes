@@ -9,6 +9,7 @@ import { auditionJudgePayload } from '@/lib/personal-wizard/audition-provider-pa
 import { assessAuditionReview,attemptStatus,auditionAnatomyCast,auditionInstanceDistinction,auditionLandmarkTopology } from '@/lib/personal-wizard/simple-book-reviewed-audition';
 import type { PageChildResemblanceVisionResult } from '@/lib/generation-pipeline/page-child-resemblance-vision';
 import { companionScaleFromContext } from '@/lib/personal-wizard/companion-scale';
+import { sceneRelationsFromContext } from '@/lib/personal-wizard/storyboard-scene-relations';
 import { engineSiteFail } from './contract';
 import type { EngineRuntime,EngineProviderResult,PreparedEngineCall } from './durable-worker';
 import { prepareEngineResponse,type EngineProviderPorts } from './provider-plans';
@@ -45,7 +46,8 @@ function nativeFrame(bundle:ComparisonBundle,cell:string,images:Map<string,any>,
  const f=bundle.frames.find(f=>f.pageNumber===pageNumber)!,candidate={imageName:cell+'.png',imageSha:images.get(cell).imageSha},context=f.context;
  const raw=results.get(cell+'_pixel')!.output;
  const review=assessAuditionReview(raw,candidate.imageSha,f.contextSha,context.requirementIds,context.checks.uniqueLandmarks,
-  auditionLandmarkTopology(context),auditionAnatomyCast(context),auditionInstanceDistinction(context),companionScaleFromContext(context));
+  auditionLandmarkTopology(context),auditionAnatomyCast(context),auditionInstanceDistinction(context),companionScaleFromContext(context),
+  undefined,sceneRelationsFromContext(context));
  const identity=results.get(cell+'_identity')!.output as PageChildResemblanceVisionResult;
  const status=attemptStatus('page',{candidate,assessment:review.assessment,identity});
  return{pageNumber,candidateSha:candidate.imageSha,contextSha:f.contextSha,supported:status==='qa_supported',scaleEvidence:review.review.scaleEvidence,applicableChecks:f.applicableChecks};
@@ -94,7 +96,8 @@ export async function runImageComparison(runtime:EngineRuntime,bundle:Comparison
   if(step.kind==='pixel'){
    const out=images.get(step.cell),f=bundle.frames.find(f=>f.pageNumber===step.pageNumber)!,ctx=f.context;
    assessAuditionReview(answer.output,out.imageSha,f.contextSha,ctx.requirementIds,ctx.checks.uniqueLandmarks,
-    auditionLandmarkTopology(ctx),auditionAnatomyCast(ctx),auditionInstanceDistinction(ctx),companionScaleFromContext(ctx));
+    auditionLandmarkTopology(ctx),auditionAnatomyCast(ctx),auditionInstanceDistinction(ctx),companionScaleFromContext(ctx),
+    undefined,sceneRelationsFromContext(ctx));
   }
  }
  await check();const scores=Array.from(new Set(steps.map(s=>s.model))).map(model=>{

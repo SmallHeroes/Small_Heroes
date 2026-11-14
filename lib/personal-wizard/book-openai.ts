@@ -6,9 +6,10 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { withSourceConcurrency } from './storyboard-source-concurrency';
+import { withStoryboardSceneRelations } from './storyboard-scene-relations';
 import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema, calibrationStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS,
-  STORYBOARD_FRAME_CHECKS } from './storyboard';
+  STORYBOARD_FRAME_CHECKS, SCENE_RELATIONS_FRAME_CHECKS } from './storyboard';
 import { calibrationSelfCheckWireSchema } from './storyboard-calibration';
 import { momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, storyboardMomentsSchema, drawnInstantWholeBookDraftSchema,
   ownedDrawnInstantWholeBookDraftSchema, drawnInstantMomentsSchema } from './storyboard-moments';
@@ -61,11 +62,14 @@ export function personalBookProviderSchema(call: BookVisualCall) {
   if(call.context.existingChildAppearance!==undefined){existingChildAppearanceSchema.parse(call.context.existingChildAppearance);if(call.context.actorOwnedAppearance!==true)throw new BookProviderError('book_provider_context');}
   const engine = assertEngineContinuityOptions(call.context.engineContinuity, call.context.instanceDistinctionContract);
   if(engine?.sourceConcurrency&&(call.context.presenceContract!==true||call.context.stateParityContract!==true))throw new BookProviderError('book_provider_context');
+  if (engine?.sceneRelations && (!engine.sourceConcurrency || !call.context.instanceDistinctionContract ||
+      !call.context.calibrationContract || call.stage === 'review' && !call.context.reviewImpactPolicy)) throw new BookProviderError('book_provider_context');
   const located = <T extends z.AnyZodObject>(draft: T): T => {
     const schema = call.context.instanceDistinctionContract ? withLocationPopulations(draft) : draft;
     const material=engine?.materialFunction?withMaterialFunction(schema):schema;
     const concurrent=engine?.sourceConcurrency?withSourceConcurrency(material,call.context.narrativeSpreads+1):material;
-    return withExistingChildAppearanceSchema(concurrent,call.context.existingChildAppearance) as unknown as T;
+    const related = engine?.sceneRelations ? withStoryboardSceneRelations(concurrent, call.context.narrativeSpreads + 1) : concurrent;
+    return withExistingChildAppearanceSchema(related,call.context.existingChildAppearance) as unknown as T;
   };
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
@@ -132,7 +136,7 @@ export function personalBookProviderSchema(call: BookVisualCall) {
     : personalStoryboardReviewSchema.shape.bookChecks.element.omit({ category: true });
   const group = (names: readonly string[]) => z.object(Object.fromEntries(names.map(name => [name, item]))).strict();
   return z.object({ bookChecks: group(STORYBOARD_BOOK_CHECKS),
-    frames: z.array(group(STORYBOARD_FRAME_CHECKS)).length(count + 1) }).strict();
+    frames: z.array(group(engine?.sceneRelations ? SCENE_RELATIONS_FRAME_CHECKS : STORYBOARD_FRAME_CHECKS)).length(count + 1) }).strict();
 }
 
 /** Page order and binding identities are deterministic engine metadata, never model claims. */
@@ -146,10 +150,11 @@ export function decodePersonalBookProviderOutput(call: BookVisualCall, raw: unkn
       sequence: { ...data.sequence, pages: data.sequence.pages.map((page, index) => ({ ...page, pageNumber: index + 1 })) } };
   }
   const data = parsed.data;
+  const frameChecks = call.context.engineContinuity?.sceneRelations ? SCENE_RELATIONS_FRAME_CHECKS : STORYBOARD_FRAME_CHECKS;
   return { sourceDigest: call.context.sourceDigest, storyboardDigest: call.context.storyboardDigest,
     bookChecks: STORYBOARD_BOOK_CHECKS.map(category => ({ category, ...data.bookChecks[category] })),
     frames: data.frames.map((frame, pageNumber) => ({ pageNumber,
-      checks: STORYBOARD_FRAME_CHECKS.map(category => ({ category, ...frame[category] })) })) };
+      checks: frameChecks.map(category => ({ category, ...frame[category] })) })) };
 }
 
 /** Exact existing SDK wire, shared with the explicit local receipt-recording caller. */
@@ -160,7 +165,8 @@ export function personalBookProviderPayload(call: BookVisualCall, model: StoryMo
     if (call.maxOutputTokens !== expectedTokens) throw new BookProviderError('book_provider_context');
     const payload = { model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions: call.instructions + '\nProvider output: ordered arrays have NO pageNumber; book/continuity start with cover. Review fixed groups have NO category/hash/pageNumber metadata.',
-      input: call.input, max_output_tokens: call.maxOutputTokens, text: { format: zodTextFormat(schema, `personal_book_${call.stage}`) },
+      input: call.input, max_output_tokens: call.maxOutputTokens, text: { format: zodTextFormat(schema,
+        `personal_book_${call.stage}${call.context.engineContinuity?.sceneRelations ? '_scene_relations_v1' : ''}`) },
       ...(call.context.reviewCapacity ? { metadata: { storyboard_review_capacity: call.context.reviewCapacity } } : {}) };
     const capacity = storyboardReviewCapacity(call.context.reviewCapacity);
     if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > (capacity?.wireBytes ?? BOOK_LIMITS.inputBytesPerCall)) throw new BookProviderError('book_provider_input_limit');

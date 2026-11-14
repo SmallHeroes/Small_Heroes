@@ -14,6 +14,10 @@ import { resolvePersonalWizardOptions } from '../options';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryDraft } from '../simple-story-engine';
 import { createCurrentSimpleStorySource } from '../simple-story-source';
 import { auditionPageContext, auditionJudgeInstruction, LANDMARK_DESIGN_HEAD_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION } from '../simple-book-reviewed-audition';
+import { SCENE_RELATIONS_VERSION } from '../storyboard-scene-relations';
+import { boundRepairScope, assertBoundRepairScope } from '../storyboard-bound-repair-scope';
+import { PREPARATION_CONTRACTS } from '../source-preparation-contracts';
+import { STORYBOARD_REVIEW_CAPACITY } from '../storyboard-review-capacity';
 
 const action='They walk down the lane.',change='Meanwhile the ribbon turns blue.';
 const prose=['נועה and Dini wait inside their wooden hut. A red ribbon is in her hand.',
@@ -38,11 +42,14 @@ function draft(f:F,source:ReturnType<typeof prepare>,on?:true){
   return d;
 }
 function review(f:F,book:any){const r:any=structuredClone(f.review);r.sourceDigest=book.sourceDigest;r.storyboardDigest=book.storyboardDigest;
+  if (book.sceneRelations) for (const frame of r.frames) frame.checks.push({ category: 'scene_relations', verdict: 'supported',
+    observation: 'Synthetic geometry review only' });
   for(const c of [...r.bookChecks,...r.frames.flatMap((x:any)=>x.checks)])c.issues=[];return r;}
 async function currentSource(f:F){
   const prepared=prepareSimpleStory(f.request,f.current.options,'source-concurrency-fixture'),p=f.result.plan,records:Record<string,any>={};
   const sd:SimpleStoryDraft={title:p.title,childGoal:p.childGoal,companionWant:p.companionWant,comicPromise:p.comicPromise,ending:p.ending,
-    pages:f.result.manuscript.pages.map(x=>({text:x.text+' נועה ודיני משחקות בציור.'})),pageMap:p.beats.map(({pageNumber:_n,...x})=>x),
+    pages:f.result.manuscript.pages.map(x=>({text:x.text+(f.request.companion.id==='elephant_momo'?' נועה ומומו משחקים בציור.':' נועה ודיני משחקות בציור.')})),
+    pageMap:p.beats.map(({pageNumber:_n,...x})=>x),
     resilienceMoments:p.resilience.moments.map(({pageNumber,...x})=>({page:pageNumber,...x}))};
   const generated=await writeSimpleStory(prepared,async c=>{const output=c.stage==='author'?sd:{...sd,editorChanges:['Synthetic only']},usage={inputTokens:100,outputTokens:100},termination={code:0,signal:null};
     records[c.stage]={output,usage,estimatedMicroUsd:100000,metadata:{kind:'cli_reported_estimate_not_invoice',reportedModels:['claude-opus-5-5'],termination},raw:{termination,killConfirmed:true,stopped:false,
@@ -192,5 +199,79 @@ describe('prospective concurrency travels through the real storyboard flow',()=>
     expect(calls.map(c=>c.stage)).toEqual(['storyboard','review']);expect(calls.every(c=>c.context.engineContinuity.sourceConcurrency===true)).toBe(true);
     expect(result.status).toBe('review_supported');expect(result.framePackets).toHaveLength(9);
     expect(result.framePackets[4].qa.context.sourceConcurrency?.changes).toEqual(d.concurrency.frames[4].changes);
+  });
+  it('carries scene relations through the actual planner and reviewer SDK wires and admits only the reviewed frame', async () => {
+    const m = await personalStoryboardFixture('short', 'elephant_momo', resolvePersonalWizardOptions(), prose);
+    const writerResult = await currentSource(m);
+    const flags = { ...PREPARATION_CONTRACTS.engineContinuity, sourceConcurrency: true, sceneRelations: true } as const;
+    const s = preparePersonalStoryboard(m.request, writerResult, m.current.options, true, true, true, undefined, true, true, undefined,
+      true, true, true, true, true, true, true, true, true, flags);
+    const d = draft(m, s, true), quote = 'They walk down the lane.';
+    d.plan.actorAppearance = { child: {role: 'child', clothing:['red shirt', 'blue shorts', 'teal shoes']},
+      companion: {role: 'companion', authority:'companionVisualAuthority'} };
+    delete d.plan.wardrobe;
+    d.plan.continuity.companionStandingHeightInChildHeights = .7;
+    for (const l of d.plan.locations) l.population = [];
+    for (const e of d.plan.continuity.entities) {
+      e.builtFrom = null;
+      e.invariants.push({ attribute: 'kind', value: e.id === 'hut' ? 'hut' : 'ribbon' });
+    }
+    d.sceneRelations = { version: SCENE_RELATIONS_VERSION, frames: d.plan.pages.map(() => ({ parts: [], links: [], orientations: [] })) };
+    d.sceneRelations.frames[4] = { parts: [
+      {id:'grip', entityId:'child', feature:'hand holding the ribbon'},
+      {id:'end', entityId:'ribbon', feature:'held end'},
+    ], links:[{from:'end',to:'grip',relation:'connected',evidence:quote}], orientations:[] };
+    d.selfCheck = {...fullSelfCheck({...claimBasisSectionsView(d), sourceConcurrency:d.concurrency}, previewStoryEvidence(s.story).texts), visualStates:[]};
+    const compile = (input:unknown) => compilePersonalStoryboard(s, input, { selfCheckNames:true, stagingFields:true, selfCheckSourceSpans:true });
+    const book = compile(d), approved = review(m, book), used:string[] = [];
+    let callbackFailure: unknown;
+    const result = await runSimpleStoryboardDiagnostic({ ...PREPARATION_CONTRACTS, request:m.request, writerResult, options:m.current.options,
+      engineContinuity:flags, reviewCapacity:STORYBOARD_REVIEW_CAPACITY.version, signal:new AbortController().signal, generate:async call=>{
+      try {
+        used.push(call.stage);
+        const wire = personalBookProviderPayload(call, 'gpt-6.1-sol');
+        expect(wire.text.format.name).toContain('scene_relations_v1');
+        if (call.stage === 'review') {
+          expect(JSON.parse(call.input).sceneRelations).toEqual(d.sceneRelations);
+          expect(call.instructions).toContain('even when the arrays are empty');
+          const group = (checks:any[]) => Object.fromEntries(checks.map(({category,...check})=>[category,check]));
+          const frames = approved.frames.map((frame:any)=>group(frame.checks));
+          const wireReview = { bookChecks:group(approved.bookChecks), frames };
+          expect(personalBookProviderSchema(call).safeParse(wireReview).success).toBe(true);
+          const old = structuredClone(wireReview);
+          delete old.frames[4].scene_relations;
+          expect(personalBookProviderSchema(call).safeParse(old).success).toBe(false);
+          return decodePersonalBookProviderOutput(call, wireReview);
+        }
+        expect(call.instructions).toContain("actor's upright view");
+        const planner = structuredClone(d);
+        for (const p of [...planner.plan.pages, ...planner.plan.continuity.pages, ...planner.sequence.pages]) delete p.pageNumber;
+        personalBookProviderSchema(call).parse(planner);
+        const absent = structuredClone(planner);
+        absent.sceneRelations.frames.pop();
+        expect(personalBookProviderSchema(call).safeParse(absent).success).toBe(false);
+        return decodePersonalBookProviderOutput(call, planner);
+      } catch (error) { callbackFailure = error; throw error; }
+      } }).catch(error => { throw callbackFailure ?? error; });
+    expect(used).toEqual(['storyboard','review']);
+    expect(result.status).toBe('review_supported');
+    expect(result.framePackets[4].render.prompt).toContain('"feature":"held end"');
+    const stale = review(m, book);
+    stale.frames[4].checks.pop();
+    expect(()=>storyboardReviewDisposition(book, stale)).toThrow();
+    for (const verdict of ['uncertain','contradiction']) {
+      const held = review(m, book);
+      Object.assign(held.frames[4].checks.at(-1), {verdict, issues:[
+        {impact:'detail', basis:'inference', citation:'', ref:'p4:scene_relations', note:'The connected endpoint is wrong', whyNotMaterial:'fixture'}]});
+      expect(storyboardReviewDisposition(book, held).disposition).toMatch(/^held_/);
+      expect(()=>personalStoryboardFrame(book, held, 4, {...m.current, writerResult})).toThrow(/held_/);
+      held.frames[4].checks.at(-1).issues[0].ref = 'p3:scene_relations';
+      expect(()=>storyboardReviewDisposition(book, held)).toThrow('scene_relations_review_binding');
+    }
+    const affected = boundRepairScope([{issues:[{ref:'p4:scene_relations'}]}], d), edited = structuredClone(d);
+    edited.sceneRelations.frames[4].links[0].relation = 'separate';
+    expect(()=>assertBoundRepairScope(affected, d, edited)).not.toThrow();
+    edited.plan.pages[5].composition = 'unrelated direction';
+    expect(()=>assertBoundRepairScope(affected, d, edited)).toThrow('bound_repair_scope');
   });
 });

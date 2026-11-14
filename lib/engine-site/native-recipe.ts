@@ -39,7 +39,7 @@ import type { EngineRuntime, EngineProviderResult, EngineRecipe } from './durabl
 import type { EnginePrivateStorage } from './private-storage';
 import type { PrismaClient } from '@prisma/client';
 import { engineImageDataUrl } from './image-data-url';
-import { ENGINE_CURRENT_CUSTOMER_V3, ENGINE_CURRENT_CUSTOMER_V9, enginePictureBookReview, isCurrentCustomerEngine, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
+import { ENGINE_CURRENT_CUSTOMER_V3, enginePictureBookReview, isCurrentCustomerEngine, usesBoundPageRetry, usesCorrectedLocationSpatialDirection, usesLocationSpatialDirection, usesTypedCustomerCorrections } from './current-engine-policy';
 import { PICTURE_BOOK_DRAWING_DIRECTION, PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, PICTURE_BOOK_SPATIAL_STAGING, PICTURE_BOOK_READABLE_INSTANT, pictureBookLocationCorrection, pictureBookLocationPrompt } from '@/lib/personal-wizard/picture-book-direction';
 import { blockedRouteDrawing, initialBlockedRoutesOnPage, locationSpatialDirection } from '@/lib/personal-wizard/location-spatial-direction';
 import {scaleCoverage} from '@/lib/personal-wizard/companion-scale';
@@ -134,7 +134,7 @@ export function createEngineNativeRecipe(args: { db: PrismaClient; storage: Engi
     if(args.currentLocationsRepair)runtime=withLocalSettledMedia(args.currentLocationsRepair,runtime);
     const { snapshot, ports } = args, authority = runtime.checkpoint.authority;
     const pictureBook = enginePictureBookReview(authority);
-    const boundPageRetry = authority.currentEngine === ENGINE_CURRENT_CUSTOMER_V9;
+    const boundPageRetry = usesBoundPageRetry(authority);
     const recovery = args.currentLocationsRepair ? localMediaRecovery(args.currentLocationsRepair) : undefined;
     const spatialPolicy = usesLocationSpatialDirection(authority);
     const correctedSpatial = usesCorrectedLocationSpatialDirection(authority);

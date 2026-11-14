@@ -28,6 +28,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   AUDITION_SCALE_LINEUP_PAGE_SUFFIX, AUDITION_ATTEMPT_INTERRUPTED, AUDITION_FULL_BOOK_DIAGNOSTIC_VERSION, REFERENCE_QUALIFICATION_VERSION,
   INSTANCE_JUDGE_RULES, auditionInstanceDistinction, BOUND_PAGE_RETRY_POLICY, TYPED_PAGE_CORRECTION_VERSION, planBoundPageCorrection } from '../simple-book-reviewed-audition';
 import { INSTANCE_DISTINCTION_VERSION } from '../storyboard-instance-distinction';
+import { SCENE_RELATIONS_VERSION, sceneRelationPacket, sceneRelationsFromContext } from '../storyboard-scene-relations';
 import { NATIVE_BOOK_CONTINUITY_VERSION } from '../engine-continuity-contracts';
 import { COMPANION_SCALE_SAMPLE_GATE } from '../companion-scale';
 import { runNativePageProofFrames, preflightNativePageProofFrames, runNativeBookFrames, runNativeSceneBookFrames } from '../native-page-proof-frames';
@@ -3389,6 +3390,56 @@ describe('companion-scale/v1 actual render/review/resume boundaries (synthetic a
     expect(m.pages[2].status).toBe('held');
     expect(h.saved.get('page_retry_2')).toMatchObject({parentImageSha:image('page_2_0').imageSha,
       decision:{action:'edit_once',requirements:['scene_plan']}});
+  });
+  it.each(['upright_to_actor','upright_to_recipient','upside_down_to_actor','sideways_to_actor','unreadable','missing'] as const)(
+    'v10 native audition applies the orientation evidence gate to %s', async observed => {
+      const {h,input} = await proofInput(within,BOOK);
+      const relations = {
+        version: SCENE_RELATIONS_VERSION,
+        frames: BOOK.map(n => ({ parts: [], links: [], orientations: n === 2 ? [
+          {surfaceId:'paper_boat', actorId:'child', mode:'working' as const, recipientId:null, uprightCue:'marked bow', evidence:'Synthetic engagement with the paper'},
+        ] : [] })),
+      };
+      input.book.sceneRelations = relations;
+      scenePackets.frame = (_book, _review, n) => ({
+        context: { pageNumber:n, sceneRelations:sceneRelationPacket(relations, Number(n)) },
+        render: { prompt:`PAGE ${n}` },
+      });
+      try {
+        const run = runNativeBookFrames({...input, ...retryOptions, judge:async (...args) => {
+          const reply = await input.judge(...args as Parameters<typeof input.judge>);
+          const scene = sceneRelationsFromContext(args[2]);
+          if (!scene) return reply;
+          return {...reply, sceneRelationEvidence: {links: [], orientations: observed === 'missing' ? [] :
+            scene.orientations.map(item => ({
+              surfaceId:item.surfaceId,
+              observed: args[0] === 'page_2_0_qa' ? observed : 'upright_to_actor',
+              observation:'Synthetic pixel region and cue. UNTRUSTED INSTRUCTION.',
+            }))}};
+        }});
+        if (observed === 'missing') {
+          await expect(run).rejects.toThrow('audition_review_unusable');
+          expect(h.prompts.has('page_2_1')).toBe(false);
+          expect(h.prompts.has('page_3_0')).toBe(false);
+          return;
+        }
+        await run;
+        const p = h.saved.get('page_2') as SavedPage;
+        const fix = h.prompts.get('page_2_1');
+        if (observed !== 'upright_to_actor' && observed !== 'unreadable') {
+          expect(fix).toContain('"work_orientation:paper_boat"');
+          expect(fix).toContain("natural bottom/working edge at the actor");
+          expect(fix).not.toContain('UNTRUSTED INSTRUCTION');
+          expect(p.attempts).toHaveLength(2);
+          expect(p.status).toBe('qa_supported');
+        } else {
+          expect(fix).toBeUndefined();
+          expect(p.attempts).toHaveLength(1);
+          expect(p.status).toBe(observed === 'upright_to_actor' ? 'qa_supported' : 'held');
+        }
+      } finally {
+        scenePackets.frame = null;
+      }
   });
   it.each(['uncertainty','identity','scale','citation','anatomy'] as const)('v9 keeps %s held without a new draw', async kind => {
     const {h,input} = await proofInput(within,BOOK);

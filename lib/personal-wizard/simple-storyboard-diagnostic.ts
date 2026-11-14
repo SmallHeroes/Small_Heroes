@@ -7,7 +7,7 @@ import {existingChildAppearanceData,type ExistingChildAppearance} from './existi
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
 import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput, impactStoryboardReviewSchema, claimBasisStoryboardReviewSchema,
-  calibrationStoryboardReviewSchema, personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions,
+  calibrationStoryboardReviewSchema, sceneRelationsStoryboardReviewSchema, personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions,
   storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
@@ -24,12 +24,13 @@ import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-ru
 import { personalBookOutputLimits } from './book-config';
 import { stateParityReviewerCalibration, STATE_PARITY_REVIEW_ADDENDUM } from './storyboard-state-parity';
 import { SOURCE_CONCURRENCY_REVIEW_ADDENDUM } from './storyboard-source-concurrency';
+import { SCENE_RELATIONS_REVIEW } from './storyboard-scene-relations';
 import { storyboardReviewCapacity, type StoryboardReviewCapacity } from './storyboard-review-capacity';
 
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
 export const SIMPLE_STORYBOARD_INPUT_LIMIT = 104_000;
 export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
-  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema | typeof impactStoryboardReviewSchema
+  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema | typeof impactStoryboardReviewSchema | typeof sceneRelationsStoryboardReviewSchema
     | typeof claimBasisStoryboardReviewSchema | typeof calibrationStoryboardReviewSchema;
 };
 /**
@@ -45,6 +46,8 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
   if(contracts.engineContinuity?.sourceConcurrency!==undefined&&(contracts.engineContinuity.sourceConcurrency!==true||contracts.presenceContract!==true||contracts.stateParityContract!==true))
     throw Error('simple_storyboard_diagnostic_source_concurrency_policy');
   const calibrated = contracts.calibrationContract && contracts.claimBasisContract;
+  if (contracts.engineContinuity?.sceneRelations && (!calibrated || !contracts.engineContinuity.sourceConcurrency ||
+      !contracts.instanceDistinctionContract || !contracts.reviewImpactPolicy)) throw Error('simple_storyboard_diagnostic_scene_relations_policy');
   return PERSONAL_BOOK_REVIEW_INSTRUCTION + (contracts.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
     + (contracts.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (contracts.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : '')
     + (contracts.selfCheckContract ? '\n' + (calibrated ? calibrationSelfCheckReviewAddendum()
@@ -57,7 +60,8 @@ export const storyboardReviewInstructions = (contracts: { momentContract?: true;
     + (contracts.selfCheckSourceSpans ? '\n' + SELF_CHECK_SOURCE_SPANS_REVIEW_ADDENDUM : '')
     + (contracts.stateParityContract ? '\n' + STATE_PARITY_REVIEW_ADDENDUM : '')
     + (contracts.instanceDistinctionContract ? '\n' + INSTANCE_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.materialFunction ? '\n' + MATERIAL_REVIEW_ADDENDUM : '') + (contracts.engineContinuity?.companionScale ? '\n' + SCALE_REVIEW_ADDENDUM : '')
-    + (contracts.engineContinuity?.sourceConcurrency?'\n'+SOURCE_CONCURRENCY_REVIEW_ADDENDUM:'');
+    + (contracts.engineContinuity?.sourceConcurrency?'\n'+SOURCE_CONCURRENCY_REVIEW_ADDENDUM:'')
+    + (contracts.engineContinuity?.sceneRelations ? '\n' + SCENE_RELATIONS_REVIEW : '');
 };
 /** Replace the generic note rule only for the explicitly stricter temporal contract. Legacy bytes remain exact. */
 function concurrencyReviewImpactAddendum(enabled?:true){
@@ -219,7 +223,8 @@ async function runStoryboardDiagnostic(args: SimpleStoryboardDiagnosticArgs, sup
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
   const rawReview = await dispatch({ stage: 'review', instructions: storyboardReviewInstructions(args),
-    input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: args.calibrationContract ? calibrationStoryboardReviewSchema
+    input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: args.engineContinuity?.sceneRelations ? sceneRelationsStoryboardReviewSchema
+      : args.calibrationContract ? calibrationStoryboardReviewSchema
       : args.claimBasisContract ? claimBasisStoryboardReviewSchema : args.reviewImpactPolicy ? impactStoryboardReviewSchema : personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,

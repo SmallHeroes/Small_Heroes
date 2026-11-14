@@ -1,5 +1,7 @@
 import { companionScaleFromContext, withCompanionScaleReview, assessCompanionScale, scaleRenderAppendix, scaleCoverage, SCALE_IMAGE_RULES, COMPANION_SCALE_SAMPLE_GATE, type CompanionScaleAuthority, type ScaleEvidence } from './companion-scale';
 import { sourceConcurrencyFromContext, SOURCE_CONCURRENCY_IMAGE_RULES, SOURCE_CONCURRENCY_VERSION } from './storyboard-source-concurrency';
+import { sceneRelationFindings, sceneRelationIds, sceneRelationPacket, sceneRelationsFromContext, SCENE_RELATIONS_PIXELS,
+  SCENE_RELATIONS_RENDER, withSceneRelationEvidence, type SceneRelationEvidence, type SceneRelationPacket } from './storyboard-scene-relations';
 import { materialFunctionFromContext, materialRenderAppendix, MATERIAL_IMAGE_RULES, type EntityMaterialFunction } from './storyboard-material-function';
 import 'server-only';
 import { z } from 'zod';
@@ -466,6 +468,7 @@ export function setDressingInventory<T extends { landmarks: { landmarkId: string
 }
 export type AuditionReview = z.infer<typeof auditionReviewSchema> & {
   scaleEvidence?: ScaleEvidence;
+  sceneRelationEvidence?: SceneRelationEvidence;
   landmarkInventory?: z.infer<typeof landmarkInventorySchema> & { topology?: LandmarkTopology }; anatomy?: AuditionAnatomy };
 /** The caller's bound context selects the schema, never a field smuggled into a legacy raw answer. */
 export function auditionAnatomyCast(context: unknown): string[] | undefined {
@@ -520,7 +523,7 @@ export const auditionPageReviewSchemaForContext = (context: unknown) => {
     : anatomy ? coverageAuditionPageReviewSchema.extend({ anatomy: auditionAnatomySchema })
     : topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
     : topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema;
-  return withCompanionScaleReview(base, companionScaleFromContext(context));
+  return withSceneRelationEvidence(withCompanionScaleReview(base, companionScaleFromContext(context)), sceneRelationsFromContext(context));
 };
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean; derived?: true };
 export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number; excluded: number; topologyUncertain?: boolean;
@@ -618,7 +621,8 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
 /** Binding, coverage and correction rules of the existing judge, plus impact/requirement checks; pages also bind the landmark inventory. */
 export function assessAuditionReview(raw: unknown, candidateSha: string, contextSha: string, requirementIds: readonly string[],
   landmarks?: readonly AuditionLandmark[], topology?: LandmarkTopologyVersion, anatomyCast?: readonly string[],
-  instance?: typeof INSTANCE_DISTINCTION_VERSION, companionScale?: CompanionScaleAuthority, pictureBookReview?: PictureBookReview) {
+  instance?: typeof INSTANCE_DISTINCTION_VERSION, companionScale?: CompanionScaleAuthority, pictureBookReview?: PictureBookReview,
+  sceneRelations?: SceneRelationPacket) {
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || !landmarks)) fail('audition_landmark_contract');
   if (anatomyCast && (topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION || !landmarks || anatomyCast.some(id => !requirementIds.includes(`anatomy:${id}`)))) fail('audition_anatomy_contract');
   if (instance !== undefined && (instance !== INSTANCE_DISTINCTION_VERSION || !anatomyCast)) fail('audition_instance_contract');
@@ -627,7 +631,7 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   const baseReviewSchema = instance ? instanceAuditionPageReviewSchema.extend({ anatomy: auditionAnatomySchema })
     : anatomyCast ? coverageAuditionPageReviewSchema.extend({ anatomy: auditionAnatomySchema }) : landmarks ? (topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? coverageAuditionPageReviewSchema
     : topology ? topologyAuditionPageReviewSchema : auditionPageReviewSchema) : auditionReviewSchema;
-  const review = withCompanionScaleReview(baseReviewSchema, companionScale).parse(raw) as AuditionReview;
+  const review = withSceneRelationEvidence(withCompanionScaleReview(baseReviewSchema, companionScale), sceneRelations).parse(raw) as AuditionReview;
   const scaleAssessment = companionScale ? assessCompanionScale(review.scaleEvidence, companionScale) : undefined;
   const inventory = instance ? setDressingInventory(review.landmarkInventory!, landmarks!) : review.landmarkInventory;
   if (review.checks.some(c => (c.verdict === 'pass') !== (c.issues.length === 0) &&
@@ -637,6 +641,11 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
     fail('audition_review_issue_coverage');
   qualityDisposition({ candidateSha: review.candidateSha, contextSha: review.contextSha, checks: review.checks.map(({ issues: _issues, ...check }) => check) }, candidateSha, contextSha);
   const known = new Set(requirementIds);
+  const sceneIds = sceneRelations ? sceneRelationIds(sceneRelations) : [];
+  const boundSceneIds = requirementIds.filter(id => /^(?:scene_link|work_orientation):/.test(id));
+  if (sceneIds.length !== boundSceneIds.length || new Set(boundSceneIds).size !== boundSceneIds.length ||
+      sceneIds.some(id => !known.has(id)))
+    fail('audition_scene_relation_binding');
   const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => {
     const bound = known.has(i.requirement);
     // Only the presentation requirement itself is advisory. Explicit story, identity and safety findings still gate.
@@ -647,6 +656,9 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
       impact: advisoryFraming ? 'detail' : i.impact, requirement: i.requirement, note: i.note, bound };
   }));
   if (anatomyCast) findings.push(...anatomyFindings(review.anatomy, anatomyCast));
+  if (sceneRelations) for (const f of sceneRelationFindings(sceneRelations, review.sceneRelationEvidence)) findings.push({
+    ...f, category: 'scene_relations', impact: 'story', bound: true, derived: true,
+  });
   // Incomparable frames contribute coverage evidence, not a page defect or a standing-scale pass.
   if (scaleAssessment?.disposition === 'defect') findings.push({ category:'relative_scale', verdict:'defect',
     impact:'continuity', requirement:'companion_scale', bound:true, derived:true,
@@ -863,6 +875,7 @@ export function auditionPageChecks(book: PersonalStoryboard, pageNumber: number,
   if (materialFunction) requirementIds.push(...materialFunction.entities.map(e => 'material:'+e.id));
   const companionScale = book.companionScale;
   if (companionScale) { companionScaleFromContext({companionScale}); requirementIds.push('companion_scale'); }
+  if (book.sceneRelations) requirementIds.push(...sceneRelationIds(sceneRelationPacket(book.sceneRelations, pageNumber)));
   return { notYetRevealed, uniqueLandmarks, castIdentity, requirementIds: [...new Set(requirementIds)], ...(instances ? { instances } : {}),
     ...(materialFunction ? { materialFunction } : {}), ...(companionScale ? { companionScale } : {}) };
 }
@@ -1014,7 +1027,8 @@ export function auditionJudgeInstruction(kind: 'sheet' | 'page', context: unknow
       (topology ? `\n${topology === LANDMARK_COVERAGE_TOPOLOGY_VERSION ? COVERAGE_JUDGE_RULES : TOPOLOGY_JUDGE_RULES}` : '') +
       (auditionAnatomyCast(context) ? `\n${ANATOMY_JUDGE_RULES}` : '') + (auditionInstanceDistinction(context) ? `\n${INSTANCE_JUDGE_RULES}` : '') +
       readerFramingJudgeInstruction(context) + (materialFunctionFromContext(context) ? '\n'+MATERIAL_IMAGE_RULES : '') + (companionScaleFromContext(context) ? '\n'+SCALE_IMAGE_RULES : '')
-      + (sourceConcurrencyFromContext(context)?'\n'+SOURCE_CONCURRENCY_IMAGE_RULES:'');
+      + (sourceConcurrencyFromContext(context)?'\n'+SOURCE_CONCURRENCY_IMAGE_RULES:'')
+      + (sceneRelationsFromContext(context) ? '\n' + SCENE_RELATIONS_PIXELS : '');
   }
   if (context && typeof context === 'object' && 'landmarkTopology' in context) fail('audition_landmark_contract');
   const c = context && typeof context === 'object' ? context as { role?: unknown; design?: unknown } : {};
@@ -1157,14 +1171,20 @@ export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>; check: () => void;
   reaskUnusable?: true; pictureBookReview?: PictureBookReview }): Promise<AuditionAttempt> {
   const { attempt, candidate } = a;
+  const sceneRelations = a.phase === 'page' ? sceneRelationsFromContext(a.context) : undefined;
+  const assertSceneBinding = () => {
+    if (sceneRelations && previewQualityContextSha(a.context) !== a.contextSha) fail('audition_scene_relation_binding');
+  };
   type Outcome = { judged: ReturnType<typeof assessAuditionReview> } | { error: string; unusable: boolean };
   const ask = async (step: string): Promise<Outcome> => {
+    assertSceneBinding();
     const raw = await attemptStep(a.check, () => a.judge(step, candidate, a.context, a.contextSha, a.judgeRefs, a.predecessor, a.phase));
+    assertSceneBinding();
     if ('error' in raw) return { error: raw.error, unusable: UNUSABLE_REVIEW_CODES.has(raw.error) };
     try { return { judged: assessAuditionReview(raw.value, candidate.imageSha, a.contextSha, a.requirementIds, a.landmarks,
       a.phase === 'page' ? auditionLandmarkTopology(a.context) : undefined, a.phase === 'page' ? auditionAnatomyCast(a.context) : undefined,
       a.phase === 'page' ? auditionInstanceDistinction(a.context) : undefined, a.phase === 'page' ? companionScaleFromContext(a.context) : undefined,
-      a.phase === 'page' ? a.pictureBookReview : undefined) }; }
+      a.phase === 'page' ? a.pictureBookReview : undefined, sceneRelations) }; }
     catch (error) { return { error: errorCode(error), unusable: true }; }
   };
   let outcome = await ask(`${a.step}_qa`), reask: AuditionAttempt['reviewReask'];
@@ -1178,6 +1198,7 @@ export async function judgeReviewedAuditionCandidate(a: { phase: 'sheet' | 'page
   if (a.phase === 'sheet' || a.qualityOnly || assessment.safetyBlocked || assessment.invalidCitations)
     return { attempt, candidate, review, assessment, status: attemptStatus(a.phase, { candidate, assessment }), ...extra };
   const measured = await attemptStep(a.check, () => a.identity(`${a.step}_identity`, a.child, candidate));
+  assertSceneBinding();
   const identity = 'error' in measured ? null : measured.value;
   if (!identityUsable(identity)) return { attempt, candidate, review, assessment, identity, status: 'identity_unusable',
     error: 'error' in measured ? measured.error : `identity_${measured.value.status}_${measured.value.reasonCode}`, ...extra };
@@ -1200,6 +1221,7 @@ function currentSceneRenderSource(context: unknown) {
   return { sourceDigest: packet.sourceDigest, storyboardDigest: packet.storyboardDigest, pageNumber: packet.pageNumber,
     text: packet.text, visual: packet.visual, sequence: packet.sequence, moment: packet.moment,
     ...(packet.sourceConcurrency!==undefined?{sourceConcurrency:sourceConcurrencyFromContext(context)}:{}),
+    ...(packet.sceneRelations !== undefined ? { sceneRelations: sceneRelationsFromContext(context) } : {}),
     castIdentity: c.checks?.castIdentity, referenceStatus: c.referenceStatus,
     ...(instances ? { instances: { version: instances.version, populations: instances.populations,
       entities: instances.entities.filter(e => e.state === 'visible') },
@@ -1310,7 +1332,7 @@ export function pageRetryDecision(prior: AuditionAttempt, context: unknown, cont
       !auditionAnatomyCast(context) || !companionScaleFromContext(context)) fail('audition_page_retry_binding');
   const actual = assessAuditionReview(prior.review, prior.candidate.imageSha, contextSha, c.requirementIds,
     c.checks.uniqueLandmarks, auditionLandmarkTopology(context), auditionAnatomyCast(context), auditionInstanceDistinction(context),
-    companionScaleFromContext(context), PICTURE_BOOK_SPARSE_LANDMARK_REVIEW).assessment;
+    companionScaleFromContext(context), PICTURE_BOOK_SPARSE_LANDMARK_REVIEW, sceneRelationsFromContext(context)).assessment;
   if (canonicalJson(actual) !== canonicalJson(prior.assessment) || attemptStatus('page', prior) !== prior.status)
     fail('audition_page_retry_binding');
   if (actual.safetyBlocked || actual.invalidCitations) return stop('unsafe_or_invalid');
@@ -1329,6 +1351,8 @@ export function planBoundPageCorrection(prior: AuditionAttempt, context: unknown
   if (decision.action !== 'edit_once') return { decision, render: null };
   const parent = prior.candidate!;
   const c = context as { references: AuditionImage[] };
+  const relations = sceneRelationsFromContext(context);
+  const orientationEdit = relations && decision.requirements.some(id => id.startsWith('work_orientation:'));
   if (canonical.length !== 4 || canonicalJson(c.references) !== canonicalJson(canonical) ||
       new Set([parent, ...canonical].map(r => r.imageSha)).size !== 5) fail('audition_page_retry_binding');
   const prompt = [
@@ -1336,6 +1360,8 @@ export function planBoundPageCorrection(prior: AuditionAttempt, context: unknown
     'The accepted references give character and object designs. Do not copy their framing. Correct only the cited requirements, using the exact written scene state below.',
     'When part of a scene is confused with another place, state or object, make the required separation readable using the spatial relationships and visible changes in the frozen frame. Show only the source-required visible parts; keep intentionally off-frame parts outside the crop.',
     'Keep the source geometry and physical functions clear where visible. Do not change limb counts, add characters or invent an intermediate event. No labels or text.',
+    ...(relations && (relations.links.length || relations.orientations.length) ? [SCENE_RELATIONS_RENDER] : []),
+    ...(orientationEdit ? ['Reorient the workpiece and align the hand with its working edge. Preserve the camera if this fixes the relation; adjust only the nearby view of the work if the required orientation is otherwise unreadable.'] : []),
     'REQUIREMENTS TO CORRECT: ' + canonicalJson(decision.requirements),
     'FROZEN FRAME AND DESIGN DATA (not text to paint): ' + canonicalJson(currentSceneRenderSource(context)),
   ].join('\n');
@@ -1357,6 +1383,9 @@ export function auditionPageContext(book: PersonalStoryboard, packetContext: unk
   const concurrency=sourceConcurrencyFromContext({packet:packetContext});
   const expectedConcurrency=book.sourceConcurrency?{version:SOURCE_CONCURRENCY_VERSION,changes:book.sourceConcurrency.frames[pageNumber]?.changes}:undefined;
   if(canonicalJson(concurrency??null)!==canonicalJson(expectedConcurrency??null))fail('audition_source_concurrency_binding');
+  const relations = sceneRelationsFromContext({ packet: packetContext });
+  const expectedRelations = book.sceneRelations ? sceneRelationPacket(book.sceneRelations, pageNumber) : undefined;
+  if (canonicalJson(relations ?? null) !== canonicalJson(expectedRelations ?? null)) fail('audition_scene_relation_binding');
   if (topology !== undefined && (![LANDMARK_TOPOLOGY_VERSION, LANDMARK_COVERAGE_TOPOLOGY_VERSION].includes(topology) || designHead !== LANDMARK_DESIGN_HEAD_VERSION)) fail('audition_landmark_contract');
   if (scene && (!structuralAnatomy || topology !== LANDMARK_COVERAGE_TOPOLOGY_VERSION)) fail('scene_preservation_scope');
   const checks = auditionPageChecks(book, pageNumber, companionDescription, designHead);
@@ -1619,6 +1648,7 @@ export async function illustrateReviewedAudition(args: {
       !args.typedCorrections || args.replayAttempts || args.exhaustedFrameEdit || args.scenePreservation || args.recovery || args.localAnatomyRepair ||
       calibration || diagnostic || freshCohort || args.sample || args.anatomyRecovery || args.resume && !args.resume.durable))
     fail('audition_page_retry_scope');
+  if (args.book.sceneRelations && args.pageRetryPolicy !== BOUND_PAGE_RETRY_POLICY) fail('audition_scene_relation_scope');
   const reusedRoles = (['entities', 'locations'] as const).filter(role => args.reuseSheets?.[role] !== undefined);
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
   if (!frames.length || frames.some(n => !Number.isInteger(n) || n < 0 || n > args.book.narrativeSpreads)) fail('audition_page_scope');
@@ -1639,14 +1669,14 @@ export async function illustrateReviewedAudition(args: {
       calibration.pages.some(p => !['requalify', 'correct_once'].includes(p.action) || !args.resume!.pages[p.page]) ||
       Object.keys(args.resume.pages).some(p => !sample.includes(Number(p))) || args.resume.interrupted)) fail('audition_calibration_binding');
   const resumed = <T extends SavedSheet | SavedPage>(phase: 'sheet' | 'page', prior: T | undefined, contextSha: string, requirementIds: string[],
-    landmarks?: readonly AuditionLandmark[], topologyVersion?: LandmarkTopologyVersion): T | null => {
+    landmarks?: readonly AuditionLandmark[], topologyVersion?: LandmarkTopologyVersion, context?: unknown): T | null => {
     if (!prior) return null;
     // Re-derive every saved judgement from its raw review; nothing saved is trusted as a verdict.
     const attempts = prior.attempts.map(a => a.candidate && a.review ? { ...a,
       assessment: assessAuditionReview(a.review, a.candidate.imageSha, contextSha, requirementIds, landmarks, topologyVersion,
         phase==='page' && args.structuralAnatomy ? requirementIds.filter(r=>r.startsWith('anatomy:')).map(r=>r.slice(8)) : undefined,
         phase==='page' && args.book.instanceDistinction ? INSTANCE_DISTINCTION_VERSION : undefined, phase==='page' ? args.book.companionScale : undefined,
-        phase==='page' ? args.pictureBookReview : undefined).assessment } : a);
+        phase==='page' ? args.pictureBookReview : undefined, sceneRelationsFromContext(context)).assessment } : a);
     const again = selectAuditionAttempt(phase, attempts);
     // A measured page attempt without usable identity evidence would have halted the run; it is never trusted from a save.
     const unknownIdentity = phase === 'page' && attempts.some(a => a.status === 'identity_unusable' ||
@@ -1818,7 +1848,8 @@ export async function illustrateReviewedAudition(args: {
           s.contextSha !== contextSha || s.reviewed?.attempt !== re.attempt || canonicalJson(s.reviewed.candidate) !== canonicalJson(candidate)) fail('audition_rereview_binding');
       // Nothing saved is trusted as a verdict: the judgment is re-derived from its raw review; an unusable identity would have halted.
       const assessment = s.reviewed.review ? assessAuditionReview(s.reviewed.review, candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks,
-        auditionLandmarkTopology(context), auditionAnatomyCast(context), auditionInstanceDistinction(context), companionScaleFromContext(context)).assessment : null;
+        auditionLandmarkTopology(context), auditionAnatomyCast(context), auditionInstanceDistinction(context), companionScaleFromContext(context),
+        args.book.sceneRelations ? args.pictureBookReview : undefined, sceneRelationsFromContext(context)).assessment : null;
       reviewed = { ...s.reviewed, assessment };
       const measured = !!assessment && !assessment.safetyBlocked && !assessment.invalidCitations;
       if (canonicalJson(assessment) !== canonicalJson(s.reviewed.assessment) || (measured && !identityUsable(reviewed.identity)) ||
@@ -2019,7 +2050,7 @@ export async function illustrateReviewedAudition(args: {
       if (effective.status !== 'qa_supported') { heldSample = true; break; }
       continue;
     }
-    const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks, topology);
+    const prior = resumed('page', args.resume?.pages[pageNumber], contextSha, checks.requirementIds, checks.uniqueLandmarks, topology, context);
     const closed = args.resume?.interrupted?.pages?.[pageNumber];
     if (prior && closed) fail('audition_resume_binding');
     if (prior) {
@@ -2210,7 +2241,9 @@ export async function rejudgeAudition(args: { book: PersonalStoryboard; rawRevie
       : currentPersonalStoryboardFrame(args.book, args.rawReview, frame.pageNumber, args.current, args.ownerAcceptance);
     const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, frame.pageNumber, args.companionDescription, args.canonical, args.references, frame.predecessor);
     const raw = await args.judge(`rejudge_${index}_page_${frame.pageNumber}`, frame.candidate, context, contextSha, args.canonical, frame.predecessor, 'page');
-    const { review, assessment } = assessAuditionReview(raw, frame.candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks, auditionLandmarkTopology(context), auditionAnatomyCast(context), auditionInstanceDistinction(context), companionScaleFromContext(context));
+    const { review, assessment } = assessAuditionReview(raw, frame.candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks,
+      auditionLandmarkTopology(context), auditionAnatomyCast(context), auditionInstanceDistinction(context), companionScaleFromContext(context),
+      undefined, sceneRelationsFromContext(context));
     const result = { label: frame.label, pageNumber: frame.pageNumber, candidate: frame.candidate, review, assessment,
       status: attemptStatus('page', { candidate: frame.candidate, assessment, identity: null }), identityNotMeasured: true as const };
     results.push(result); args.save(`rejudge_${index}`, result);
